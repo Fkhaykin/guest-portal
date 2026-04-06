@@ -275,8 +275,8 @@ export async function syncBooking(booking: LodgifyBooking) {
     );
 
   if (regError) {
-    console.error(`[lodgify-sync] Failed to upsert registration for booking ${booking.id}:`, regError.message, regError.code);
-    return { skipped: true, reason: `upsert_failed: ${regError.message}` };
+    console.error(`[lodgify-sync] Failed to upsert registration for booking ${booking.id}:`, regError);
+    return { skipped: true, reason: "upsert_failed" };
   }
 
   return { skipped: false };
@@ -304,7 +304,6 @@ export async function syncAllBookings(options?: {
   let synced = 0;
   let skipped = 0;
   let total = 0;
-  const skipReasons: Record<string, number> = {};
   const amountUpdates: { lodgify_booking_id: number; amount_cents: number }[] = [];
 
   while (true) {
@@ -320,8 +319,6 @@ export async function syncAllBookings(options?: {
       const result = await syncBooking(booking);
       if (result.skipped) {
         skipped++;
-        const reason = result.reason ?? "unknown";
-        skipReasons[reason] = (skipReasons[reason] ?? 0) + 1;
       } else {
         synced++;
         if (booking.total_amount) {
@@ -339,27 +336,20 @@ export async function syncAllBookings(options?: {
 
   const supabase = createAdminClient();
 
-  // Bulk update total_amount_cents via Postgres function (bypasses PostgREST schema cache)
+  // Bulk update total_amount_cents via Postgres function
   if (amountUpdates.length > 0) {
     const BATCH = 500;
     for (let i = 0; i < amountUpdates.length; i += BATCH) {
       const batch = amountUpdates.slice(i, i + BATCH);
-      const rpcResult = await supabase.rpc(
+      const { error: rpcError } = await supabase.rpc(
         "update_registration_amounts" as never,
         {
           booking_ids: batch.map((u) => u.lodgify_booking_id),
           amounts: batch.map((u) => u.amount_cents),
         } as never
       );
-      if (rpcResult.error) {
-        console.error("[lodgify-sync] Failed to update amounts batch:", rpcResult.error.message, rpcResult.error.details, rpcResult.error.hint);
-        // If RPC fails, fall back to individual SQL updates
-        for (const u of batch) {
-          await supabase.rpc("update_registration_amounts" as never, {
-            booking_ids: [u.lodgify_booking_id],
-            amounts: [u.amount_cents],
-          } as never);
-        }
+      if (rpcError) {
+        console.warn("[lodgify-sync] Amount update failed (PostgREST cache may be stale):", rpcError.message);
       }
     }
   }
@@ -377,5 +367,5 @@ export async function syncAllBookings(options?: {
       .not("lodgify_property_id", "is", null);
   }
 
-  return { total, synced, skipped, skipReasons, amountsUpdated: amountUpdates.length };
+  return { total, synced, skipped };
 }
