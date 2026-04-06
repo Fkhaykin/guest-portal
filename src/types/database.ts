@@ -36,6 +36,18 @@ export type InvoiceLineItem = {
   amount: number; // cents
 };
 
+export type InvoiceAdjustment = {
+  description: string;
+  amount: number; // cents (positive = add, negative = deduct)
+  reason: string;
+};
+
+export type InvoiceAttachment = {
+  name: string;
+  path: string;
+  uploaded_at: string;
+};
+
 export type InvoiceStatus = "draft" | "submitted" | "approved" | "paid";
 
 export type UpsellEntry = {
@@ -110,6 +122,9 @@ export type Database = {
           rental_agency_contact: string | null;
           owner_signature_url: string | null;
           max_guests: number;
+          nickname: string | null;
+          cleaning_fee_cents: number;
+          pet_fee_cents: number;
           listing_urls: Record<string, string>;
           created_at: string;
           updated_at: string;
@@ -144,6 +159,9 @@ export type Database = {
           rental_agency_contact?: string | null;
           owner_signature_url?: string | null;
           max_guests?: number;
+          nickname?: string | null;
+          cleaning_fee_cents?: number;
+          pet_fee_cents?: number;
           listing_urls?: Record<string, string>;
           created_at?: string;
           updated_at?: string;
@@ -178,6 +196,9 @@ export type Database = {
           rental_agency_contact?: string | null;
           owner_signature_url?: string | null;
           max_guests?: number;
+          nickname?: string | null;
+          cleaning_fee_cents?: number;
+          pet_fee_cents?: number;
           listing_urls?: Record<string, string>;
           created_at?: string;
           updated_at?: string;

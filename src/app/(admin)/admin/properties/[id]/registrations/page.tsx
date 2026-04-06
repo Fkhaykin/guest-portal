@@ -11,7 +11,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { FileText, ExternalLink } from "lucide-react";
+import { ExternalLink } from "lucide-react";
+import { RegistrationActions } from "@/components/admin/registration-actions";
 
 export default async function AdminRegistrationsPage({
   params,
@@ -52,7 +53,7 @@ export default async function AdminRegistrationsPage({
               <TableHead>Guests</TableHead>
               <TableHead>Source</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead className="w-12"></TableHead>
+              <TableHead className="w-32 text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -107,14 +108,11 @@ export default async function AdminRegistrationsPage({
                       {reg.status}
                     </Badge>
                   </TableCell>
-                  <TableCell>
-                    {reg.signature_url && (
-                      <Link href={`/api/pepoa/generate?registration_id=${reg.id}`} target="_blank">
-                        <Button variant="ghost" size="icon" title="Download PEPOA PDF">
-                          <FileText className="h-4 w-4" />
-                        </Button>
-                      </Link>
-                    )}
+                  <TableCell className="text-right">
+                    <RegistrationActions
+                      registrationId={reg.id}
+                      hasSignature={!!reg.signature_url}
+                    />
                   </TableCell>
                 </TableRow>
               );

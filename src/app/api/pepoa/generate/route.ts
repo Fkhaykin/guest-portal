@@ -32,11 +32,13 @@ export async function GET(request: Request) {
   try {
     const pdfBuffer = await generateRegistrationPDF(data);
     const guestName = (data.guest.full_name as string) || "Guest";
+    const filename = `Registration-${guestName.replace(/\s+/g, "-")}.pdf`;
+    const inline = searchParams.get("disposition") === "inline";
 
     return new NextResponse(new Uint8Array(pdfBuffer), {
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="Registration-${guestName.replace(/\s+/g, "-")}.pdf"`,
+        "Content-Disposition": `${inline ? "inline" : "attachment"}; filename="${filename}"`,
       },
     });
   } catch (err) {

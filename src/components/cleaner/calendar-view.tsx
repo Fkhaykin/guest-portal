@@ -66,6 +66,39 @@ function formatDateLong(dateStr: string) {
 
 const VISIBLE_DAYS = 14;
 
+// Assign vertical lanes so overlapping bars don't collide
+function assignLanes(
+  reservations: CalendarReservation[],
+  getPos: (r: CalendarReservation) => { startIdx: number; endIdx: number; isClampedStart: boolean; isClampedEnd: boolean }
+): number[] {
+  // Sort by start position
+  const indexed = reservations.map((r, i) => ({ r, i, ...getPos(r) }));
+  indexed.sort((a, b) => a.startIdx - b.startIdx || a.endIdx - b.endIdx);
+
+  const lanes: number[] = new Array(reservations.length).fill(0);
+  // Track end position of each lane
+  const laneEnds: number[] = [];
+
+  for (const item of indexed) {
+    // Find first lane where this bar doesn't overlap
+    let assigned = -1;
+    for (let l = 0; l < laneEnds.length; l++) {
+      if (laneEnds[l] <= item.startIdx) {
+        assigned = l;
+        break;
+      }
+    }
+    if (assigned === -1) {
+      assigned = laneEnds.length;
+      laneEnds.push(0);
+    }
+    lanes[item.i] = assigned;
+    laneEnds[assigned] = item.endIdx + 1;
+  }
+
+  return lanes;
+}
+
 export function CalendarView({
   reservations,
 }: {
@@ -224,15 +257,18 @@ export function CalendarView({
             No reservations in this period.
           </p>
         ) : (
-          <div className="space-y-2">
-            {properties.map(([propName, { color, coverImage, reservations: propRes }]) => (
-              <div key={propName}>
-                {/* Property label row */}
-                <div
-                  className="grid gap-0 items-center"
-                  style={{ gridTemplateColumns: `140px repeat(${VISIBLE_DAYS}, 1fr)` }}
-                >
-                  <div className="flex items-center gap-2 pr-2 min-w-0">
+          <div className="space-y-1">
+            {properties.map(([propName, { color, coverImage, reservations: propRes }]) => {
+              // Assign lanes to avoid overlaps
+              const lanes = assignLanes(propRes, getBarPosition);
+              const laneCount = Math.max(1, ...lanes.map((l) => l + 1));
+              const ROW_H = 28; // px per lane
+              const totalH = laneCount * ROW_H + 4; // +padding
+
+              return (
+                <div key={propName} className="flex items-start border-b border-muted/10 last:border-b-0 py-1">
+                  {/* Property label */}
+                  <div className="flex items-center gap-2 pr-2 min-w-0 shrink-0" style={{ width: 140 }}>
                     <div className="h-7 w-7 rounded overflow-hidden shrink-0">
                       {coverImage ? (
                         <img src={coverImage} alt={propName} className="w-full h-full object-cover" />
@@ -245,34 +281,30 @@ export function CalendarView({
                     <span className="text-[11px] font-medium truncate">{propName}</span>
                   </div>
 
-                  {/* Day cells (background grid lines) */}
-                  {days.map(({ str, date }) => {
-                    const isWeekend = date.getDay() === 0 || date.getDay() === 6;
-                    return (
-                      <div
-                        key={str}
-                        className={`h-9 border-l ${
-                          isWeekend ? "bg-muted/20 border-muted/20" : "border-muted/15"
-                        }`}
-                      />
-                    );
-                  })}
-                </div>
+                  {/* Timeline area */}
+                  <div className="flex-1 relative" style={{ height: totalH }}>
+                    {/* Grid lines */}
+                    <div className="absolute inset-0 grid" style={{ gridTemplateColumns: `repeat(${VISIBLE_DAYS}, 1fr)` }}>
+                      {days.map(({ str, date }) => {
+                        const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+                        return (
+                          <div
+                            key={str}
+                            className={`border-l h-full ${
+                              isWeekend ? "bg-muted/20 border-muted/20" : "border-muted/15"
+                            }`}
+                          />
+                        );
+                      })}
+                    </div>
 
-                {/* Reservation bars (overlaid on the row) */}
-                <div
-                  className="grid gap-0 -mt-9"
-                  style={{ gridTemplateColumns: `140px repeat(${VISIBLE_DAYS}, 1fr)` }}
-                >
-                  <div /> {/* Spacer for label column */}
-                  <div className="col-span-full relative h-9" style={{ gridColumn: `2 / -1` }}>
-                    {propRes.map((r) => {
+                    {/* Bars */}
+                    {propRes.map((r, rIdx) => {
                       const { startIdx, endIdx, isClampedStart, isClampedEnd } = getBarPosition(r);
+                      const lane = lanes[rIdx];
 
                       const colPct = 100 / VISIBLE_DAYS;
-                      // Start midway into check-in day, unless clamped to start of range
                       const leftPct = startIdx * colPct + (isClampedStart ? 0 : colPct * 0.4);
-                      // End ~30% into checkout day, unless clamped
                       const rightPct = (VISIBLE_DAYS - 1 - endIdx) * colPct + (isClampedEnd ? 0 : colPct * 0.65);
                       const widthPct = 100 - leftPct - rightPct;
 
@@ -282,25 +314,24 @@ export function CalendarView({
                         <button
                           key={r.id}
                           onClick={() => setSelected(r)}
-                          className={`absolute top-1.5 h-6 rounded-full text-[10px] font-semibold text-white flex items-center px-2.5 truncate cursor-pointer hover:brightness-110 active:scale-[0.98] transition-all z-10 shadow-sm ${color} ${
+                          className={`absolute h-6 rounded-full text-[10px] font-semibold text-white flex items-center px-2.5 truncate cursor-pointer hover:brightness-110 active:scale-[0.98] transition-all z-10 shadow-sm ${color} ${
                             r.isCleaned ? "opacity-40" : ""
                           }`}
                           style={{
                             left: `${leftPct}%`,
                             width: `${widthPct}%`,
+                            top: lane * ROW_H + 2,
                             minWidth: "24px",
                           }}
                         >
-                          <span className="truncate">
-                            {r.numGuests}g
-                          </span>
+                          <span className="truncate">{r.numGuests}g</span>
                         </button>
                       );
                     })}
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </Card>
