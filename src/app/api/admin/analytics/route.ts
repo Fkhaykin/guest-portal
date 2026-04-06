@@ -10,190 +10,47 @@ export async function GET() {
   }
   const hostId = hostResult.data.id;
 
-  // Fetch all properties for this host
   const { data: properties } = await supabase
     .from("property")
     .select("id, name, nickname")
     .eq("host_id", hostId);
 
   if (!properties || properties.length === 0) {
-    return NextResponse.json({ properties: [], charts: {} });
+    return NextResponse.json({ properties: [], registrations: [], qrScans: 0 });
   }
 
   const propertyIds = properties.map((p) => p.id);
-  const propertyNameMap: Record<string, string> = {};
-  for (const p of properties) {
-    propertyNameMap[p.id] = p.nickname || p.name;
-  }
 
-  // Fetch all registrations (Lodgify-sourced bookings)
   const { data: registrations } = await supabase
     .from("registration")
     .select(
-      "id, property_id, check_in_date, check_out_date, num_guests, status, upsells, pets, guest_list, booking_source, total_amount_cents, lodgify_booking_id, created_at"
+      "id, property_id, check_in_date, check_out_date, num_guests, status, booking_source, total_amount_cents, created_at"
     )
     .in("property_id", propertyIds);
 
-  // Fetch QR scans
   const { data: qrCodes } = await supabase
     .from("qr_code")
-    .select("id, property_id, label, scan_count, target_type")
+    .select("scan_count")
     .in("property_id", propertyIds);
 
-  const regs = registrations ?? [];
-  const qrs = qrCodes ?? [];
-
-  // --- Chart 1: Revenue over time by property (monthly, from Lodgify booking amounts) ---
-  const revenueByMonth: Record<string, Record<string, number>> = {};
-  for (const r of regs) {
-    if (r.status === "cancelled" || !r.total_amount_cents) continue;
-    const month = (r.check_in_date ?? r.created_at).slice(0, 7); // YYYY-MM
-    if (!revenueByMonth[month]) revenueByMonth[month] = {};
-    revenueByMonth[month][r.property_id] =
-      (revenueByMonth[month][r.property_id] ?? 0) + r.total_amount_cents;
-  }
-
-  const revenueMonths = Object.keys(revenueByMonth).sort();
-  const revenueOverTime = revenueMonths.map((month) => {
-    const entry: Record<string, unknown> = { month };
-    let total = 0;
-    for (const p of properties) {
-      const val = (revenueByMonth[month]?.[p.id] ?? 0) / 100;
-      entry[propertyNameMap[p.id]] = val;
-      total += val;
-    }
-    entry["Total"] = total;
-    return entry;
-  });
-
-  // --- Chart 2: Occupancy % per property (last 12 months) ---
-  const now = new Date();
-  const twelveMonthsAgo = new Date(now);
-  twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
-  const totalDays = Math.floor(
-    (now.getTime() - twelveMonthsAgo.getTime()) / (1000 * 60 * 60 * 24)
-  );
-
-  const occupancyByProperty = properties.map((p) => {
-    const propRegs = regs.filter(
-      (r) => r.property_id === p.id && r.status !== "cancelled"
-    );
-    let occupiedDays = 0;
-    for (const r of propRegs) {
-      const checkIn = new Date(r.check_in_date);
-      const checkOut = new Date(r.check_out_date);
-      const start = checkIn > twelveMonthsAgo ? checkIn : twelveMonthsAgo;
-      const end = checkOut < now ? checkOut : now;
-      const days = Math.max(
-        0,
-        Math.floor((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24))
-      );
-      occupiedDays += days;
-    }
-    return {
-      property: propertyNameMap[p.id],
-      occupancy: Math.round((occupiedDays / totalDays) * 100),
-    };
-  });
-
-  // --- Chart 3: Bookings per month ---
-  const bookingsByMonth: Record<string, number> = {};
-  for (const r of regs) {
-    if (r.status === "cancelled") continue;
-    const month = r.check_in_date.slice(0, 7);
-    bookingsByMonth[month] = (bookingsByMonth[month] ?? 0) + 1;
-  }
-  const bookingMonths = Object.keys(bookingsByMonth).sort().slice(-12);
-  const bookingsPerMonth = bookingMonths.map((month) => ({
-    month,
-    bookings: bookingsByMonth[month],
-  }));
-
-  // --- Chart 4: Average stay duration by property ---
-  const avgStayByProperty = properties.map((p) => {
-    const propRegs = regs.filter(
-      (r) => r.property_id === p.id && r.status !== "cancelled"
-    );
-    if (propRegs.length === 0)
-      return { property: propertyNameMap[p.id], avgNights: 0 };
-    const totalNights = propRegs.reduce((sum, r) => {
-      const nights = Math.max(
-        1,
-        Math.floor(
-          (new Date(r.check_out_date).getTime() -
-            new Date(r.check_in_date).getTime()) /
-            (1000 * 60 * 60 * 24)
-        )
-      );
-      return sum + nights;
-    }, 0);
-    return {
-      property: propertyNameMap[p.id],
-      avgNights: Math.round((totalNights / propRegs.length) * 10) / 10,
-    };
-  });
-
-  // --- Chart 5: Guest count trends (monthly) ---
-  const guestsByMonth: Record<string, number> = {};
-  for (const r of regs) {
-    if (r.status === "cancelled") continue;
-    const month = r.check_in_date.slice(0, 7);
-    guestsByMonth[month] = (guestsByMonth[month] ?? 0) + r.num_guests;
-  }
-  const guestMonths = Object.keys(guestsByMonth).sort().slice(-12);
-  const guestCountTrend = guestMonths.map((month) => ({
-    month,
-    guests: guestsByMonth[month],
-  }));
-
-  // --- Chart 6: Booking source breakdown (where bookings come from) ---
-  const sourceCount: Record<string, number> = {};
-  for (const r of regs) {
-    if (r.status === "cancelled") continue;
-    const source = r.booking_source || "Direct";
-    sourceCount[source] = (sourceCount[source] ?? 0) + 1;
-  }
-  const bookingSourceBreakdown = Object.entries(sourceCount).map(
-    ([name, value]) => ({ name, value })
-  );
-
-  // --- Chart 7: Revenue per property (total) ---
-  const revenueByProperty = properties.map((p) => {
-    const propRegs = regs.filter(
-      (r) => r.property_id === p.id && r.status !== "cancelled"
-    );
-    const total = propRegs.reduce(
-      (sum, r) => sum + (r.total_amount_cents ?? 0),
-      0
-    );
-    return {
-      property: propertyNameMap[p.id],
-      revenue: total / 100,
-    };
-  });
+  const qrScans = (qrCodes ?? []).reduce((sum, q) => sum + q.scan_count, 0);
 
   return NextResponse.json({
     properties: properties.map((p) => ({
       id: p.id,
-      name: propertyNameMap[p.id],
+      name: p.nickname || p.name,
     })),
-    charts: {
-      revenueOverTime,
-      occupancyByProperty,
-      bookingsPerMonth,
-      avgStayByProperty,
-      guestCountTrend,
-      bookingSourceBreakdown,
-      revenueByProperty,
-    },
-    // Summary stats from Lodgify data
-    stats: {
-      totalRevenue: regs
-        .filter((r) => r.status !== "cancelled")
-        .reduce((sum, r) => sum + (r.total_amount_cents ?? 0), 0),
-      totalBookings: regs.filter((r) => r.status !== "cancelled").length,
-      activeBookings: regs.filter((r) => r.status === "active").length,
-      totalQrScans: qrs.reduce((sum, q) => sum + q.scan_count, 0),
-    },
+    registrations: (registrations ?? []).map((r) => ({
+      id: r.id,
+      propertyId: r.property_id,
+      checkIn: r.check_in_date,
+      checkOut: r.check_out_date,
+      guests: r.num_guests,
+      status: r.status,
+      source: r.booking_source,
+      amount: r.total_amount_cents ?? 0,
+      createdAt: r.created_at,
+    })),
+    qrScans,
   });
 }
