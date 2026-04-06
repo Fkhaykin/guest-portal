@@ -35,7 +35,7 @@ export function GuestNav({ slug: slugProp }: { slug?: string } = {}) {
   }, []);
 
   const navItems = [
-    { label: "Home", href: "", icon: Home },
+    { label: "Home", href: "/", icon: Home, absolute: true },
     isRegistered
       ? { label: "Update", href: "/update", icon: PenLine }
       : { label: "Register", href: "/register", icon: ClipboardList },
@@ -53,7 +53,7 @@ export function GuestNav({ slug: slugProp }: { slug?: string } = {}) {
         {navItems.map((item) => (
           <Link
             key={item.label}
-            href={`${base}${item.href}`}
+            href={"absolute" in item ? item.href : `${base}${item.href}`}
             className="flex flex-col items-center gap-1 px-2 py-1 text-muted-foreground hover:text-foreground transition-colors min-w-[4rem]"
           >
             <item.icon className="h-5 w-5" />
