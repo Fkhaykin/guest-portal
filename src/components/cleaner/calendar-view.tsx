@@ -391,7 +391,7 @@ export function CalendarView({
                           {selected.propertyName}
                         </h2>
                         <p className="text-white/80 text-sm mt-0.5">
-                          {selected.guestName || "Unregistered guest"}
+                          {selected.guestName || "Blocked"}
                         </p>
                       </div>
                     </div>
@@ -399,7 +399,7 @@ export function CalendarView({
                     <DialogHeader className="px-5 pt-5 pb-0">
                       <DialogTitle className="text-lg">{selected.propertyName}</DialogTitle>
                       <p className="text-sm text-muted-foreground">
-                        {selected.guestName || "Unregistered guest"}
+                        {selected.guestName || "Blocked"}
                       </p>
                     </DialogHeader>
                   )}
