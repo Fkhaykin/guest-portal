@@ -85,7 +85,7 @@ export function InvoiceTabs({
   const totalUnpaid = unpaidCleanings.reduce((s, c) => s + c.totalFee, 0);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 max-w-3xl mx-auto">
       <h1 className="text-lg font-semibold">Invoices</h1>
 
       {/* Tab bar */}

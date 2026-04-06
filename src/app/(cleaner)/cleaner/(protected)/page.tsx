@@ -172,7 +172,7 @@ export default async function CleanerDashboard() {
   const cleanedDeparted = departed.filter((r) => statusMap.get(r.id)?.is_cleaned);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-3xl mx-auto">
       {/* Summary stats */}
       <div className="grid grid-cols-3 gap-3">
         <Card>

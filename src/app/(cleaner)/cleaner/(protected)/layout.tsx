@@ -66,7 +66,7 @@ export default async function CleanerProtectedLayout({
         totalTasks={totalTasks}
         completedTasks={completedTasks}
       />
-      <main className="md:ml-56 max-w-3xl mx-auto px-4 sm:px-6 py-6 pt-16 md:pt-6 pb-20 md:pb-6">
+      <main className="md:ml-56 px-4 sm:px-6 py-6 pt-16 md:pt-6 pb-20 md:pb-6">
         {children}
       </main>
     </div>

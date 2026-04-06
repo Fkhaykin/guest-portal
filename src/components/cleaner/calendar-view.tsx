@@ -32,6 +32,7 @@ import type { GuestListEntry, PetEntry } from "@/types/database";
 export type CalendarReservation = {
   id: string;
   propertyName: string;
+  propertyNickname: string | null;
   propertyCoverImage: string | null;
   propertyColor: string;
   checkIn: string;
@@ -148,7 +149,7 @@ export function CalendarView({
   // Group reservations by property, only those overlapping the visible range
   const byProperty = new Map<
     string,
-    { color: string; coverImage: string | null; reservations: CalendarReservation[] }
+    { color: string; coverImage: string | null; nickname: string | null; reservations: CalendarReservation[] }
   >();
   for (const r of reservations) {
     if (r.checkOut <= rangeStart || r.checkIn > rangeEnd) continue;
@@ -156,6 +157,7 @@ export function CalendarView({
       byProperty.set(r.propertyName, {
         color: r.propertyColor,
         coverImage: r.propertyCoverImage,
+        nickname: r.propertyNickname,
         reservations: [],
       });
     }
@@ -214,7 +216,7 @@ export function CalendarView({
 
   return (
     <>
-      <Card className="p-4">
+      <Card className="p-4 overflow-x-auto">
         {/* Navigation */}
         <div className="flex items-center justify-between mb-4">
           <Button variant="ghost" size="icon" onClick={prevPeriod}>
@@ -234,7 +236,7 @@ export function CalendarView({
         {/* Day headers */}
         <div
           className="grid gap-0 border-b pb-2 mb-2"
-          style={{ gridTemplateColumns: `140px repeat(${VISIBLE_DAYS}, 1fr)` }}
+          style={{ gridTemplateColumns: `200px repeat(${VISIBLE_DAYS}, 1fr)` }}
         >
           <div />
           {days.map(({ date, str }) => {
@@ -269,7 +271,7 @@ export function CalendarView({
           </p>
         ) : (
           <div className="space-y-1">
-            {properties.map(([propName, { color, coverImage, reservations: propRes }]) => {
+            {properties.map(([propName, { color, coverImage, nickname, reservations: propRes }]) => {
               // Assign lanes to avoid overlaps
               const lanes = assignLanes(propRes, getBarPosition);
               const laneCount = Math.max(1, ...lanes.map((l) => l + 1));
@@ -279,17 +281,22 @@ export function CalendarView({
               return (
                 <div key={propName} className="flex items-start border-b border-muted/10 last:border-b-0 py-1">
                   {/* Property label */}
-                  <div className="flex items-center gap-2 pr-2 min-w-0 shrink-0" style={{ width: 140 }}>
-                    <div className="h-7 w-7 rounded overflow-hidden shrink-0">
+                  <div className="flex items-center gap-2.5 pr-3 min-w-0 shrink-0" style={{ width: 200 }}>
+                    <div className="h-9 w-9 rounded-lg overflow-hidden shrink-0 border border-border/50">
                       {coverImage ? (
                         <img src={coverImage} alt={propName} className="w-full h-full object-cover" />
                       ) : (
                         <div className={`w-full h-full ${color} opacity-20 flex items-center justify-center`}>
-                          <Home className="h-3.5 w-3.5 text-muted-foreground" />
+                          <Home className="h-4 w-4 text-muted-foreground" />
                         </div>
                       )}
                     </div>
-                    <span className="text-[11px] font-medium truncate">{propName}</span>
+                    <div className="min-w-0">
+                      <span className="text-xs font-medium truncate block">{propName}</span>
+                      {nickname && (
+                        <span className="text-[10px] text-muted-foreground truncate block">{nickname}</span>
+                      )}
+                    </div>
                   </div>
 
                   {/* Timeline area */}

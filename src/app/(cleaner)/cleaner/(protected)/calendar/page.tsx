@@ -92,6 +92,7 @@ export default async function CalendarPage() {
     return {
       id: r.id,
       propertyName: property?.name || "Unknown",
+      propertyNickname: property?.nickname || null,
       propertyCoverImage: property?.cover_image_url || null,
       propertyColor: PROPERTY_COLORS[colorIdx % PROPERTY_COLORS.length],
       checkIn: r.check_in_date,
