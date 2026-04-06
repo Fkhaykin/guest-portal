@@ -33,18 +33,29 @@ export async function POST(request: Request) {
     .from("guest")
     .select("id, full_name");
 
+  // Build OR conditions — match any provided identifier
+  const orConditions: string[] = [];
+
   if (full_name) {
-    // Match full name exactly or as a prefix (e.g. "Mustafa" matches "Mustafa Hamamin")
-    guestQuery = guestQuery.or(`full_name.ilike.${full_name},full_name.ilike.${full_name} %`);
+    // Split into words for flexible matching
+    const words = full_name.trim().split(/\s+/);
+    for (const word of words) {
+      // Match any guest whose name contains this word
+      orConditions.push(`full_name.ilike.%${word}%`);
+    }
   }
 
   if (email) {
-    guestQuery = guestQuery.ilike("email", email);
+    orConditions.push(`email.ilike.${email}`);
   }
 
   if (phone) {
     const phoneDigits = phone.replace(/\D/g, "");
-    guestQuery = guestQuery.eq("phone", phoneDigits);
+    orConditions.push(`phone.eq.${phoneDigits}`);
+  }
+
+  if (orConditions.length > 0) {
+    guestQuery = guestQuery.or(orConditions.join(","));
   }
 
   const { data: guests, error: guestError } = await guestQuery;
