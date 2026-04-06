@@ -342,7 +342,11 @@ export function CalendarView({
                             minWidth: "24px",
                           }}
                         >
-                          <span className="truncate">{r.numGuests}g</span>
+                          <span className="truncate">
+                            {r.guestName
+                              ? `${r.guestName.split(" ")[0]} · ${r.numGuests}g`
+                              : `${r.numGuests}g`}
+                          </span>
                         </button>
                       );
                     })}
@@ -386,17 +390,17 @@ export function CalendarView({
                         <h2 className="text-white font-bold text-lg leading-tight">
                           {selected.propertyName}
                         </h2>
-                        {selected.guestName && (
-                          <p className="text-white/80 text-sm mt-0.5">{selected.guestName}</p>
-                        )}
+                        <p className="text-white/80 text-sm mt-0.5">
+                          {selected.guestName || "Unregistered guest"}
+                        </p>
                       </div>
                     </div>
                   ) : (
                     <DialogHeader className="px-5 pt-5 pb-0">
                       <DialogTitle className="text-lg">{selected.propertyName}</DialogTitle>
-                      {selected.guestName && (
-                        <p className="text-sm text-muted-foreground">{selected.guestName}</p>
-                      )}
+                      <p className="text-sm text-muted-foreground">
+                        {selected.guestName || "Unregistered guest"}
+                      </p>
                     </DialogHeader>
                   )}
 
