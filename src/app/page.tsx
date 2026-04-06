@@ -26,10 +26,8 @@ import {
   User,
   ClipboardCheck,
   ChevronRight,
-  TreePine,
-  Mountain,
-  Waves,
 } from "lucide-react";
+import { GuestHeader } from "@/components/guest/guest-header";
 
 type GuestBreakdown = {
   adults: number;
@@ -158,11 +156,6 @@ function BookingSearch({
     <main className="flex-1 flex flex-col items-center justify-center p-6">
       <div className="max-w-lg w-full space-y-8">
         <div className="text-center space-y-3">
-          <div className="flex justify-center gap-2 text-muted-foreground">
-            <Mountain className="h-6 w-6" />
-            <TreePine className="h-6 w-6" />
-            <Waves className="h-6 w-6" />
-          </div>
           <h1 className="text-4xl font-bold tracking-tight">
             Welcome
           </h1>
@@ -606,27 +599,28 @@ export default function HomePage() {
 
   if (!loaded) return null;
 
-  if (reservation) {
-    return (
-      <GuestDashboard
-        guestName={guestName}
-        reservation={reservation}
-        onReset={() => {
-          setReservation(null);
-          setGuestName("");
-          clearSession();
-        }}
-      />
-    );
-  }
-
   return (
-    <BookingSearch
-      onFound={({ guestName: name, reservation: res }) => {
-        setGuestName(name);
-        setReservation(res);
-        saveSession(name, res);
-      }}
-    />
+    <>
+      <GuestHeader />
+      {reservation ? (
+        <GuestDashboard
+          guestName={guestName}
+          reservation={reservation}
+          onReset={() => {
+            setReservation(null);
+            setGuestName("");
+            clearSession();
+          }}
+        />
+      ) : (
+        <BookingSearch
+          onFound={({ guestName: name, reservation: res }) => {
+            setGuestName(name);
+            setReservation(res);
+            saveSession(name, res);
+          }}
+        />
+      )}
+    </>
   );
 }
