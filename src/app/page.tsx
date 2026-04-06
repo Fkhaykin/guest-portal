@@ -36,6 +36,7 @@ import {
   Lock,
 } from "lucide-react";
 import { GuestHeader, PropertyHeader } from "@/components/guest/guest-header";
+import { GuestNav } from "@/components/guest/guest-nav";
 
 type GuestBreakdown = {
   adults: number;
@@ -734,6 +735,7 @@ export default function HomePage() {
       {reservation ? (
         <>
           <PropertyHeader propertyName={reservation.property.name} />
+          <GuestNav slug={reservation.property.slug} />
           <GuestDashboard
             guestName={guestName}
             reservation={reservation}

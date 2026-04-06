@@ -18,15 +18,17 @@ import { Suspense } from "react";
 const isDev = process.env.NODE_ENV === "development";
 
 function LoginForm() {
-  const [method, setMethod] = useState<"email" | "phone" | "password">(
+  const [method, setMethod] = useState<"email" | "password">(
     isDev ? "password" : "email"
   );
   const [value, setValue] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const searchParams = useSearchParams();
+  const [error, setError] = useState<string | null>(
+    searchParams.get("error")
+  );
   const redirect = searchParams.get("redirect") || "/";
 
   async function handleSubmit(e: React.FormEvent) {
@@ -57,19 +59,6 @@ function LoginForm() {
         setError(error.message);
       } else {
         setSent(true);
-      }
-    } else {
-      const { error } = await supabase.auth.signInWithOtp({
-        phone: value,
-      });
-      if (error) {
-        setError(error.message);
-      } else {
-        const params = new URLSearchParams({
-          phone: value,
-          redirect,
-        });
-        window.location.href = `/auth/verify?${params.toString()}`;
       }
     }
 
@@ -110,7 +99,7 @@ function LoginForm() {
         <CardHeader className="text-center">
           <CardTitle>Sign in</CardTitle>
           <CardDescription>
-            Enter your email or phone to continue
+            Enter your email to continue
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -141,29 +130,14 @@ function LoginForm() {
               >
                 Email
               </Button>
-              <Button
-                type="button"
-                variant={method === "phone" ? "default" : "outline"}
-                size="sm"
-                onClick={() => {
-                  setMethod("phone");
-                  setValue("");
-                }}
-              >
-                Phone
-              </Button>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="auth-input">
-                {method === "phone" ? "Phone number" : "Email address"}
-              </Label>
+              <Label htmlFor="auth-input">Email address</Label>
               <Input
                 id="auth-input"
-                type={method === "phone" ? "tel" : "email"}
-                placeholder={
-                  method === "phone" ? "+1 (555) 000-0000" : "you@example.com"
-                }
+                type="email"
+                placeholder="you@example.com"
                 value={value}
                 onChange={(e) => setValue(e.target.value)}
                 required
@@ -193,9 +167,7 @@ function LoginForm() {
                 ? "Signing in..."
                 : method === "password"
                   ? "Sign in"
-                  : method === "email"
-                    ? "Send magic link"
-                    : "Send verification code"}
+                  : "Send magic link"}
             </Button>
           </form>
         </CardContent>

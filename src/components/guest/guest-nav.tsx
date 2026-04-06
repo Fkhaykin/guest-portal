@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useContext } from "react";
 import Link from "next/link";
-import { useProperty } from "@/hooks/use-property";
+import { PropertyContext } from "@/hooks/use-property";
 import {
   Home,
   ClipboardList,
@@ -17,9 +17,9 @@ import {
 
 const SESSION_KEY = "guest-portal-session";
 
-export function GuestNav() {
-  const property = useProperty();
-  const base = `/p/${property.slug}`;
+export function GuestNav({ slug: slugProp }: { slug?: string } = {}) {
+  const property = useContext(PropertyContext);
+  const base = `/p/${slugProp ?? property?.slug}`;
   const [isRegistered, setIsRegistered] = useState(false);
 
   useEffect(() => {
