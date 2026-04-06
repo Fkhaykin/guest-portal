@@ -21,7 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ShoppingCart, Sparkles, X, Clock, Loader2, Check } from "lucide-react";
+import { ShoppingCart, Sparkles, X, Clock, Loader2, Check, Flame, BedDouble, UtensilsCrossed, TreePine, Baby, Coffee, DoorOpen, DoorClosed } from "lucide-react";
 
 type UpsellOption = {
   type: string;
@@ -90,6 +90,17 @@ function formatCents(cents: number) {
 
 const configTypes = new Set(["private_chef", "luxury_picnic", "breakfast_delivery"]);
 function hasConfig(type: string) { return configTypes.has(type); }
+
+const upsellIcons: Record<string, React.ReactNode> = {
+  early_checkin: <DoorOpen className="h-5 w-5 text-blue-600" />,
+  late_checkout: <DoorClosed className="h-5 w-5 text-blue-600" />,
+  new_sheets: <BedDouble className="h-5 w-5 text-purple-600" />,
+  firewood: <Flame className="h-5 w-5 text-orange-600" />,
+  baby_chair: <Baby className="h-5 w-5 text-pink-500" />,
+  private_chef: <UtensilsCrossed className="h-5 w-5 text-amber-600" />,
+  luxury_picnic: <TreePine className="h-5 w-5 text-green-600" />,
+  breakfast_delivery: <Coffee className="h-5 w-5 text-amber-700" />,
+};
 
 export default function AddOnsPage() {
   const property = useProperty();
@@ -233,16 +244,21 @@ export default function AddOnsPage() {
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-green-700">
-              <Check className="h-5 w-5" /> Confirmed Purchases
+              <Check className="h-5 w-5" /> Your Add-Ons
             </CardTitle>
+            <CardDescription>These are confirmed for your stay</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-2">
+          <CardContent className="space-y-3">
             {purchasedUpsells.map((u, i) => (
-              <div key={i} className="flex items-center justify-between text-sm">
-                <span>{u.label}</span>
-                <Badge variant="secondary" className="text-green-700 bg-green-50">
-                  Paid — {formatCents(u.price_cents)}
-                </Badge>
+              <div key={i} className="flex items-center gap-3 rounded-lg border p-3">
+                <div className="shrink-0">
+                  {upsellIcons[u.type] || <Sparkles className="h-5 w-5 text-muted-foreground" />}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium">{u.label}</p>
+                  <p className="text-xs text-green-600">{formatCents(u.price_cents)} paid</p>
+                </div>
+                <Check className="h-4 w-4 text-green-600 shrink-0" />
               </div>
             ))}
           </CardContent>

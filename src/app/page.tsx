@@ -26,6 +26,13 @@ import {
   User,
   ClipboardCheck,
   ChevronRight,
+  Check,
+  Flame,
+  BedDouble,
+  UtensilsCrossed,
+  TreePine,
+  Coffee,
+  Sparkles,
 } from "lucide-react";
 import { GuestHeader } from "@/components/guest/guest-header";
 
@@ -237,6 +244,24 @@ function BookingSearch({
 }
 
 // --- Guest Dashboard ---
+const upsellIcons: Record<string, React.ReactNode> = {
+  early_checkin: <DoorOpen className="h-5 w-5 text-blue-600" />,
+  late_checkout: <DoorClosed className="h-5 w-5 text-blue-600" />,
+  new_sheets: <BedDouble className="h-5 w-5 text-purple-600" />,
+  firewood: <Flame className="h-5 w-5 text-orange-600" />,
+  baby_chair: <Baby className="h-5 w-5 text-pink-500" />,
+  private_chef: <UtensilsCrossed className="h-5 w-5 text-amber-600" />,
+  luxury_picnic: <TreePine className="h-5 w-5 text-green-600" />,
+  breakfast_delivery: <Coffee className="h-5 w-5 text-amber-700" />,
+};
+
+type PurchasedUpsell = {
+  type: string;
+  label: string;
+  price_cents: number;
+  status: string;
+};
+
 function GuestDashboard({
   guestName,
   reservation,
@@ -251,6 +276,20 @@ function GuestDashboard({
   const daysUntil = getDaysUntil(reservation.check_in_date);
   const lodgify = reservation.lodgify;
   const breakdown = lodgify?.guest_breakdown;
+  const [purchasedUpsells, setPurchasedUpsells] = useState<PurchasedUpsell[]>([]);
+
+  useEffect(() => {
+    fetch("/api/guest/upsells", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ registration_id: reservation.id }),
+    })
+      .then((res) => res.ok ? res.json() : null)
+      .then((data) => {
+        if (data?.purchased) setPurchasedUpsells(data.purchased);
+      })
+      .catch(() => {});
+  }, [reservation.id]);
 
   const countdownLabel =
     daysUntil === 0
@@ -476,6 +515,35 @@ function GuestDashboard({
             )}
           </CardContent>
         </Card>
+
+        {/* Purchased add-ons */}
+        {purchasedUpsells.length > 0 && (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Sparkles className="h-5 w-5" /> Your Add-Ons
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {purchasedUpsells.map((u, i) => (
+                <div key={i} className="flex items-center gap-3 rounded-lg border p-3">
+                  <div className="shrink-0">
+                    {upsellIcons[u.type] || <Sparkles className="h-5 w-5 text-muted-foreground" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium">{u.label}</p>
+                  </div>
+                  <Check className="h-4 w-4 text-green-600 shrink-0" />
+                </div>
+              ))}
+              <Link href={`/p/${reservation.property.slug}/add-ons`}>
+                <Button variant="outline" size="sm" className="w-full mt-2">
+                  Browse More Add-Ons
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Explore property links */}
         <Card>
