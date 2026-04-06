@@ -325,24 +325,14 @@ export default function RegisterPage() {
     return `$${(cents / 100).toFixed(cents % 100 === 0 ? 0 : 2)}`;
   }
 
-  function validateName(): boolean {
-    if (!session) return false;
-    const inputName = fullName.trim().toLowerCase();
-    const lodgifyName = session.guestName.trim().toLowerCase();
-    if (inputName !== lodgifyName) {
-      setNameError(
-        `Name must match your booking: "${session.guestName}". Please enter your name exactly as it appears on your reservation.`
-      );
-      return false;
-    }
-    setNameError(null);
-    return true;
-  }
-
   function handleStep1Submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!validateName()) return;
+    if (!fullName.trim()) {
+      setNameError("Please enter your full name.");
+      return;
+    }
     if (!email.trim()) return;
+    setNameError(null);
     setStep(2);
   }
 
@@ -593,7 +583,7 @@ export default function RegisterPage() {
                 />
                 {nameError && <p className="text-sm text-destructive">{nameError}</p>}
                 <p className="text-xs text-muted-foreground">
-                  Must match the name on your reservation exactly.
+                  Enter your full legal name as it appears on your ID.
                 </p>
               </div>
               <Separator />
