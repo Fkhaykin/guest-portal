@@ -15,12 +15,8 @@ import {
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 
-const isDev = process.env.NODE_ENV === "development";
-
 function LoginForm() {
-  const [method, setMethod] = useState<"email" | "password">(
-    isDev ? "password" : "email"
-  );
+  const [method, setMethod] = useState<"email" | "password">("password");
   const [value, setValue] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -105,20 +101,18 @@ function LoginForm() {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="flex gap-2">
-              {isDev && (
-                <Button
-                  type="button"
-                  variant={method === "password" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => {
-                    setMethod("password");
-                    setValue("");
-                    setPassword("");
-                  }}
-                >
-                  Password
-                </Button>
-              )}
+              <Button
+                type="button"
+                variant={method === "password" ? "default" : "outline"}
+                size="sm"
+                onClick={() => {
+                  setMethod("password");
+                  setValue("");
+                  setPassword("");
+                }}
+              >
+                Password
+              </Button>
               <Button
                 type="button"
                 variant={method === "email" ? "default" : "outline"}
