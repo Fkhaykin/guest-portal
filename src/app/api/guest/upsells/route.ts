@@ -192,9 +192,10 @@ export async function POST(request: Request) {
     },
   ];
 
-  // Filter out upsells the guest has already paid for
+  // Filter out one-time upsells the guest has already paid for
+  const oneTimeTypes = new Set(["early_checkin", "late_checkout"]);
   const paidTypes = new Set(
-    purchased.filter((u) => u.status === "paid").map((u) => u.type)
+    purchased.filter((u) => u.status === "paid" && oneTimeTypes.has(u.type)).map((u) => u.type)
   );
   const available = upsells.filter((u) => !paidTypes.has(u.type));
 
