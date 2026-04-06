@@ -33,6 +33,7 @@ import {
   TreePine,
   Coffee,
   Sparkles,
+  Lock,
 } from "lucide-react";
 import { GuestHeader } from "@/components/guest/guest-header";
 
@@ -317,10 +318,17 @@ function GuestDashboard({
                 {reservation.property.name}
               </h2>
               {reservation.property.address && (
-                <p className="flex items-center gap-1.5 mt-1 text-sm text-white/80">
-                  <MapPin className="h-3.5 w-3.5" />
-                  {reservation.property.address}
-                </p>
+                daysUntil <= 7 ? (
+                  <p className="flex items-center gap-1.5 mt-1 text-sm text-white/80">
+                    <MapPin className="h-3.5 w-3.5" />
+                    {reservation.property.address}
+                  </p>
+                ) : (
+                  <p className="flex items-center gap-1.5 mt-1 text-sm text-white/50">
+                    <Lock className="h-3.5 w-3.5" />
+                    Address available 7 days before check-in
+                  </p>
+                )
               )}
             </div>
           </div>
@@ -515,6 +523,59 @@ function GuestDashboard({
             )}
           </CardContent>
         </Card>
+
+        {/* Location */}
+        {reservation.property.address && (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <MapPin className="h-5 w-5" /> Location
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {daysUntil <= 7 ? (
+                <div className="space-y-3">
+                  <p className="text-sm font-medium">{reservation.property.address}</p>
+                  <div className="rounded-lg overflow-hidden border">
+                    <iframe
+                      width="100%"
+                      height="250"
+                      style={{ border: 0 }}
+                      loading="lazy"
+                      referrerPolicy="no-referrer-when-downgrade"
+                      src={`https://maps.google.com/maps?q=${encodeURIComponent(reservation.property.address)}&t=&z=15&ie=UTF8&iwloc=&output=embed`}
+                    />
+                  </div>
+                  <a
+                    href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(reservation.property.address)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <Button variant="outline" size="sm" className="w-full">
+                      <MapPin className="h-4 w-4 mr-1.5" /> Get Directions
+                    </Button>
+                  </a>
+                </div>
+              ) : (
+                <div className="rounded-lg bg-muted/50 p-6 text-center space-y-2">
+                  <Lock className="h-8 w-8 text-muted-foreground mx-auto" />
+                  <p className="text-sm font-medium text-muted-foreground">
+                    Exact address &amp; map available 7 days before check-in
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {daysUntil > 7
+                      ? `You'll receive it on ${formatDate(
+                          new Date(
+                            new Date(reservation.check_in_date + "T00:00:00").getTime() - 7 * 24 * 60 * 60 * 1000
+                          ).toISOString().split("T")[0]
+                        )}`
+                      : ""}
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Purchased add-ons */}
         {purchasedUpsells.length > 0 && (
