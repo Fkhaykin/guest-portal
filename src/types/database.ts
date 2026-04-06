@@ -255,6 +255,7 @@ export type Database = {
           upsells: UpsellEntry[] | null;
           signature_url: string | null;
           booking_source: string | null;
+          total_amount_cents: number;
           created_at: string;
           updated_at: string;
         };
@@ -273,6 +274,7 @@ export type Database = {
           upsells?: UpsellEntry[] | null;
           signature_url?: string | null;
           booking_source?: string | null;
+          total_amount_cents?: number;
           created_at?: string;
           updated_at?: string;
         };
@@ -291,6 +293,7 @@ export type Database = {
           upsells?: UpsellEntry[] | null;
           signature_url?: string | null;
           booking_source?: string | null;
+          total_amount_cents?: number;
           created_at?: string;
           updated_at?: string;
         };
@@ -581,6 +584,7 @@ export type Database = {
           change_type: string;
           summary: string | null;
           previous_data: Record<string, unknown> | null;
+          new_data: Record<string, unknown> | null;
           created_at: string;
         };
         Insert: {
@@ -590,6 +594,7 @@ export type Database = {
           change_type: string;
           summary?: string | null;
           previous_data?: Record<string, unknown> | null;
+          new_data?: Record<string, unknown> | null;
           created_at?: string;
         };
         Update: {
@@ -599,6 +604,7 @@ export type Database = {
           change_type?: string;
           summary?: string | null;
           previous_data?: Record<string, unknown> | null;
+          new_data?: Record<string, unknown> | null;
           created_at?: string;
         };
       };

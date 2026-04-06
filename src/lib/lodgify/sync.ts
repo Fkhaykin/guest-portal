@@ -256,6 +256,10 @@ export async function syncBooking(booking: LodgifyBooking) {
   }
 
   // 3. Upsert registration by lodgify_booking_id
+  const totalAmountCents = booking.total_amount
+    ? Math.round(booking.total_amount * 100)
+    : 0;
+
   const { error: regError } = await supabase
     .from("registration")
     .upsert(
@@ -270,6 +274,7 @@ export async function syncBooking(booking: LodgifyBooking) {
         notes: booking.notes,
         status: mapStatus(booking.status),
         booking_source: booking.source,
+        total_amount_cents: totalAmountCents,
       },
       { onConflict: "lodgify_booking_id" }
     );

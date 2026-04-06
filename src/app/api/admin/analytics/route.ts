@@ -26,19 +26,13 @@ export async function GET() {
     propertyNameMap[p.id] = p.nickname || p.name;
   }
 
-  // Fetch registrations for all properties
+  // Fetch all registrations (Lodgify-sourced bookings)
   const { data: registrations } = await supabase
     .from("registration")
     .select(
-      "id, property_id, check_in_date, check_out_date, num_guests, status, upsells, pets, guest_list, created_at, booking_source"
+      "id, property_id, check_in_date, check_out_date, num_guests, status, upsells, pets, guest_list, booking_source, total_amount_cents, lodgify_booking_id, created_at"
     )
     .in("property_id", propertyIds);
-
-  // Fetch payments
-  const { data: payments } = await supabase
-    .from("payment")
-    .select("id, registration_id, amount_cents, status, created_at, service_id")
-    .eq("status", "completed");
 
   // Fetch QR scans
   const { data: qrCodes } = await supabase
@@ -47,26 +41,16 @@ export async function GET() {
     .in("property_id", propertyIds);
 
   const regs = registrations ?? [];
-  const pays = payments ?? [];
   const qrs = qrCodes ?? [];
 
-  // Build a registration → property map
-  const regPropertyMap: Record<string, string> = {};
-  for (const r of regs) {
-    regPropertyMap[r.id] = r.property_id;
-  }
-
-  // --- Chart 1: Revenue over time by property (monthly) ---
+  // --- Chart 1: Revenue over time by property (monthly, from Lodgify booking amounts) ---
   const revenueByMonth: Record<string, Record<string, number>> = {};
-  for (const p of pays) {
-    const propertyId = p.registration_id
-      ? regPropertyMap[p.registration_id]
-      : null;
-    if (!propertyId) continue;
-    const month = p.created_at.slice(0, 7); // YYYY-MM
+  for (const r of regs) {
+    if (r.status === "cancelled" || !r.total_amount_cents) continue;
+    const month = (r.check_in_date ?? r.created_at).slice(0, 7); // YYYY-MM
     if (!revenueByMonth[month]) revenueByMonth[month] = {};
-    revenueByMonth[month][propertyId] =
-      (revenueByMonth[month][propertyId] ?? 0) + p.amount_cents;
+    revenueByMonth[month][r.property_id] =
+      (revenueByMonth[month][r.property_id] ?? 0) + r.total_amount_cents;
   }
 
   const revenueMonths = Object.keys(revenueByMonth).sort();
@@ -162,31 +146,31 @@ export async function GET() {
     guests: guestsByMonth[month],
   }));
 
-  // --- Chart 6: Upsell revenue breakdown ---
-  const upsellRevenue: Record<string, number> = {};
+  // --- Chart 6: Booking source breakdown (where bookings come from) ---
+  const sourceCount: Record<string, number> = {};
   for (const r of regs) {
-    if (!r.upsells) continue;
-    for (const u of r.upsells as { label: string; price_cents: number; status: string }[]) {
-      if (u.status === "paid" || u.status === "completed") {
-        upsellRevenue[u.label] =
-          (upsellRevenue[u.label] ?? 0) + u.price_cents / 100;
-      }
-    }
+    if (r.status === "cancelled") continue;
+    const source = r.booking_source || "Direct";
+    sourceCount[source] = (sourceCount[source] ?? 0) + 1;
   }
-  const upsellBreakdown = Object.entries(upsellRevenue).map(
+  const bookingSourceBreakdown = Object.entries(sourceCount).map(
     ([name, value]) => ({ name, value })
   );
 
-  // --- Chart 7: QR scans by property ---
-  const qrScansByProperty: Record<string, number> = {};
-  for (const qr of qrs) {
-    const name = propertyNameMap[qr.property_id];
-    if (!name) continue;
-    qrScansByProperty[name] = (qrScansByProperty[name] ?? 0) + qr.scan_count;
-  }
-  const qrScansData = Object.entries(qrScansByProperty).map(
-    ([property, scans]) => ({ property, scans })
-  );
+  // --- Chart 7: Revenue per property (total) ---
+  const revenueByProperty = properties.map((p) => {
+    const propRegs = regs.filter(
+      (r) => r.property_id === p.id && r.status !== "cancelled"
+    );
+    const total = propRegs.reduce(
+      (sum, r) => sum + (r.total_amount_cents ?? 0),
+      0
+    );
+    return {
+      property: propertyNameMap[p.id],
+      revenue: total / 100,
+    };
+  });
 
   return NextResponse.json({
     properties: properties.map((p) => ({
@@ -199,8 +183,17 @@ export async function GET() {
       bookingsPerMonth,
       avgStayByProperty,
       guestCountTrend,
-      upsellBreakdown,
-      qrScansData,
+      bookingSourceBreakdown,
+      revenueByProperty,
+    },
+    // Summary stats from Lodgify data
+    stats: {
+      totalRevenue: regs
+        .filter((r) => r.status !== "cancelled")
+        .reduce((sum, r) => sum + (r.total_amount_cents ?? 0), 0),
+      totalBookings: regs.filter((r) => r.status !== "cancelled").length,
+      activeBookings: regs.filter((r) => r.status === "active").length,
+      totalQrScans: qrs.reduce((sum, q) => sum + q.scan_count, 0),
     },
   });
 }

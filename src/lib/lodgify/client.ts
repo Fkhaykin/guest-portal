@@ -57,6 +57,7 @@ export interface LodgifyBooking {
   status: string;    // "Booked" | "Tentative" | "Cancelled" | "Declined" | "Open" | "CheckedOut"
   source: string | null;
   notes: string | null;
+  total_amount: number | null;
 }
 
 // v1 response shape
@@ -96,6 +97,8 @@ interface LodgifyV1Booking {
     };
   }>;
   notes: string | null;
+  amount?: number | null;
+  total?: number | null;
 }
 
 // --- API methods ---
@@ -143,6 +146,7 @@ export async function getBookings(params?: {
     status: b.status,
     source: b.source,
     notes: b.notes,
+    total_amount: b.amount ?? b.total ?? null,
   }));
 
   return { items, total: data.total };
@@ -158,6 +162,8 @@ export async function getBookingById(bookingId: number): Promise<LodgifyBooking>
     status: string;
     source: string | null;
     notes?: string | null;
+    total_amount?: number | null;
+    amount?: number | null;
     rooms?: Array<{
       people: number;
       guest_breakdown?: { adults: number; children: number; infants: number; pets: number };
@@ -180,5 +186,6 @@ export async function getBookingById(bookingId: number): Promise<LodgifyBooking>
     status: raw.status,
     source: raw.source,
     notes: raw.notes ?? null,
+    total_amount: raw.total_amount ?? raw.amount ?? null,
   };
 }
