@@ -26,6 +26,9 @@ export default function OwnerSettingsPage({
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
+  const [propertyName, setPropertyName] = useState("");
+  const [coverImageUrl, setCoverImageUrl] = useState<string | null>(null);
+
   // Common fields
   const [hoaType, setHoaType] = useState("pepoa");
   const [ownerName, setOwnerName] = useState("");
@@ -62,11 +65,13 @@ export default function OwnerSettingsPage({
   async function loadProperty() {
     const { data } = await supabase
       .from("property")
-      .select("owner_name, owner_mailing_address, owner_phone, owner_email, lot_section, hoa_submission_email, hoa_type, emergency_contact_name, emergency_contact_relationship, emergency_contact_phone, emergency_contact_phone_2, rental_agent_enabled, rental_agency_name, rental_agency_contact, owner_signature_url, listing_urls")
+      .select("name, cover_image_url, owner_name, owner_mailing_address, owner_phone, owner_email, lot_section, hoa_submission_email, hoa_type, emergency_contact_name, emergency_contact_relationship, emergency_contact_phone, emergency_contact_phone_2, rental_agent_enabled, rental_agency_name, rental_agency_contact, owner_signature_url, listing_urls")
       .eq("id", id)
       .single();
 
     if (data) {
+      setPropertyName(data.name || "");
+      setCoverImageUrl(data.cover_image_url || null);
       setHoaType(data.hoa_type || "pepoa");
       setOwnerName(data.owner_name || "");
       setOwnerMailingAddress(data.owner_mailing_address || "");
@@ -161,11 +166,23 @@ export default function OwnerSettingsPage({
 
   return (
     <div className="space-y-6 max-w-2xl">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Owner / HOA Settings</h1>
-        <p className="text-muted-foreground">
-          Owner and HOA information used on the registration PDF
-        </p>
+      <div className="flex items-center gap-4">
+        {coverImageUrl && (
+          <img
+            src={coverImageUrl}
+            alt={propertyName}
+            className="h-16 w-16 rounded-lg object-cover shrink-0"
+          />
+        )}
+        <div>
+          {propertyName && (
+            <p className="text-sm text-muted-foreground font-medium">{propertyName}</p>
+          )}
+          <h1 className="text-3xl font-bold tracking-tight">Owner / HOA Settings</h1>
+          <p className="text-muted-foreground">
+            Owner and HOA information used on the registration PDF
+          </p>
+        </div>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
