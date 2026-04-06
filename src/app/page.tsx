@@ -34,6 +34,7 @@ import {
   Coffee,
   Sparkles,
   Lock,
+  Heart,
 } from "lucide-react";
 import { GuestHeader, PropertyHeader } from "@/components/guest/guest-header";
 import { GuestNav } from "@/components/guest/guest-nav";
@@ -252,10 +253,13 @@ const upsellIcons: Record<string, React.ReactNode> = {
   late_checkout: <DoorClosed className="h-5 w-5 text-blue-600" />,
   new_sheets: <BedDouble className="h-5 w-5 text-purple-600" />,
   firewood: <Flame className="h-5 w-5 text-orange-600" />,
-  baby_chair: <Baby className="h-5 w-5 text-pink-500" />,
+  baby_high_chair: <Baby className="h-5 w-5 text-pink-500" />,
   private_chef: <UtensilsCrossed className="h-5 w-5 text-amber-600" />,
   luxury_picnic: <TreePine className="h-5 w-5 text-green-600" />,
   breakfast_delivery: <Coffee className="h-5 w-5 text-amber-700" />,
+  tip_cleaning: <Heart className="h-5 w-5 text-rose-500" />,
+  tip_delivery: <Heart className="h-5 w-5 text-rose-500" />,
+  tip_breakfast: <Heart className="h-5 w-5 text-rose-500" />,
 };
 
 type PurchasedUpsell = {
@@ -595,6 +599,9 @@ function GuestDashboard({
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium">{u.label}</p>
+                    {u.price_cents > 0 && (
+                      <p className="text-xs text-muted-foreground">${(u.price_cents / 100).toFixed(2)}</p>
+                    )}
                   </div>
                   <Check className="h-4 w-4 text-green-600 shrink-0" />
                 </div>

@@ -90,6 +90,7 @@ export async function POST(request: Request) {
       change_type: "guest_list_update",
       summary,
       previous_data: { guest_list: previous } as Record<string, unknown>,
+      new_data: { guest_list: validGuests } as Record<string, unknown>,
     });
   } else if (section === "pets" && body.pets) {
     const validPets = body.pets.filter((p) => p.name.trim());
@@ -115,6 +116,7 @@ export async function POST(request: Request) {
       change_type: "pets_update",
       summary,
       previous_data: { pets: previous } as Record<string, unknown>,
+      new_data: { pets: validPets } as Record<string, unknown>,
     });
   } else if (section === "vehicles" && body.vehicles) {
     // Fetch current vehicles for snapshot
@@ -151,6 +153,7 @@ export async function POST(request: Request) {
       change_type: "vehicles_update",
       summary,
       previous_data: { vehicles: currentVehicles } as Record<string, unknown>,
+      new_data: { vehicles: vehicleRows } as Record<string, unknown>,
     });
   } else {
     return NextResponse.json({ error: "Invalid section or missing data" }, { status: 400 });

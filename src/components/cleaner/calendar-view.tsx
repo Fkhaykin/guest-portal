@@ -332,8 +332,10 @@ export function CalendarView({
                         <button
                           key={r.id}
                           onClick={() => setSelected(r)}
-                          className={`absolute h-6 rounded-full text-[10px] font-semibold text-white flex items-center px-2.5 truncate cursor-pointer hover:brightness-110 active:scale-[0.98] transition-all z-10 shadow-sm ${color} ${
-                            r.isCleaned ? "opacity-40" : ""
+                          className={`absolute h-6 rounded-full text-[10px] font-semibold flex items-center px-2.5 truncate cursor-pointer hover:brightness-110 active:scale-[0.98] transition-all z-10 shadow-sm ${
+                            !r.guestName
+                              ? "bg-gray-300 text-gray-500 dark:bg-gray-700 dark:text-gray-400"
+                              : `${color} text-white ${r.isCleaned ? "opacity-40" : ""}`
                           }`}
                           style={{
                             left: `${leftPct}%`,

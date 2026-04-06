@@ -97,6 +97,7 @@ interface LodgifyV1Booking {
     };
   }>;
   notes: string | null;
+  total_amount?: number | null;
   amount?: number | null;
   total?: number | null;
 }
@@ -146,7 +147,7 @@ export async function getBookings(params?: {
     status: b.status,
     source: b.source,
     notes: b.notes,
-    total_amount: b.amount ?? b.total ?? null,
+    total_amount: b.total_amount ?? b.amount ?? b.total ?? null,
   }));
 
   return { items, total: data.total };

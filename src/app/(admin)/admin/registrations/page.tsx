@@ -54,6 +54,7 @@ type UpdateLog = {
   change_type: string;
   summary: string | null;
   previous_data: Record<string, unknown> | null;
+  new_data: Record<string, unknown> | null;
   created_at: string;
 };
 
@@ -102,11 +103,60 @@ export default function AdminAllRegistrationsPage() {
     setHistoryLoading(true);
     const { data } = await supabase
       .from("registration_update_log")
-      .select("id, changed_by, change_type, summary, previous_data, created_at")
+      .select("id, changed_by, change_type, summary, previous_data, new_data, created_at")
       .eq("registration_id", registrationId)
       .order("created_at", { ascending: false });
     setHistoryLogs(data ?? []);
     setHistoryLoading(false);
+  }
+
+  function renderChangeData(data: Record<string, unknown>) {
+    const guests = data.guest_list as Array<{ first_name: string; last_name: string; age_group: string }> | undefined;
+    const pets = data.pets as Array<{ name: string; kind: string }> | undefined;
+    const vehicles = data.vehicles as Array<{ year?: string | null; make?: string | null; model?: string | null; color?: string | null; license_plate: string; driver_name?: string | null }> | undefined;
+
+    if (guests) {
+      return (
+        <ul className="mt-1 text-xs space-y-0.5">
+          {guests.map((g, i) => (
+            <li key={i} className="bg-muted rounded px-2 py-1">
+              {g.first_name} {g.last_name}
+            </li>
+          ))}
+        </ul>
+      );
+    }
+
+    if (pets) {
+      return (
+        <ul className="mt-1 text-xs space-y-0.5">
+          {pets.map((p, i) => (
+            <li key={i} className="bg-muted rounded px-2 py-1">
+              {p.name}
+            </li>
+          ))}
+        </ul>
+      );
+    }
+
+    if (vehicles) {
+      return (
+        <ul className="mt-1 text-xs space-y-0.5">
+          {vehicles.map((v, i) => (
+            <li key={i} className="bg-muted rounded px-2 py-1">
+              {[v.make, v.model].filter(Boolean).join(" ")}
+              {v.driver_name && <span className="text-muted-foreground"> — {v.driver_name}</span>}
+            </li>
+          ))}
+        </ul>
+      );
+    }
+
+    return (
+      <pre className="mt-1 text-xs bg-muted p-2 rounded overflow-x-auto">
+        {JSON.stringify(data, null, 2)}
+      </pre>
+    );
   }
 
   const filtered = registrations.filter((reg) => {
@@ -275,14 +325,18 @@ export default function AdminAllRegistrationsPage() {
                   <p className="text-xs text-muted-foreground">
                     by {log.changed_by}
                   </p>
+                  {log.new_data && Object.keys(log.new_data).length > 0 && (
+                    <div className="mt-2 space-y-1">
+                      <p className="text-xs font-medium text-muted-foreground">New data</p>
+                      {renderChangeData(log.new_data)}
+                    </div>
+                  )}
                   {log.previous_data && Object.keys(log.previous_data).length > 0 && (
                     <details className="mt-2">
                       <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground">
                         Previous data
                       </summary>
-                      <pre className="mt-1 text-xs bg-muted p-2 rounded overflow-x-auto">
-                        {JSON.stringify(log.previous_data, null, 2)}
-                      </pre>
+                      {renderChangeData(log.previous_data)}
                     </details>
                   )}
                 </div>

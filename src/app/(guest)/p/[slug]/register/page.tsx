@@ -203,6 +203,7 @@ export default function RegisterPage() {
   const [signatureDataUrl, setSignatureDataUrl] = useState<string | null>(null);
   const sigCanvasRef = useRef<HTMLCanvasElement>(null);
   const sigDrawing = useRef(false);
+  const sigHasBackground = useRef(false);
 
   useEffect(() => {
     const s = loadSession();
@@ -1753,6 +1754,12 @@ export default function RegisterPage() {
                       const scaleY = canvas.height / rect.height;
                       const ctx = canvas.getContext("2d");
                       if (!ctx) return;
+                      // Fill white background on first stroke so exported image isn't transparent
+                      if (!sigHasBackground.current) {
+                        ctx.fillStyle = "#ffffff";
+                        ctx.fillRect(0, 0, canvas.width, canvas.height);
+                        sigHasBackground.current = true;
+                      }
                       ctx.beginPath();
                       ctx.moveTo(
                         (e.clientX - rect.left) * scaleX,
@@ -1783,7 +1790,7 @@ export default function RegisterPage() {
                       sigDrawing.current = false;
                       const canvas = sigCanvasRef.current;
                       if (canvas) {
-                        setSignatureDataUrl(canvas.toDataURL("image/jpeg", 0.5));
+                        setSignatureDataUrl(canvas.toDataURL("image/png"));
                       }
                     }}
                     onPointerLeave={() => {
@@ -1791,7 +1798,7 @@ export default function RegisterPage() {
                       sigDrawing.current = false;
                       const canvas = sigCanvasRef.current;
                       if (canvas) {
-                        setSignatureDataUrl(canvas.toDataURL("image/jpeg", 0.5));
+                        setSignatureDataUrl(canvas.toDataURL("image/png"));
                       }
                     }}
                   />
@@ -1812,6 +1819,7 @@ export default function RegisterPage() {
                         const ctx = canvas.getContext("2d");
                         ctx?.clearRect(0, 0, canvas.width, canvas.height);
                       }
+                      sigHasBackground.current = false;
                       setSignatureDataUrl(null);
                     }}
                   >
