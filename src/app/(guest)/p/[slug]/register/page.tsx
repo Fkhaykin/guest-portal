@@ -277,8 +277,7 @@ export default function RegisterPage() {
       }).then((res) => {
         if (res.ok) {
           setCart([]);
-          setStep(6);
-          loadUpsells();
+          setStep(7);
         }
       });
       // Clean URL
