@@ -25,6 +25,7 @@ export default function OwnerSettingsPage({
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const [propertyName, setPropertyName] = useState("");
   const [coverImageUrl, setCoverImageUrl] = useState<string | null>(null);
@@ -111,6 +112,7 @@ export default function OwnerSettingsPage({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
+    setError(null);
     setSaved(false);
 
     const update: Record<string, unknown> = {
@@ -153,9 +155,13 @@ export default function OwnerSettingsPage({
       }
     }
 
-    await supabase.from("property").update(update).eq("id", id);
+    const { error: updateError } = await supabase.from("property").update(update).eq("id", id);
 
     setSaving(false);
+    if (updateError) {
+      setError(updateError.message);
+      return;
+    }
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);
   }
@@ -460,6 +466,7 @@ export default function OwnerSettingsPage({
             {saving ? "Saving..." : "Save Settings"}
           </Button>
           {saved && <span className="text-sm text-green-600">Saved successfully</span>}
+          {error && <span className="text-sm text-red-600">{error}</span>}
         </div>
       </form>
     </div>

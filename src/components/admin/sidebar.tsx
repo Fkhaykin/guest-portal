@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
@@ -65,8 +66,14 @@ export function AdminSidebar({
         )}
       >
         <div className="p-4 border-b">
-          <h2 className="font-semibold text-lg">Guest Portal</h2>
-          <p className="text-sm text-muted-foreground">Admin</p>
+          <Image
+            src="/logo.png"
+            alt="Summit Lakeside"
+            width={120}
+            height={60}
+            className="h-8 w-auto invert dark:invert-0 mb-1"
+          />
+          <p className="text-xs text-muted-foreground">Admin Portal</p>
         </div>
 
         <nav className="flex-1 p-3 space-y-1">

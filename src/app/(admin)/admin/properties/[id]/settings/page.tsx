@@ -18,6 +18,7 @@ export default function PropertySettingsPage({
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const [name, setName] = useState("");
   const [nickname, setNickname] = useState("");
@@ -53,8 +54,9 @@ export default function PropertySettingsPage({
     e.preventDefault();
     setSaving(true);
     setSaved(false);
+    setError(null);
 
-    await supabase
+    const { error } = await supabase
       .from("property")
       .update({
         name: name.trim(),
@@ -67,6 +69,10 @@ export default function PropertySettingsPage({
       .eq("id", id);
 
     setSaving(false);
+    if (error) {
+      setError(error.message);
+      return;
+    }
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);
   }
@@ -182,6 +188,7 @@ export default function PropertySettingsPage({
             {saving ? "Saving..." : "Save Settings"}
           </Button>
           {saved && <span className="text-sm text-green-600">Saved successfully</span>}
+          {error && <span className="text-sm text-red-600">{error}</span>}
         </div>
       </form>
     </div>

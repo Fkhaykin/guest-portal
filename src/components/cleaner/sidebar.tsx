@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
@@ -39,7 +40,14 @@ export function CleanerSidebar({
     <>
       {/* Desktop sidebar */}
       <aside className="hidden md:flex fixed inset-y-0 left-0 z-40 w-56 bg-card border-r flex-col">
-        <div className="p-4 border-b">
+        <div className="p-4 border-b space-y-3">
+          <Image
+            src="/logo.png"
+            alt="Summit Lakeside"
+            width={120}
+            height={60}
+            className="h-7 w-auto invert dark:invert-0"
+          />
           <div className="flex items-center gap-2">
             <div className="rounded-full bg-primary/10 p-1.5">
               <SprayCan className="h-4 w-4 text-primary" />
@@ -93,10 +101,15 @@ export function CleanerSidebar({
       {/* Mobile top bar */}
       <header className="md:hidden fixed top-0 left-0 right-0 z-40 border-b bg-card">
         <div className="flex items-center justify-between px-4 py-2.5">
-          <div className="flex items-center gap-2">
-            <div className="rounded-full bg-primary/10 p-1.5">
-              <SprayCan className="h-4 w-4 text-primary" />
-            </div>
+          <div className="flex items-center gap-3">
+            <Image
+              src="/logo.png"
+              alt="Summit Lakeside"
+              width={100}
+              height={50}
+              className="h-6 w-auto invert dark:invert-0"
+            />
+            <div className="h-5 w-px bg-border" />
             <div>
               <p className="font-semibold text-sm">{cleanerName}</p>
               <p className="text-[10px] text-muted-foreground">
