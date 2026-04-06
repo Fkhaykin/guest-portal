@@ -84,13 +84,28 @@ export default async function CleanerDashboard() {
 
   const { data: registrations } = await supabase
     .from("registration")
-    .select("id, property_id, check_in_date, check_out_date, num_guests, status, upsells, guest_list, pets")
+    .select("id, property_id, check_in_date, check_out_date, num_guests, status, upsells, guest_list, pets, updated_at")
     .in("property_id", propertyIds)
     .in("status", ["active", "completed"])
     .gte("check_out_date", twoDaysAgo)
     .order("check_in_date", { ascending: true });
 
-  const regs = (registrations || []) as RegistrationRow[];
+  // Deduplicate: for same property with overlapping date ranges, keep the most recently updated
+  const allRegs = (registrations || []) as (RegistrationRow & { updated_at: string })[];
+  // Sort by updated_at descending so we keep the newest version first
+  allRegs.sort((a, b) => b.updated_at.localeCompare(a.updated_at));
+  const regs: RegistrationRow[] = [];
+  for (const reg of allRegs) {
+    const isDuplicate = regs.some(
+      (existing) =>
+        existing.property_id === reg.property_id &&
+        existing.check_in_date < reg.check_out_date &&
+        existing.check_out_date > reg.check_in_date
+    );
+    if (!isDuplicate) regs.push(reg);
+  }
+  // Re-sort by check-in ascending for display
+  regs.sort((a, b) => a.check_in_date.localeCompare(b.check_in_date));
 
   // Get cleaning statuses
   const regIds = regs.map((r) => r.id);
@@ -133,7 +148,7 @@ export default async function CleanerDashboard() {
     .split("T")[0];
   const { data: calendarRegs } = await supabase
     .from("registration")
-    .select("id, property_id, check_in_date, check_out_date, num_guests, status, upsells")
+    .select("id, property_id, check_in_date, check_out_date, num_guests, status, upsells, guest_list, pets")
     .in("property_id", propertyIds)
     .in("status", ["active", "completed"])
     .gte("check_out_date", calendarStart)
@@ -172,13 +187,17 @@ export default async function CleanerDashboard() {
 
   const calendarData = (calendarRegs || []).map((r) => {
     const paid = ((r.upsells as UpsellEntry[] | null) || []).filter((u) => u.status === "paid");
+    const prop = propertyMap.get(r.property_id);
     return {
       id: r.id,
-      propertyName: propertyMap.get(r.property_id)?.name || "Unknown",
+      propertyName: prop?.name || "Unknown",
+      propertyCoverImage: prop?.coverImage || null,
       propertyColor: propertyColorMap.get(r.property_id) || "bg-gray-500",
       checkIn: r.check_in_date,
       checkOut: r.check_out_date,
       numGuests: r.num_guests,
+      guestList: (r as unknown as RegistrationRow).guest_list,
+      pets: (r as unknown as RegistrationRow).pets,
       isCleaned: calendarStatusMap.get(r.id) ?? false,
       upsellCount: paid.length,
       upsellLabels: paid.map((u) => UPSELL_LABELS[u.type] || u.label || u.type),

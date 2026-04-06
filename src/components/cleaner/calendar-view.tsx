@@ -11,15 +11,19 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { ChevronLeft, ChevronRight, Users, CalendarDays, Sparkles } from "lucide-react";
+import { ChevronLeft, ChevronRight, Users, CalendarDays, Sparkles, User, Baby, PawPrint, Home } from "lucide-react";
+import type { GuestListEntry, PetEntry } from "@/types/database";
 
 export type CalendarReservation = {
   id: string;
   propertyName: string;
+  propertyCoverImage: string | null;
   propertyColor: string;
   checkIn: string;
   checkOut: string;
   numGuests: number;
+  guestList: GuestListEntry[] | null;
+  pets: PetEntry[] | null;
   isCleaned: boolean;
   upsellCount: number;
   upsellLabels: string[];
@@ -65,12 +69,12 @@ export function CalendarView({
   const monthEnd = `${year}-${String(month + 1).padStart(2, "0")}-${String(daysInMonth).padStart(2, "0")}`;
 
   // Group reservations by property
-  const byProperty = new Map<string, { color: string; reservations: CalendarReservation[] }>();
+  const byProperty = new Map<string, { color: string; coverImage: string | null; reservations: CalendarReservation[] }>();
   for (const r of reservations) {
     // Does this reservation overlap this month?
     if (r.checkOut <= monthStart || r.checkIn > monthEnd) continue;
     if (!byProperty.has(r.propertyName)) {
-      byProperty.set(r.propertyName, { color: r.propertyColor, reservations: [] });
+      byProperty.set(r.propertyName, { color: r.propertyColor, coverImage: r.propertyCoverImage, reservations: [] });
     }
     byProperty.get(r.propertyName)!.reservations.push(r);
   }
@@ -139,7 +143,7 @@ export function CalendarView({
         {/* Day number header */}
         <div
           className="grid gap-0 border-b pb-1 mb-1"
-          style={{ gridTemplateColumns: `100px repeat(${totalWeekCols}, 1fr)` }}
+          style={{ gridTemplateColumns: `140px repeat(${totalWeekCols}, 1fr)` }}
         >
           <div /> {/* Property label column */}
           {Array.from({ length: totalWeekCols }, (_, i) => {
@@ -183,15 +187,23 @@ export function CalendarView({
           </p>
         ) : (
           <div className="space-y-1">
-            {properties.map(([propName, { color, reservations: propReservations }]) => (
+            {properties.map(([propName, { color, coverImage, reservations: propReservations }]) => (
               <div
                 key={propName}
                 className="grid gap-0 items-center"
-                style={{ gridTemplateColumns: `100px repeat(${totalWeekCols}, 1fr)` }}
+                style={{ gridTemplateColumns: `140px repeat(${totalWeekCols}, 1fr)` }}
               >
-                {/* Property name */}
-                <div className="flex items-center gap-1.5 pr-2 min-w-0">
-                  <div className={`w-2 h-2 rounded-full shrink-0 ${color}`} />
+                {/* Property thumbnail + name */}
+                <div className="flex items-center gap-2 pr-2 min-w-0">
+                  <div className="h-7 w-7 rounded overflow-hidden shrink-0">
+                    {coverImage ? (
+                      <img src={coverImage} alt={propName} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full bg-linear-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-800 flex items-center justify-center">
+                        <Home className="h-3.5 w-3.5 text-slate-400 dark:text-slate-500" />
+                      </div>
+                    )}
+                  </div>
                   <span className="text-[10px] font-medium truncate text-muted-foreground">
                     {propName}
                   </span>
@@ -257,56 +269,106 @@ export function CalendarView({
       {/* Detail modal */}
       <Dialog open={!!selected} onOpenChange={(open) => !open && setSelected(null)}>
         <DialogContent className="max-w-sm">
-          {selected && (
-            <>
-              <DialogHeader>
-                <DialogTitle className="text-base">{selected.propertyName}</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-3">
-                <div className="flex items-center gap-4 text-sm">
-                  <div className="flex items-center gap-1.5 text-muted-foreground">
-                    <CalendarDays className="h-4 w-4" />
-                    <span>{formatDate(selected.checkIn)}</span>
-                  </div>
-                  <span className="text-muted-foreground">&rarr;</span>
-                  <div className="text-muted-foreground">
-                    {formatDate(selected.checkOut)}
-                  </div>
-                </div>
+          {selected && (() => {
+            const adults = selected.guestList?.filter((g) => g.age_group === "over_21").length ?? 0;
+            const children = selected.guestList?.filter((g) => g.age_group === "under_21").length ?? 0;
+            const infants = selected.guestList?.filter((g) => g.age_group === "infant").length ?? 0;
+            const petCount = selected.pets?.filter((p) => p.name?.trim()).length ?? 0;
+            const hasBreakdown = selected.guestList && selected.guestList.length > 0;
 
-                <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                  <Users className="h-4 w-4" />
-                  <span>{selected.numGuests} guest{selected.numGuests !== 1 ? "s" : ""}</span>
-                </div>
-
-                {selected.upsellLabels.length > 0 && (
-                  <>
-                    <Separator />
-                    <div className="space-y-1.5">
-                      <p className="text-xs font-medium text-muted-foreground flex items-center gap-1">
-                        <Sparkles className="h-3 w-3" />
-                        Purchased Add-ons
-                      </p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {selected.upsellLabels.map((label) => (
-                          <Badge key={label} variant="secondary" className="text-xs">
-                            {label}
-                          </Badge>
-                        ))}
-                      </div>
+            return (
+              <>
+                <DialogHeader>
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-lg overflow-hidden shrink-0">
+                      {selected.propertyCoverImage ? (
+                        <img src={selected.propertyCoverImage} alt={selected.propertyName} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full bg-linear-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-800 flex items-center justify-center">
+                          <Home className="h-4 w-4 text-slate-400 dark:text-slate-500" />
+                        </div>
+                      )}
                     </div>
-                  </>
-                )}
+                    <DialogTitle className="text-base">{selected.propertyName}</DialogTitle>
+                  </div>
+                </DialogHeader>
+                <div className="space-y-3">
+                  <div className="flex items-center gap-4 text-sm">
+                    <div className="flex items-center gap-1.5 text-muted-foreground">
+                      <CalendarDays className="h-4 w-4" />
+                      <span>{formatDate(selected.checkIn)}</span>
+                    </div>
+                    <span className="text-muted-foreground">&rarr;</span>
+                    <div className="text-muted-foreground">
+                      {formatDate(selected.checkOut)}
+                    </div>
+                  </div>
 
-                <Separator />
-                <div className="flex items-center gap-2">
-                  <Badge variant={selected.isCleaned ? "default" : "destructive"} className={selected.isCleaned ? "bg-green-600" : ""}>
-                    {selected.isCleaned ? "Cleaned" : "Not cleaned"}
-                  </Badge>
+                  <div className="flex flex-wrap items-center gap-3 text-sm">
+                    {hasBreakdown ? (
+                      <>
+                        {adults > 0 && (
+                          <span className="flex items-center gap-1 text-muted-foreground">
+                            <User className="h-4 w-4" />
+                            {adults} adult{adults !== 1 ? "s" : ""}
+                          </span>
+                        )}
+                        {children > 0 && (
+                          <span className="flex items-center gap-1 text-muted-foreground">
+                            <Users className="h-4 w-4" />
+                            {children} child{children !== 1 ? "ren" : ""}
+                          </span>
+                        )}
+                        {infants > 0 && (
+                          <span className="flex items-center gap-1 text-muted-foreground">
+                            <Baby className="h-4 w-4" />
+                            {infants} infant{infants !== 1 ? "s" : ""}
+                          </span>
+                        )}
+                      </>
+                    ) : (
+                      <span className="flex items-center gap-1 text-muted-foreground">
+                        <Users className="h-4 w-4" />
+                        {selected.numGuests} guest{selected.numGuests !== 1 ? "s" : ""}
+                      </span>
+                    )}
+                    {petCount > 0 && (
+                      <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400 font-medium">
+                        <PawPrint className="h-4 w-4" />
+                        {petCount} pet{petCount !== 1 ? "s" : ""}
+                      </span>
+                    )}
+                  </div>
+
+                  {selected.upsellLabels.length > 0 && (
+                    <>
+                      <Separator />
+                      <div className="space-y-1.5">
+                        <p className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                          <Sparkles className="h-3 w-3" />
+                          Purchased Add-ons
+                        </p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {selected.upsellLabels.map((label) => (
+                            <Badge key={label} variant="secondary" className="text-xs">
+                              {label}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  <Separator />
+                  <div className="flex items-center gap-2">
+                    <Badge variant={selected.isCleaned ? "default" : "destructive"} className={selected.isCleaned ? "bg-green-600" : ""}>
+                      {selected.isCleaned ? "Cleaned" : "Not cleaned"}
+                    </Badge>
+                  </div>
                 </div>
-              </div>
-            </>
-          )}
+              </>
+            );
+          })()}
         </DialogContent>
       </Dialog>
     </>
