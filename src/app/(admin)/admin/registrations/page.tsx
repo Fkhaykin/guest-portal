@@ -26,7 +26,8 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { FileText, History } from "lucide-react";
+import { History } from "lucide-react";
+import { RegistrationActions } from "@/components/admin/registration-actions";
 
 type Property = {
   id: string;
@@ -220,31 +221,10 @@ export default function AdminAllRegistrationsPage() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">
-                        {reg.signature_url ? (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            title="Download PDF"
-                            render={
-                              <a
-                                href={`/api/pepoa/generate?registration_id=${reg.id}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                              />
-                            }
-                          >
-                            <FileText className="h-4 w-4" />
-                          </Button>
-                        ) : (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            title="Registration incomplete — no PDF available"
-                            disabled
-                          >
-                            <FileText className="h-4 w-4" />
-                          </Button>
-                        )}
+                        <RegistrationActions
+                          registrationId={reg.id}
+                          hasSignature={!!reg.signature_url}
+                        />
                         <Button
                           variant="ghost"
                           size="icon"
