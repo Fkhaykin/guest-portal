@@ -35,7 +35,7 @@ import {
   Sparkles,
   Lock,
 } from "lucide-react";
-import { GuestHeader } from "@/components/guest/guest-header";
+import { GuestHeader, PropertyHeader } from "@/components/guest/guest-header";
 
 type GuestBreakdown = {
   adults: number;
@@ -373,7 +373,7 @@ function GuestDashboard({
                 </p>
               </div>
             </div>
-            <Link href={`/p/${reservation.property.slug}/register`}>
+            <Link href={`/p/${reservation.property.slug}/update`}>
               <Button variant="outline" size="lg" className="w-full">
                 Edit Registration
               </Button>
@@ -731,25 +731,30 @@ export default function HomePage() {
 
   return (
     <>
-      <GuestHeader />
       {reservation ? (
-        <GuestDashboard
-          guestName={guestName}
-          reservation={reservation}
-          onReset={() => {
-            setReservation(null);
-            setGuestName("");
-            clearSession();
-          }}
-        />
+        <>
+          <PropertyHeader propertyName={reservation.property.name} />
+          <GuestDashboard
+            guestName={guestName}
+            reservation={reservation}
+            onReset={() => {
+              setReservation(null);
+              setGuestName("");
+              clearSession();
+            }}
+          />
+        </>
       ) : (
-        <BookingSearch
-          onFound={({ guestName: name, reservation: res }) => {
-            setGuestName(name);
-            setReservation(res);
-            saveSession(name, res);
-          }}
-        />
+        <>
+          <GuestHeader />
+          <BookingSearch
+            onFound={({ guestName: name, reservation: res }) => {
+              setGuestName(name);
+              setReservation(res);
+              saveSession(name, res);
+            }}
+          />
+        </>
       )}
     </>
   );
