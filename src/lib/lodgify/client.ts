@@ -52,6 +52,7 @@ export interface LodgifyBooking {
   arrival: string;   // ISO date
   departure: string; // ISO date
   guests: number;
+  pets: number;
   status: string;    // "Booked" | "Tentative" | "Cancelled" | "Declined" | "Open" | "CheckedOut"
   source: string | null;
   notes: string | null;
@@ -78,8 +79,20 @@ interface LodgifyV1Booking {
   arrival: string | null;
   departure: string | null;
   property_id: number;
+  total_guest_breakdown?: {
+    adults: number;
+    children: number;
+    infants: number;
+    pets: number;
+  };
   rooms: Array<{
     people: number;
+    guest_breakdown?: {
+      adults: number;
+      children: number;
+      infants: number;
+      pets: number;
+    };
   }>;
   notes: string | null;
 }
@@ -124,6 +137,7 @@ export async function getBookings(params?: {
     arrival: b.arrival ?? "",
     departure: b.departure ?? "",
     guests: b.rooms?.reduce((sum, r) => sum + (r.people || 0), 0) ?? 1,
+    pets: b.total_guest_breakdown?.pets ?? b.rooms?.reduce((sum, r) => sum + (r.guest_breakdown?.pets || 0), 0) ?? 0,
     status: b.status,
     source: b.source,
     notes: b.notes,
@@ -133,5 +147,36 @@ export async function getBookings(params?: {
 }
 
 export async function getBookingById(bookingId: number): Promise<LodgifyBooking> {
-  return lodgifyFetch<LodgifyBooking>(`/v2/reservations/bookings/${bookingId}`);
+  const raw = await lodgifyFetch<{
+    id: number;
+    property_id: number;
+    guest: { name: string; email: string | null; phone: string | null };
+    arrival: string;
+    departure: string;
+    status: string;
+    source: string | null;
+    notes?: string | null;
+    rooms?: Array<{
+      people: number;
+      guest_breakdown?: { adults: number; children: number; infants: number; pets: number };
+    }>;
+  }>(`/v2/reservations/bookings/${bookingId}`);
+
+  return {
+    id: raw.id,
+    property_id: raw.property_id,
+    guest: {
+      id: "",
+      name: raw.guest.name,
+      email: raw.guest.email,
+      phone: raw.guest.phone,
+    },
+    arrival: raw.arrival ?? "",
+    departure: raw.departure ?? "",
+    guests: raw.rooms?.reduce((sum, r) => sum + (r.people || 0), 0) ?? 1,
+    pets: raw.rooms?.reduce((sum, r) => sum + (r.guest_breakdown?.pets || 0), 0) ?? 0,
+    status: raw.status,
+    source: raw.source,
+    notes: raw.notes ?? null,
+  };
 }

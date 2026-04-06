@@ -1,10 +1,12 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useProperty } from "@/hooks/use-property";
 import {
   Home,
   ClipboardList,
+  PenLine,
   ShoppingBag,
   Tag,
   MapPin,
@@ -13,20 +15,37 @@ import {
   Gift,
 } from "lucide-react";
 
-const navItems = [
-  { label: "Home", href: "", icon: Home },
-  { label: "Register", href: "/register", icon: ClipboardList },
-  { label: "Add-Ons", href: "/add-ons", icon: Gift },
-  { label: "Services", href: "/services", icon: ShoppingBag },
-  { label: "Promotions", href: "/promotions", icon: Tag },
-  { label: "Explore", href: "/recommendations", icon: MapPin },
-  { label: "FAQ", href: "/faq", icon: HelpCircle },
-  { label: "Videos", href: "/videos", icon: Video },
-];
+const SESSION_KEY = "guest-portal-session";
 
 export function GuestNav() {
   const property = useProperty();
   const base = `/p/${property.slug}`;
+  const [isRegistered, setIsRegistered] = useState(false);
+
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(SESSION_KEY);
+      if (raw) {
+        const session = JSON.parse(raw);
+        setIsRegistered(!!session.reservation?.signature_url);
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const navItems = [
+    { label: "Home", href: "", icon: Home },
+    isRegistered
+      ? { label: "Update", href: "/update", icon: PenLine }
+      : { label: "Register", href: "/register", icon: ClipboardList },
+    { label: "Add-Ons", href: "/add-ons", icon: Gift },
+    { label: "Services", href: "/services", icon: ShoppingBag },
+    { label: "Promotions", href: "/promotions", icon: Tag },
+    { label: "Explore", href: "/recommendations", icon: MapPin },
+    { label: "FAQ", href: "/faq", icon: HelpCircle },
+    { label: "Videos", href: "/videos", icon: Video },
+  ];
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-background border-t md:relative md:border-t-0 md:border-b">

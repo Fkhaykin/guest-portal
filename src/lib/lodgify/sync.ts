@@ -208,6 +208,7 @@ export async function syncBooking(booking: LodgifyBooking) {
         check_in_date: booking.arrival || null,
         check_out_date: booking.departure || null,
         num_guests: booking.guests || 1,
+        lodgify_num_pets: booking.pets || 0,
         notes: booking.notes,
         status: mapStatus(booking.status),
         booking_source: booking.source,

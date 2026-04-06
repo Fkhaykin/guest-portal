@@ -99,6 +99,7 @@ export type Database = {
           rental_agency_name: string | null;
           rental_agency_contact: string | null;
           owner_signature_url: string | null;
+          max_guests: number;
           listing_urls: Record<string, string>;
           created_at: string;
           updated_at: string;
@@ -132,6 +133,7 @@ export type Database = {
           rental_agency_name?: string | null;
           rental_agency_contact?: string | null;
           owner_signature_url?: string | null;
+          max_guests?: number;
           listing_urls?: Record<string, string>;
           created_at?: string;
           updated_at?: string;
@@ -165,6 +167,7 @@ export type Database = {
           rental_agency_name?: string | null;
           rental_agency_contact?: string | null;
           owner_signature_url?: string | null;
+          max_guests?: number;
           listing_urls?: Record<string, string>;
           created_at?: string;
           updated_at?: string;
