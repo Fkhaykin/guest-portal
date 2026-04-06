@@ -202,7 +202,7 @@ async function embedSignature(
 
 function tryLoadHeaderImage(): Buffer | null {
   try {
-    const imgPath = path.join(process.cwd(), "public", "pepoa-header.png");
+    const imgPath = path.join(process.cwd(), "public", "PEPOA-header.png");
     if (fs.existsSync(imgPath)) {
       return fs.readFileSync(imgPath);
     }
@@ -241,35 +241,19 @@ export async function generatePEPOARegistrationPDF(data: PEPOAData): Promise<Buf
   return finished;
 }
 
-// ---------- Page 1: Registration Form ----------
+// ---------- Text-based header fallback ----------
 
-function drawPage1(doc: PDFKit.PDFDocument, data: PEPOAData) {
-  let y = 36;
-
-  // Header logo (if available)
-  const headerImg = tryLoadHeaderImage();
-  if (headerImg) {
-    try {
-      doc.image(headerImg, LM + (PW - 100) / 2, y, { width: 100 });
-      y += 75;
-    } catch {
-      // skip logo
-    }
-  }
-
-  // Organization name
+function drawTextHeader(doc: PDFKit.PDFDocument, y: number): number {
   doc.font("Helvetica-Bold").fontSize(13).fillColor(DARK);
   doc.text("PENN ESTATES PROPERTY OWNERS ASSOCIATION", LM, y, { width: PW, align: "center" });
   y += 16;
 
-  // Address and phone
   doc.font("Helvetica").fontSize(9).fillColor("#555");
   doc.text("304 Cricket Dr. E. Stroudsburg, PA 18301", LM, y, { width: PW, align: "center" });
   y += 12;
   doc.text("P: 570.421.4265  F: 570.421.1092", LM, y, { width: PW, align: "center" });
   y += 18;
 
-  // Title banner
   doc.save();
   doc.roundedRect(LM, y, PW, 30, 4).fill(DARK);
   doc.font("Helvetica-Bold").fontSize(12).fillColor("#fff");
@@ -277,13 +261,35 @@ function drawPage1(doc: PDFKit.PDFDocument, data: PEPOAData) {
   doc.restore();
   y += 36;
 
-  // Subtitle
   doc.font("Helvetica-Oblique").fontSize(7.5).fillColor("#555");
   doc.text(
     "Form must be filled out completely and shall be submitted at least three (3) days in advance of registration",
     LM, y, { width: PW, align: "center" }
   );
   y += 20;
+
+  return y;
+}
+
+// ---------- Page 1: Registration Form ----------
+
+function drawPage1(doc: PDFKit.PDFDocument, data: PEPOAData) {
+  let y = 36;
+
+  // Full letterhead image (logo + org name + address + title banner + subtitle)
+  const headerImg = tryLoadHeaderImage();
+  if (headerImg) {
+    try {
+      doc.image(headerImg, LM, y, { width: PW });
+      // Approximate height based on image aspect ratio (~3.3:1)
+      y += Math.round(PW / 3.3) + 12;
+    } catch {
+      // Fall back to text-based header
+      y = drawTextHeader(doc, y);
+    }
+  } else {
+    y = drawTextHeader(doc, y);
+  }
 
   // Date
   y = drawUnderlinedField(doc, "Date", formatDate(data.registration_date), LM, y, PW);
