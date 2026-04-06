@@ -71,7 +71,7 @@ src/
 │   ├── email/send-pepoa-pdf.ts   # Resend: attach PDF, send to HOA email
 │   └── utils.ts                  # cn() helper
 ├── types/database.ts             # Full DB types + GuestListEntry, PetEntry, UpsellEntry
-└── proxy.ts                      # Middleware (session refresh + admin route protection)
+└── proxy.ts                      # Middleware (subdomain routing + session refresh + auth protection)
 
 supabase/
 ├── config.toml                   # Local dev config, storage buckets
@@ -108,6 +108,21 @@ Key fields & relationships:
   - **Server** (`lib/supabase/server.ts`) — auth-aware, Server Components
   - **Browser** (`lib/supabase/client.ts`) — anon key, Client Components
   - **Admin** (`lib/supabase/admin.ts`) — service role, bypasses RLS, API routes only
+
+## Subdomain Routing
+
+Handled in `lib/supabase/middleware.ts` via URL rewriting in the proxy (middleware).
+
+| Subdomain | URL | Serves |
+|-----------|-----|--------|
+| `guest.summitlakeside.com` | `/`, `/p/[slug]/*`, `/q/[code]` | Guest portal (no rewrite needed) |
+| `admin.summitlakeside.com` | `/` → `/admin`, `/properties` → `/admin/properties` | Admin panel (prepends `/admin`) |
+| `manager.summitlakeside.com` | `/` → `/cleaner`, `/login` → `/cleaner/login` | Cleaner panel (prepends `/cleaner`) |
+| bare domain / no subdomain | `/` | Guest booking search (default) |
+
+- `/api/*`, `/auth/*`, `/_next/*` paths are **never rewritten** (shared across all subdomains)
+- Existing prefixed links (e.g. `/admin/properties`) still work on the admin subdomain — the middleware skips paths that already have the correct prefix
+- Local dev: use `admin.localhost:3000`, `manager.localhost:3000`, `guest.localhost:3000`
 
 ## Storage Buckets
 

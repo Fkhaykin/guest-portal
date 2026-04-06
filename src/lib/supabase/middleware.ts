@@ -1,10 +1,79 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+// ---------------------------------------------------------------------------
+// Subdomain routing
+// ---------------------------------------------------------------------------
+// Subdomains:
+//   guest.summitlakeside.com  → guest portal (no rewrite, root is already guest)
+//   admin.summitlakeside.com  → prepend /admin to path
+//   manager.summitlakeside.com → prepend /cleaner to path
+//
+// For local dev, use admin.localhost:3000 / manager.localhost:3000 etc.
+// ---------------------------------------------------------------------------
+
+const SUBDOMAIN_PREFIX_MAP: Record<string, string> = {
+  admin: "/admin",
+  manager: "/cleaner",
+  // guest needs no rewrite — root page is the guest portal
+};
+
+function getSubdomain(hostname: string): string | null {
+  // Strip port
+  const host = hostname.split(":")[0];
+
+  // localhost subdomains: admin.localhost, manager.localhost, guest.localhost
+  if (host.endsWith(".localhost")) {
+    const sub = host.split(".")[0];
+    return ["admin", "guest", "manager"].includes(sub) ? sub : null;
+  }
+
+  // Production / preview: admin.summitlakeside.com, etc.
+  const parts = host.split(".");
+  if (parts.length >= 3) {
+    const sub = parts[0];
+    return ["admin", "guest", "manager"].includes(sub) ? sub : null;
+  }
+
+  return null;
+}
+
+// Paths that should never be rewritten (shared across all subdomains)
+function shouldSkipRewrite(pathname: string): boolean {
+  return (
+    pathname.startsWith("/api") ||
+    pathname.startsWith("/auth") ||
+    pathname.startsWith("/_next")
+  );
+}
+
 export async function updateSession(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({
-    request,
-  });
+  // --- Subdomain detection -------------------------------------------------
+  const hostname = request.headers.get("host") || "";
+  const subdomain = getSubdomain(hostname);
+  const pathname = request.nextUrl.pathname;
+
+  const prefix = subdomain ? SUBDOMAIN_PREFIX_MAP[subdomain] : undefined;
+
+  // Compute the internal path that Next.js will serve
+  const needsRewrite =
+    !!prefix && !shouldSkipRewrite(pathname) && !pathname.startsWith(prefix);
+  const internalPath = needsRewrite
+    ? `${prefix}${pathname === "/" ? "" : pathname}`
+    : pathname;
+
+  // Helper: create the base response (rewrite or next) preserving the request
+  function makeResponse() {
+    if (needsRewrite) {
+      const rewriteUrl = request.nextUrl.clone();
+      rewriteUrl.pathname = internalPath;
+      return NextResponse.rewrite(rewriteUrl, { request });
+    }
+    return NextResponse.next({ request });
+  }
+
+  // --- Supabase session ---------------------------------------------------
+  let supabaseResponse = makeResponse();
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -18,9 +87,7 @@ export async function updateSession(request: NextRequest) {
           cookiesToSet.forEach(({ name, value }) =>
             request.cookies.set(name, value)
           );
-          supabaseResponse = NextResponse.next({
-            request,
-          });
+          supabaseResponse = makeResponse();
           cookiesToSet.forEach(({ name, value, options }) =>
             supabaseResponse.cookies.set(name, value, options)
           );
@@ -35,22 +102,24 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   // Protect admin routes
-  if (request.nextUrl.pathname.startsWith("/admin") && !user) {
+  if (internalPath.startsWith("/admin") && !user) {
     const url = request.nextUrl.clone();
     url.pathname = "/auth/login";
-    url.searchParams.set("redirect", request.nextUrl.pathname);
+    // On the admin subdomain, redirect back to / (which rewrites to /admin)
+    url.searchParams.set("redirect", subdomain === "admin" ? "/" : internalPath);
     return NextResponse.redirect(url);
   }
 
   // Protect cleaner routes (cookie presence check only; full validation in layout)
   if (
-    request.nextUrl.pathname.startsWith("/cleaner") &&
-    !request.nextUrl.pathname.startsWith("/cleaner/login")
+    internalPath.startsWith("/cleaner") &&
+    !internalPath.startsWith("/cleaner/login")
   ) {
     const sessionToken = request.cookies.get("cleaner_session")?.value;
     if (!sessionToken) {
       const url = request.nextUrl.clone();
-      url.pathname = "/cleaner/login";
+      // On the manager subdomain, redirect to /login (which rewrites to /cleaner/login)
+      url.pathname = subdomain === "manager" ? "/login" : "/cleaner/login";
       return NextResponse.redirect(url);
     }
   }
