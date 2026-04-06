@@ -694,6 +694,7 @@ export default function RegisterPage() {
                 <p className="text-xs text-muted-foreground">
                   Upload photos of the front and back of your driver&apos;s license, passport, or other government-issued ID.
                 </p>
+                <div className="grid grid-cols-2 gap-3">
                 {/* Front of ID */}
                 <div className="space-y-1.5">
                   <p className="text-sm font-medium">Front of ID</p>
@@ -759,6 +760,7 @@ export default function RegisterPage() {
                       />
                     </label>
                   )}
+                </div>
                 </div>
               </div>
             </CardContent>
