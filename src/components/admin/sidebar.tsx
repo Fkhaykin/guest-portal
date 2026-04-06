@@ -9,6 +9,7 @@ import {
   ClipboardList,
   Settings,
   SprayCan,
+  Receipt,
   LogOut,
   Menu,
   X,
@@ -23,6 +24,7 @@ const navItems = [
   { label: "Properties", href: "/admin/properties", icon: Building2 },
   { label: "Registrations", href: "/admin/registrations", icon: ClipboardList },
   { label: "Cleaners", href: "/admin/cleaners", icon: SprayCan },
+  { label: "Invoices", href: "/admin/invoices", icon: Receipt },
   { label: "Settings", href: "/admin/settings", icon: Settings },
 ];
 

@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { validateCleanerSession } from "@/lib/cleaner/auth";
 import { getSessionToken } from "@/lib/cleaner/session";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { CleanerHeader } from "@/components/cleaner/header";
+import { CleanerSidebar } from "@/components/cleaner/sidebar";
 
 export default async function CleanerProtectedLayout({
   children,
@@ -21,7 +21,7 @@ export default async function CleanerProtectedLayout({
     redirect("/cleaner/login");
   }
 
-  // Get task stats for header
+  // Get task stats for sidebar
   const supabase = createAdminClient();
   const { data: assignments } = await supabase
     .from("cleaner_property")
@@ -60,13 +60,15 @@ export default async function CleanerProtectedLayout({
   }
 
   return (
-    <div className="min-h-full bg-background">
-      <CleanerHeader
+    <div className="min-h-screen bg-background">
+      <CleanerSidebar
         cleanerName={cleaner.name}
         totalTasks={totalTasks}
         completedTasks={completedTasks}
       />
-      <main className="max-w-4xl mx-auto px-4 py-6">{children}</main>
+      <main className="md:ml-56 max-w-4xl mx-auto px-4 py-6 pt-16 md:pt-6 pb-20 md:pb-6">
+        {children}
+      </main>
     </div>
   );
 }

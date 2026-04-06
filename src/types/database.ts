@@ -28,6 +28,16 @@ export type CleaningChecklistItem = {
   checked: boolean;
 };
 
+export type InvoiceLineItem = {
+  description: string;
+  type: "cleaning" | "pet_fee" | "extra";
+  property_name?: string;
+  registration_id?: string;
+  amount: number; // cents
+};
+
+export type InvoiceStatus = "draft" | "submitted" | "approved" | "paid";
+
 export type UpsellEntry = {
   type: string;
   label: string;
