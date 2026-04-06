@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Mountain, TreePine, Waves, ArrowLeft } from "lucide-react";
+import Image from "next/image";
+import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const SESSION_KEY = "guest-portal-session";
@@ -48,13 +49,15 @@ export function GuestHeader() {
   return (
     <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-40">
       <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-2 text-foreground hover:opacity-80 transition-opacity">
-          <div className="flex gap-1 text-muted-foreground">
-            <Mountain className="h-4 w-4" />
-            <TreePine className="h-4 w-4" />
-            <Waves className="h-4 w-4" />
-          </div>
-          <span className="font-semibold text-lg">Guest Portal</span>
+        <Link href="/" className="hover:opacity-80 transition-opacity">
+          <Image
+            src="/logo.png"
+            alt="Summit Lakeside"
+            width={120}
+            height={60}
+            className="h-8 w-auto invert dark:invert-0"
+            priority
+          />
         </Link>
 
         {session && (
@@ -96,13 +99,24 @@ export function PropertyHeader({
   return (
     <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-40">
       <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-2 min-w-0">
+        <div className="flex items-center gap-3 min-w-0">
           {mounted && hasSession && (
             <Link href="/" className="text-muted-foreground hover:text-foreground transition-colors shrink-0">
               <ArrowLeft className="h-5 w-5" />
             </Link>
           )}
-          <h1 className="font-semibold text-lg truncate">
+          <Link href="/" className="shrink-0 hover:opacity-80 transition-opacity">
+            <Image
+              src="/logo.png"
+              alt="Summit Lakeside"
+              width={120}
+              height={60}
+              className="h-7 w-auto invert dark:invert-0"
+              priority
+            />
+          </Link>
+          <span className="text-muted-foreground hidden sm:inline">|</span>
+          <h1 className="font-semibold text-sm sm:text-lg truncate">
             {propertyName}
           </h1>
         </div>
