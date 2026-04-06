@@ -513,7 +513,7 @@ function GuestDashboard({
             className="w-full text-muted-foreground"
             onClick={onReset}
           >
-            Not your booking? Search again
+            Log Out
           </Button>
         </div>
       </div>
