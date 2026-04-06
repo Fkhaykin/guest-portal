@@ -86,13 +86,13 @@ function DateBlock({
       <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
         {label}
       </p>
+      {time && (
+        <p className="text-base font-bold text-primary leading-tight">{time}</p>
+      )}
       <p className="text-lg font-bold leading-tight">{day}</p>
       <p className="text-xs text-muted-foreground">
         {dayOfWeek}, {month}
       </p>
-      {time && (
-        <p className="text-[10px] font-semibold text-primary mt-0.5">{time}</p>
-      )}
     </div>
   );
 }
@@ -206,35 +206,34 @@ export function ReservationCard({
               : ""
         }`}
       >
-        {/* Cover image or placeholder */}
-        <div className="relative h-28 -mx-px -mt-px rounded-t-lg overflow-hidden">
-          {propertyCoverImage ? (
-            <img
-              src={propertyCoverImage}
-              alt={propertyName}
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <div className="w-full h-full bg-linear-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-800 flex items-center justify-center">
-              <Home className="h-10 w-10 text-slate-400 dark:text-slate-500" />
+        <CardContent className="pt-4 space-y-3">
+          {/* Property header: thumbnail + name + timing */}
+          <div className="flex items-center gap-3">
+            <div className="h-12 w-12 rounded-lg overflow-hidden shrink-0">
+              {propertyCoverImage ? (
+                <img
+                  src={propertyCoverImage}
+                  alt={propertyName}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full bg-linear-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-800 flex items-center justify-center">
+                  <Home className="h-5 w-5 text-slate-400 dark:text-slate-500" />
+                </div>
+              )}
             </div>
-          )}
-          <div className="absolute inset-0 bg-linear-to-t from-black/60 via-transparent to-transparent" />
-          <div className="absolute bottom-0 left-0 right-0 px-4 pb-2 flex items-end justify-between">
-            <h3 className="font-semibold text-sm text-white truncate">
-              {propertyName}
-            </h3>
-            {timingBadge && (
-              <span
-                className={`shrink-0 text-xs font-medium px-2 py-0.5 rounded-full flex items-center gap-1 ${timingBadge.color}`}
-              >
-                <Clock className="h-3 w-3" />
-                {timingBadge.text}
-              </span>
-            )}
+            <div className="min-w-0 flex-1">
+              <h3 className="font-semibold text-sm truncate">{propertyName}</h3>
+              {timingBadge && (
+                <span
+                  className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full mt-1 ${timingBadge.color}`}
+                >
+                  <Clock className="h-3 w-3" />
+                  {timingBadge.text}
+                </span>
+              )}
+            </div>
           </div>
-        </div>
-        <CardContent className="pt-3 space-y-3">
           {/* Prominent dates */}
           <div className="flex items-center justify-center gap-6 py-2 bg-muted/30 rounded-lg">
             <DateBlock dateStr={checkIn} label="Check-in" time={checkInTime} />

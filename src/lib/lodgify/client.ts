@@ -100,11 +100,11 @@ interface LodgifyV1Booking {
 // --- API methods ---
 
 export async function getProperties(): Promise<LodgifyProperty[]> {
-  const data = await lodgifyFetch<{ items: Array<{ id: number; name: string; address?: string; description?: string }> }>("/v2/properties");
+  const data = await lodgifyFetch<{ items: Array<{ id: number; name: string; address?: string; city?: string; state?: string; zip?: string; country?: string; description?: string }> }>("/v2/properties");
   return data.items.map((p) => ({
     id: p.id,
     name: p.name,
-    address: p.address ?? null,
+    address: [p.address, p.city, p.state, p.zip].filter(Boolean).join(", ") || null,
     description: p.description ?? null,
   }));
 }

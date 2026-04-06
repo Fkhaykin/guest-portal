@@ -11,6 +11,7 @@ import {
   Video,
   QrCode,
   Building2,
+  Settings,
 } from "lucide-react";
 
 const sections = [
@@ -61,6 +62,12 @@ const sections = [
     description: "Owner info, lot/section, HOA email for PDF submissions",
     href: "/owner-settings",
     icon: Building2,
+  },
+  {
+    label: "Property Settings",
+    description: "Name, address, and general property details",
+    href: "/settings",
+    icon: Settings,
   },
 ];
 

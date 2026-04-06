@@ -159,16 +159,31 @@ export default async function CleanerDashboard() {
     )
   );
 
-  const calendarData = (calendarRegs || []).map((r) => ({
-    id: r.id,
-    propertyName: propertyMap.get(r.property_id)?.name || "Unknown",
-    propertyColor: propertyColorMap.get(r.property_id) || "bg-gray-500",
-    checkIn: r.check_in_date,
-    checkOut: r.check_out_date,
-    numGuests: r.num_guests,
-    isCleaned: calendarStatusMap.get(r.id) ?? false,
-    upsellCount: ((r.upsells as UpsellEntry[] | null) || []).filter((u) => u.status === "paid").length,
-  }));
+  const UPSELL_LABELS: Record<string, string> = {
+    early_checkin: "Early Check-In",
+    late_checkout: "Late Check-Out",
+    new_sheets: "New Sheets",
+    firewood: "Firewood",
+    private_chef: "Private Chef",
+    baby_high_chair: "High Chair",
+    luxury_picnic: "Luxury Picnic",
+    breakfast_delivery: "Breakfast",
+  };
+
+  const calendarData = (calendarRegs || []).map((r) => {
+    const paid = ((r.upsells as UpsellEntry[] | null) || []).filter((u) => u.status === "paid");
+    return {
+      id: r.id,
+      propertyName: propertyMap.get(r.property_id)?.name || "Unknown",
+      propertyColor: propertyColorMap.get(r.property_id) || "bg-gray-500",
+      checkIn: r.check_in_date,
+      checkOut: r.check_out_date,
+      numGuests: r.num_guests,
+      isCleaned: calendarStatusMap.get(r.id) ?? false,
+      upsellCount: paid.length,
+      upsellLabels: paid.map((u) => UPSELL_LABELS[u.type] || u.label || u.type),
+    };
+  });
 
   function renderCards(items: typeof regs, category: "current" | "upcoming" | "departed") {
     return items.map((reg) => {
