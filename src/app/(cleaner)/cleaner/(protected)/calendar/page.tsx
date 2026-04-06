@@ -61,11 +61,11 @@ export default async function CalendarPage() {
 
   const { data: properties } = await supabase
     .from("property")
-    .select("id, name, cover_image_url")
+    .select("id, name, nickname, cover_image_url")
     .in("id", propertyIds);
 
   const propertyMap = new Map(
-    (properties || []).map((p) => [p.id, { name: p.name, coverImage: p.cover_image_url }])
+    (properties || []).map((p) => [p.id, { name: p.name, nickname: p.nickname, coverImage: p.cover_image_url }])
   );
 
   const propertyColorMap = new Map(

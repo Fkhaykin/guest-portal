@@ -3,7 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { validateCleanerSession } from "@/lib/cleaner/auth";
 import { getSessionToken } from "@/lib/cleaner/session";
 import { InvoiceDetail } from "@/components/cleaner/invoice-detail";
-import type { InvoiceLineItem, InvoiceStatus } from "@/types/database";
+import type { InvoiceLineItem, InvoiceAdjustment, InvoiceAttachment, InvoiceStatus } from "@/types/database";
 
 export const dynamic = "force-dynamic";
 
@@ -39,6 +39,8 @@ export default async function InvoiceDetailPage({
         period_start: invoice.period_start,
         period_end: invoice.period_end,
         line_items: invoice.line_items as InvoiceLineItem[],
+        adjustments: (invoice.adjustments as InvoiceAdjustment[]) || [],
+        attachments: (invoice.attachments as InvoiceAttachment[]) || [],
         subtotal: invoice.subtotal,
         total: invoice.total,
         notes: invoice.notes,

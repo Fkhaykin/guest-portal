@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { getBookings, getBookingById, getProperties, type LodgifyBooking } from "./client";
 
 const STATUS_MAP: Record<string, "active" | "completed" | "cancelled"> = {
@@ -12,6 +13,47 @@ const STATUS_MAP: Record<string, "active" | "completed" | "cancelled"> = {
 
 function mapStatus(lodgifyStatus: string): "active" | "completed" | "cancelled" {
   return STATUS_MAP[lodgifyStatus] ?? "active";
+}
+
+/**
+ * Download an image from a URL and upload it to the property-images bucket.
+ * Returns the public URL on success, null on failure.
+ */
+async function rehostImage(
+  supabase: SupabaseClient,
+  imageUrl: string,
+  lodgifyPropertyId: number
+): Promise<string | null> {
+  try {
+    const res = await fetch(imageUrl);
+    if (!res.ok) return null;
+
+    const contentType = res.headers.get("content-type") || "image/jpeg";
+    const ext = contentType.includes("png") ? "png" : contentType.includes("webp") ? "webp" : "jpg";
+    const buffer = Buffer.from(await res.arrayBuffer());
+    const path = `lodgify-${lodgifyPropertyId}/cover.${ext}`;
+
+    const { error } = await supabase.storage
+      .from("property-images")
+      .upload(path, buffer, {
+        contentType,
+        upsert: true,
+      });
+
+    if (error) {
+      console.error(`[lodgify-sync] Failed to upload image for property ${lodgifyPropertyId}:`, error);
+      return null;
+    }
+
+    const { data: publicUrl } = supabase.storage
+      .from("property-images")
+      .getPublicUrl(path);
+
+    return publicUrl.publicUrl;
+  } catch (err) {
+    console.error(`[lodgify-sync] Error rehosting image for property ${lodgifyPropertyId}:`, err);
+    return null;
+  }
 }
 
 function slugify(name: string): string {
@@ -69,12 +111,20 @@ export async function syncProperties() {
       .single();
 
     if (existing) {
+      // Rehost image from Lodgify if no cover image set yet
+      let coverImageUrl: string | undefined;
+      if (lp.imageUrl) {
+        const rehosted = await rehostImage(supabase, lp.imageUrl, lp.id);
+        if (rehosted) coverImageUrl = rehosted;
+      }
+
       await supabase
         .from("property")
         .update({
           name: lp.name,
           address: lp.address,
           description: lp.description,
+          ...(coverImageUrl ? { cover_image_url: coverImageUrl } : {}),
         })
         .eq("id", existing.id);
       updated++;
@@ -89,6 +139,13 @@ export async function syncProperties() {
 
       const finalSlug = slugExists ? `${slug}-${lp.id}` : slug;
 
+      // Rehost image from Lodgify
+      let coverImageUrl: string | null = null;
+      if (lp.imageUrl) {
+        const rehosted = await rehostImage(supabase, lp.imageUrl, lp.id);
+        if (rehosted) coverImageUrl = rehosted;
+      }
+
       const { error } = await supabase
         .from("property")
         .insert({
@@ -99,6 +156,7 @@ export async function syncProperties() {
           description: lp.description,
           lodgify_property_id: lp.id,
           is_active: true,
+          ...(coverImageUrl ? { cover_image_url: coverImageUrl } : {}),
         });
 
       if (error) {

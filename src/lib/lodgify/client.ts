@@ -36,6 +36,7 @@ export interface LodgifyProperty {
   name: string;
   address: string | null;
   description: string | null;
+  imageUrl: string | null;
 }
 
 export interface LodgifyGuest {
@@ -100,12 +101,13 @@ interface LodgifyV1Booking {
 // --- API methods ---
 
 export async function getProperties(): Promise<LodgifyProperty[]> {
-  const data = await lodgifyFetch<{ items: Array<{ id: number; name: string; address?: string; city?: string; state?: string; zip?: string; country?: string; description?: string }> }>("/v2/properties");
+  const data = await lodgifyFetch<{ items: Array<{ id: number; name: string; address?: string; city?: string; state?: string; zip?: string; country?: string; description?: string; image_url?: string; images?: Array<{ url: string }> }> }>("/v2/properties");
   return data.items.map((p) => ({
     id: p.id,
     name: p.name,
     address: [p.address, p.city, p.state, p.zip].filter(Boolean).join(", ") || null,
     description: p.description ?? null,
+    imageUrl: p.image_url || p.images?.[0]?.url || null,
   }));
 }
 

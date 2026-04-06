@@ -5,8 +5,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, Edit, Home, PawPrint, Wrench } from "lucide-react";
-import type { InvoiceLineItem, InvoiceStatus } from "@/types/database";
+import { ArrowLeft, Edit, Home, PawPrint, Wrench, FileText, SlidersHorizontal } from "lucide-react";
+import type { InvoiceLineItem, InvoiceAdjustment, InvoiceAttachment, InvoiceStatus } from "@/types/database";
 
 const STATUS_STYLES: Record<string, string> = {
   draft: "bg-muted text-muted-foreground",
@@ -61,6 +61,8 @@ export function InvoiceDetail({
     period_start: string;
     period_end: string;
     line_items: InvoiceLineItem[];
+    adjustments: InvoiceAdjustment[];
+    attachments: InvoiceAttachment[];
     subtotal: number;
     total: number;
     notes: string | null;
@@ -147,12 +149,64 @@ export function InvoiceDetail({
             );
           })}
 
+          {/* Adjustments */}
+          {invoice.adjustments.length > 0 && (
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <SlidersHorizontal className="h-4 w-4 text-muted-foreground" />
+                <p className="text-sm font-medium">
+                  Adjustments ({invoice.adjustments.length})
+                </p>
+              </div>
+              <div className="space-y-2 pl-6">
+                {invoice.adjustments.map((adj, i) => (
+                  <div key={i}>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">{adj.description}</span>
+                      <span className={`font-medium ${adj.amount < 0 ? "text-red-600" : ""}`}>
+                        {adj.amount >= 0 ? "+" : ""}{formatCents(adj.amount)}
+                      </span>
+                    </div>
+                    {adj.reason && (
+                      <p className="text-xs text-muted-foreground/70 mt-0.5">
+                        Reason: {adj.reason}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <Separator className="mt-3" />
+            </div>
+          )}
+
           <div className="flex items-center justify-between pt-1">
             <p className="text-base font-semibold">Total</p>
             <p className="text-xl font-bold">{formatCents(invoice.total)}</p>
           </div>
         </CardContent>
       </Card>
+
+      {/* Attachments */}
+      {invoice.attachments.length > 0 && (
+        <Card>
+          <CardContent className="pt-4 space-y-2">
+            <p className="text-sm font-medium mb-2">Attachments</p>
+            <div className="space-y-1.5">
+              {invoice.attachments.map((att, i) => (
+                <div
+                  key={i}
+                  className="flex items-center gap-2 px-3 py-2 bg-muted/50 rounded-lg"
+                >
+                  <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <span className="text-xs font-medium flex-1 truncate">
+                    {att.name}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Notes */}
       {invoice.notes && (

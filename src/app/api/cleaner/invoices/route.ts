@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { validateCleanerSession } from "@/lib/cleaner/auth";
 import { getSessionToken } from "@/lib/cleaner/session";
-import type { InvoiceLineItem } from "@/types/database";
+import type { InvoiceLineItem, InvoiceAdjustment, InvoiceAttachment } from "@/types/database";
 
 // GET — list invoices for current cleaner
 export async function GET() {
@@ -36,6 +36,8 @@ export async function POST(request: Request) {
     period_start: string;
     period_end: string;
     line_items: InvoiceLineItem[];
+    adjustments?: InvoiceAdjustment[];
+    attachments?: InvoiceAttachment[];
     notes?: string;
     submit?: boolean;
   };
@@ -45,14 +47,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { id, period_start, period_end, line_items, notes, submit } = body;
+  const { id, period_start, period_end, line_items, adjustments, attachments, notes, submit } = body;
 
   if (!period_start || !period_end || !line_items || line_items.length === 0) {
     return NextResponse.json({ error: "Period and line items are required" }, { status: 400 });
   }
 
   const subtotal = line_items.reduce((sum, item) => sum + item.amount, 0);
-  const total = subtotal;
+  const adjustmentTotal = (adjustments || []).reduce((sum, adj) => sum + adj.amount, 0);
+  const total = subtotal + adjustmentTotal;
 
   const supabase = createAdminClient();
 
@@ -62,6 +65,8 @@ export async function POST(request: Request) {
     period_start,
     period_end,
     line_items,
+    adjustments: adjustments || [],
+    attachments: attachments || [],
     subtotal,
     total,
     notes: notes || null,

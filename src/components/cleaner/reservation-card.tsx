@@ -16,6 +16,8 @@ import {
   Baby,
   PawPrint,
   User,
+  ArrowDownToLine,
+  ArrowUpFromLine,
 } from "lucide-react";
 import type { UpsellEntry, GuestListEntry, PetEntry } from "@/types/database";
 import { CleaningDialog } from "./cleaning-dialog";
@@ -100,6 +102,7 @@ function DateBlock({
 export function ReservationCard({
   registrationId,
   propertyName,
+  propertyNickname,
   propertyCoverImage,
   checkIn,
   checkOut,
@@ -113,6 +116,7 @@ export function ReservationCard({
 }: {
   registrationId: string;
   propertyName: string;
+  propertyNickname: string | null;
   propertyCoverImage: string | null;
   checkIn: string;
   checkOut: string;
@@ -224,6 +228,9 @@ export function ReservationCard({
             </div>
             <div className="min-w-0 flex-1">
               <h3 className="font-semibold text-sm truncate">{propertyName}</h3>
+              {propertyNickname && (
+                <p className="text-xs text-muted-foreground truncate">{propertyNickname}</p>
+              )}
               {timingBadge && (
                 <span
                   className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full mt-1 ${timingBadge.color}`}
@@ -240,6 +247,24 @@ export function ReservationCard({
             <div className="text-muted-foreground text-lg">&rarr;</div>
             <DateBlock dateStr={checkOut} label="Check-out" time={checkOutTime} />
           </div>
+
+          {/* Early check-in / Late check-out callouts */}
+          {(hasEarlyCheckin || hasLateCheckout) && (
+            <div className="flex flex-wrap gap-2">
+              {hasEarlyCheckin && (
+                <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-orange-100 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-900">
+                  <ArrowDownToLine className="h-3.5 w-3.5 text-orange-600 dark:text-orange-400" />
+                  <span className="text-xs font-semibold text-orange-700 dark:text-orange-300">Early Check-In — 1 PM</span>
+                </div>
+              )}
+              {hasLateCheckout && (
+                <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-purple-100 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-900">
+                  <ArrowUpFromLine className="h-3.5 w-3.5 text-purple-600 dark:text-purple-400" />
+                  <span className="text-xs font-semibold text-purple-700 dark:text-purple-300">Late Check-Out — 2 PM</span>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Guest breakdown */}
           <GuestBreakdown numGuests={numGuests} guestList={guestList} pets={pets} />
