@@ -5,10 +5,11 @@ export async function POST(request: Request) {
   const formData = await request.formData();
   const file = formData.get("file") as File | null;
   const registrationId = formData.get("registration_id") as string | null;
+  const side = formData.get("side") as string | null; // "front" | "back"
 
-  if (!file || !registrationId) {
+  if (!file || !registrationId || !side) {
     return NextResponse.json(
-      { error: "file and registration_id are required" },
+      { error: "file, registration_id, and side are required" },
       { status: 400 }
     );
   }
@@ -41,7 +42,7 @@ export async function POST(request: Request) {
   }
 
   const ext = file.name.split(".").pop() || "png";
-  const path = `${registrationId}/id-document.${ext}`;
+  const path = `${registrationId}/id-${side}.${ext}`;
 
   const buffer = await file.arrayBuffer();
 

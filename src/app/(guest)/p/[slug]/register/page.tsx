@@ -192,10 +192,12 @@ export default function RegisterPage() {
   const [tips, setTips] = useState({ breakfast: "", delivery: "", cleaning: "" });
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
 
-  // ID upload
-  const [idDocPath, setIdDocPath] = useState<string | null>(null);
-  const [idDocName, setIdDocName] = useState<string | null>(null);
-  const [uploadingId, setUploadingId] = useState(false);
+  // ID upload (front + back)
+  const [idFrontPath, setIdFrontPath] = useState<string | null>(null);
+  const [idFrontName, setIdFrontName] = useState<string | null>(null);
+  const [idBackPath, setIdBackPath] = useState<string | null>(null);
+  const [idBackName, setIdBackName] = useState<string | null>(null);
+  const [uploadingIdSide, setUploadingIdSide] = useState<string | null>(null);
 
   // Signature
   const [signatureDataUrl, setSignatureDataUrl] = useState<string | null>(null);
@@ -378,13 +380,14 @@ export default function RegisterPage() {
     }
   }
 
-  async function handleIdUpload(file: File) {
+  async function handleIdUpload(side: "front" | "back", file: File) {
     if (!session) return;
-    setUploadingId(true);
+    setUploadingIdSide(side);
 
     const formData = new FormData();
     formData.append("file", file);
     formData.append("registration_id", session.reservation.id);
+    formData.append("side", side);
 
     try {
       const res = await fetch("/api/guest/upload-id", {
@@ -394,13 +397,18 @@ export default function RegisterPage() {
 
       if (res.ok) {
         const data = await res.json();
-        setIdDocPath(data.path);
-        setIdDocName(file.name);
+        if (side === "front") {
+          setIdFrontPath(data.path);
+          setIdFrontName(file.name);
+        } else {
+          setIdBackPath(data.path);
+          setIdBackName(file.name);
+        }
       }
     } catch {
       // Handle error silently
     } finally {
-      setUploadingId(false);
+      setUploadingIdSide(null);
     }
   }
 
@@ -612,7 +620,7 @@ export default function RegisterPage() {
       {step === 2 && (
         <form onSubmit={(e) => {
           e.preventDefault();
-          if (!idDocPath) return;
+          if (!idFrontPath || !idBackPath) return;
           setStep(3);
         }} className="space-y-6">
           <Card>
@@ -679,54 +687,85 @@ export default function RegisterPage() {
                 </div>
               </div>
               <Separator />
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <Label className="flex items-center gap-2">
                   <Upload className="h-4 w-4" /> Government-Issued ID
                 </Label>
                 <p className="text-xs text-muted-foreground">
-                  Upload a photo of your driver&apos;s license, passport, or other government-issued ID.
+                  Upload photos of the front and back of your driver&apos;s license, passport, or other government-issued ID.
                 </p>
-                {idDocPath ? (
-                  <div className="flex items-center gap-2 rounded-lg border bg-muted/50 p-3">
-                    <FileCheck className="h-5 w-5 text-green-600 shrink-0" />
-                    <span className="text-sm truncate flex-1">{idDocName}</span>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => { setIdDocPath(null); setIdDocName(null); }}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ) : (
-                  <label className="flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-6 cursor-pointer hover:bg-muted/50 transition-colors">
-                    <Upload className="h-8 w-8 text-muted-foreground" />
-                    <span className="text-sm text-muted-foreground">
-                      {uploadingId ? "Uploading..." : "Tap to upload photo of ID"}
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      JPEG, PNG, WebP, or PDF — max 10MB
-                    </span>
-                    <input
-                      type="file"
-                      className="hidden"
-                      accept="image/jpeg,image/png,image/webp,application/pdf"
-                      disabled={uploadingId}
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) handleIdUpload(file);
-                        e.target.value = "";
-                      }}
-                    />
-                  </label>
-                )}
+                {/* Front of ID */}
+                <div className="space-y-1.5">
+                  <p className="text-sm font-medium">Front of ID</p>
+                  {idFrontPath ? (
+                    <div className="flex items-center gap-2 rounded-lg border bg-muted/50 p-3">
+                      <FileCheck className="h-5 w-5 text-green-600 shrink-0" />
+                      <span className="text-sm truncate flex-1">{idFrontName}</span>
+                      <Button
+                        type="button" variant="ghost" size="sm"
+                        onClick={() => { setIdFrontPath(null); setIdFrontName(null); }}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <label className="flex flex-col items-center justify-center gap-1.5 rounded-lg border-2 border-dashed p-4 cursor-pointer hover:bg-muted/50 transition-colors">
+                      <Upload className="h-6 w-6 text-muted-foreground" />
+                      <span className="text-sm text-muted-foreground">
+                        {uploadingIdSide === "front" ? "Uploading..." : "Tap to upload front of ID"}
+                      </span>
+                      <input
+                        type="file" className="hidden"
+                        accept="image/jpeg,image/png,image/webp,application/pdf"
+                        disabled={uploadingIdSide === "front"}
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handleIdUpload("front", file);
+                          e.target.value = "";
+                        }}
+                      />
+                    </label>
+                  )}
+                </div>
+                {/* Back of ID */}
+                <div className="space-y-1.5">
+                  <p className="text-sm font-medium">Back of ID</p>
+                  {idBackPath ? (
+                    <div className="flex items-center gap-2 rounded-lg border bg-muted/50 p-3">
+                      <FileCheck className="h-5 w-5 text-green-600 shrink-0" />
+                      <span className="text-sm truncate flex-1">{idBackName}</span>
+                      <Button
+                        type="button" variant="ghost" size="sm"
+                        onClick={() => { setIdBackPath(null); setIdBackName(null); }}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <label className="flex flex-col items-center justify-center gap-1.5 rounded-lg border-2 border-dashed p-4 cursor-pointer hover:bg-muted/50 transition-colors">
+                      <Upload className="h-6 w-6 text-muted-foreground" />
+                      <span className="text-sm text-muted-foreground">
+                        {uploadingIdSide === "back" ? "Uploading..." : "Tap to upload back of ID"}
+                      </span>
+                      <input
+                        type="file" className="hidden"
+                        accept="image/jpeg,image/png,image/webp,application/pdf"
+                        disabled={uploadingIdSide === "back"}
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handleIdUpload("back", file);
+                          e.target.value = "";
+                        }}
+                      />
+                    </label>
+                  )}
+                </div>
               </div>
             </CardContent>
           </Card>
-          {!idDocPath && (
+          {(!idFrontPath || !idBackPath) && (
             <p className="text-sm text-destructive text-center">
-              Please upload your ID to continue.
+              Please upload both sides of your ID to continue.
             </p>
           )}
           {navButtons(1)}
