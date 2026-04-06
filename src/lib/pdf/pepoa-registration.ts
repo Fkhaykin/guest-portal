@@ -281,8 +281,8 @@ function drawPage1(doc: PDFKit.PDFDocument, data: PEPOAData) {
   if (headerImg) {
     try {
       doc.image(headerImg, LM, y, { width: PW });
-      // Approximate height based on image aspect ratio (~3.3:1)
-      y += Math.round(PW / 3.3) + 12;
+      // Image is 1750x714 (~2.45:1 aspect ratio)
+      y += Math.round(PW / 2.45) + 16;
     } catch {
       // Fall back to text-based header
       y = drawTextHeader(doc, y);
