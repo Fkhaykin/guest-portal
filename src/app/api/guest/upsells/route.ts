@@ -192,12 +192,13 @@ export async function POST(request: Request) {
     },
   ];
 
-  // Filter out one-time upsells the guest has already paid for
+  // Filter out one-time upsells the guest has already purchased (paid or pending)
   const oneTimeTypes = new Set(["early_checkin", "late_checkout"]);
-  const paidTypes = new Set(
-    purchased.filter((u) => u.status === "paid" && oneTimeTypes.has(u.type)).map((u) => u.type)
+  const purchasedOneTimeTypes = new Set(
+    purchased.filter((u) => oneTimeTypes.has(u.type)).map((u) => u.type)
   );
-  const available = upsells.filter((u) => !paidTypes.has(u.type));
+  const available = upsells.filter((u) => !purchasedOneTimeTypes.has(u.type));
 
-  return NextResponse.json({ upsells: available, purchased });
+  const paid = purchased.filter((u) => u.status === "paid");
+  return NextResponse.json({ upsells: available, purchased: paid });
 }
