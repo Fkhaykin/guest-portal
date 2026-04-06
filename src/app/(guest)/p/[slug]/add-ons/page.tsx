@@ -31,6 +31,7 @@ type UpsellOption = {
   price_cents: number;
   image?: string;
   available: boolean;
+  purchased?: boolean;
   unavailable_reason?: string | null;
   meta?: {
     dates?: string[];
@@ -239,31 +240,7 @@ export default function AddOnsPage() {
         </p>
       </div>
 
-      {/* Confirmed purchases */}
-      {purchasedUpsells.length > 0 && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-green-700">
-              <Check className="h-5 w-5" /> Your Add-Ons
-            </CardTitle>
-            <CardDescription>These are confirmed for your stay</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {purchasedUpsells.map((u, i) => (
-              <div key={i} className="flex items-center gap-3 rounded-lg border p-3">
-                <div className="shrink-0">
-                  {upsellIcons[u.type] || <Sparkles className="h-5 w-5 text-muted-foreground" />}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium">{u.label}</p>
-                  <p className="text-xs text-green-600">{formatCents(u.price_cents)} paid</p>
-                </div>
-                <Check className="h-4 w-4 text-green-600 shrink-0" />
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      )}
+
 
       {/* Upsell groups */}
       {[
@@ -271,7 +248,7 @@ export default function AddOnsPage() {
         { group: "convenience", title: "Convenience", description: "Little extras to make your stay easier", icon: <Sparkles className="h-5 w-5" /> },
         { group: "experience", title: "Experiences", description: "Unforgettable moments during your stay", icon: <Sparkles className="h-5 w-5" /> },
       ].map(({ group, title, description, icon }) => {
-        const groupOptions = upsellOptions.filter((o) => o.group === group && !purchasedUpsells.some((p) => p.type === o.type && p.status === "paid"));
+        const groupOptions = upsellOptions.filter((o) => o.group === group);
         if (groupOptions.length === 0) return null;
         return (
           <Card key={group}>
@@ -312,7 +289,14 @@ export default function AddOnsPage() {
                           )}
                         </div>
                         {/* Inline button for simple items */}
-                        {option.available && !hasConfig(option.type) && (
+                        {option.purchased && (
+                          <div className="mt-2">
+                            <Badge variant="secondary" className="text-green-700 bg-green-50 border-green-200">
+                              <Check className="h-3 w-3 mr-1" /> Purchased
+                            </Badge>
+                          </div>
+                        )}
+                        {!option.purchased && option.available && !hasConfig(option.type) && (
                           <div className="mt-2">
                             {inCart ? (
                               <Button type="button" variant="outline" size="sm"
@@ -334,7 +318,7 @@ export default function AddOnsPage() {
                             )}
                           </div>
                         )}
-                        {!option.available && option.unavailable_reason && (
+                        {!option.purchased && !option.available && option.unavailable_reason && (
                           <p className="text-xs text-amber-600 mt-2">{option.unavailable_reason}</p>
                         )}
                       </div>
@@ -384,7 +368,7 @@ export default function AddOnsPage() {
                     )}
 
                     {/* Expandable config for complex items */}
-                    {hasConfig(option.type) && (
+                    {hasConfig(option.type) && !option.purchased && (
                       <div className="px-4 pb-4 pt-2 border-t space-y-3">
 
                         {/* Private chef config */}
