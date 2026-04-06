@@ -21,6 +21,11 @@ import {
   Baby,
   PawPrint,
   Home,
+  Moon,
+  Clock,
+  CalendarPlus,
+  CheckCircle2,
+  XCircle,
 } from "lucide-react";
 import type { GuestListEntry, PetEntry } from "@/types/database";
 
@@ -32,11 +37,17 @@ export type CalendarReservation = {
   checkIn: string;
   checkOut: string;
   numGuests: number;
+  guestName: string | null;
   guestList: GuestListEntry[] | null;
   pets: PetEntry[] | null;
   isCleaned: boolean;
   upsellCount: number;
   upsellLabels: string[];
+  bookedAt: string | null;
+  status: string;
+  nights: number;
+  hasEarlyCheckin: boolean;
+  hasLateCheckout: boolean;
 };
 
 const DAY_NAMES_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -338,7 +349,7 @@ export function CalendarView({
 
       {/* Detail modal */}
       <Dialog open={!!selected} onOpenChange={(open) => !open && setSelected(null)}>
-        <DialogContent className="max-w-sm">
+        <DialogContent className="max-w-md p-0 overflow-hidden">
           {selected &&
             (() => {
               const adults =
@@ -350,78 +361,129 @@ export function CalendarView({
               const petCount =
                 selected.pets?.filter((p) => p.name?.trim()).length ?? 0;
               const hasBreakdown = selected.guestList && selected.guestList.length > 0;
+              const checkInTime = selected.hasEarlyCheckin ? "1:00 PM (early)" : "4:00 PM";
+              const checkOutTime = selected.hasLateCheckout ? "2:00 PM (late)" : "11:00 AM";
 
               return (
                 <>
-                  <DialogHeader>
-                    <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-lg overflow-hidden shrink-0">
-                        {selected.propertyCoverImage ? (
-                          <img
-                            src={selected.propertyCoverImage}
-                            alt={selected.propertyName}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full bg-linear-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-800 flex items-center justify-center">
-                            <Home className="h-4 w-4 text-slate-400 dark:text-slate-500" />
-                          </div>
+                  {/* Cover image header */}
+                  {selected.propertyCoverImage ? (
+                    <div className="relative h-36 w-full">
+                      <img
+                        src={selected.propertyCoverImage}
+                        alt={selected.propertyName}
+                        className="w-full h-full object-cover"
+                      />
+                      <div className="absolute inset-0 bg-linear-to-t from-black/70 via-black/20 to-transparent" />
+                      <div className="absolute bottom-0 left-0 right-0 p-4">
+                        <h2 className="text-white font-bold text-lg leading-tight">
+                          {selected.propertyName}
+                        </h2>
+                        {selected.guestName && (
+                          <p className="text-white/80 text-sm mt-0.5">{selected.guestName}</p>
                         )}
                       </div>
-                      <DialogTitle className="text-base">{selected.propertyName}</DialogTitle>
                     </div>
-                  </DialogHeader>
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-4 text-sm">
-                      <div className="flex items-center gap-1.5 text-muted-foreground">
-                        <CalendarDays className="h-4 w-4" />
-                        <span>{formatDateLong(selected.checkIn)}</span>
+                  ) : (
+                    <DialogHeader className="px-5 pt-5 pb-0">
+                      <DialogTitle className="text-lg">{selected.propertyName}</DialogTitle>
+                      {selected.guestName && (
+                        <p className="text-sm text-muted-foreground">{selected.guestName}</p>
+                      )}
+                    </DialogHeader>
+                  )}
+
+                  <div className="p-5 space-y-4">
+                    {/* Dates row */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="rounded-lg border p-3 space-y-0.5">
+                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+                          Check-in
+                        </p>
+                        <p className="text-sm font-semibold">{formatDateLong(selected.checkIn)}</p>
+                        <p className="text-xs text-primary font-medium">{checkInTime}</p>
                       </div>
-                      <span className="text-muted-foreground">&rarr;</span>
-                      <div className="text-muted-foreground">{formatDateLong(selected.checkOut)}</div>
+                      <div className="rounded-lg border p-3 space-y-0.5">
+                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+                          Check-out
+                        </p>
+                        <p className="text-sm font-semibold">{formatDateLong(selected.checkOut)}</p>
+                        <p className="text-xs text-primary font-medium">{checkOutTime}</p>
+                      </div>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-3 text-sm">
-                      {hasBreakdown ? (
-                        <>
-                          {adults > 0 && (
-                            <span className="flex items-center gap-1 text-muted-foreground">
-                              <User className="h-4 w-4" />
-                              {adults} adult{adults !== 1 ? "s" : ""}
-                            </span>
-                          )}
-                          {children > 0 && (
-                            <span className="flex items-center gap-1 text-muted-foreground">
-                              <Users className="h-4 w-4" />
-                              {children} child{children !== 1 ? "ren" : ""}
-                            </span>
-                          )}
-                          {infants > 0 && (
-                            <span className="flex items-center gap-1 text-muted-foreground">
-                              <Baby className="h-4 w-4" />
-                              {infants} infant{infants !== 1 ? "s" : ""}
-                            </span>
-                          )}
-                        </>
-                      ) : (
-                        <span className="flex items-center gap-1 text-muted-foreground">
-                          <Users className="h-4 w-4" />
-                          {selected.numGuests} guest{selected.numGuests !== 1 ? "s" : ""}
-                        </span>
-                      )}
-                      {petCount > 0 && (
-                        <span className="flex items-center gap-1 text-amber-600 font-medium">
-                          <PawPrint className="h-4 w-4" />
-                          {petCount} pet{petCount !== 1 ? "s" : ""}
-                        </span>
-                      )}
+                    {/* Stay info chips */}
+                    <div className="flex flex-wrap gap-2">
+                      <Badge variant="secondary" className="gap-1 text-xs">
+                        <Moon className="h-3 w-3" />
+                        {selected.nights} night{selected.nights !== 1 ? "s" : ""}
+                      </Badge>
+                      <Badge
+                        variant={selected.isCleaned ? "default" : "destructive"}
+                        className={`gap-1 text-xs ${selected.isCleaned ? "bg-green-600" : ""}`}
+                      >
+                        {selected.isCleaned ? (
+                          <CheckCircle2 className="h-3 w-3" />
+                        ) : (
+                          <XCircle className="h-3 w-3" />
+                        )}
+                        {selected.isCleaned ? "Cleaned" : "Not cleaned"}
+                      </Badge>
+                      <Badge variant="outline" className="gap-1 text-xs capitalize">
+                        {selected.status}
+                      </Badge>
                     </div>
 
+                    <Separator />
+
+                    {/* Guests */}
+                    <div className="space-y-1.5">
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                        Guests
+                      </p>
+                      <div className="flex flex-wrap items-center gap-3 text-sm">
+                        {hasBreakdown ? (
+                          <>
+                            {adults > 0 && (
+                              <span className="flex items-center gap-1.5 text-foreground">
+                                <User className="h-4 w-4 text-muted-foreground" />
+                                {adults} adult{adults !== 1 ? "s" : ""}
+                              </span>
+                            )}
+                            {children > 0 && (
+                              <span className="flex items-center gap-1.5 text-foreground">
+                                <Users className="h-4 w-4 text-muted-foreground" />
+                                {children} child{children !== 1 ? "ren" : ""}
+                              </span>
+                            )}
+                            {infants > 0 && (
+                              <span className="flex items-center gap-1.5 text-foreground">
+                                <Baby className="h-4 w-4 text-muted-foreground" />
+                                {infants} infant{infants !== 1 ? "s" : ""}
+                              </span>
+                            )}
+                          </>
+                        ) : (
+                          <span className="flex items-center gap-1.5 text-foreground">
+                            <Users className="h-4 w-4 text-muted-foreground" />
+                            {selected.numGuests} guest{selected.numGuests !== 1 ? "s" : ""}
+                          </span>
+                        )}
+                        {petCount > 0 && (
+                          <span className="flex items-center gap-1.5 text-amber-600 font-medium">
+                            <PawPrint className="h-4 w-4" />
+                            {petCount} pet{petCount !== 1 ? "s" : ""}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Add-ons */}
                     {selected.upsellLabels.length > 0 && (
                       <>
                         <Separator />
                         <div className="space-y-1.5">
-                          <p className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1">
                             <Sparkles className="h-3 w-3" />
                             Purchased Add-ons
                           </p>
@@ -436,13 +498,16 @@ export function CalendarView({
                       </>
                     )}
 
-                    <Separator />
-                    <Badge
-                      variant={selected.isCleaned ? "default" : "destructive"}
-                      className={selected.isCleaned ? "bg-green-600" : ""}
-                    >
-                      {selected.isCleaned ? "Cleaned" : "Not cleaned"}
-                    </Badge>
+                    {/* Booking meta */}
+                    {selected.bookedAt && (
+                      <>
+                        <Separator />
+                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <CalendarPlus className="h-3.5 w-3.5" />
+                          Booked {formatDateLong(selected.bookedAt.split("T")[0])}
+                        </div>
+                      </>
+                    )}
                   </div>
                 </>
               );
