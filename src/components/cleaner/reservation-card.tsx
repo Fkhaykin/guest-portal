@@ -234,7 +234,7 @@ export function ReservationCard({
             )}
           </div>
         </div>
-      <CardContent className="pt-3 space-y-3">
+        <CardContent className="pt-3 space-y-3">
           {/* Prominent dates */}
           <div className="flex items-center justify-center gap-6 py-2 bg-muted/30 rounded-lg">
             <DateBlock dateStr={checkIn} label="Check-in" time={checkInTime} />
