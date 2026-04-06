@@ -53,23 +53,38 @@ export default async function CalendarPage() {
     .split("T")[0];
 
   // Fetch registrations with property + guest data joined inline
-  const { data: calendarRegs } = await supabase
+  const { data: rawCalendarRegs } = await supabase
     .from("registration")
-    .select("id, property_id, check_in_date, check_out_date, num_guests, status, upsells, guest_list, pets, created_at, guest:guest_id(full_name), property:property_id(name, nickname, cover_image_url)")
+    .select("id, property_id, check_in_date, check_out_date, num_guests, status, upsells, guest_list, pets, created_at, updated_at, guest:guest_id(full_name), property:property_id(name, nickname, cover_image_url)")
     .in("property_id", propertyIds)
     .in("status", ["active", "completed"])
     .gte("check_out_date", calendarStart)
     .order("check_in_date", { ascending: true });
 
+  // Deduplicate: for same property with overlapping date ranges, keep the most recently updated
+  const allRegs = [...(rawCalendarRegs || [])];
+  allRegs.sort((a, b) => (b.updated_at as string).localeCompare(a.updated_at as string));
+  const calendarRegs: typeof allRegs = [];
+  for (const reg of allRegs) {
+    const isDuplicate = calendarRegs.some(
+      (existing) =>
+        existing.property_id === reg.property_id &&
+        existing.check_in_date < reg.check_out_date &&
+        existing.check_out_date > reg.check_in_date
+    );
+    if (!isDuplicate) calendarRegs.push(reg);
+  }
+  calendarRegs.sort((a, b) => a.check_in_date.localeCompare(b.check_in_date));
+
   // Build color map from unique properties in results
   const seenProperties = new Map<string, number>();
-  for (const r of calendarRegs || []) {
+  for (const r of calendarRegs) {
     if (!seenProperties.has(r.property_id)) {
       seenProperties.set(r.property_id, seenProperties.size);
     }
   }
 
-  const calendarRegIds = (calendarRegs || []).map((r) => r.id);
+  const calendarRegIds = calendarRegs.map((r) => r.id);
   const { data: calendarStatuses } = await supabase
     .from("cleaning_status")
     .select("registration_id, is_cleaned")
@@ -81,7 +96,7 @@ export default async function CalendarPage() {
     )
   );
 
-  const calendarData = (calendarRegs || []).map((r) => {
+  const calendarData = calendarRegs.map((r) => {
     const paid = ((r.upsells as unknown as UpsellEntry[] | null) || []).filter((u) => u.status === "paid");
     const guest = r.guest as unknown as { full_name: string } | null;
     const property = r.property as unknown as { name: string; nickname: string | null; cover_image_url: string | null } | null;
