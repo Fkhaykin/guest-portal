@@ -87,15 +87,9 @@ export async function POST(request: Request) {
     );
   }
 
-  if (guest.full_name.toLowerCase().trim() !== full_name.toLowerCase().trim()) {
-    return NextResponse.json(
-      { error: "Name does not match the booking" },
-      { status: 400 }
-    );
-  }
-
-  // Update guest with portal email and phone
+  // Update guest with portal info — name may differ from Lodgify (e.g. full name vs first only)
   const guestUpdate: Record<string, unknown> = {
+    full_name: full_name.trim(),
     email: email.trim().toLowerCase(),
   };
   if (phone) guestUpdate.phone = phone.replace(/\D/g, "");
