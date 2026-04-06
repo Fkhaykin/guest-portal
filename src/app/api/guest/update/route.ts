@@ -52,6 +52,22 @@ export async function POST(request: Request) {
 
   if (section === "guest_list" && body.guest_list) {
     const validGuests = body.guest_list.filter((g) => g.first_name.trim() && g.last_name.trim());
+
+    // Enforce property capacity
+    const { data: property } = await supabase
+      .from("property")
+      .select("max_guests")
+      .eq("id", reg.property_id)
+      .single();
+
+    const maxGuests = property?.max_guests ?? 16;
+    if (validGuests.length > maxGuests) {
+      return NextResponse.json(
+        { error: `Guest list exceeds property capacity of ${maxGuests}` },
+        { status: 400 }
+      );
+    }
+
     const previous = reg.guest_list;
 
     await supabase

@@ -192,5 +192,11 @@ export async function POST(request: Request) {
     },
   ];
 
-  return NextResponse.json({ upsells, purchased });
+  // Filter out upsells the guest has already paid for
+  const paidTypes = new Set(
+    purchased.filter((u) => u.status === "paid").map((u) => u.type)
+  );
+  const available = upsells.filter((u) => !paidTypes.has(u.type));
+
+  return NextResponse.json({ upsells: available, purchased });
 }
