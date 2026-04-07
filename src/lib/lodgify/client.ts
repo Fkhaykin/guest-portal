@@ -165,11 +165,16 @@ export async function getBookingById(bookingId: number): Promise<LodgifyBooking>
     notes?: string | null;
     total_amount?: number | null;
     amount?: number | null;
+    subtotals?: { stay?: number | null };
     rooms?: Array<{
       people: number;
       guest_breakdown?: { adults: number; children: number; infants: number; pets: number };
     }>;
   }>(`/v2/reservations/bookings/${bookingId}`);
+
+  // Prefer subtotals.stay (rental amount excl. taxes/platform fees) over total_amount
+  const stay = raw.subtotals?.stay;
+  const resolvedAmount = (stay && stay > 0) ? stay : (raw.total_amount ?? raw.amount ?? null);
 
   return {
     id: raw.id,
@@ -187,6 +192,6 @@ export async function getBookingById(bookingId: number): Promise<LodgifyBooking>
     status: raw.status,
     source: raw.source,
     notes: raw.notes ?? null,
-    total_amount: raw.total_amount ?? raw.amount ?? null,
+    total_amount: resolvedAmount,
   };
 }
