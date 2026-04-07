@@ -211,8 +211,9 @@ async function ensureProperty(lodgifyPropertyId: number): Promise<string | null>
 export async function syncBooking(booking: LodgifyBooking) {
   const supabase = createAdminClient();
 
-  // Skip unconfirmed bookings; if one was previously synced, remove it
-  if (SKIP_STATUSES.has(booking.status)) {
+  // Skip unconfirmed bookings or bookings with no revenue (failed payments, inquiries)
+  const shouldRemove = SKIP_STATUSES.has(booking.status) || !booking.total_amount;
+  if (shouldRemove) {
     const { data: existing } = await supabase
       .from("registration")
       .select("id")
@@ -223,9 +224,10 @@ export async function syncBooking(booking: LodgifyBooking) {
       await supabase.from("cleaning_status").delete().eq("registration_id", existing.id);
       await supabase.from("registration_update_log").delete().eq("registration_id", existing.id);
       await supabase.from("registration").delete().eq("id", existing.id);
-      console.log(`[lodgify-sync] Removed unconfirmed booking ${booking.id} (status: ${booking.status})`);
+      const reason = SKIP_STATUSES.has(booking.status) ? `status: ${booking.status}` : "no revenue";
+      console.log(`[lodgify-sync] Removed booking ${booking.id} (${reason})`);
     }
-    return { skipped: true, reason: "unconfirmed" };
+    return { skipped: true, reason: SKIP_STATUSES.has(booking.status) ? "unconfirmed" : "no_revenue" };
   }
 
   // 1. Find or create the property
