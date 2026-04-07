@@ -47,6 +47,21 @@ export default async function CalendarPage() {
     );
   }
 
+  // Fetch all assigned properties so every house always appears on the calendar
+  const { data: allProperties } = await supabase
+    .from("property")
+    .select("id, name, nickname, cover_image_url")
+    .in("id", propertyIds)
+    .order("name");
+
+  const propertyGroups = new Map<string, { label: string; coverImage: string | null }>();
+  for (const p of allProperties || []) {
+    const key = (p.nickname || p.name).toLowerCase();
+    if (!propertyGroups.has(key)) {
+      propertyGroups.set(key, { label: p.nickname || p.name, coverImage: p.cover_image_url });
+    }
+  }
+
   // Wide range: 60 days back, 90 days forward
   const calendarStart = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000)
     .toISOString()
@@ -131,5 +146,11 @@ export default async function CalendarPage() {
     };
   });
 
-  return <CalendarView reservations={calendarData} />;
+  const allGroups = [...propertyGroups.entries()].map(([key, { label, coverImage }]) => ({
+    key,
+    label,
+    coverImage,
+  }));
+
+  return <CalendarView reservations={calendarData} propertyGroups={allGroups} />;
 }

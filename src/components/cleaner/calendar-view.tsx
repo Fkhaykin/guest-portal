@@ -112,10 +112,18 @@ function assignLanes(
   return lanes;
 }
 
+export type PropertyGroup = {
+  key: string;
+  label: string;
+  coverImage: string | null;
+};
+
 export function CalendarView({
   reservations,
+  propertyGroups,
 }: {
   reservations: CalendarReservation[];
+  propertyGroups: PropertyGroup[];
 }) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -148,22 +156,19 @@ export function CalendarView({
     ? `${MONTH_NAMES_SHORT[headerStart.getMonth()]} ${headerStart.getDate()} – ${headerEnd.getDate()}, ${headerEnd.getFullYear()}`
     : `${MONTH_NAMES_SHORT[headerStart.getMonth()]} ${headerStart.getDate()} – ${MONTH_NAMES_SHORT[headerEnd.getMonth()]} ${headerEnd.getDate()}, ${headerEnd.getFullYear()}`;
 
-  // Group reservations by nickname (case-insensitive), merging properties that share one
+  // Seed all property groups so every house always appears
   const byGroup = new Map<
     string,
-    { color: string; coverImage: string | null; label: string; nickname: string | null; reservations: CalendarReservation[] }
+    { coverImage: string | null; label: string; reservations: CalendarReservation[] }
   >();
+  for (const g of propertyGroups) {
+    byGroup.set(g.key, { coverImage: g.coverImage, label: g.label, reservations: [] });
+  }
   for (const r of reservations) {
     if (r.checkOut <= rangeStart || r.checkIn > rangeEnd) continue;
     const groupKey = (r.propertyNickname || r.propertyName).toLowerCase();
     if (!byGroup.has(groupKey)) {
-      byGroup.set(groupKey, {
-        color: r.propertyColor,
-        coverImage: r.propertyCoverImage,
-        label: r.propertyNickname || r.propertyName,
-        nickname: null,
-        reservations: [],
-      });
+      byGroup.set(groupKey, { coverImage: r.propertyCoverImage, label: r.propertyNickname || r.propertyName, reservations: [] });
     }
     byGroup.get(groupKey)!.reservations.push(r);
   }
@@ -269,13 +274,8 @@ export function CalendarView({
         </div>
 
         {/* Property rows */}
-        {properties.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-8">
-            No reservations in this period.
-          </p>
-        ) : (
-          <div className="space-y-1">
-            {properties.map(([groupKey, { color, coverImage, label, reservations: propRes }]) => {
+        <div className="space-y-1 bg-gray-50 dark:bg-gray-900/30 rounded-lg p-2">
+          {properties.map(([groupKey, { coverImage, label, reservations: propRes }]) => {
               // Single lane — all bars on one row
               const ROW_H = 28;
               const totalH = ROW_H + 4;
@@ -293,7 +293,7 @@ export function CalendarView({
                           onError={() => setFailedImages((prev) => new Set(prev).add(coverImage))}
                         />
                       ) : (
-                        <div className={`w-full h-full ${color} opacity-20 flex items-center justify-center`}>
+                        <div className="w-full h-full bg-muted flex items-center justify-center">
                           <Home className="h-4 w-4 text-muted-foreground" />
                         </div>
                       )}
@@ -354,8 +354,7 @@ export function CalendarView({
                 </div>
               );
             })}
-          </div>
-        )}
+        </div>
       </Card>
 
       {/* Detail modal */}
