@@ -783,6 +783,9 @@ export function AnalyticsCharts() {
   );
 }
 
+// Module-level expanded state so it survives Recharts tooltip remounts
+const expandedSet = new Set<string>();
+
 function formatCheckIn(dateStr: string): string {
   const [y, m, d] = dateStr.split("-").map(Number);
   const date = new Date(y, m - 1, d);
@@ -823,10 +826,10 @@ function RevenueTooltip({
   hiddenSeries: Set<string>;
   reservationsByBucket: Record<string, Record<string, BucketReservation[]>>;
 }) {
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [, forceUpdate] = useState(0);
   if (!active || !payload?.length) return null;
 
-  const bucketKey = String(label);
+  const bucketKey = (payload?.[0] as unknown as { payload?: Record<string, unknown> })?.payload?.bucket as string ?? String(label);
   const bucketReservations = reservationsByBucket[bucketKey] ?? {};
 
   const visible = payload.filter((e) => !hiddenSeries.has(e.dataKey));
@@ -841,7 +844,8 @@ function RevenueTooltip({
       <p className="mb-1.5 font-medium">{formatBucketLabel(bucketKey, gb)}</p>
       {sorted.map((entry) => {
         const resList = entry.dataKey !== "Total" ? bucketReservations[entry.dataKey] : undefined;
-        const isExpanded = expanded.has(entry.dataKey);
+        const expandKey = `${bucketKey}:${entry.dataKey}`;
+        const isExpanded = expandedSet.has(expandKey);
         const hasReservations = resList && resList.length > 0;
         return (
           <div key={entry.dataKey}>
@@ -849,21 +853,23 @@ function RevenueTooltip({
               className={`flex items-center justify-between gap-4 ${
                 entry.dataKey === "Total" ? "mt-1.5 border-t pt-1.5 font-semibold" : ""
               } ${hasReservations ? "cursor-pointer hover:bg-muted/50 -mx-1 px-1 rounded" : ""}`}
-              onClick={hasReservations ? () => setExpanded((prev) => {
-                const next = new Set(prev);
-                if (next.has(entry.dataKey)) next.delete(entry.dataKey);
-                else next.add(entry.dataKey);
-                return next;
-              }) : undefined}
+              onClick={hasReservations ? (e: React.MouseEvent) => {
+                e.stopPropagation();
+                if (expandedSet.has(expandKey)) expandedSet.delete(expandKey);
+                else expandedSet.add(expandKey);
+                forceUpdate((n) => n + 1);
+              } : undefined}
             >
               <span className="flex items-center gap-1.5">
-                {hasReservations && (
-                  <span className="text-[10px] text-muted-foreground w-3">{isExpanded ? "▾" : "▸"}</span>
-                )}
                 <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: entry.color }} />
                 {entry.dataKey}
               </span>
-              <span>{formatDollars(entry.value)}</span>
+              <span className="flex items-center gap-1.5">
+                <span>{formatDollars(entry.value)}</span>
+                {hasReservations && (
+                  <span className="text-[10px] text-muted-foreground w-3">{isExpanded ? "▾" : "▸"}</span>
+                )}
+              </span>
             </div>
             {isExpanded && resList && <ReservationList reservations={resList} />}
           </div>
@@ -890,10 +896,10 @@ function BarTooltip({
   formatter: (v: number) => string;
   reservationsByBucket: Record<string, Record<string, BucketReservation[]>>;
 }) {
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [, forceUpdate] = useState(0);
   if (!active || !payload?.length) return null;
 
-  const bucketKey = String(label);
+  const bucketKey = (payload?.[0] as unknown as { payload?: Record<string, unknown> })?.payload?.bucket as string ?? String(label);
   const bucketReservations = reservationsByBucket[bucketKey] ?? {};
 
   const sorted = [...payload].sort(
@@ -905,27 +911,30 @@ function BarTooltip({
       <p className="mb-1.5 font-medium">{formatBucketLabel(bucketKey, gb)}</p>
       {sorted.map((entry) => {
         const resList = bucketReservations[entry.dataKey];
-        const isExpanded = expanded.has(entry.dataKey);
+        const expandKey = `${bucketKey}:${entry.dataKey}`;
+        const isExpanded = expandedSet.has(expandKey);
         const hasReservations = resList && resList.length > 0;
         return (
           <div key={entry.dataKey}>
             <div
               className={`flex items-center justify-between gap-4 ${hasReservations ? "cursor-pointer hover:bg-muted/50 -mx-1 px-1 rounded" : ""}`}
-              onClick={hasReservations ? () => setExpanded((prev) => {
-                const next = new Set(prev);
-                if (next.has(entry.dataKey)) next.delete(entry.dataKey);
-                else next.add(entry.dataKey);
-                return next;
-              }) : undefined}
+              onClick={hasReservations ? (e: React.MouseEvent) => {
+                e.stopPropagation();
+                if (expandedSet.has(expandKey)) expandedSet.delete(expandKey);
+                else expandedSet.add(expandKey);
+                forceUpdate((n) => n + 1);
+              } : undefined}
             >
               <span className="flex items-center gap-1.5">
-                {hasReservations && (
-                  <span className="text-[10px] text-muted-foreground w-3">{isExpanded ? "▾" : "▸"}</span>
-                )}
                 <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: entry.color }} />
                 {entry.dataKey}
               </span>
-              <span>{fmt(entry.value)}</span>
+              <span className="flex items-center gap-1.5">
+                <span>{fmt(entry.value)}</span>
+                {hasReservations && (
+                  <span className="text-[10px] text-muted-foreground w-3">{isExpanded ? "▾" : "▸"}</span>
+                )}
+              </span>
             </div>
             {isExpanded && resList && <ReservationList reservations={resList} />}
           </div>
