@@ -2,7 +2,7 @@ import { redirect, notFound } from "next/navigation";
 import { createClient as createServerClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { AdminInvoiceDetail } from "@/components/admin/invoice-detail";
-import type { InvoiceLineItem, InvoiceStatus } from "@/types/database";
+import type { InvoiceLineItem, InvoiceAttachment, InvoiceStatus } from "@/types/database";
 
 export const dynamic = "force-dynamic";
 
@@ -36,6 +36,17 @@ export default async function AdminInvoiceDetailPage({
 
   if (!invoice) notFound();
 
+  // Generate signed URLs for attachments
+  const attachments = (invoice.attachments as InvoiceAttachment[] | null) ?? [];
+  const attachmentsWithUrls = await Promise.all(
+    attachments.map(async (att) => {
+      const { data } = await admin.storage
+        .from("invoice-attachments")
+        .createSignedUrl(att.path, 3600);
+      return { ...att, url: data?.signedUrl ?? null };
+    })
+  );
+
   return (
     <AdminInvoiceDetail
       invoice={{
@@ -53,6 +64,7 @@ export default async function AdminInvoiceDetailPage({
         paid_at: invoice.paid_at,
         created_at: invoice.created_at,
         cleaner_name: (invoice.cleaner as { name: string } | null)?.name || "Unknown",
+        attachments: attachmentsWithUrls,
       }}
     />
   );
