@@ -21,7 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ShoppingCart, Sparkles, X, Clock, Loader2, Check, Flame, BedDouble, UtensilsCrossed, TreePine, Baby, Coffee, DoorOpen, DoorClosed, PawPrint } from "lucide-react";
+import { ShoppingCart, Sparkles, X, Clock, Loader2, Check, Flame, BedDouble, UtensilsCrossed, TreePine, Baby, Coffee, DoorOpen, DoorClosed } from "lucide-react";
 
 type UpsellOption = {
   type: string;
@@ -164,23 +164,17 @@ export default function AddOnsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ registration_id: registrationId }),
       });
+      const data = await res.json();
       if (res.ok) {
-        const data = await res.json();
         const options = data.upsells || [];
         setUpsellOptions(options);
         setPurchasedUpsells(data.purchased || []);
-        // Auto-add required fees (pet fee) to cart
-        const petFee = options.find((o: UpsellOption) => o.type === "pet_fee" && o.available && !o.purchased);
-        if (petFee) {
-          setCart((prev) => {
-            if (prev.some((c) => c.type === "pet_fee")) return prev;
-            return [...prev, { type: "pet_fee", label: petFee.label, price_cents: petFee.price_cents }];
-          });
-        }
       } else {
-        setError("Could not load add-ons. Please try again.");
+        console.error("Add-ons API error:", data);
+        setError(data?.error || "Could not load add-ons. Please try again.");
       }
-    } catch {
+    } catch (err) {
+      console.error("Add-ons fetch error:", err);
       setError("Could not load add-ons. Please try again.");
     } finally {
       setLoading(false);
@@ -193,7 +187,6 @@ export default function AddOnsPage() {
   }
 
   function removeFromCart(type: string) {
-    if (type === "pet_fee") return;
     setCart(cart.filter((c) => c.type !== type));
   }
 
@@ -254,7 +247,6 @@ export default function AddOnsPage() {
 
       {/* Upsell groups */}
       {[
-        { group: "fees", title: "Required Fees", description: "Fees based on your registration details", icon: <PawPrint className="h-5 w-5" /> },
         { group: "timing", title: "Check-In & Check-Out", description: "Adjust your arrival and departure times", icon: <Clock className="h-5 w-5" /> },
         { group: "convenience", title: "Convenience", description: "Little extras to make your stay easier", icon: <Sparkles className="h-5 w-5" /> },
         { group: "experience", title: "Experiences", description: "Unforgettable moments during your stay", icon: <Sparkles className="h-5 w-5" /> },
@@ -309,11 +301,7 @@ export default function AddOnsPage() {
                         )}
                         {!option.purchased && option.available && !hasConfig(option.type) && (
                           <div className="mt-2">
-                            {option.type === "pet_fee" ? (
-                              <Badge variant="secondary" className="text-xs">
-                                <Check className="h-3 w-3 mr-1" /> Added to cart (required)
-                              </Badge>
-                            ) : inCart ? (
+                            {inCart ? (
                               <Button type="button" variant="outline" size="sm"
                                 onClick={() => {
                                   removeFromCart(option.type);
@@ -705,15 +693,13 @@ export default function AddOnsPage() {
           <CardContent className="space-y-3">
             {cart.map((item) => (
               <div key={item.type} className="flex items-center justify-between text-sm">
-                <span>{item.label}{item.type === "pet_fee" && <span className="text-xs text-muted-foreground ml-1">(required)</span>}</span>
+                <span>{item.label}</span>
                 <div className="flex items-center gap-2">
                   <span className="font-medium">{formatCents(item.price_cents)}</span>
-                  {item.type !== "pet_fee" && (
-                    <Button type="button" variant="ghost" size="icon" className="h-6 w-6"
-                      onClick={() => removeFromCart(item.type)}>
-                      <X className="h-3 w-3" />
-                    </Button>
-                  )}
+                  <Button type="button" variant="ghost" size="icon" className="h-6 w-6"
+                    onClick={() => removeFromCart(item.type)}>
+                    <X className="h-3 w-3" />
+                  </Button>
                 </div>
               </div>
             ))}

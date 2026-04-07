@@ -160,16 +160,27 @@ export function AdminInvoiceDetail({
                 </div>
                 <div className="space-y-1.5 pl-6">
                   {items.map((item, i) => (
-                    <div
-                      key={i}
-                      className="flex items-center justify-between text-sm"
-                    >
-                      <span className="text-muted-foreground">
-                        {item.description}
-                      </span>
-                      <span className="font-medium">
-                        {formatCents(item.amount)}
-                      </span>
+                    <div key={i} className="space-y-1 text-sm">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-muted-foreground truncate">
+                          {item.description}
+                        </span>
+                        <span className="font-medium">
+                          {formatCents(item.amount)}
+                        </span>
+                      </div>
+                      {item.registration_id && (
+                        <div className="text-xs text-muted-foreground">
+                          <span>Booking ID: {item.registration_id}</span>
+                          <br />
+                          <Link
+                            href={`/admin/reservations/${item.registration_id}`}
+                            className="text-primary hover:underline"
+                          >
+                            View reservation
+                          </Link>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

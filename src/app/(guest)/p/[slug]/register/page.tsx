@@ -225,6 +225,12 @@ export default function RegisterPage() {
   const [tips, setTips] = useState({ breakfast: "", delivery: "", cleaning: "" });
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
 
+  // Pet fee state
+  const [lodgifyNumPets, setLodgifyNumPets] = useState(0);
+  const [petFeeCents, setPetFeeCents] = useState(0);
+  const [paidPetCount, setPaidPetCount] = useState(0); // how many extra pets have been paid for
+  const [petFeeLoading, setPetFeeLoading] = useState(false);
+
   // ID upload (front + back)
   const [idFrontPath, setIdFrontPath] = useState<string | null>(null);
   const [idFrontName, setIdFrontName] = useState<string | null>(null);
@@ -265,6 +271,19 @@ export default function RegisterPage() {
       setGuests([splitName(s.guestName)]);
     }
 
+    // Fetch pet fee info
+    fetch("/api/guest/registration-details", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ registration_id: s.reservation.id }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        setLodgifyNumPets(data.lodgify_num_pets ?? 0);
+        setPetFeeCents(data.pet_fee_cents ?? 0);
+      })
+      .catch(() => {});
+
     setLoaded(true);
   }, [router]);
 
@@ -284,24 +303,12 @@ export default function RegisterPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           registration_id: session.reservation.id,
-          num_pets: hasPets ? pets.filter((p) => p.name.trim()).length : 0,
         }),
       });
       if (res.ok) {
         const data = await res.json();
-        const options = data.upsells || [];
-        setUpsellOptions(options);
+        setUpsellOptions(data.upsells || []);
         setPurchasedUpsells(data.purchased || []);
-        // Auto-add required fees (pet fee) to cart, or remove if no longer needed
-        const petFee = options.find((o: UpsellOption) => o.type === "pet_fee" && o.available && !o.purchased);
-        if (petFee) {
-          setCart((prev) => {
-            const without = prev.filter((c) => c.type !== "pet_fee");
-            return [...without, { type: "pet_fee", label: petFee.label, price_cents: petFee.price_cents }];
-          });
-        } else {
-          setCart((prev) => prev.filter((c) => c.type !== "pet_fee"));
-        }
       }
     } catch {
       // Non-critical
@@ -316,6 +323,7 @@ export default function RegisterPage() {
     const params = new URLSearchParams(window.location.search);
     const success = params.get("upsell_success");
     const sessionId = params.get("session_id");
+    const petFeeReturn = params.get("pet_fee");
     if (success && sessionId) {
       // Confirm the payment
       fetch("/api/guest/upsells/confirm", {
@@ -324,8 +332,14 @@ export default function RegisterPage() {
         body: JSON.stringify({ session_id: sessionId, registration_id: session.reservation.id }),
       }).then((res) => {
         if (res.ok) {
-          setCart([]);
-          setStep(7);
+          if (petFeeReturn === "true") {
+            // Returning from pet fee payment — go back to pets step
+            setPaidPetCount((c) => c + 1);
+            setStep(4);
+          } else {
+            setCart([]);
+            setStep(7);
+          }
         }
       });
       // Clean URL
@@ -333,10 +347,59 @@ export default function RegisterPage() {
     }
     const cancelled = params.get("upsell_cancelled");
     if (cancelled) {
-      setStep(6);
+      if (petFeeReturn === "true") {
+        // Cancelled pet fee — remove the last pet that triggered it
+        setPets((prev) => prev.slice(0, -1));
+        setStep(4);
+      } else {
+        setStep(6);
+      }
       window.history.replaceState({}, "", window.location.pathname);
     }
   }, [loaded, session]);
+
+  /** Check if adding/keeping this many pets requires a fee and redirect to Stripe */
+  async function checkPetFeeAndProceed(petsList: PetEntry[], onNoPetFee: () => void) {
+    const validPets = petsList.filter((p) => p.name.trim());
+    const extraPets = validPets.length - lodgifyNumPets - paidPetCount;
+    if (extraPets <= 0 || petFeeCents <= 0 || !session) {
+      onNoPetFee();
+      return;
+    }
+    // Need to pay for the extra pet(s)
+    setPetFeeLoading(true);
+    // Save current state before redirect
+    saveRegistrationProgress({ step: 4, fullName, email, phone, address, guests, hasPets: true, pets: petsList, notes, vehicles });
+    backupForStripeRedirect();
+
+    try {
+      const res = await fetch("/api/guest/upsells/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          registration_id: session.reservation.id,
+          items: [{
+            type: "pet_fee",
+            label: `Pet Fee — ${validPets[validPets.length - 1]?.name || "Pet"} (${validPets[validPets.length - 1]?.kind || "Pet"})`,
+            price_cents: petFeeCents,
+            meta: { pet_name: validPets[validPets.length - 1]?.name },
+          }],
+          return_path: "register",
+          return_query: "pet_fee=true",
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.url) {
+          window.location.href = data.url;
+          return;
+        }
+      }
+    } catch {
+      // Fall through
+    }
+    setPetFeeLoading(false);
+  }
 
   function addToCart(item: CartItem) {
     if (cart.some((c) => c.type === item.type)) return;
@@ -344,7 +407,6 @@ export default function RegisterPage() {
   }
 
   function removeFromCart(type: string) {
-    if (type === "pet_fee") return; // Pet fee is required and cannot be removed
     setCart(cart.filter((c) => c.type !== type));
   }
 
@@ -945,8 +1007,22 @@ export default function RegisterPage() {
       )}
 
       {/* Step 4: Pets */}
-      {step === 4 && (
-        <form onSubmit={(e) => { e.preventDefault(); setStep(5); }} className="space-y-6">
+      {step === 4 && (() => {
+        const validPets = pets.filter((p) => p.name.trim());
+        const extraPetsNeeded = hasPets ? Math.max(0, validPets.length - lodgifyNumPets) : 0;
+        const unpaidExtraPets = extraPetsNeeded - paidPetCount;
+        const nextPetNeedsFee = hasPets && petFeeCents > 0 && (validPets.length + 1) > (lodgifyNumPets + paidPetCount);
+
+        return (
+        <form onSubmit={(e) => {
+          e.preventDefault();
+          if (unpaidExtraPets > 0 && petFeeCents > 0) {
+            // Can't proceed — extra pets need payment
+            checkPetFeeAndProceed(pets, () => setStep(5));
+            return;
+          }
+          setStep(5);
+        }} className="space-y-6">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -970,17 +1046,38 @@ export default function RegisterPage() {
                 </Button>
               </div>
 
+              {hasPets && petFeeCents > 0 && (
+                <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm text-amber-900">
+                  {lodgifyNumPets > 0
+                    ? `Your reservation includes ${lodgifyNumPets} pet${lodgifyNumPets !== 1 ? "s" : ""}. A $${(petFeeCents / 100).toFixed(petFeeCents % 100 === 0 ? 0 : 2)} fee applies for each additional pet.`
+                    : `A $${(petFeeCents / 100).toFixed(petFeeCents % 100 === 0 ? 0 : 2)} non-refundable pet fee applies per pet.`}
+                </div>
+              )}
+
               {hasPets && (
                 <div className="space-y-4 pt-2">
-                  {pets.map((pet, index) => (
+                  {pets.map((pet, index) => {
+                    const isPaidExtra = index >= lodgifyNumPets && index < lodgifyNumPets + paidPetCount;
+                    return (
                     <div key={index}>
                       {index > 0 && <Separator className="mb-4" />}
                       <div className="space-y-3">
                         <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium">Pet {index + 1}</span>
+                          <span className="text-sm font-medium">
+                            Pet {index + 1}
+                            {isPaidExtra && (
+                              <Badge variant="secondary" className="ml-2 text-green-700 bg-green-50 text-xs">
+                                <Check className="h-3 w-3 mr-0.5" /> Fee paid
+                              </Badge>
+                            )}
+                          </span>
                           {index > 0 && (
                             <Button type="button" variant="ghost" size="icon"
-                              onClick={() => setPets(pets.filter((_, i) => i !== index))}>
+                              onClick={() => {
+                                setPets(pets.filter((_, i) => i !== index));
+                                // If removing a paid extra pet, decrement paid count
+                                if (isPaidExtra) setPaidPetCount((c) => Math.max(0, c - 1));
+                              }}>
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           )}
@@ -1067,19 +1164,46 @@ export default function RegisterPage() {
                         </div>
                       </div>
                     </div>
-                  ))}
+                  );
+                  })}
 
-                  <Button type="button" variant="outline" size="sm"
-                    onClick={() => setPets([...pets, emptyPet()])}>
-                    <Plus className="h-4 w-4 mr-1" /> Add Another Pet
-                  </Button>
+                  {nextPetNeedsFee ? (
+                    <Button type="button" variant="outline" size="sm"
+                      disabled={petFeeLoading}
+                      onClick={() => {
+                        const newPets = [...pets, emptyPet()];
+                        setPets(newPets);
+                        // Fee will be charged when they fill in the pet and click Next
+                      }}>
+                      <Plus className="h-4 w-4 mr-1" /> Add Another Pet (${(petFeeCents / 100).toFixed(petFeeCents % 100 === 0 ? 0 : 2)} fee)
+                    </Button>
+                  ) : (
+                    <Button type="button" variant="outline" size="sm"
+                      onClick={() => setPets([...pets, emptyPet()])}>
+                      <Plus className="h-4 w-4 mr-1" /> Add Another Pet
+                    </Button>
+                  )}
                 </div>
               )}
             </CardContent>
           </Card>
-          {navButtons(3)}
+          {unpaidExtraPets > 0 && petFeeCents > 0 ? (
+            <div className="flex gap-3">
+              <Button type="button" variant="outline" size="lg" onClick={() => setStep(3)}>
+                <ChevronLeft className="h-4 w-4 mr-1" /> Back
+              </Button>
+              <Button type="button" size="lg" className="flex-1"
+                disabled={petFeeLoading}
+                onClick={() => checkPetFeeAndProceed(pets, () => setStep(5))}>
+                {petFeeLoading ? "Redirecting to payment..." : `Pay Pet Fee — $${((petFeeCents * unpaidExtraPets) / 100).toFixed(0)}`}
+              </Button>
+            </div>
+          ) : (
+            navButtons(3)
+          )}
         </form>
-      )}
+      );
+      })()}
 
       {/* Step 5: Vehicles */}
       {step === 5 && (
@@ -1212,7 +1336,6 @@ export default function RegisterPage() {
           ) : (
             <>
             {[
-              { group: "fees", title: "Required Fees", description: "Fees based on your registration details", icon: <PawPrint className="h-5 w-5" /> },
               { group: "timing", title: "Check-In & Check-Out", description: "Adjust your arrival and departure times", icon: <Clock className="h-5 w-5" /> },
               { group: "convenience", title: "Convenience", description: "Little extras to make your stay easier", icon: <Sparkles className="h-5 w-5" /> },
               { group: "experience", title: "Experiences", description: "Unforgettable moments during your stay", icon: <Sparkles className="h-5 w-5" /> },
@@ -1260,11 +1383,7 @@ export default function RegisterPage() {
                           {/* Inline button for simple items (no config needed) */}
                           {option.available && !hasConfig(option.type) && (
                             <div className="mt-2">
-                              {option.type === "pet_fee" ? (
-                                <Badge variant="secondary" className="text-xs">
-                                  <Check className="h-3 w-3 mr-1" /> Added to cart (required)
-                                </Badge>
-                              ) : inCart ? (
+                              {inCart ? (
                                 <Button type="button" variant="outline" size="sm"
                                   onClick={() => {
                                     removeFromCart(option.type);
@@ -1658,15 +1777,13 @@ export default function RegisterPage() {
               <CardContent className="space-y-3">
                 {cart.map((item) => (
                   <div key={item.type} className="flex items-center justify-between text-sm">
-                    <span>{item.label}{item.type === "pet_fee" && <span className="text-xs text-muted-foreground ml-1">(required)</span>}</span>
+                    <span>{item.label}</span>
                     <div className="flex items-center gap-2">
                       <span className="font-medium">{formatCents(item.price_cents)}</span>
-                      {item.type !== "pet_fee" && (
-                        <Button type="button" variant="ghost" size="icon" className="h-6 w-6"
-                          onClick={() => removeFromCart(item.type)}>
-                          <X className="h-3 w-3" />
-                        </Button>
-                      )}
+                      <Button type="button" variant="ghost" size="icon" className="h-6 w-6"
+                        onClick={() => removeFromCart(item.type)}>
+                        <X className="h-3 w-3" />
+                      </Button>
                     </div>
                   </div>
                 ))}
@@ -1687,9 +1804,8 @@ export default function RegisterPage() {
               <ChevronLeft className="h-4 w-4 mr-1" /> Back
             </Button>
             <Button type="button" size="lg" className="flex-1"
-              disabled={cart.some((c) => c.type === "pet_fee")}
               onClick={() => setStep(7)}>
-              {cart.some((c) => c.type === "pet_fee") ? "Pay pet fee to continue" : cart.length > 0 ? "Skip extras" : "Next"} <ChevronRight className="h-4 w-4 ml-1" />
+              {cart.length > 0 ? "Skip extras" : "Next"} <ChevronRight className="h-4 w-4 ml-1" />
             </Button>
           </div>
         </div>

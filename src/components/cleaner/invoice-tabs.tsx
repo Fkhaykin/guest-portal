@@ -32,7 +32,6 @@ import {
   Sparkles,
   ReceiptText,
 } from "lucide-react";
-import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ReimbursementModal } from "@/components/cleaner/reimbursement-form";
 import type { InvoiceRow, UnpaidCleaning, RecentBooking } from "@/app/(cleaner)/cleaner/(protected)/invoices/page";
@@ -246,15 +245,12 @@ function UnpaidTab({
                       </span>
                     )}
                   </div>
-                  <div className="mt-2 text-xs">
-                    <Link
-                      href={`/cleaner/reservations/${c.registrationId}`}
-                      className="text-primary hover:underline"
-                    >
-                      View reservation
-                    </Link>
-                  </div>
                   {c.cleanedAt && (
+                    <p className="text-[10px] text-muted-foreground mt-0.5">
+                      <SprayCan className="h-2.5 w-2.5 inline mr-0.5" />
+                      Cleaned {formatTimestamp(c.cleanedAt)}
+                    </p>
+                  )}
                     <p className="text-[10px] text-muted-foreground mt-0.5">
                       <SprayCan className="h-2.5 w-2.5 inline mr-0.5" />
                       Cleaned {formatTimestamp(c.cleanedAt)}
@@ -400,14 +396,6 @@ function InvoiceModal({
                     </div>
                     <span className="shrink-0 font-medium">{formatCents(item.amount)}</span>
                   </div>
-                  {item.registration_id && (
-                    <Link
-                      href={`/cleaner/reservations/${item.registration_id}`}
-                      className="text-xs text-primary hover:underline"
-                    >
-                      View reservation
-                    </Link>
-                  )}
                 </div>
               ))}
             </div>

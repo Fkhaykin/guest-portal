@@ -23,29 +23,32 @@ const UPSELL_IMAGES: Record<string, string> = {
 };
 
 export async function POST(request: Request) {
-  let body: { registration_id: string; num_pets?: number };
+  let body: { registration_id: string };
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { registration_id, num_pets } = body;
+  const { registration_id } = body;
   if (!registration_id) {
     return NextResponse.json({ error: "registration_id is required" }, { status: 400 });
   }
+
+  try {
 
   const supabase = createAdminClient();
 
   // Get the registration with property info
   const { data: reg, error: regError } = await supabase
     .from("registration")
-    .select("id, check_in_date, check_out_date, num_guests, property_id, upsells, pets, pending_pets, lodgify_num_pets")
+    .select("id, check_in_date, check_out_date, num_guests, property_id, upsells")
     .eq("id", registration_id)
     .single();
 
   if (regError || !reg) {
-    return NextResponse.json({ error: "Registration not found" }, { status: 404 });
+    console.error("Upsells: registration lookup failed", regError);
+    return NextResponse.json({ error: regError?.message || "Registration not found" }, { status: 404 });
   }
 
   // Check if early check-in (1pm) is available on check-in date
@@ -192,36 +195,8 @@ export async function POST(request: Request) {
     },
   ];
 
-  // Pet fee: charge if guest added pets beyond what was on the original reservation
-  // num_pets from request body is used during registration (pets not yet saved to DB)
-  // Also count pending_pets (extra pets held until fee is paid)
-  const regPets = (reg.pets as Array<{ name?: string }>) || [];
-  const pendingPets = (reg.pending_pets as Array<{ name?: string }>) || [];
-  const numRegisteredPets = typeof num_pets === "number" ? num_pets : (regPets.filter((p) => p.name?.trim()).length + pendingPets.filter((p) => p.name?.trim()).length);
-  const numOriginalPets = reg.lodgify_num_pets || 0;
-
-  if (numRegisteredPets > numOriginalPets) {
-    const { data: prop } = await supabase
-      .from("property")
-      .select("pet_fee_cents")
-      .eq("id", reg.property_id)
-      .single();
-
-    const petFeeCents = prop?.pet_fee_cents ?? 0;
-    if (petFeeCents > 0 && !purchased.some((u) => u.type === "pet_fee" && u.status === "paid")) {
-      const extraPets = numRegisteredPets - numOriginalPets;
-      upsells.unshift({
-        type: "pet_fee",
-        group: "fees",
-        label: `Pet Fee (${extraPets} ${extraPets === 1 ? "pet" : "pets"})`,
-        description: "A non-refundable pet fee is required for pets not included in your original reservation.",
-        price_cents: petFeeCents * extraPets,
-        image: "",
-        available: true,
-        unavailable_reason: null,
-      });
-    }
-  }
+  // Pet fees are now collected inline during registration (step 4) and update flow,
+  // so they are no longer part of the add-ons/upsells listing.
 
   // Mark already-purchased upsells as unavailable
   const purchasedTypes = new Set(purchased.map((u) => u.type));
@@ -234,4 +209,12 @@ export async function POST(request: Request) {
 
   const paid = purchased.filter((u) => u.status === "paid");
   return NextResponse.json({ upsells: withPurchased, purchased: paid });
+
+  } catch (err) {
+    console.error("Upsells API error:", err);
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "Internal server error" },
+      { status: 500 }
+    );
+  }
 }

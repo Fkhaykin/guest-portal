@@ -12,6 +12,7 @@ export async function POST(request: Request) {
       meta?: Record<string, unknown>;
     }>;
     return_path?: string;
+    return_query?: string;
   };
 
   try {
@@ -20,7 +21,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { registration_id, items, return_path } = body;
+  const { registration_id, items, return_path, return_query } = body;
 
   if (!registration_id || !items || items.length === 0) {
     return NextResponse.json({ error: "registration_id and items are required" }, { status: 400 });
@@ -67,8 +68,8 @@ export async function POST(request: Request) {
     payment_method_types: ["card"],
     line_items: lineItems,
     mode: "payment",
-    success_url: `${appUrl}/p/${slug}/${returnPage}?upsell_success=true&session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${appUrl}/p/${slug}/${returnPage}?upsell_cancelled=true`,
+    success_url: `${appUrl}/p/${slug}/${returnPage}?upsell_success=true&session_id={CHECKOUT_SESSION_ID}${return_query ? `&${return_query}` : ""}`,
+    cancel_url: `${appUrl}/p/${slug}/${returnPage}?upsell_cancelled=true${return_query ? `&${return_query}` : ""}`,
     metadata: {
       registration_id,
       upsell_types: items.map((i) => i.type).join(","),
