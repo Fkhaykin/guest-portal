@@ -604,6 +604,7 @@ export function AnalyticsCharts() {
                     <Tooltip
                       content={<RevenueTooltip groupBy={groupBy} propertyNames={propNames} hiddenSeries={hiddenSeries} reservationsByBucket={charts.reservationsByBucket} />}
                       trigger="click"
+                      allowEscapeViewBox={{ x: true, y: true }}
                       wrapperStyle={{ zIndex: 10, pointerEvents: "auto" }}
                     />
                     {propNames.map((name, i) =>
@@ -639,6 +640,7 @@ export function AnalyticsCharts() {
                   <Tooltip
                     content={<BarTooltip groupBy={groupBy} propertyNames={propNames} formatter={(v) => `${v}%`} reservationsByBucket={charts.reservationsByBucket} />}
                     trigger="click"
+                    allowEscapeViewBox={{ x: true, y: true }}
                     wrapperStyle={{ zIndex: 10, pointerEvents: "auto" }}
                   />
                   <Legend />
@@ -669,6 +671,7 @@ export function AnalyticsCharts() {
                   <Tooltip
                     content={<BarTooltip groupBy={groupBy} propertyNames={propNames} formatter={formatDollars} reservationsByBucket={charts.reservationsByBucket} />}
                     trigger="click"
+                    allowEscapeViewBox={{ x: true, y: true }}
                     wrapperStyle={{ zIndex: 10, pointerEvents: "auto" }}
                   />
                   <Legend />
@@ -699,6 +702,7 @@ export function AnalyticsCharts() {
                   <Tooltip
                     content={<BarTooltip groupBy={groupBy} propertyNames={propNames} formatter={(v) => String(v)} reservationsByBucket={charts.reservationsByBucket} />}
                     trigger="click"
+                    allowEscapeViewBox={{ x: true, y: true }}
                     wrapperStyle={{ zIndex: 10, pointerEvents: "auto" }}
                   />
                   <Legend />
