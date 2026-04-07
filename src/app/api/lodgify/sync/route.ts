@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { syncAllBookings } from "@/lib/lodgify/sync";
+import { syncBookingsBatch } from "@/lib/lodgify/sync";
 
 export const maxDuration = 300;
 
@@ -13,16 +13,17 @@ export async function POST(request: Request) {
     }
   }
 
-  let body: { property_id?: number } = {};
+  let body: { property_id?: number; offset?: number } = {};
   try {
     body = await request.json();
   } catch {
-    // empty body is fine — sync everything
+    // empty body is fine — sync from the beginning
   }
 
   try {
-    const result = await syncAllBookings({
+    const result = await syncBookingsBatch({
       propertyId: body.property_id,
+      offset: body.offset,
     });
 
     return NextResponse.json({ ok: true, ...result });

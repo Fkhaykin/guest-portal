@@ -364,81 +364,80 @@ export async function syncBookingById(bookingId: number) {
 }
 
 /**
- * Full sync: sync properties from Lodgify, then pull all bookings and upsert them.
+ * Sync a single batch of bookings from Lodgify.
+ * Processes one page at a time to avoid function timeouts.
+ * Returns next_offset when there are more bookings to process, or done: true when finished.
  */
-export async function syncAllBookings(options?: {
+export async function syncBookingsBatch(options?: {
   propertyId?: number;
+  offset?: number;
 }) {
-  // Sync properties first
-  await syncProperties();
-
   const PAGE_SIZE = 50;
-  let offset = 0;
+  const offset = options?.offset ?? 0;
+
+  // Sync properties on the first batch
+  if (offset === 0) {
+    await syncProperties();
+  }
+
+  const response = await getBookings({
+    offset,
+    limit: PAGE_SIZE,
+    property_id: options?.propertyId,
+  });
+
   let synced = 0;
   let skipped = 0;
-  let total = 0;
   const amountUpdates: { lodgify_booking_id: number; amount_cents: number }[] = [];
 
-  while (true) {
-    const response = await getBookings({
-      offset,
-      limit: PAGE_SIZE,
-      property_id: options?.propertyId,
-    });
-
-    total = response.total;
-
-    for (const booking of response.items) {
-      const result = await syncBooking(booking);
-      if (result.skipped) {
-        skipped++;
-      } else {
-        synced++;
-        if (booking.total_amount) {
-          amountUpdates.push({
-            lodgify_booking_id: booking.id,
-            amount_cents: Math.round(booking.total_amount * 100),
-          });
-        }
+  for (const booking of response.items) {
+    const result = await syncBooking(booking);
+    if (result.skipped) {
+      skipped++;
+    } else {
+      synced++;
+      if (booking.total_amount) {
+        amountUpdates.push({
+          lodgify_booking_id: booking.id,
+          amount_cents: Math.round(booking.total_amount * 100),
+        });
       }
     }
-
-    offset += response.items.length;
-    if (offset >= total || response.items.length < PAGE_SIZE) break;
   }
 
   const supabase = createAdminClient();
 
-  // Bulk update total_amount_cents via Postgres function
+  // Update amounts for this batch
   if (amountUpdates.length > 0) {
-    const BATCH = 500;
-    for (let i = 0; i < amountUpdates.length; i += BATCH) {
-      const batch = amountUpdates.slice(i, i + BATCH);
-      const { error: rpcError } = await supabase.rpc(
-        "update_registration_amounts" as never,
-        {
-          booking_ids: batch.map((u) => u.lodgify_booking_id),
-          amounts: batch.map((u) => u.amount_cents),
-        } as never
-      );
-      if (rpcError) {
-        console.warn("[lodgify-sync] Amount update failed (PostgREST cache may be stale):", rpcError.message);
-      }
+    const { error: rpcError } = await supabase.rpc(
+      "update_registration_amounts" as never,
+      {
+        booking_ids: amountUpdates.map((u) => u.lodgify_booking_id),
+        amounts: amountUpdates.map((u) => u.amount_cents),
+      } as never
+    );
+    if (rpcError) {
+      console.warn("[lodgify-sync] Amount update failed (PostgREST cache may be stale):", rpcError.message);
     }
   }
 
-  // Update last synced timestamp on properties
-  if (options?.propertyId) {
-    await supabase
-      .from("property")
-      .update({ lodgify_last_synced_at: new Date().toISOString() })
-      .eq("lodgify_property_id", options.propertyId);
-  } else {
-    await supabase
-      .from("property")
-      .update({ lodgify_last_synced_at: new Date().toISOString() })
-      .not("lodgify_property_id", "is", null);
+  const nextOffset = offset + response.items.length;
+  const done = nextOffset >= response.total || response.items.length < PAGE_SIZE;
+
+  // Update last synced timestamp when finished
+  if (done) {
+    if (options?.propertyId) {
+      await supabase
+        .from("property")
+        .update({ lodgify_last_synced_at: new Date().toISOString() })
+        .eq("lodgify_property_id", options.propertyId);
+    } else {
+      await supabase
+        .from("property")
+        .update({ lodgify_last_synced_at: new Date().toISOString() })
+        .not("lodgify_property_id", "is", null);
+    }
   }
 
-  return { total, synced, skipped };
+  return { total: response.total, synced, skipped, offset, next_offset: done ? null : nextOffset, done };
 }
