@@ -251,11 +251,6 @@ function UnpaidTab({
                       Cleaned {formatTimestamp(c.cleanedAt)}
                     </p>
                   )}
-                    <p className="text-[10px] text-muted-foreground mt-0.5">
-                      <SprayCan className="h-2.5 w-2.5 inline mr-0.5" />
-                      Cleaned {formatTimestamp(c.cleanedAt)}
-                    </p>
-                  )}
                 </div>
                 <div className="text-right shrink-0">
                   <p className="text-sm font-semibold">{formatCents(c.totalFee)}</p>
