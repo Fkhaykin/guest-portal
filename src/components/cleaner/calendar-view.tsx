@@ -309,19 +309,13 @@ export function CalendarView({
                   {/* Timeline area */}
                   <div className="flex-1 relative" style={{ height: totalH }}>
                     {/* Grid lines */}
-                    <div className="absolute inset-0 grid pointer-events-none z-20" style={{ gridTemplateColumns: `repeat(${VISIBLE_DAYS}, 1fr)` }}>
-                      {days.map(({ str, date }, i) => {
-                        const isWeekend = date.getDay() === 0 || date.getDay() === 6;
-                        const isLast = i === days.length - 1;
-                        return (
-                          <div
-                            key={str}
-                            className={`border-l h-full ${isLast ? "border-r" : ""} ${
-                              isWeekend ? "bg-muted/20 border-muted/30" : "border-muted/20"
-                            }`}
-                          />
-                        );
-                      })}
+                    <div className="absolute inset-0 grid pointer-events-none" style={{ gridTemplateColumns: `repeat(${VISIBLE_DAYS}, 1fr)` }}>
+                      {days.map(({ str }, i) => (
+                        <div
+                          key={str}
+                          className={`border-l h-full border-border/15${i === days.length - 1 ? " border-r" : ""}`}
+                        />
+                      ))}
                     </div>
 
                     {/* Bars */}
@@ -343,7 +337,7 @@ export function CalendarView({
                           className={`absolute h-6 rounded-full text-[10px] font-semibold flex items-center px-2.5 truncate cursor-pointer hover:brightness-110 active:scale-[0.98] transition-all z-10 shadow-sm ${
                             !r.guestName
                               ? "bg-gray-300 text-gray-500 dark:bg-gray-700 dark:text-gray-400"
-                              : `${color} text-white ${r.isCleaned ? "opacity-40" : ""}`
+                              : `bg-blue-500 text-white ${r.isCleaned ? "opacity-40" : ""}`
                           }`}
                           style={{
                             left: `${leftPct}%`,
