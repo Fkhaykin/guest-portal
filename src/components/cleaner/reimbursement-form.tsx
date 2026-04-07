@@ -146,11 +146,27 @@ export function ReimbursementModal({
       return;
     }
 
+    // Auto-match a reservation if property + date are set but no booking was picked
+    let resolvedBookingId = bookingId || undefined;
+    if (!resolvedBookingId && propertyId && expenseDate) {
+      const propName = selectedProperty?.name;
+      if (propName) {
+        const expMs = new Date(expenseDate + "T00:00:00").getTime();
+        const match = recentBookings.find((b) => {
+          if (b.propertyName !== propName) return false;
+          const ciMs = new Date(b.checkInDate + "T00:00:00").getTime();
+          const coMs = new Date(b.checkOutDate + "T00:00:00").getTime();
+          return expMs >= ciMs && expMs <= coMs;
+        });
+        if (match) resolvedBookingId = match.id;
+      }
+    }
+
     const lineItem = {
       description: `Reimbursement — ${description.trim()}`,
       type: "reimbursement" as const,
       property_name: selectedProperty?.name || selectedBooking?.propertyName,
-      registration_id: bookingId || undefined,
+      registration_id: resolvedBookingId,
       amount,
     };
 
