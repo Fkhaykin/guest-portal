@@ -49,6 +49,7 @@ export type CalendarReservation = {
   nights: number;
   hasEarlyCheckin: boolean;
   hasLateCheckout: boolean;
+  cleanerRevenueCents: number;
 };
 
 const DAY_NAMES_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -308,14 +309,15 @@ export function CalendarView({
                   {/* Timeline area */}
                   <div className="flex-1 relative" style={{ height: totalH }}>
                     {/* Grid lines */}
-                    <div className="absolute inset-0 grid" style={{ gridTemplateColumns: `repeat(${VISIBLE_DAYS}, 1fr)` }}>
-                      {days.map(({ str, date }) => {
+                    <div className="absolute inset-0 grid pointer-events-none z-20" style={{ gridTemplateColumns: `repeat(${VISIBLE_DAYS}, 1fr)` }}>
+                      {days.map(({ str, date }, i) => {
                         const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+                        const isLast = i === days.length - 1;
                         return (
                           <div
                             key={str}
-                            className={`border-l h-full ${
-                              isWeekend ? "bg-muted/20 border-muted/20" : "border-muted/15"
+                            className={`border-l h-full ${isLast ? "border-r" : ""} ${
+                              isWeekend ? "bg-muted/20 border-muted/30" : "border-muted/20"
                             }`}
                           />
                         );
@@ -352,7 +354,7 @@ export function CalendarView({
                         >
                           <span className="truncate">
                             {r.guestName
-                              ? `${r.guestName.split(" ")[0]} · ${r.numGuests}g`
+                              ? `${r.guestName.split(" ")[0]} · ${r.numGuests}g · $${Math.round(r.cleanerRevenueCents / 100)}`
                               : "Blocked"}
                           </span>
                         </button>

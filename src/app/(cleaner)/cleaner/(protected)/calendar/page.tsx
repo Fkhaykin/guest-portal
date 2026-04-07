@@ -55,7 +55,7 @@ export default async function CalendarPage() {
   // Fetch registrations with property + guest data joined inline
   const { data: rawCalendarRegs } = await supabase
     .from("registration")
-    .select("id, property_id, check_in_date, check_out_date, num_guests, status, upsells, guest_list, pets, created_at, updated_at, guest:guest_id(full_name), property:property_id(name, nickname, cover_image_url)")
+    .select("id, property_id, check_in_date, check_out_date, num_guests, status, upsells, guest_list, pets, created_at, updated_at, guest:guest_id(full_name), property:property_id(name, nickname, cover_image_url, cleaning_fee_cents, pet_fee_cents)")
     .in("property_id", propertyIds)
     .in("status", ["active", "completed"])
     .gte("check_out_date", calendarStart)
@@ -99,11 +99,14 @@ export default async function CalendarPage() {
   const calendarData = calendarRegs.map((r) => {
     const paid = ((r.upsells as unknown as UpsellEntry[] | null) || []).filter((u) => u.status === "paid");
     const guest = r.guest as unknown as { full_name: string } | null;
-    const property = r.property as unknown as { name: string; nickname: string | null; cover_image_url: string | null } | null;
+    const property = r.property as unknown as { name: string; nickname: string | null; cover_image_url: string | null; cleaning_fee_cents: number; pet_fee_cents: number } | null;
     const colorIdx = seenProperties.get(r.property_id) ?? 0;
     const ciDate = new Date(r.check_in_date + "T00:00:00");
     const coDate = new Date(r.check_out_date + "T00:00:00");
     const nights = Math.round((coDate.getTime() - ciDate.getTime()) / (1000 * 60 * 60 * 24));
+    const petsArr = r.pets as unknown as PetEntry[] | null;
+    const hasPets = (petsArr?.length ?? 0) > 0;
+    const cleanerRevenueCents = (property?.cleaning_fee_cents ?? 0) + (hasPets ? (property?.pet_fee_cents ?? 0) : 0);
     return {
       id: r.id,
       propertyName: property?.name || "Unknown",
@@ -124,6 +127,7 @@ export default async function CalendarPage() {
       nights,
       hasEarlyCheckin: paid.some((u) => u.type === "early_checkin"),
       hasLateCheckout: paid.some((u) => u.type === "late_checkout"),
+      cleanerRevenueCents,
     };
   });
 

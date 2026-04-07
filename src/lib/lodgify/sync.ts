@@ -25,7 +25,10 @@ async function rehostImage(
   lodgifyPropertyId: number
 ): Promise<string | null> {
   try {
-    const res = await fetch(imageUrl);
+    let url = imageUrl.startsWith("//") ? `https:${imageUrl}` : imageUrl;
+    // Request a resized image to stay within the 5 MiB bucket limit
+    url = url.replace(/\?.*$/, "?w=800");
+    const res = await fetch(url);
     if (!res.ok) return null;
 
     const contentType = res.headers.get("content-type") || "image/jpeg";
