@@ -1,4 +1,5 @@
 import PDFDocument from "pdfkit";
+import { PDFDocument as PDFLib } from "pdf-lib";
 import { createAdminClient } from "@/lib/supabase/admin";
 import fs from "fs";
 import path from "path";
@@ -234,11 +235,14 @@ export async function generatePEPOARegistrationPDF(data: PEPOAData): Promise<Buf
   doc.addPage();
   await drawPage3AndSignatures(doc, data);
 
-  // ===== APPENDIX: Pet document attachments =====
-  await drawAttachmentPages(doc, data);
+  // ===== APPENDIX: Pet document image attachments =====
+  await drawImageAttachmentPages(doc, data);
 
   doc.end();
-  return finished;
+  const mainPdf = await finished;
+
+  // ===== Merge any uploaded PDF pet documents =====
+  return mergePetPdfAttachments(mainPdf, data);
 }
 
 // ---------- Text-based header fallback ----------
@@ -612,27 +616,31 @@ async function drawPage3AndSignatures(doc: PDFKit.PDFDocument, data: PEPOAData) 
   doc.font("Helvetica").fontSize(10).text(formatDate(data.registration_date), LM + halfW, y);
 }
 
-// ---------- Appendix: Pet Document Attachments ----------
+// ---------- Appendix: Pet Document Image Attachments ----------
 
-async function drawAttachmentPages(doc: PDFKit.PDFDocument, data: PEPOAData) {
-  const docPaths: { label: string; path: string }[] = [];
+function getFileExt(filePath: string): string {
+  return (filePath.split(".").pop() || "").toLowerCase();
+}
+
+async function drawImageAttachmentPages(doc: PDFKit.PDFDocument, data: PEPOAData) {
+  const imageAttachments: { label: string; path: string }[] = [];
 
   for (const pet of data.pets) {
     if (pet.rabies_doc_path) {
-      const ext = pet.rabies_doc_path.split(".").pop()?.toLowerCase();
-      if (ext && ["jpg", "jpeg", "png"].includes(ext)) {
-        docPaths.push({ label: `${pet.name} — Rabies Certificate`, path: pet.rabies_doc_path });
+      const ext = getFileExt(pet.rabies_doc_path);
+      if (["jpg", "jpeg", "png"].includes(ext)) {
+        imageAttachments.push({ label: `${pet.name} — Rabies Certificate`, path: pet.rabies_doc_path });
       }
     }
     if (pet.vaccination_doc_path) {
-      const ext = pet.vaccination_doc_path.split(".").pop()?.toLowerCase();
-      if (ext && ["jpg", "jpeg", "png"].includes(ext)) {
-        docPaths.push({ label: `${pet.name} — Vaccination Records`, path: pet.vaccination_doc_path });
+      const ext = getFileExt(pet.vaccination_doc_path);
+      if (["jpg", "jpeg", "png"].includes(ext)) {
+        imageAttachments.push({ label: `${pet.name} — Vaccination Records`, path: pet.vaccination_doc_path });
       }
     }
   }
 
-  for (const attachment of docPaths) {
+  for (const attachment of imageAttachments) {
     const imgBuf = await fetchStorageFile("pet-documents", attachment.path);
     if (!imgBuf) continue;
 
@@ -645,7 +653,6 @@ async function drawAttachmentPages(doc: PDFKit.PDFDocument, data: PEPOAData) {
     doc.text(attachment.label, LM, 58, { width: PW, align: "center" });
 
     try {
-      // Fit the image within the page area
       const maxW = PW;
       const maxH = 620;
       doc.image(imgBuf, LM, 82, { fit: [maxW, maxH] });
@@ -654,4 +661,41 @@ async function drawAttachmentPages(doc: PDFKit.PDFDocument, data: PEPOAData) {
       doc.text("[Could not embed document image]", LM, 82);
     }
   }
+}
+
+// ---------- Merge uploaded PDF pet documents ----------
+
+async function mergePetPdfAttachments(mainPdfBytes: Buffer, data: PEPOAData): Promise<Buffer> {
+  const pdfAttachments: { label: string; path: string }[] = [];
+
+  for (const pet of data.pets) {
+    if (pet.rabies_doc_path && getFileExt(pet.rabies_doc_path) === "pdf") {
+      pdfAttachments.push({ label: `${pet.name} — Rabies Certificate`, path: pet.rabies_doc_path });
+    }
+    if (pet.vaccination_doc_path && getFileExt(pet.vaccination_doc_path) === "pdf") {
+      pdfAttachments.push({ label: `${pet.name} — Vaccination Records`, path: pet.vaccination_doc_path });
+    }
+  }
+
+  if (pdfAttachments.length === 0) return mainPdfBytes;
+
+  const mergedPdf = await PDFLib.load(mainPdfBytes);
+
+  for (const attachment of pdfAttachments) {
+    const pdfBuf = await fetchStorageFile("pet-documents", attachment.path);
+    if (!pdfBuf) continue;
+
+    try {
+      const attachedPdf = await PDFLib.load(pdfBuf);
+      const pages = await mergedPdf.copyPages(attachedPdf, attachedPdf.getPageIndices());
+      for (const page of pages) {
+        mergedPdf.addPage(page);
+      }
+    } catch {
+      // Skip unreadable PDFs
+    }
+  }
+
+  const finalBytes = await mergedPdf.save();
+  return Buffer.from(finalBytes);
 }

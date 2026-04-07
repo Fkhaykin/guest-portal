@@ -18,7 +18,7 @@ export async function POST(request: Request) {
 
   const { data: reg, error: regError } = await supabase
     .from("registration")
-    .select("id, guest_list, pets, property_id")
+    .select("id, guest_list, pets, property_id, lodgify_num_pets")
     .eq("id", registration_id)
     .single();
 
@@ -28,7 +28,7 @@ export async function POST(request: Request) {
 
   const { data: property } = await supabase
     .from("property")
-    .select("max_guests")
+    .select("max_guests, pet_fee_cents")
     .eq("id", reg.property_id)
     .single();
 
@@ -37,16 +37,18 @@ export async function POST(request: Request) {
     .select("make, model, color, license_plate, state_or_region, year, driver_name")
     .eq("registration_id", registration_id);
 
-  // Check if booking originally included pets (via Lodgify guest breakdown)
-  const pets = (reg.pets as Array<Record<string, unknown>>) || [];
-  const hasPetsFromBooking = pets.length > 0;
+  // Check if original Lodgify booking included pets
+  const lodgifyNumPets = reg.lodgify_num_pets || 0;
+  const currentPets = (reg.pets as Array<Record<string, unknown>>) || [];
 
   return NextResponse.json({
     id: reg.id,
     property_id: reg.property_id,
     guest_list: reg.guest_list || [],
     pets: reg.pets || [],
-    has_pets_from_booking: hasPetsFromBooking,
+    lodgify_num_pets: lodgifyNumPets,
+    pet_fee_cents: property?.pet_fee_cents ?? 0,
+    has_pets_from_booking: lodgifyNumPets > 0 || currentPets.length > 0,
     max_guests: property?.max_guests ?? 16,
     vehicles: (vehicles || []).map((v) => ({
       make: v.make || "",

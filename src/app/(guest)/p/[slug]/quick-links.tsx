@@ -11,6 +11,7 @@ import {
   Video,
   PenLine,
   Gift,
+  Truck,
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 
@@ -22,6 +23,12 @@ const baseLinks = [
     description: "Extras and experiences for your stay",
     href: "/add-ons",
     icon: Gift,
+  },
+  {
+    label: "Delivery / Rideshare",
+    description: "Register deliveries and rides",
+    href: "/delivery",
+    icon: Truck,
   },
   {
     label: "Services",

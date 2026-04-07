@@ -36,7 +36,8 @@ import {
   Camera,
 } from "lucide-react";
 import { EditRegistrationDialog } from "@/components/admin/edit-registration-dialog";
-import type { GuestListEntry, PetEntry, UpsellEntry, CleaningPhoto, CleaningChecklistItem } from "@/types/database";
+import type { GuestListEntry, PetEntry, UpsellEntry, CleaningPhoto, CleaningChecklistItem, InvoiceLineItem, InvoiceStatus } from "@/types/database";
+import { ReceiptText } from "lucide-react";
 
 type FullRegistration = {
   id: string;
@@ -113,6 +114,17 @@ type UpdateLog = {
   created_at: string;
 };
 
+type IncurredCharge = {
+  invoiceId: string;
+  invoiceNumber: string;
+  invoiceStatus: InvoiceStatus;
+  cleanerName: string;
+  description: string;
+  amount: number; // cents
+  expenseDate: string;
+  notes: string | null;
+};
+
 export default function ReservationDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -129,6 +141,7 @@ export default function ReservationDetailPage() {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historyLogs, setHistoryLogs] = useState<UpdateLog[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [charges, setCharges] = useState<IncurredCharge[]>([]);
   const [emailing, setEmailing] = useState(false);
   const [emailResult, setEmailResult] = useState<"success" | "error" | null>(null);
 
@@ -195,6 +208,31 @@ export default function ReservationDetailPage() {
           setPhotoUrls(urls);
         }
       }
+      // Fetch reimbursement charges linked to this registration
+      const { data: invoicesWithCharges } = await supabase
+        .from("cleaner_invoice")
+        .select("id, invoice_number, status, period_start, line_items, notes, cleaner:cleaner_id(name)");
+
+      const foundCharges: IncurredCharge[] = [];
+      for (const inv of invoicesWithCharges || []) {
+        const items = (inv.line_items || []) as InvoiceLineItem[];
+        for (const item of items) {
+          if (item.registration_id === id && item.type === "reimbursement") {
+            const cleaner = inv.cleaner as unknown as { name: string } | null;
+            foundCharges.push({
+              invoiceId: inv.id,
+              invoiceNumber: inv.invoice_number,
+              invoiceStatus: inv.status as InvoiceStatus,
+              cleanerName: cleaner?.name || "Unknown",
+              description: item.description,
+              amount: item.amount,
+              expenseDate: inv.period_start,
+              notes: inv.notes,
+            });
+          }
+        }
+      }
+      setCharges(foundCharges);
     }
 
     setLoading(false);
@@ -552,6 +590,47 @@ export default function ReservationDetailPage() {
                       </div>
                     </div>
                   ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+          {/* Charges Incurred */}
+          {charges.length > 0 && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <ReceiptText className="h-4 w-4" /> Charges Incurred ({charges.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-2">
+                  {charges.map((c, i) => {
+                    const statusColors: Record<string, string> = {
+                      draft: "bg-muted text-muted-foreground",
+                      submitted: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
+                      approved: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
+                      paid: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
+                    };
+                    return (
+                      <div key={i} className="bg-muted rounded-md px-3 py-2 text-sm space-y-0.5">
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium">{c.description}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">${(c.amount / 100).toFixed(2)}</span>
+                            <Badge className={statusColors[c.invoiceStatus] || ""} variant="outline">
+                              {c.invoiceStatus}
+                            </Badge>
+                          </div>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          {c.cleanerName} &middot; {c.expenseDate} &middot; {c.invoiceNumber}
+                        </p>
+                        {c.notes && (
+                          <p className="text-xs text-muted-foreground">{c.notes}</p>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>

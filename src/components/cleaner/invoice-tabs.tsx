@@ -34,7 +34,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ReimbursementModal } from "@/components/cleaner/reimbursement-form";
-import type { InvoiceRow, UnpaidCleaning } from "@/app/(cleaner)/cleaner/(protected)/invoices/page";
+import type { InvoiceRow, UnpaidCleaning, RecentBooking } from "@/app/(cleaner)/cleaner/(protected)/invoices/page";
 import type { InvoiceLineItem } from "@/types/database";
 
 const STATUS_STYLES: Record<string, string> = {
@@ -78,10 +78,12 @@ export function InvoiceTabs({
   unpaidCleanings,
   invoices,
   properties,
+  recentBookings,
 }: {
   unpaidCleanings: UnpaidCleaning[];
   invoices: InvoiceRow[];
   properties: { id: string; name: string }[];
+  recentBookings: RecentBooking[];
 }) {
   const [tab, setTab] = useState<"unpaid" | "history">("unpaid");
   const [selectedInvoice, setSelectedInvoice] = useState<InvoiceRow | null>(null);
@@ -156,6 +158,7 @@ export function InvoiceTabs({
         open={showReimbursement}
         onClose={() => setShowReimbursement(false)}
         properties={properties}
+        recentBookings={recentBookings}
       />
     </div>
   );

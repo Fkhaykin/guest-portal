@@ -37,6 +37,14 @@ export type UnpaidCleaning = {
   totalFee: number; // cents
 };
 
+export type RecentBooking = {
+  id: string;
+  propertyName: string;
+  guestName: string | null;
+  checkInDate: string;
+  checkOutDate: string;
+};
+
 export default async function InvoicesPage() {
   const token = await getSessionToken();
   if (!token) redirect("/cleaner/login");
@@ -137,11 +145,34 @@ export default async function InvoicesPage() {
     .eq("cleaner_id", cleaner.id)
     .order("created_at", { ascending: false });
 
+  // --- Recent registrations for reimbursement booking selector ---
+  const { data: recentRegs } = await supabase
+    .from("registration")
+    .select("id, property_id, check_in_date, check_out_date, guest:guest_id(full_name)")
+    .in("property_id", propertyIds.length > 0 ? propertyIds : ["_none_"])
+    .order("check_in_date", { ascending: false })
+    .limit(50);
+
+  const recentBookings = (recentRegs || [])
+    .filter((r) => propMap.has(r.property_id))
+    .map((r) => {
+      const prop = propMap.get(r.property_id)!;
+      const guest = r.guest as unknown as { full_name: string } | null;
+      return {
+        id: r.id,
+        propertyName: prop.name,
+        guestName: guest?.full_name || null,
+        checkInDate: r.check_in_date,
+        checkOutDate: r.check_out_date,
+      };
+    });
+
   return (
     <InvoiceTabs
       unpaidCleanings={unpaidCleanings}
       invoices={(invoices || []) as InvoiceRow[]}
       properties={(properties || []).map((p) => ({ id: p.id, name: p.name }))}
+      recentBookings={recentBookings}
     />
   );
 }

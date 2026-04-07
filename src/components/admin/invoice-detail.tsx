@@ -14,6 +14,7 @@ import {
   Home,
   PawPrint,
   Wrench,
+  ReceiptText,
   User,
 } from "lucide-react";
 import type { InvoiceLineItem, InvoiceStatus } from "@/types/database";
@@ -29,12 +30,14 @@ const TYPE_ICONS: Record<string, typeof Home> = {
   cleaning: Home,
   pet_fee: PawPrint,
   extra: Wrench,
+  reimbursement: ReceiptText,
 };
 
 const TYPE_LABELS: Record<string, string> = {
   cleaning: "Cleaning",
   pet_fee: "Pet Fee",
   extra: "Extra",
+  reimbursement: "Reimbursement",
 };
 
 function formatCents(cents: number) {
@@ -104,6 +107,7 @@ export function AdminInvoiceDetail({
     cleaning: invoice.line_items.filter((l) => l.type === "cleaning"),
     pet_fee: invoice.line_items.filter((l) => l.type === "pet_fee"),
     extra: invoice.line_items.filter((l) => l.type === "extra"),
+    reimbursement: invoice.line_items.filter((l) => l.type === "reimbursement"),
   };
 
   return (
@@ -135,7 +139,7 @@ export function AdminInvoiceDetail({
       {/* Line items */}
       <Card>
         <CardContent className="pt-4 space-y-4">
-          {(["cleaning", "pet_fee", "extra"] as const).map((type) => {
+          {(["cleaning", "pet_fee", "extra", "reimbursement"] as const).map((type) => {
             const items = grouped[type];
             if (items.length === 0) return null;
             const Icon = TYPE_ICONS[type];

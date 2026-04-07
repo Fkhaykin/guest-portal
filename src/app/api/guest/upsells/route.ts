@@ -23,14 +23,14 @@ const UPSELL_IMAGES: Record<string, string> = {
 };
 
 export async function POST(request: Request) {
-  let body: { registration_id: string };
+  let body: { registration_id: string; num_pets?: number };
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { registration_id } = body;
+  const { registration_id, num_pets } = body;
   if (!registration_id) {
     return NextResponse.json({ error: "registration_id is required" }, { status: 400 });
   }
@@ -193,8 +193,9 @@ export async function POST(request: Request) {
   ];
 
   // Pet fee: charge if guest added pets beyond what was on the original reservation
+  // num_pets from request body is used during registration (pets not yet saved to DB)
   const regPets = (reg.pets as Array<{ name?: string }>) || [];
-  const numRegisteredPets = regPets.filter((p) => p.name?.trim()).length;
+  const numRegisteredPets = typeof num_pets === "number" ? num_pets : regPets.filter((p) => p.name?.trim()).length;
   const numOriginalPets = reg.lodgify_num_pets || 0;
 
   if (numRegisteredPets > numOriginalPets) {

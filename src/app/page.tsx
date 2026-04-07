@@ -35,6 +35,10 @@ import {
   Sparkles,
   Lock,
   Heart,
+  Truck,
+  Car,
+  ShoppingBag,
+  Package,
 } from "lucide-react";
 import { GuestHeader, PropertyHeader } from "@/components/guest/guest-header";
 import { GuestNav } from "@/components/guest/guest-nav";
@@ -269,6 +273,17 @@ type PurchasedUpsell = {
   status: string;
 };
 
+type DeliveryEntry = {
+  id: string;
+  category: "rideshare" | "food_grocery" | "other";
+  provider: string | null;
+  num_cars: number;
+  arrival_date: string;
+  has_return: boolean;
+  return_date: string | null;
+  created_at: string;
+};
+
 function GuestDashboard({
   guestName,
   reservation,
@@ -284,6 +299,16 @@ function GuestDashboard({
   const lodgify = reservation.lodgify;
   const breakdown = lodgify?.guest_breakdown;
   const [purchasedUpsells, setPurchasedUpsells] = useState<PurchasedUpsell[]>([]);
+  const [deliveries, setDeliveries] = useState<DeliveryEntry[]>([]);
+
+  useEffect(() => {
+    fetch(`/api/guest/delivery-rideshare?registration_id=${reservation.id}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.entries) setDeliveries(data.entries);
+      })
+      .catch(() => {});
+  }, [reservation.id]);
 
   useEffect(() => {
     fetch("/api/guest/upsells", {
@@ -614,6 +639,54 @@ function GuestDashboard({
             </CardContent>
           </Card>
         )}
+
+        {/* Deliveries & Rideshares */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Truck className="h-5 w-5" /> Deliveries & Rideshares
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {deliveries.length > 0 ? (
+              deliveries.map((d) => (
+                <div key={d.id} className="flex items-center gap-3 rounded-lg border p-3">
+                  <div className="shrink-0">
+                    {d.category === "rideshare" ? (
+                      <Car className="h-5 w-5 text-blue-600" />
+                    ) : d.category === "food_grocery" ? (
+                      <ShoppingBag className="h-5 w-5 text-green-600" />
+                    ) : (
+                      <Package className="h-5 w-5 text-muted-foreground" />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium">
+                      {d.provider || "Other"}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {formatShortDate(d.arrival_date)}
+                      {d.category === "rideshare" && d.num_cars > 1 && ` \u00b7 ${d.num_cars} cars`}
+                      {d.has_return && d.return_date && ` \u00b7 Return ${formatShortDate(d.return_date)}`}
+                    </p>
+                  </div>
+                  <Badge variant="secondary" className="text-xs shrink-0">
+                    {d.category === "rideshare" ? "Ride" : d.category === "food_grocery" ? "Delivery" : "Other"}
+                  </Badge>
+                </div>
+              ))
+            ) : (
+              <p className="text-sm text-muted-foreground text-center py-2">
+                No deliveries or rideshares registered yet.
+              </p>
+            )}
+            <Link href={`/p/${reservation.property.slug}/delivery`}>
+              <Button variant="outline" size="sm" className="w-full mt-2">
+                Register Delivery / Rideshare
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
 
         {/* Explore property links */}
         <Card>

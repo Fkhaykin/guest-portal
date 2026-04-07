@@ -27,18 +27,35 @@ type Property = {
   name: string;
 };
 
+type RecentBooking = {
+  id: string;
+  propertyName: string;
+  guestName: string | null;
+  checkInDate: string;
+  checkOutDate: string;
+};
+
 function formatCents(cents: number) {
   return `$${(cents / 100).toFixed(2)}`;
+}
+
+function formatDate(dateStr: string) {
+  return new Date(dateStr + "T00:00:00").toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  });
 }
 
 export function ReimbursementModal({
   open,
   onClose,
   properties,
+  recentBookings,
 }: {
   open: boolean;
   onClose: () => void;
   properties: Property[];
+  recentBookings: RecentBooking[];
 }) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
@@ -47,12 +64,14 @@ export function ReimbursementModal({
   const [amount, setAmount] = useState<number>(0);
   const [expenseDate, setExpenseDate] = useState("");
   const [propertyId, setPropertyId] = useState<string>("");
+  const [bookingId, setBookingId] = useState<string>("");
   const [notes, setNotes] = useState("");
   const [attachments, setAttachments] = useState<InvoiceAttachment[]>([]);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
 
   const selectedProperty = properties.find((p) => p.id === propertyId);
+  const selectedBooking = recentBookings.find((b) => b.id === bookingId);
 
   function reset() {
     setDescription("");
@@ -60,6 +79,7 @@ export function ReimbursementModal({
     setAmount(0);
     setExpenseDate("");
     setPropertyId("");
+    setBookingId("");
     setNotes("");
     setAttachments([]);
     setError("");
@@ -68,6 +88,18 @@ export function ReimbursementModal({
   function handleClose() {
     reset();
     onClose();
+  }
+
+  function handleBookingChange(val: string | null) {
+    setBookingId(val ?? "");
+    // Auto-fill property when a booking is selected
+    if (val) {
+      const booking = recentBookings.find((b) => b.id === val);
+      if (booking) {
+        const matchingProp = properties.find((p) => p.name === booking.propertyName);
+        if (matchingProp) setPropertyId(matchingProp.id);
+      }
+    }
   }
 
   async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -117,7 +149,8 @@ export function ReimbursementModal({
     const lineItem = {
       description: `Reimbursement — ${description.trim()}`,
       type: "reimbursement" as const,
-      property_name: selectedProperty?.name,
+      property_name: selectedProperty?.name || selectedBooking?.propertyName,
+      registration_id: bookingId || undefined,
       amount,
     };
 
@@ -237,6 +270,26 @@ export function ReimbursementModal({
               </Select>
             </div>
           </div>
+
+          {/* Booking selector */}
+          {recentBookings.length > 0 && (
+            <div className="space-y-1.5">
+              <Label htmlFor="reimb-booking" className="text-xs">Associated Booking (optional)</Label>
+              <Select value={bookingId} onValueChange={handleBookingChange}>
+                <SelectTrigger id="reimb-booking">
+                  <SelectValue placeholder="None" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">None</SelectItem>
+                  {recentBookings.map((b) => (
+                    <SelectItem key={b.id} value={b.id}>
+                      {b.propertyName} — {b.guestName || "No guest"} ({formatDate(b.checkInDate)} – {formatDate(b.checkOutDate)})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           {/* Receipts */}
           <div className="space-y-2">

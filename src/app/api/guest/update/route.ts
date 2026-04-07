@@ -164,7 +164,7 @@ export async function POST(request: Request) {
   fetch(`${appUrl}/api/pepoa/submit`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ registration_id }),
+    body: JSON.stringify({ registration_id, is_update: true, change_summary: summary }),
   }).catch(() => {});
 
   return NextResponse.json({ ok: true, summary });

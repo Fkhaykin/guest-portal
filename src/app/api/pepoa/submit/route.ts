@@ -5,7 +5,7 @@ import { sendPEPOAPDF } from "@/lib/email/send-pepoa-pdf";
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
-  let body: { registration_id: string };
+  let body: { registration_id: string; is_update?: boolean; change_summary?: string };
 
   try {
     body = await request.json();
@@ -13,7 +13,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { registration_id } = body;
+  const { registration_id, is_update, change_summary } = body;
   if (!registration_id) {
     return NextResponse.json({ error: "Missing registration_id" }, { status: 400 });
   }
@@ -38,6 +38,9 @@ export async function POST(request: Request) {
         checkInDate: data.reg.check_in_date as string,
         ownerPhone: (data.property.owner_phone as string) || "",
         ownerEmail: (data.property.owner_email as string) || (data.host.email as string) || "",
+        registrationId: registration_id,
+        isUpdate: is_update,
+        changeSummary: change_summary,
       });
     } catch (err) {
       console.error("Failed to send registration PDF email:", err);

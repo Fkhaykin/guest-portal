@@ -250,20 +250,25 @@ export default function RegisterPage() {
       const res = await fetch("/api/guest/upsells", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ registration_id: session.reservation.id }),
+        body: JSON.stringify({
+          registration_id: session.reservation.id,
+          num_pets: hasPets ? pets.filter((p) => p.name.trim()).length : 0,
+        }),
       });
       if (res.ok) {
         const data = await res.json();
         const options = data.upsells || [];
         setUpsellOptions(options);
         setPurchasedUpsells(data.purchased || []);
-        // Auto-add required fees (pet fee) to cart
+        // Auto-add required fees (pet fee) to cart, or remove if no longer needed
         const petFee = options.find((o: UpsellOption) => o.type === "pet_fee" && o.available && !o.purchased);
         if (petFee) {
           setCart((prev) => {
-            if (prev.some((c) => c.type === "pet_fee")) return prev;
-            return [...prev, { type: "pet_fee", label: petFee.label, price_cents: petFee.price_cents }];
+            const without = prev.filter((c) => c.type !== "pet_fee");
+            return [...without, { type: "pet_fee", label: petFee.label, price_cents: petFee.price_cents }];
           });
+        } else {
+          setCart((prev) => prev.filter((c) => c.type !== "pet_fee"));
         }
       }
     } catch {

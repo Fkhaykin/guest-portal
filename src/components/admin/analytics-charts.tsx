@@ -55,11 +55,13 @@ const COLORS = [
   "hsl(0, 65%, 55%)",
 ];
 
-const TOOLTIP_STYLE = {
-  background: "hsl(var(--card))",
-  border: "1px solid hsl(var(--border))",
+const TOOLTIP_STYLE: React.CSSProperties = {
+  background: "var(--color-card)",
+  border: "1px solid var(--color-border)",
   borderRadius: "8px",
   fontSize: "13px",
+  boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+  padding: "8px 12px",
 };
 
 const SOURCE_RENAME: Record<string, string> = {
@@ -205,15 +207,29 @@ export function AnalyticsCharts() {
     return getPresetRange(preset);
   }, [preset, customFrom, customTo]);
 
+  // Filter by status + date range, then deduplicate bookings that appear on
+  // multiple listings for the same house (same house + check-in + check-out).
+  // Keep the copy with the highest amount.
   const regs = useMemo(() => {
     if (!raw) return [];
-    return raw.registrations.filter((r) => {
+    const filtered = raw.registrations.filter((r) => {
       if (r.status === "cancelled") return false;
       const d = parseDate(r.checkIn);
       if (rangeFrom && d < rangeFrom) return false;
       if (rangeTo && d > rangeTo) return false;
       return true;
     });
+
+    // Deduplicate: same house + same dates = same booking across listings
+    const seen = new Map<string, Registration>();
+    for (const r of filtered) {
+      const key = `${r.propertyName}|${r.checkIn}|${r.checkOut}`;
+      const existing = seen.get(key);
+      if (!existing || r.amount > existing.amount) {
+        seen.set(key, r);
+      }
+    }
+    return [...seen.values()];
   }, [raw, rangeFrom, rangeTo]);
 
   const charts = useMemo(() => {
@@ -582,9 +598,8 @@ export function AnalyticsCharts() {
                   <XAxis dataKey="bucket" tickFormatter={(v) => formatBucketLabel(v, groupBy)} className="text-xs" />
                   <YAxis tickFormatter={(v) => `${v}%`} domain={[0, 100]} className="text-xs" />
                   <Tooltip
-                    labelFormatter={(l) => formatBucketLabel(String(l), groupBy)}
-                    formatter={((v: ValueType) => `${v}%`) as never}
-                    contentStyle={TOOLTIP_STYLE}
+                    content={<BarTooltip groupBy={groupBy} propertyNames={propNames} formatter={(v) => `${v}%`} />}
+                    wrapperStyle={{ zIndex: 10 }}
                   />
                   <Legend />
                   {propNames.map((name, i) => (
@@ -612,9 +627,8 @@ export function AnalyticsCharts() {
                   <XAxis dataKey="bucket" tickFormatter={(v) => formatBucketLabel(v, groupBy)} className="text-xs" />
                   <YAxis tickFormatter={formatDollars} className="text-xs" />
                   <Tooltip
-                    labelFormatter={(l) => formatBucketLabel(String(l), groupBy)}
-                    formatter={((v: ValueType) => formatDollars(Number(v))) as never}
-                    contentStyle={TOOLTIP_STYLE}
+                    content={<BarTooltip groupBy={groupBy} propertyNames={propNames} formatter={formatDollars} />}
+                    wrapperStyle={{ zIndex: 10 }}
                   />
                   <Legend />
                   {propNames.map((name, i) => (
@@ -642,8 +656,8 @@ export function AnalyticsCharts() {
                   <XAxis dataKey="bucket" tickFormatter={(v) => formatBucketLabel(v, groupBy)} className="text-xs" />
                   <YAxis allowDecimals={false} className="text-xs" />
                   <Tooltip
-                    labelFormatter={(l) => formatBucketLabel(String(l), groupBy)}
-                    contentStyle={TOOLTIP_STYLE}
+                    content={<BarTooltip groupBy={groupBy} propertyNames={propNames} formatter={(v) => String(v)} />}
+                    wrapperStyle={{ zIndex: 10 }}
                   />
                   <Legend />
                   {propNames.map((name, i) => (
@@ -785,6 +799,43 @@ function RevenueTooltip({
             {entry.dataKey}
           </span>
           <span>{formatDollars(entry.value)}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function BarTooltip({
+  active,
+  payload,
+  label,
+  groupBy: gb,
+  propertyNames: names,
+  formatter: fmt,
+}: {
+  active?: boolean;
+  payload?: Array<{ dataKey: string; value: number; color: string }>;
+  label?: string;
+  groupBy: GroupBy;
+  propertyNames: string[];
+  formatter: (v: number) => string;
+}) {
+  if (!active || !payload?.length) return null;
+
+  const sorted = [...payload].sort(
+    (a, b) => names.indexOf(a.dataKey) - names.indexOf(b.dataKey)
+  );
+
+  return (
+    <div className="rounded-lg border bg-card px-3 py-2 text-sm shadow-md" style={{ minWidth: 180 }}>
+      <p className="mb-1.5 font-medium">{formatBucketLabel(String(label), gb)}</p>
+      {sorted.map((entry) => (
+        <div key={entry.dataKey} className="flex items-center justify-between gap-4">
+          <span className="flex items-center gap-1.5">
+            <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: entry.color }} />
+            {entry.dataKey}
+          </span>
+          <span>{fmt(entry.value)}</span>
         </div>
       ))}
     </div>

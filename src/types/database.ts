@@ -740,6 +740,53 @@ export type Database = {
           updated_at?: string;
         };
       };
+      delivery_rideshare: {
+        Row: {
+          id: string;
+          registration_id: string;
+          property_id: string;
+          category: "rideshare" | "food_grocery" | "other";
+          provider: string | null;
+          num_cars: number;
+          arrival_date: string;
+          has_return: boolean;
+          return_cars: number | null;
+          return_date: string | null;
+          notes: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          registration_id: string;
+          property_id: string;
+          category: "rideshare" | "food_grocery" | "other";
+          provider?: string | null;
+          num_cars?: number;
+          arrival_date: string;
+          has_return?: boolean;
+          return_cars?: number | null;
+          return_date?: string | null;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          registration_id?: string;
+          property_id?: string;
+          category?: "rideshare" | "food_grocery" | "other";
+          provider?: string | null;
+          num_cars?: number;
+          arrival_date?: string;
+          has_return?: boolean;
+          return_cars?: number | null;
+          return_date?: string | null;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
       recommendation: {
         Row: {
           id: string;

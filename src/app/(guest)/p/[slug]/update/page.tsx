@@ -115,6 +115,8 @@ export default function UpdateRegistrationPage() {
       setExistingGuests((data.guest_list as GuestEntry[]) || []);
       setExistingPets((data.pets as PetEntry[]) || []);
       setHadPetsOnRegistration(data.has_pets_from_booking);
+      setPetFeeCents(data.pet_fee_cents ?? 0);
+      setLodgifyNumPets(data.lodgify_num_pets ?? 0);
       setExistingVehicles(data.vehicles);
       setLoading(false);
     }
@@ -241,8 +243,10 @@ export default function UpdateRegistrationPage() {
     setSavingDriver(false);
   }
 
-  // Whether this guest originally had no pets — determines if $100 fee applies
+  // Whether this guest originally had pets — determines if pet fee applies
   const [hadPetsOnRegistration, setHadPetsOnRegistration] = useState(false);
+  const [petFeeCents, setPetFeeCents] = useState(0);
+  const [lodgifyNumPets, setLodgifyNumPets] = useState(0);
 
   async function uploadPetDocs(regId: string, petIndex: number) {
     let rabiesPath: string | null = null;
@@ -293,8 +297,11 @@ export default function UpdateRegistrationPage() {
       vaccination_doc_path: vaccinationPath,
     };
 
-    // If guest originally had no pets, charge $100 via Stripe
-    if (!hadPetsOnRegistration) {
+    // Charge pet fee if this pet exceeds the original Lodgify booking pet count
+    const totalPetsAfterAdd = existingPets.length + 1;
+    const needsFee = totalPetsAfterAdd > lodgifyNumPets && petFeeCents > 0;
+
+    if (needsFee) {
       sessionStorage.setItem(PENDING_PET_KEY, JSON.stringify({ pet: petEntry, registration_id: registrationId }));
 
       const checkoutRes = await fetch("/api/guest/upsells/checkout", {
@@ -305,7 +312,7 @@ export default function UpdateRegistrationPage() {
           items: [{
             type: "pet_fee",
             label: `Pet Fee — ${petEntry.name} (${petEntry.kind})`,
-            price_cents: 10000,
+            price_cents: petFeeCents,
             meta: { pet_name: petEntry.name, pet_kind: petEntry.kind },
           }],
           return_path: "update",
@@ -322,7 +329,7 @@ export default function UpdateRegistrationPage() {
       return;
     }
 
-    // Guest already had pets — add for free
+    // No fee needed — add directly
     const updatedPets = [...existingPets, petEntry];
     const res = await fetch("/api/guest/update", {
       method: "POST",
@@ -456,9 +463,9 @@ export default function UpdateRegistrationPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Add a Pet</h1>
           <p className="text-muted-foreground text-sm">
-            {hadPetsOnRegistration
-              ? "Add another pet to your registration. An updated form will be sent to the HOA."
-              : "A $100 pet fee applies since your booking did not originally include pets. An updated form will be sent to the HOA."}
+            {petFeeCents > 0 && existingPets.length + 1 > lodgifyNumPets
+              ? `A $${(petFeeCents / 100).toFixed(petFeeCents % 100 === 0 ? 0 : 2)} pet fee applies for pets not included in your original reservation. An updated form will be sent to the HOA.`
+              : "Add another pet to your registration. An updated form will be sent to the HOA."}
           </p>
         </div>
 
@@ -513,8 +520,8 @@ export default function UpdateRegistrationPage() {
           onClick={handleAddPet}
         >
           {savingPet
-            ? uploadingDocs ? "Uploading documents..." : hadPetsOnRegistration ? "Adding..." : "Redirecting to payment..."
-            : hadPetsOnRegistration ? "Add Pet" : "Add Pet — $100"}
+            ? uploadingDocs ? "Uploading documents..." : (petFeeCents > 0 && existingPets.length + 1 > lodgifyNumPets) ? "Redirecting to payment..." : "Adding..."
+            : (petFeeCents > 0 && existingPets.length + 1 > lodgifyNumPets) ? `Add Pet — $${(petFeeCents / 100).toFixed(petFeeCents % 100 === 0 ? 0 : 2)}` : "Add Pet"}
         </Button>
 
         {existingPets.length > 0 && (
@@ -678,7 +685,7 @@ export default function UpdateRegistrationPage() {
             </div>
             <div className="flex-1">
               <CardTitle className="text-base">Add a Pet</CardTitle>
-              <CardDescription className="text-sm">{hadPetsOnRegistration ? "Register another pet for your stay" : "Register a pet ($100 fee)"}</CardDescription>
+              <CardDescription className="text-sm">{petFeeCents > 0 && existingPets.length >= lodgifyNumPets ? `Register a pet ($${(petFeeCents / 100).toFixed(petFeeCents % 100 === 0 ? 0 : 2)} fee)` : "Register another pet for your stay"}</CardDescription>
             </div>
           </CardHeader>
         </Card>
