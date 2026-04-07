@@ -32,6 +32,7 @@ export default async function AdminRegistrationsPage({
     .from("registration")
     .select("*, guest:guest_id(full_name, email, phone)")
     .eq("property_id", id)
+    .not("signature_url", "is", null)
     .order("created_at", { ascending: false });
 
   return (
