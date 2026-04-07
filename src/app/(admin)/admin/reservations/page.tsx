@@ -267,10 +267,7 @@ export default function AdminReservationsPage() {
         </Popover>
 
         {/* Registration completed */}
-        <div
-          className="flex items-center gap-2 cursor-pointer select-none"
-          onClick={() => setOnlyCompleted((prev) => !prev)}
-        >
+        <div className="flex items-center gap-2 cursor-pointer select-none">
           <Checkbox
             id="only-completed"
             checked={onlyCompleted}
