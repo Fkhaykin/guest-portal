@@ -238,12 +238,12 @@ export function AnalyticsCharts() {
         seen.set(key, r);
       }
     }
-    return [...seen.values()];
-  }, [raw, rangeFrom, rangeTo]);
+    return [...seen.values()].filter((r) => !hiddenSeries.has(r.propertyName));
+  }, [raw, rangeFrom, rangeTo, hiddenSeries]);
 
   const charts = useMemo(() => {
     if (!raw) return null;
-    const propNames = raw.properties.map((p) => p.name);
+    const propNames = raw.properties.map((p) => p.name).filter((n) => !hiddenSeries.has(n));
     const from = rangeFrom ?? new Date(2020, 0, 1);
     const to = rangeTo ?? today();
 
@@ -404,7 +404,7 @@ export function AnalyticsCharts() {
       reservationsByBucket,
       stats: { totalRevenue, totalBookings: regs.length, activeBookings: activeCount },
     };
-  }, [raw, regs, groupBy, rangeFrom, rangeTo]);
+  }, [raw, regs, groupBy, rangeFrom, rangeTo, hiddenSeries]);
 
   // ─── Render ──────────────────────────────────────────────
 
@@ -450,8 +450,7 @@ export function AnalyticsCharts() {
     );
   }
 
-  const propNames = raw.properties.map((p) => p.name);
-  const allSeriesNames = [...propNames, "Total"];
+  const propNames = raw.properties.map((p) => p.name).filter((n) => !hiddenSeries.has(n));
   const { stats } = charts;
   const groupLabel =
     groupBy === "week" ? "Weekly" : groupBy === "quarter" ? "Quarterly" : "Monthly";
@@ -496,6 +495,33 @@ export function AnalyticsCharts() {
           </Select>
         </div>
       </div>
+
+      {/* Property filters */}
+      {raw && (
+        <div className="flex flex-wrap gap-x-4 gap-y-1">
+          {raw.properties.map((p, i) => {
+            const hidden = hiddenSeries.has(p.name);
+            return (
+              <label
+                key={p.name}
+                className="flex items-center gap-1.5 cursor-pointer text-xs select-none"
+              >
+                <input
+                  type="checkbox"
+                  checked={!hidden}
+                  onChange={() => toggleSeries(p.name)}
+                  className="rounded border-muted-foreground"
+                />
+                <span
+                  className="inline-block h-2.5 w-2.5 rounded-full"
+                  style={{ background: COLORS[i % COLORS.length], opacity: hidden ? 0.3 : 1 }}
+                />
+                <span style={{ opacity: hidden ? 0.4 : 1 }}>{p.name}</span>
+              </label>
+            );
+          })}
+        </div>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -556,30 +582,19 @@ export function AnalyticsCharts() {
             ) : (
               <>
                 <div className="flex flex-wrap gap-x-4 gap-y-1 mb-3">
-                  {allSeriesNames.map((name, i) => {
-                    const color = name === "Total"
-                      ? "hsl(var(--foreground))"
-                      : COLORS[i % COLORS.length];
-                    const hidden = hiddenSeries.has(name);
-                    return (
-                      <label
-                        key={name}
-                        className="flex items-center gap-1.5 cursor-pointer text-xs select-none"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={!hidden}
-                          onChange={() => toggleSeries(name)}
-                          className="rounded border-muted-foreground"
-                        />
-                        <span
-                          className="inline-block h-2.5 w-2.5 rounded-full"
-                          style={{ background: color, opacity: hidden ? 0.3 : 1 }}
-                        />
-                        <span style={{ opacity: hidden ? 0.4 : 1 }}>{name}</span>
-                      </label>
-                    );
-                  })}
+                  <label className="flex items-center gap-1.5 cursor-pointer text-xs select-none">
+                    <input
+                      type="checkbox"
+                      checked={!hiddenSeries.has("Total")}
+                      onChange={() => toggleSeries("Total")}
+                      className="rounded border-muted-foreground"
+                    />
+                    <span
+                      className="inline-block h-2.5 w-2.5 rounded-full"
+                      style={{ background: "hsl(var(--foreground))", opacity: hiddenSeries.has("Total") ? 0.3 : 1 }}
+                    />
+                    <span style={{ opacity: hiddenSeries.has("Total") ? 0.4 : 1 }}>Total</span>
+                  </label>
                 </div>
                 <ResponsiveContainer width="100%" height={320}>
                   <LineChart data={charts.revenueOverTime}>
