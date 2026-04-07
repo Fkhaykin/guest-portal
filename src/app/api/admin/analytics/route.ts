@@ -54,7 +54,7 @@ export async function GET() {
   const { data: registrations } = await supabase
     .from("registration")
     .select(
-      "id, property_id, check_in_date, check_out_date, num_guests, status, booking_source, total_amount_cents, created_at"
+      "id, property_id, check_in_date, check_out_date, num_guests, status, booking_source, total_amount_cents, created_at, guest:guest_id(full_name)"
     )
     .in("property_id", propertyIds);
 
@@ -78,6 +78,7 @@ export async function GET() {
       source: r.booking_source,
       amount: r.total_amount_cents ?? 0,
       createdAt: r.created_at,
+      guestName: (r.guest as unknown as { full_name: string } | null)?.full_name ?? "Unknown",
     })),
     qrScans,
   });

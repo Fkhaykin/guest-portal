@@ -240,12 +240,26 @@ export async function syncBooking(booking: LodgifyBooking) {
     return { skipped: true, reason: "unmapped_property" };
   }
 
-  // 2. Find or create guest by lodgify_guest_id
-  const { data: existingGuest } = await supabase
-    .from("guest")
-    .select("id")
-    .eq("lodgify_guest_id", booking.guest.id)
-    .single();
+  // 2. Find or create guest by lodgify_guest_id (fall back to email if id is empty)
+  let existingGuest: { id: string } | null = null;
+
+  if (booking.guest.id) {
+    const { data } = await supabase
+      .from("guest")
+      .select("id")
+      .eq("lodgify_guest_id", booking.guest.id)
+      .single();
+    existingGuest = data;
+  }
+
+  if (!existingGuest && booking.guest.email) {
+    const { data } = await supabase
+      .from("guest")
+      .select("id")
+      .eq("email", booking.guest.email)
+      .single();
+    existingGuest = data;
+  }
 
   let guestId: string;
 
@@ -258,13 +272,14 @@ export async function syncBooking(booking: LodgifyBooking) {
         full_name: booking.guest.name,
         email: booking.guest.email,
         phone: booking.guest.phone,
+        ...(booking.guest.id ? { lodgify_guest_id: booking.guest.id } : {}),
       })
       .eq("id", guestId);
   } else {
     const { data: newGuest, error: guestError } = await supabase
       .from("guest")
       .insert({
-        lodgify_guest_id: booking.guest.id,
+        ...(booking.guest.id ? { lodgify_guest_id: booking.guest.id } : {}),
         full_name: booking.guest.name,
         email: booking.guest.email,
         phone: booking.guest.phone,

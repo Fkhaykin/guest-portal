@@ -169,7 +169,7 @@ export async function getBookingById(bookingId: number): Promise<LodgifyBooking>
   const raw = await lodgifyFetch<{
     id: number;
     property_id: number;
-    guest: { name: string; email: string | null; phone: string | null };
+    guest: { id?: string; name: string; email: string | null; phone: string | null };
     arrival: string;
     departure: string;
     status: string;
@@ -195,7 +195,7 @@ export async function getBookingById(bookingId: number): Promise<LodgifyBooking>
     id: raw.id,
     property_id: raw.property_id,
     guest: {
-      id: "",
+      id: raw.guest.id ?? "",
       name: raw.guest.name,
       email: raw.guest.email,
       phone: raw.guest.phone,

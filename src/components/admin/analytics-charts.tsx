@@ -95,6 +95,13 @@ type Registration = {
   source: string | null;
   amount: number;
   createdAt: string;
+  guestName: string;
+};
+
+type BucketReservation = {
+  guestName: string;
+  checkIn: string;
+  amount: number;
 };
 
 type ApiData = {
@@ -214,6 +221,8 @@ export function AnalyticsCharts() {
     if (!raw) return [];
     const filtered = raw.registrations.filter((r) => {
       if (r.status === "cancelled") return false;
+      if (r.source === "Manual") return false; // calendar blocks
+      if (!r.amount) return false; // unpaid bookings with no amount
       const d = parseDate(r.checkIn);
       if (rangeFrom && d < rangeFrom) return false;
       if (rangeTo && d > rangeTo) return false;
@@ -367,6 +376,19 @@ export function AnalyticsCharts() {
       .map(([name, value]) => ({ name, value }))
       .sort((a, b) => b.value - a.value);
 
+    // ── Reservation details per bucket+property (for tooltip drill-down) ──
+    const reservationsByBucket: Record<string, Record<string, BucketReservation[]>> = {};
+    for (const r of regs) {
+      const key = toBucketKey(r.checkIn, groupBy);
+      if (!reservationsByBucket[key]) reservationsByBucket[key] = {};
+      if (!reservationsByBucket[key][r.propertyName]) reservationsByBucket[key][r.propertyName] = [];
+      reservationsByBucket[key][r.propertyName].push({
+        guestName: r.guestName,
+        checkIn: r.checkIn,
+        amount: r.amount,
+      });
+    }
+
     // Stats
     const totalRevenue = regs.reduce((s, r) => s + r.amount, 0);
     const activeCount = regs.filter((r) => r.status === "active").length;
@@ -379,6 +401,7 @@ export function AnalyticsCharts() {
       avgStayByProperty,
       guestVolume,
       sourceBreakdown,
+      reservationsByBucket,
       stats: { totalRevenue, totalBookings: regs.length, activeBookings: activeCount },
     };
   }, [raw, regs, groupBy, rangeFrom, rangeTo]);
@@ -564,7 +587,7 @@ export function AnalyticsCharts() {
                     <XAxis dataKey="bucket" tickFormatter={(v) => formatBucketLabel(v, groupBy)} className="text-xs" />
                     <YAxis tickFormatter={formatDollars} className="text-xs" />
                     <Tooltip
-                      content={<RevenueTooltip groupBy={groupBy} propertyNames={propNames} hiddenSeries={hiddenSeries} />}
+                      content={<RevenueTooltip groupBy={groupBy} propertyNames={propNames} hiddenSeries={hiddenSeries} reservationsByBucket={charts.reservationsByBucket} />}
                       wrapperStyle={{ zIndex: 10 }}
                     />
                     {propNames.map((name, i) =>
@@ -598,7 +621,7 @@ export function AnalyticsCharts() {
                   <XAxis dataKey="bucket" tickFormatter={(v) => formatBucketLabel(v, groupBy)} className="text-xs" />
                   <YAxis tickFormatter={(v) => `${v}%`} domain={[0, 100]} className="text-xs" />
                   <Tooltip
-                    content={<BarTooltip groupBy={groupBy} propertyNames={propNames} formatter={(v) => `${v}%`} />}
+                    content={<BarTooltip groupBy={groupBy} propertyNames={propNames} formatter={(v) => `${v}%`} reservationsByBucket={charts.reservationsByBucket} />}
                     wrapperStyle={{ zIndex: 10 }}
                   />
                   <Legend />
@@ -627,7 +650,7 @@ export function AnalyticsCharts() {
                   <XAxis dataKey="bucket" tickFormatter={(v) => formatBucketLabel(v, groupBy)} className="text-xs" />
                   <YAxis tickFormatter={formatDollars} className="text-xs" />
                   <Tooltip
-                    content={<BarTooltip groupBy={groupBy} propertyNames={propNames} formatter={formatDollars} />}
+                    content={<BarTooltip groupBy={groupBy} propertyNames={propNames} formatter={formatDollars} reservationsByBucket={charts.reservationsByBucket} />}
                     wrapperStyle={{ zIndex: 10 }}
                   />
                   <Legend />
@@ -656,7 +679,7 @@ export function AnalyticsCharts() {
                   <XAxis dataKey="bucket" tickFormatter={(v) => formatBucketLabel(v, groupBy)} className="text-xs" />
                   <YAxis allowDecimals={false} className="text-xs" />
                   <Tooltip
-                    content={<BarTooltip groupBy={groupBy} propertyNames={propNames} formatter={(v) => String(v)} />}
+                    content={<BarTooltip groupBy={groupBy} propertyNames={propNames} formatter={(v) => String(v)} reservationsByBucket={charts.reservationsByBucket} />}
                     wrapperStyle={{ zIndex: 10 }}
                   />
                   <Legend />
@@ -760,6 +783,29 @@ export function AnalyticsCharts() {
   );
 }
 
+function formatCheckIn(dateStr: string): string {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const date = new Date(y, m - 1, d);
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+function ReservationList({ reservations }: { reservations: BucketReservation[] }) {
+  if (!reservations?.length) return null;
+  return (
+    <div className="ml-4 mt-0.5 mb-1 space-y-px">
+      {reservations.map((r, i) => (
+        <div key={i} className="flex items-center justify-between gap-3 text-[11px] text-muted-foreground">
+          <span className="truncate max-w-[140px]">{r.guestName}</span>
+          <span className="flex items-center gap-2 shrink-0">
+            <span>{formatCheckIn(r.checkIn)}</span>
+            <span className="font-medium">{formatDollars(r.amount / 100)}</span>
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function RevenueTooltip({
   active,
   payload,
@@ -767,6 +813,7 @@ function RevenueTooltip({
   groupBy: gb,
   propertyNames: names,
   hiddenSeries,
+  reservationsByBucket,
 }: {
   active?: boolean;
   payload?: Array<{ dataKey: string; value: number; color: string }>;
@@ -774,8 +821,13 @@ function RevenueTooltip({
   groupBy: GroupBy;
   propertyNames: string[];
   hiddenSeries: Set<string>;
+  reservationsByBucket: Record<string, Record<string, BucketReservation[]>>;
 }) {
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
   if (!active || !payload?.length) return null;
+
+  const bucketKey = String(label);
+  const bucketReservations = reservationsByBucket[bucketKey] ?? {};
 
   const visible = payload.filter((e) => !hiddenSeries.has(e.dataKey));
   const sorted = [...visible].sort((a, b) => {
@@ -785,22 +837,38 @@ function RevenueTooltip({
   });
 
   return (
-    <div className="rounded-lg border bg-card px-3 py-2 text-sm shadow-md" style={{ minWidth: 180 }}>
-      <p className="mb-1.5 font-medium">{formatBucketLabel(String(label), gb)}</p>
-      {sorted.map((entry) => (
-        <div
-          key={entry.dataKey}
-          className={`flex items-center justify-between gap-4 ${
-            entry.dataKey === "Total" ? "mt-1.5 border-t pt-1.5 font-semibold" : ""
-          }`}
-        >
-          <span className="flex items-center gap-1.5">
-            <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: entry.color }} />
-            {entry.dataKey}
-          </span>
-          <span>{formatDollars(entry.value)}</span>
-        </div>
-      ))}
+    <div className="rounded-lg border bg-card px-3 py-2 text-sm shadow-md" style={{ minWidth: 220, maxWidth: 360 }}>
+      <p className="mb-1.5 font-medium">{formatBucketLabel(bucketKey, gb)}</p>
+      {sorted.map((entry) => {
+        const resList = entry.dataKey !== "Total" ? bucketReservations[entry.dataKey] : undefined;
+        const isExpanded = expanded.has(entry.dataKey);
+        const hasReservations = resList && resList.length > 0;
+        return (
+          <div key={entry.dataKey}>
+            <div
+              className={`flex items-center justify-between gap-4 ${
+                entry.dataKey === "Total" ? "mt-1.5 border-t pt-1.5 font-semibold" : ""
+              } ${hasReservations ? "cursor-pointer hover:bg-muted/50 -mx-1 px-1 rounded" : ""}`}
+              onClick={hasReservations ? () => setExpanded((prev) => {
+                const next = new Set(prev);
+                if (next.has(entry.dataKey)) next.delete(entry.dataKey);
+                else next.add(entry.dataKey);
+                return next;
+              }) : undefined}
+            >
+              <span className="flex items-center gap-1.5">
+                {hasReservations && (
+                  <span className="text-[10px] text-muted-foreground w-3">{isExpanded ? "▾" : "▸"}</span>
+                )}
+                <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: entry.color }} />
+                {entry.dataKey}
+              </span>
+              <span>{formatDollars(entry.value)}</span>
+            </div>
+            {isExpanded && resList && <ReservationList reservations={resList} />}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -812,6 +880,7 @@ function BarTooltip({
   groupBy: gb,
   propertyNames: names,
   formatter: fmt,
+  reservationsByBucket,
 }: {
   active?: boolean;
   payload?: Array<{ dataKey: string; value: number; color: string }>;
@@ -819,25 +888,49 @@ function BarTooltip({
   groupBy: GroupBy;
   propertyNames: string[];
   formatter: (v: number) => string;
+  reservationsByBucket: Record<string, Record<string, BucketReservation[]>>;
 }) {
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
   if (!active || !payload?.length) return null;
+
+  const bucketKey = String(label);
+  const bucketReservations = reservationsByBucket[bucketKey] ?? {};
 
   const sorted = [...payload].sort(
     (a, b) => names.indexOf(a.dataKey) - names.indexOf(b.dataKey)
   );
 
   return (
-    <div className="rounded-lg border bg-card px-3 py-2 text-sm shadow-md" style={{ minWidth: 180 }}>
-      <p className="mb-1.5 font-medium">{formatBucketLabel(String(label), gb)}</p>
-      {sorted.map((entry) => (
-        <div key={entry.dataKey} className="flex items-center justify-between gap-4">
-          <span className="flex items-center gap-1.5">
-            <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: entry.color }} />
-            {entry.dataKey}
-          </span>
-          <span>{fmt(entry.value)}</span>
-        </div>
-      ))}
+    <div className="rounded-lg border bg-card px-3 py-2 text-sm shadow-md" style={{ minWidth: 220, maxWidth: 360 }}>
+      <p className="mb-1.5 font-medium">{formatBucketLabel(bucketKey, gb)}</p>
+      {sorted.map((entry) => {
+        const resList = bucketReservations[entry.dataKey];
+        const isExpanded = expanded.has(entry.dataKey);
+        const hasReservations = resList && resList.length > 0;
+        return (
+          <div key={entry.dataKey}>
+            <div
+              className={`flex items-center justify-between gap-4 ${hasReservations ? "cursor-pointer hover:bg-muted/50 -mx-1 px-1 rounded" : ""}`}
+              onClick={hasReservations ? () => setExpanded((prev) => {
+                const next = new Set(prev);
+                if (next.has(entry.dataKey)) next.delete(entry.dataKey);
+                else next.add(entry.dataKey);
+                return next;
+              }) : undefined}
+            >
+              <span className="flex items-center gap-1.5">
+                {hasReservations && (
+                  <span className="text-[10px] text-muted-foreground w-3">{isExpanded ? "▾" : "▸"}</span>
+                )}
+                <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: entry.color }} />
+                {entry.dataKey}
+              </span>
+              <span>{fmt(entry.value)}</span>
+            </div>
+            {isExpanded && resList && <ReservationList reservations={resList} />}
+          </div>
+        );
+      })}
     </div>
   );
 }
