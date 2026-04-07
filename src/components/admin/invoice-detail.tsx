@@ -17,7 +17,6 @@ import {
   ReceiptText,
   User,
   FileText,
-  ExternalLink,
 } from "lucide-react";
 import type { InvoiceLineItem, InvoiceStatus } from "@/types/database";
 
@@ -203,28 +202,35 @@ export function AdminInvoiceDetail({
         <Card>
           <CardContent className="pt-4 space-y-2">
             <p className="text-sm font-medium mb-2">Evidence / Receipts</p>
-            <div className="space-y-1.5">
-              {invoice.attachments.map((att, i) => (
-                <a
-                  key={i}
-                  href={att.url ?? "#"}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
-                    att.url
-                      ? "bg-muted/50 hover:bg-muted cursor-pointer"
-                      : "bg-muted/30 opacity-60 pointer-events-none"
-                  }`}
-                >
-                  <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
-                  <span className="text-xs font-medium flex-1 truncate">
-                    {att.name}
-                  </span>
-                  {att.url && (
-                    <ExternalLink className="h-3 w-3 text-muted-foreground shrink-0" />
-                  )}
-                </a>
-              ))}
+            <div className="space-y-2">
+              {invoice.attachments.map((att, i) => {
+                const isPdf = att.name.toLowerCase().endsWith(".pdf");
+                return (
+                  <div key={i} className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <span className="text-xs font-medium truncate">
+                        {att.name}
+                      </span>
+                    </div>
+                    {att.url && (
+                      isPdf ? (
+                        <iframe
+                          src={att.url}
+                          className="w-full h-125 rounded-lg border"
+                          title={att.name}
+                        />
+                      ) : (
+                        <img
+                          src={att.url}
+                          alt={att.name}
+                          className="w-full rounded-lg border object-contain max-h-125"
+                        />
+                      )
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </CardContent>
         </Card>
