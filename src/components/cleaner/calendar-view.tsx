@@ -225,7 +225,7 @@ export function CalendarView({
 
   return (
     <>
-      <Card className="p-4 overflow-x-auto">
+      <Card className="p-4 overflow-x-auto [--label-w:200px] max-sm:[--label-w:60px]">
         {/* Navigation */}
         <div className="flex items-center justify-between mb-4">
           <Button variant="ghost" size="icon" onClick={prevPeriod}>
@@ -245,7 +245,7 @@ export function CalendarView({
         {/* Day headers */}
         <div
           className="grid gap-0 border-b pb-2 mb-2"
-          style={{ gridTemplateColumns: `200px repeat(${VISIBLE_DAYS}, 1fr)` }}
+          style={{ gridTemplateColumns: `var(--label-w) repeat(${VISIBLE_DAYS}, 1fr)` }}
         >
           <div />
           {days.map(({ date, str }) => {
@@ -283,7 +283,7 @@ export function CalendarView({
               return (
                 <div key={groupKey} className="flex items-start border-b border-muted/10 last:border-b-0 py-1">
                   {/* Property label */}
-                  <div className="flex items-center gap-2.5 pr-3 min-w-0 shrink-0" style={{ width: 200 }}>
+                  <div className="flex sm:flex-row flex-col items-center gap-1 sm:gap-2.5 pr-1 sm:pr-3 min-w-0 shrink-0 w-(--label-w)">
                     <div className="h-9 w-9 rounded-lg overflow-hidden shrink-0 border border-border/50">
                       {coverImage && !failedImages.has(coverImage) ? (
                         <img
@@ -298,9 +298,7 @@ export function CalendarView({
                         </div>
                       )}
                     </div>
-                    <div className="min-w-0">
-                      <span className="text-xs font-medium truncate block">{label}</span>
-                    </div>
+                    <span className="text-[9px] sm:text-xs font-medium truncate block max-w-full text-center sm:text-left">{label}</span>
                   </div>
 
                   {/* Timeline area */}
