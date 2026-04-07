@@ -347,7 +347,7 @@ export function CalendarView({
                           <span className="truncate">
                             {r.guestName
                               ? `${r.guestName.split(" ")[0]} · ${r.numGuests}g`
-                              : `${r.numGuests}g`}
+                              : "Blocked"}
                           </span>
                         </button>
                       );

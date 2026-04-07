@@ -40,7 +40,7 @@ export async function POST(request: Request) {
   // Get the registration with property info
   const { data: reg, error: regError } = await supabase
     .from("registration")
-    .select("id, check_in_date, check_out_date, num_guests, property_id, upsells")
+    .select("id, check_in_date, check_out_date, num_guests, property_id, upsells, pets, lodgify_num_pets")
     .eq("id", registration_id)
     .single();
 
@@ -191,6 +191,34 @@ export async function POST(request: Request) {
       },
     },
   ];
+
+  // Pet fee: charge if guest added pets beyond what was on the original reservation
+  const regPets = (reg.pets as Array<{ name?: string }>) || [];
+  const numRegisteredPets = regPets.filter((p) => p.name?.trim()).length;
+  const numOriginalPets = reg.lodgify_num_pets || 0;
+
+  if (numRegisteredPets > numOriginalPets) {
+    const { data: prop } = await supabase
+      .from("property")
+      .select("pet_fee_cents")
+      .eq("id", reg.property_id)
+      .single();
+
+    const petFeeCents = prop?.pet_fee_cents ?? 0;
+    if (petFeeCents > 0 && !purchased.some((u) => u.type === "pet_fee" && u.status === "paid")) {
+      const extraPets = numRegisteredPets - numOriginalPets;
+      upsells.unshift({
+        type: "pet_fee",
+        group: "fees",
+        label: `Pet Fee (${extraPets} ${extraPets === 1 ? "pet" : "pets"})`,
+        description: "A non-refundable pet fee is required for pets not included in your original reservation.",
+        price_cents: petFeeCents * extraPets,
+        image: "",
+        available: true,
+        unavailable_reason: null,
+      });
+    }
+  }
 
   // Mark already-purchased upsells as unavailable
   const purchasedTypes = new Set(purchased.map((u) => u.type));

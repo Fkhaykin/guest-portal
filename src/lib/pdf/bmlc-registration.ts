@@ -190,7 +190,7 @@ async function embedSignature(
 
 function tryLoadHeaderImage(): Buffer | null {
   try {
-    const imgPath = path.join(process.cwd(), "public", "bmlc-header.png");
+    const imgPath = path.join(process.cwd(), "public", "BML-logo.png");
     if (fs.existsSync(imgPath)) {
       return fs.readFileSync(imgPath);
     }

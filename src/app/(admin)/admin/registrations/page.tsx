@@ -274,6 +274,7 @@ export default function AdminAllRegistrationsPage() {
                         <RegistrationActions
                           registrationId={reg.id}
                           hasSignature={!!reg.signature_url}
+                          onUpdated={loadRegistrations}
                         />
                         <Button
                           variant="ghost"
