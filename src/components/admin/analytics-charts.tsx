@@ -84,6 +84,12 @@ const PRESETS: { value: DatePreset; label: string }[] = [
 
 // ─── Types ───────────────────────────────────────────────────
 
+type UpsellItem = {
+  type: string;
+  label: string;
+  priceCents: number;
+};
+
 type Registration = {
   id: string;
   propertyId: string;
@@ -96,6 +102,10 @@ type Registration = {
   amount: number;
   createdAt: string;
   guestName: string;
+  cleaningFeeCents: number;
+  petFeeCents: number;
+  numPets: number;
+  upsells: UpsellItem[];
 };
 
 type BucketReservation = {
@@ -392,6 +402,90 @@ export function AnalyticsCharts() {
       });
     }
 
+    // ── Pet Fee Revenue by property over time ──
+    const petFeeBuckets: Record<string, Record<string, number>> = {};
+    const petFeeReservations: Record<string, Record<string, BucketReservation[]>> = {};
+    for (const r of regs) {
+      if (!r.petFeeCents) continue;
+      const key = toBucketKey(r.checkIn, groupBy);
+      if (!petFeeBuckets[key]) petFeeBuckets[key] = {};
+      petFeeBuckets[key][r.propertyName] = (petFeeBuckets[key][r.propertyName] ?? 0) + r.petFeeCents;
+      if (!petFeeReservations[key]) petFeeReservations[key] = {};
+      if (!petFeeReservations[key][r.propertyName]) petFeeReservations[key][r.propertyName] = [];
+      petFeeReservations[key][r.propertyName].push({
+        guestName: `${r.guestName} (${r.numPets} pet${r.numPets !== 1 ? "s" : ""})`,
+        checkIn: r.checkIn,
+        amount: r.petFeeCents,
+        nights: 0,
+      });
+    }
+    const petFeeKeys = Object.keys(petFeeBuckets).sort();
+    const petFeeOverTime = petFeeKeys.map((key) => {
+      const entry: Record<string, unknown> = { bucket: key };
+      for (const name of propNames) entry[name] = (petFeeBuckets[key]?.[name] ?? 0) / 100;
+      return entry;
+    });
+
+    // ── Cleaning Fee Revenue by property over time ──
+    const cleanFeeBuckets: Record<string, Record<string, number>> = {};
+    const cleanFeeReservations: Record<string, Record<string, BucketReservation[]>> = {};
+    for (const r of regs) {
+      if (!r.cleaningFeeCents) continue;
+      const key = toBucketKey(r.checkIn, groupBy);
+      if (!cleanFeeBuckets[key]) cleanFeeBuckets[key] = {};
+      cleanFeeBuckets[key][r.propertyName] = (cleanFeeBuckets[key][r.propertyName] ?? 0) + r.cleaningFeeCents;
+      if (!cleanFeeReservations[key]) cleanFeeReservations[key] = {};
+      if (!cleanFeeReservations[key][r.propertyName]) cleanFeeReservations[key][r.propertyName] = [];
+      cleanFeeReservations[key][r.propertyName].push({
+        guestName: r.guestName,
+        checkIn: r.checkIn,
+        amount: r.cleaningFeeCents,
+        nights: 0,
+      });
+    }
+    const cleanFeeKeys = Object.keys(cleanFeeBuckets).sort();
+    const cleaningFeeOverTime = cleanFeeKeys.map((key) => {
+      const entry: Record<string, unknown> = { bucket: key };
+      for (const name of propNames) entry[name] = (cleanFeeBuckets[key]?.[name] ?? 0) / 100;
+      return entry;
+    });
+
+    // ── Add-ons Revenue by upsell type over time ──
+    const addonBuckets: Record<string, Record<string, number>> = {};
+    const addonReservations: Record<string, Record<string, BucketReservation[]>> = {};
+    const addonTypeSet = new Set<string>();
+    for (const r of regs) {
+      if (!r.upsells.length) continue;
+      const key = toBucketKey(r.checkIn, groupBy);
+      for (const u of r.upsells) {
+        const typeName = u.label || u.type;
+        addonTypeSet.add(typeName);
+        if (!addonBuckets[key]) addonBuckets[key] = {};
+        addonBuckets[key][typeName] = (addonBuckets[key][typeName] ?? 0) + u.priceCents;
+        if (!addonReservations[key]) addonReservations[key] = {};
+        if (!addonReservations[key][typeName]) addonReservations[key][typeName] = [];
+        addonReservations[key][typeName].push({
+          guestName: `${r.guestName} — ${r.propertyName}`,
+          checkIn: r.checkIn,
+          amount: u.priceCents,
+          nights: 0,
+        });
+      }
+    }
+    const addonTypes = [...addonTypeSet].sort();
+    const addonKeys = Object.keys(addonBuckets).sort();
+    const addonsOverTime = addonKeys.map((key) => {
+      const entry: Record<string, unknown> = { bucket: key };
+      let total = 0;
+      for (const type of addonTypes) {
+        const val = (addonBuckets[key]?.[type] ?? 0) / 100;
+        entry[type] = val;
+        total += val;
+      }
+      entry["Total"] = total;
+      return entry;
+    });
+
     // Stats
     const totalRevenue = regs.reduce((s, r) => s + r.amount, 0);
     const activeCount = regs.filter((r) => r.status === "active").length;
@@ -405,6 +499,13 @@ export function AnalyticsCharts() {
       guestVolume,
       sourceBreakdown,
       reservationsByBucket,
+      petFeeOverTime,
+      petFeeReservations,
+      cleaningFeeOverTime,
+      cleanFeeReservations,
+      addonsOverTime,
+      addonTypes,
+      addonReservations,
       stats: { totalRevenue, totalBookings: regs.length, activeBookings: activeCount },
     };
   }, [raw, regs, groupBy, rangeFrom, rangeTo, hiddenSeries]);
@@ -800,6 +901,99 @@ export function AnalyticsCharts() {
                   </Pie>
                   <Tooltip contentStyle={TOOLTIP_STYLE} />
                 </PieChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* 8. Cleaning Fee Revenue */}
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle>Cleaning Fee Revenue</CardTitle>
+            <CardDescription>{groupLabel} cleaning fees by property</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {charts.cleaningFeeOverTime.length === 0 ? (
+              <EmptyState label="No cleaning fee data" />
+            ) : (
+              <ResponsiveContainer width="100%" height={320}>
+                <BarChart data={charts.cleaningFeeOverTime}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                  <XAxis dataKey="bucket" tickFormatter={(v) => formatBucketLabel(v, groupBy)} className="text-xs" />
+                  <YAxis tickFormatter={formatDollars} className="text-xs" />
+                  <Tooltip
+                    content={<BarTooltip groupBy={groupBy} propertyNames={propNames} formatter={formatDollars} reservationsByBucket={charts.cleanFeeReservations} />}
+                    trigger="click"
+                    allowEscapeViewBox={{ x: true, y: true }}
+                    wrapperStyle={{ zIndex: 10, pointerEvents: "auto" }}
+                  />
+                  <Legend />
+                  {propNames.map((name, i) => (
+                    <Bar key={name} dataKey={name} fill={COLORS[i % COLORS.length]} radius={[3, 3, 0, 0]} />
+                  ))}
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* 9. Pet Fee Revenue */}
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle>Pet Fee Revenue</CardTitle>
+            <CardDescription>{groupLabel} pet fees by property (fee × number of pets)</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {charts.petFeeOverTime.length === 0 ? (
+              <EmptyState label="No pet fee data" />
+            ) : (
+              <ResponsiveContainer width="100%" height={320}>
+                <BarChart data={charts.petFeeOverTime}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                  <XAxis dataKey="bucket" tickFormatter={(v) => formatBucketLabel(v, groupBy)} className="text-xs" />
+                  <YAxis tickFormatter={formatDollars} className="text-xs" />
+                  <Tooltip
+                    content={<BarTooltip groupBy={groupBy} propertyNames={propNames} formatter={formatDollars} reservationsByBucket={charts.petFeeReservations} />}
+                    trigger="click"
+                    allowEscapeViewBox={{ x: true, y: true }}
+                    wrapperStyle={{ zIndex: 10, pointerEvents: "auto" }}
+                  />
+                  <Legend />
+                  {propNames.map((name, i) => (
+                    <Bar key={name} dataKey={name} fill={COLORS[i % COLORS.length]} radius={[3, 3, 0, 0]} />
+                  ))}
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* 10. Add-ons Revenue */}
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle>Add-ons Revenue</CardTitle>
+            <CardDescription>{groupLabel} upsell revenue by type</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {charts.addonsOverTime.length === 0 ? (
+              <EmptyState label="No add-on data" />
+            ) : (
+              <ResponsiveContainer width="100%" height={320}>
+                <BarChart data={charts.addonsOverTime}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                  <XAxis dataKey="bucket" tickFormatter={(v) => formatBucketLabel(v, groupBy)} className="text-xs" />
+                  <YAxis tickFormatter={formatDollars} className="text-xs" />
+                  <Tooltip
+                    content={<BarTooltip groupBy={groupBy} propertyNames={charts.addonTypes} formatter={formatDollars} reservationsByBucket={charts.addonReservations} />}
+                    trigger="click"
+                    allowEscapeViewBox={{ x: true, y: true }}
+                    wrapperStyle={{ zIndex: 10, pointerEvents: "auto" }}
+                  />
+                  <Legend />
+                  {charts.addonTypes.map((type, i) => (
+                    <Bar key={type} dataKey={type} fill={COLORS[i % COLORS.length]} radius={[3, 3, 0, 0]} />
+                  ))}
+                </BarChart>
               </ResponsiveContainer>
             )}
           </CardContent>

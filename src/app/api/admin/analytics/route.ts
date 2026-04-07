@@ -12,7 +12,7 @@ export async function GET() {
 
   const { data: properties } = await supabase
     .from("property")
-    .select("id, name, nickname")
+    .select("id, name, nickname, cleaning_fee_cents, pet_fee_cents")
     .eq("host_id", hostId);
 
   if (!properties || properties.length === 0) {
@@ -54,7 +54,7 @@ export async function GET() {
   const { data: registrations } = await supabase
     .from("registration")
     .select(
-      "id, property_id, check_in_date, check_out_date, num_guests, status, booking_source, total_amount_cents, created_at, guest:guest_id(full_name)"
+      "id, property_id, check_in_date, check_out_date, num_guests, status, booking_source, total_amount_cents, created_at, lodgify_num_pets, pets, upsells, guest:guest_id(full_name)"
     )
     .in("property_id", propertyIds);
 
@@ -65,21 +65,43 @@ export async function GET() {
 
   const qrScans = (qrCodes ?? []).reduce((sum, q) => sum + q.scan_count, 0);
 
+  // Build property fee lookup
+  const propertyFees: Record<string, { cleaningFeeCents: number; petFeeCents: number }> = {};
+  for (const p of properties) {
+    propertyFees[p.id] = {
+      cleaningFeeCents: p.cleaning_fee_cents ?? 0,
+      petFeeCents: p.pet_fee_cents ?? 0,
+    };
+  }
+
   return NextResponse.json({
     properties: uniqueProperties,
-    registrations: (registrations ?? []).map((r) => ({
-      id: r.id,
-      propertyId: r.property_id,
-      propertyName: displayNames[r.property_id],
-      checkIn: r.check_in_date,
-      checkOut: r.check_out_date,
-      guests: r.num_guests,
-      status: r.status,
-      source: r.booking_source,
-      amount: r.total_amount_cents ?? 0,
-      createdAt: r.created_at,
-      guestName: (r.guest as unknown as { full_name: string } | null)?.full_name ?? "Unknown",
-    })),
+    registrations: (registrations ?? []).map((r) => {
+      const fees = propertyFees[r.property_id] ?? { cleaningFeeCents: 0, petFeeCents: 0 };
+      const pets = (r.pets as unknown[] | null) ?? [];
+      const numPets = pets.length || (r.lodgify_num_pets ?? 0);
+      const upsells = (r.upsells as Array<{ type: string; label: string; price_cents: number; status: string }> | null) ?? [];
+
+      return {
+        id: r.id,
+        propertyId: r.property_id,
+        propertyName: displayNames[r.property_id],
+        checkIn: r.check_in_date,
+        checkOut: r.check_out_date,
+        guests: r.num_guests,
+        status: r.status,
+        source: r.booking_source,
+        amount: r.total_amount_cents ?? 0,
+        createdAt: r.created_at,
+        guestName: (r.guest as unknown as { full_name: string } | null)?.full_name ?? "Unknown",
+        cleaningFeeCents: fees.cleaningFeeCents,
+        petFeeCents: numPets > 0 ? fees.petFeeCents * numPets : 0,
+        numPets,
+        upsells: upsells
+          .filter((u) => u.status === "completed" || u.status === "paid")
+          .map((u) => ({ type: u.type, label: u.label, priceCents: u.price_cents })),
+      };
+    }),
     qrScans,
   });
 }
