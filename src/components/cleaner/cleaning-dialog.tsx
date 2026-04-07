@@ -66,12 +66,14 @@ export function CleaningDialog({
   onOpenChange,
   registrationId,
   propertyName,
+  checkOutDate,
   onComplete,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   registrationId: string;
   propertyName: string;
+  checkOutDate: string;
   onComplete: () => void;
 }) {
   const [step, setStep] = useState<"checklist" | "photos">("checklist");

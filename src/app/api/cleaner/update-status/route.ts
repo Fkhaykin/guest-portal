@@ -51,13 +51,27 @@ export async function POST(request: Request) {
 
   const { data: reg } = await supabase
     .from("registration")
-    .select("id, property_id")
+    .select("id, property_id, check_out_date")
     .eq("id", registration_id)
     .in("property_id", propertyIds)
     .single();
 
   if (!reg) {
     return NextResponse.json({ error: "Registration not found" }, { status: 404 });
+  }
+
+  // Validate that checkout has passed if marking as cleaned
+  if (is_cleaned === true) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const checkoutDate = new Date(reg.check_out_date + "T00:00:00");
+
+    if (checkoutDate > today) {
+      return NextResponse.json(
+        { error: "Cannot mark as cleaned before checkout date" },
+        { status: 400 }
+      );
+    }
   }
 
   // Build upsert payload

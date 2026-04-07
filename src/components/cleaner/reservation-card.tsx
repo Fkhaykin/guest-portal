@@ -199,6 +199,13 @@ export function ReservationCard({
     router.refresh();
   }
 
+  const isCheckoutPassed = (() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const checkout = new Date(checkOut + "T00:00:00");
+    return checkout <= today;
+  })();
+
   return (
     <>
       <Card
@@ -319,6 +326,11 @@ export function ReservationCard({
               <Check className="h-4 w-4" />
               Cleaned
             </div>
+          ) : !isCheckoutPassed ? (
+            <div className="flex items-center justify-center gap-2 w-full py-2.5 rounded-lg text-sm font-medium bg-muted text-muted-foreground cursor-not-allowed" title="Can only mark clean after checkout">
+              <Clock className="h-4 w-4" />
+              Available after checkout
+            </div>
           ) : (
             <button
               onClick={() => setDialogOpen(true)}
@@ -337,6 +349,7 @@ export function ReservationCard({
         onOpenChange={setDialogOpen}
         registrationId={registrationId}
         propertyName={propertyName}
+        checkOutDate={checkOut}
         onComplete={handleCleaningComplete}
       />
     </>
