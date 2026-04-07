@@ -105,6 +105,7 @@ interface LodgifyV1Booking {
   amount?: number | null;
   total?: number | null;
   date_created?: string | null;
+  created_at?: string | null;
 }
 
 // --- API methods ---
@@ -161,7 +162,7 @@ export async function getBookings(params?: {
       source: b.source,
       notes: b.notes,
       total_amount: b.total_amount ?? b.amount ?? b.total ?? null,
-      date_created: b.date_created ?? null,
+      date_created: b.created_at ?? b.date_created ?? null,
     };
   });
 
