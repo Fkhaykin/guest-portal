@@ -13,7 +13,7 @@ export async function sendPEPOAPDF({
   ownerPhone,
   ownerEmail,
 }: {
-  to: string;
+  to: string | string[];
   pdfBuffer: Buffer;
   guestName: string;
   lotSection: string;

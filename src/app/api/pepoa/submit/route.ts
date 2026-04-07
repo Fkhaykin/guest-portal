@@ -26,8 +26,9 @@ export async function POST(request: Request) {
   const pdfBuffer = await generateRegistrationPDF(data);
 
   // Email to HOA office if configured
-  const hoaEmail = data.property.hoa_submission_email as string | null;
-  if (hoaEmail) {
+  const hoaEmailRaw = data.property.hoa_submission_email as string | null;
+  if (hoaEmailRaw) {
+    const hoaEmail = hoaEmailRaw.split(",").map((e) => e.trim()).filter(Boolean);
     try {
       await sendPEPOAPDF({
         to: hoaEmail,
