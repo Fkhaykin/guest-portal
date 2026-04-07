@@ -53,6 +53,9 @@ export interface LodgifyBooking {
   arrival: string;   // ISO date
   departure: string; // ISO date
   guests: number;
+  adults: number;
+  children: number;
+  infants: number;
   pets: number;
   status: string;    // "Booked" | "Tentative" | "Cancelled" | "Declined" | "Open" | "CheckedOut"
   source: string | null;
@@ -131,24 +134,33 @@ export async function getBookings(params?: {
 
   const data = await lodgifyFetch<LodgifyV1BookingsResponse>("/v1/reservation", query);
 
-  const items: LodgifyBooking[] = data.items.map((b) => ({
-    id: b.id,
-    property_id: b.property_id,
-    guest: {
-      id: b.guest.id,
-      name: b.guest.name,
-      email: b.guest.email,
-      phone: b.guest.phone,
-    },
-    arrival: b.arrival ?? "",
-    departure: b.departure ?? "",
-    guests: b.rooms?.reduce((sum, r) => sum + (r.people || 0), 0) ?? 1,
-    pets: b.total_guest_breakdown?.pets ?? b.rooms?.reduce((sum, r) => sum + (r.guest_breakdown?.pets || 0), 0) ?? 0,
-    status: b.status,
-    source: b.source,
-    notes: b.notes,
-    total_amount: b.total_amount ?? b.amount ?? b.total ?? null,
-  }));
+  const items: LodgifyBooking[] = data.items.map((b) => {
+    const totalBreakdown = b.total_guest_breakdown;
+    const roomSum = (key: "adults" | "children" | "infants" | "pets") =>
+      b.rooms?.reduce((sum, r) => sum + (r.guest_breakdown?.[key] || 0), 0) ?? 0;
+
+    return {
+      id: b.id,
+      property_id: b.property_id,
+      guest: {
+        id: b.guest.id,
+        name: b.guest.name,
+        email: b.guest.email,
+        phone: b.guest.phone,
+      },
+      arrival: b.arrival ?? "",
+      departure: b.departure ?? "",
+      guests: b.rooms?.reduce((sum, r) => sum + (r.people || 0), 0) ?? 1,
+      adults: totalBreakdown?.adults ?? roomSum("adults"),
+      children: totalBreakdown?.children ?? roomSum("children"),
+      infants: totalBreakdown?.infants ?? roomSum("infants"),
+      pets: totalBreakdown?.pets ?? roomSum("pets"),
+      status: b.status,
+      source: b.source,
+      notes: b.notes,
+      total_amount: b.total_amount ?? b.amount ?? b.total ?? null,
+    };
+  });
 
   return { items, total: data.total };
 }
@@ -176,6 +188,9 @@ export async function getBookingById(bookingId: number): Promise<LodgifyBooking>
   const stay = raw.subtotals?.stay;
   const resolvedAmount = (stay && stay > 0) ? stay : (raw.total_amount ?? raw.amount ?? null);
 
+  const roomSum = (key: "adults" | "children" | "infants" | "pets") =>
+    raw.rooms?.reduce((sum, r) => sum + (r.guest_breakdown?.[key] || 0), 0) ?? 0;
+
   return {
     id: raw.id,
     property_id: raw.property_id,
@@ -188,7 +203,10 @@ export async function getBookingById(bookingId: number): Promise<LodgifyBooking>
     arrival: raw.arrival ?? "",
     departure: raw.departure ?? "",
     guests: raw.rooms?.reduce((sum, r) => sum + (r.people || 0), 0) ?? 1,
-    pets: raw.rooms?.reduce((sum, r) => sum + (r.guest_breakdown?.pets || 0), 0) ?? 0,
+    adults: roomSum("adults"),
+    children: roomSum("children"),
+    infants: roomSum("infants"),
+    pets: roomSum("pets"),
     status: raw.status,
     source: raw.source,
     notes: raw.notes ?? null,

@@ -263,6 +263,9 @@ export type Database = {
           check_in_date: string;
           check_out_date: string;
           num_guests: number;
+          lodgify_adults: number;
+          lodgify_children: number;
+          lodgify_infants: number;
           notes: string | null;
           status: "active" | "completed" | "cancelled";
           lodgify_booking_id: number | null;
@@ -282,6 +285,9 @@ export type Database = {
           check_in_date: string;
           check_out_date: string;
           num_guests?: number;
+          lodgify_adults?: number;
+          lodgify_children?: number;
+          lodgify_infants?: number;
           notes?: string | null;
           status?: "active" | "completed" | "cancelled";
           lodgify_booking_id?: number | null;
@@ -301,6 +307,9 @@ export type Database = {
           check_in_date?: string;
           check_out_date?: string;
           num_guests?: number;
+          lodgify_adults?: number;
+          lodgify_children?: number;
+          lodgify_infants?: number;
           notes?: string | null;
           status?: "active" | "completed" | "cancelled";
           lodgify_booking_id?: number | null;

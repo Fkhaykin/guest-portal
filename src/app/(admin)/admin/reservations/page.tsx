@@ -1,16 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Badge } from "@/components/ui/badge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import {
   Table,
   TableBody,
@@ -19,6 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import type { GuestListEntry, PetEntry } from "@/types/database";
 
 type Property = {
@@ -33,6 +29,9 @@ type Registration = {
   check_in_date: string;
   check_out_date: string;
   num_guests: number;
+  lodgify_adults: number;
+  lodgify_children: number;
+  lodgify_infants: number;
   status: "active" | "completed" | "cancelled";
   booking_source: string | null;
   signature_url: string | null;
@@ -49,10 +48,12 @@ export default function AdminReservationsPage() {
   const router = useRouter();
   const [properties, setProperties] = useState<Property[]>([]);
   const [registrations, setRegistrations] = useState<Registration[]>([]);
-  const [selectedProperty, setSelectedProperty] = useState<string>("all");
-  const [selectedStatus, setSelectedStatus] = useState<string>("all");
+  const [selectedProperties, setSelectedProperties] = useState<Set<string>>(new Set());
+  const [selectedStatuses, setSelectedStatuses] = useState<Set<string>>(new Set());
   const [onlyCompleted, setOnlyCompleted] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [sortColumn, setSortColumn] = useState<string>("check_in_date");
+  const [sortAsc, setSortAsc] = useState(false);
 
   useEffect(() => {
     loadProperties();
@@ -72,7 +73,7 @@ export default function AdminReservationsPage() {
     setLoading(true);
     const { data } = await supabase
       .from("registration")
-      .select("id, property_id, check_in_date, check_out_date, num_guests, status, booking_source, signature_url, total_amount_cents, guest_list, pets, created_at, guest:guest_id(full_name, email, phone), property:property_id(name, nickname)")
+      .select("id, property_id, check_in_date, check_out_date, num_guests, lodgify_adults, lodgify_children, lodgify_infants, status, booking_source, signature_url, total_amount_cents, guest_list, pets, created_at, guest:guest_id(full_name, email, phone), property:property_id(name, nickname)")
       .order("check_in_date", { ascending: false });
     if (data) setRegistrations(data as unknown as Registration[]);
     setLoading(false);
@@ -80,11 +81,30 @@ export default function AdminReservationsPage() {
 
   function getGuestBreakdown(reg: Registration) {
     const list = reg.guest_list ?? [];
-    const adults = list.filter((g) => g.age_group === "over_21").length;
-    const children = list.filter((g) => g.age_group === "under_21").length;
-    const infants = list.filter((g) => g.age_group === "infant").length;
     const petCount = reg.pets?.length ?? 0;
-    return { adults, children, infants, pets: petCount };
+
+    // Prefer guest_list (manually entered during registration) if it has entries
+    if (list.length > 0) {
+      return {
+        adults: list.filter((g) => g.age_group === "over_21").length,
+        children: list.filter((g) => g.age_group === "under_21").length,
+        infants: list.filter((g) => g.age_group === "infant").length,
+        pets: petCount,
+      };
+    }
+
+    // Fall back to Lodgify booking breakdown
+    const hasLodgifyBreakdown = reg.lodgify_adults > 0 || reg.lodgify_children > 0 || reg.lodgify_infants > 0;
+    if (hasLodgifyBreakdown) {
+      return {
+        adults: reg.lodgify_adults,
+        children: reg.lodgify_children,
+        infants: reg.lodgify_infants,
+        pets: petCount,
+      };
+    }
+
+    return { adults: 0, children: 0, infants: 0, pets: petCount };
   }
 
   function formatCents(cents: number) {
@@ -107,12 +127,59 @@ export default function AdminReservationsPage() {
     return "future";
   }
 
+  function toggleSetValue(set: Set<string>, value: string): Set<string> {
+    const next = new Set(set);
+    if (next.has(value)) next.delete(value);
+    else next.add(value);
+    return next;
+  }
+
   const filtered = registrations.filter((reg) => {
-    if (selectedProperty !== "all" && reg.property_id !== selectedProperty) return false;
-    if (selectedStatus !== "all" && getDisplayStatus(reg) !== selectedStatus) return false;
+    if (selectedProperties.size > 0 && !selectedProperties.has(reg.property_id)) return false;
+    if (selectedStatuses.size > 0 && !selectedStatuses.has(getDisplayStatus(reg))) return false;
     if (onlyCompleted && !reg.signature_url) return false;
     return true;
   });
+
+  function toggleSort(column: string) {
+    if (sortColumn === column) {
+      setSortAsc((prev) => !prev);
+    } else {
+      setSortColumn(column);
+      setSortAsc(true);
+    }
+  }
+
+  function getSortValue(reg: Registration, column: string): string {
+    switch (column) {
+      case "guest": return reg.guest?.full_name ?? "";
+      case "property": return reg.property?.nickname || reg.property?.name || "";
+      case "check_in_date": return reg.check_in_date ?? "";
+      case "check_out_date": return reg.check_out_date ?? "";
+      case "booked": return reg.created_at ?? "";
+      case "revenue": return String(reg.total_amount_cents ?? 0).padStart(12, "0");
+      case "source": return reg.booking_source ?? "";
+      case "status": return getDisplayStatus(reg);
+      default: return "";
+    }
+  }
+
+  const sorted = useMemo(() => {
+    return [...filtered].sort((a, b) => {
+      const aVal = getSortValue(a, sortColumn);
+      const bVal = getSortValue(b, sortColumn);
+      const cmp = aVal.localeCompare(bVal);
+      return sortAsc ? cmp : -cmp;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtered, sortColumn, sortAsc]);
+
+  function SortIcon({ column }: { column: string }) {
+    if (sortColumn !== column) return <ArrowUpDown className="inline ml-1 h-3 w-3 text-muted-foreground/50" />;
+    return sortAsc
+      ? <ArrowUp className="inline ml-1 h-3 w-3" />
+      : <ArrowDown className="inline ml-1 h-3 w-3" />;
+  }
 
   return (
     <div className="space-y-6">
@@ -122,43 +189,55 @@ export default function AdminReservationsPage() {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap items-center gap-3">
-        <Select value={selectedProperty} onValueChange={(v) => setSelectedProperty(v ?? "all")}>
-          <SelectTrigger className="w-50">
-            <SelectValue placeholder="All properties" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All properties</SelectItem>
+      <div className="space-y-4">
+        {/* Properties */}
+        <div className="space-y-2">
+          <p className="text-sm font-medium text-muted-foreground">Properties</p>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
             {properties.map((p) => (
-              <SelectItem key={p.id} value={p.id}>
-                {p.nickname || p.name}
-              </SelectItem>
+              <div key={p.id} className="flex items-center gap-2">
+                <Checkbox
+                  id={`prop-${p.id}`}
+                  checked={selectedProperties.has(p.id)}
+                  onCheckedChange={() => setSelectedProperties((prev) => toggleSetValue(prev, p.id))}
+                />
+                <Label htmlFor={`prop-${p.id}`} className="text-sm cursor-pointer">
+                  {p.nickname || p.name}
+                </Label>
+              </div>
             ))}
-          </SelectContent>
-        </Select>
+          </div>
+        </div>
 
-        <Select value={selectedStatus} onValueChange={(v) => setSelectedStatus(v ?? "all")}>
-          <SelectTrigger className="w-40">
-            <SelectValue placeholder="All statuses" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All statuses</SelectItem>
-            <SelectItem value="current">Current</SelectItem>
-            <SelectItem value="future">Future</SelectItem>
-            <SelectItem value="past">Past</SelectItem>
-            <SelectItem value="cancelled">Cancelled</SelectItem>
-          </SelectContent>
-        </Select>
+        {/* Status + Registration completed */}
+        <div className="space-y-2">
+          <p className="text-sm font-medium text-muted-foreground">Status</p>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            {(["current", "future", "past", "cancelled"] as const).map((status) => (
+              <div key={status} className="flex items-center gap-2">
+                <Checkbox
+                  id={`status-${status}`}
+                  checked={selectedStatuses.has(status)}
+                  onCheckedChange={() => setSelectedStatuses((prev) => toggleSetValue(prev, status))}
+                />
+                <Label htmlFor={`status-${status}`} className="text-sm capitalize cursor-pointer">
+                  {status}
+                </Label>
+              </div>
+            ))}
 
-        <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
-          <input
-            type="checkbox"
-            checked={onlyCompleted}
-            onChange={(e) => setOnlyCompleted(e.target.checked)}
-            className="rounded border-input"
-          />
-          Registration completed
-        </label>
+            <div className="ml-2 border-l pl-4 flex items-center gap-2">
+              <Checkbox
+                id="only-completed"
+                checked={onlyCompleted}
+                onCheckedChange={(checked) => setOnlyCompleted(checked === true)}
+              />
+              <Label htmlFor="only-completed" className="text-sm cursor-pointer">
+                Registration completed
+              </Label>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Table */}
@@ -169,18 +248,19 @@ export default function AdminReservationsPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Guest</TableHead>
-                <TableHead>Property</TableHead>
-                <TableHead>Check-in</TableHead>
-                <TableHead>Check-out</TableHead>
+                <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("guest")}>Guest <SortIcon column="guest" /></TableHead>
+                <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("property")}>Property <SortIcon column="property" /></TableHead>
+                <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("booked")}>Booked <SortIcon column="booked" /></TableHead>
+                <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("check_in_date")}>Check-in <SortIcon column="check_in_date" /></TableHead>
+                <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("check_out_date")}>Check-out <SortIcon column="check_out_date" /></TableHead>
                 <TableHead>Guests</TableHead>
-                <TableHead>Revenue</TableHead>
-                <TableHead>Source</TableHead>
-                <TableHead>Status</TableHead>
+                <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("revenue")}>Revenue <SortIcon column="revenue" /></TableHead>
+                <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("source")}>Source <SortIcon column="source" /></TableHead>
+                <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("status")}>Status <SortIcon column="status" /></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filtered.map((reg) => {
+              {sorted.map((reg) => {
                 const guest = reg.guest as Registration["guest"];
                 const breakdown = getGuestBreakdown(reg);
                 return (
@@ -199,6 +279,9 @@ export default function AdminReservationsPage() {
                     </TableCell>
                     <TableCell className="text-sm">
                       {reg.property?.nickname || reg.property?.name || "—"}
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      {reg.created_at ? new Date(reg.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—"}
                     </TableCell>
                     <TableCell className="text-sm">{reg.check_in_date}</TableCell>
                     <TableCell className="text-sm">{reg.check_out_date}</TableCell>

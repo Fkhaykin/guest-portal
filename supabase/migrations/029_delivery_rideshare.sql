@@ -18,12 +18,6 @@ CREATE TABLE delivery_rideshare (
 CREATE INDEX idx_delivery_rideshare_reg ON delivery_rideshare(registration_id);
 CREATE INDEX idx_delivery_rideshare_prop ON delivery_rideshare(property_id);
 
--- updated_at trigger
-CREATE TRIGGER set_delivery_rideshare_updated_at
-  BEFORE UPDATE ON delivery_rideshare
-  FOR EACH ROW
-  EXECUTE FUNCTION update_updated_at();
-
 ALTER TABLE delivery_rideshare ENABLE ROW LEVEL SECURITY;
 
 -- Hosts can view for their properties

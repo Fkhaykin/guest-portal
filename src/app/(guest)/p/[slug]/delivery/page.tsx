@@ -44,22 +44,19 @@ const FOOD_PROVIDERS = [
   { id: "giant", name: "Giant" },
 ] as const;
 
-// Inline SVG logos for Uber and Lyft to avoid external asset dependency
-function UberLogo({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="currentColor">
-      <path d="M0 7.97v4.958c0 1.867 1.302 3.101 3 3.101s3-1.234 3-3.101V7.97H4.473v4.958c0 1.013-.56 1.639-1.473 1.639s-1.473-.626-1.473-1.639V7.97H0zm7.5 0v7.906h1.527v-2.87h.037l2.442 2.87h2.072l-2.812-3.1 2.627-2.806V7.97h-1.527v2.87h-.037L9.387 7.97H7.5zm8.137 0v7.906h1.527v-2.87h2.252c1.6 0 2.584-.93 2.584-2.518S20.916 7.97 19.416 7.97h-3.779zm1.527 1.399h2.068c.746 0 1.205.384 1.205 1.119s-.46 1.119-1.205 1.119h-2.068V9.37z" />
-    </svg>
-  );
-}
-
-function LyftLogo({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="currentColor">
-      <path d="M11.24 2c-1.78 0-3.22 1.38-3.22 3.08v7.56c0 .22-.18.4-.4.4s-.4-.18-.4-.4v-1.68h-3.2v1.68c0 1.96 1.62 3.56 3.6 3.56.36 0 .7-.06 1.02-.16-.84 1.1-2.16 1.82-3.66 1.82v3.2c3.72 0 6.86-2.58 7.62-6.04.04-.2.06-.4.06-.6V5.08C12.66 3.38 11.22 2 11.24 2zm6.26 0v10.64c0 .22-.18.4-.4.4s-.4-.18-.4-.4v-1.68h-3.2v1.68c0 1.96 1.62 3.56 3.6 3.56s3.6-1.6 3.6-3.56V2h-3.2z" />
-    </svg>
-  );
-}
+// Brand logo PNG paths (served from /public/logos/)
+const BRAND_LOGOS: Record<string, string> = {
+  uber: "/logos/uber.png",
+  lyft: "/logos/lyft.png",
+  doordash: "/logos/doordash.png",
+  ubereats: "/logos/ubereats.png",
+  grubhub: "/logos/grubhub.png",
+  seamless: "/logos/seamless.png",
+  walmart: "/logos/walmart.png",
+  bjs: "/logos/bjs.png",
+  weiss: "/logos/weis.png",
+  giant: "/logos/giant.png",
+};
 
 function getSession() {
   try {
@@ -302,10 +299,12 @@ export default function DeliveryPage() {
                 }}
               >
                 <CardContent className="flex items-center gap-4 p-6">
-                  <div className="rounded-xl bg-muted p-4 w-16 h-16 flex items-center justify-center">
-                    {p.id === "uber" && <UberLogo className="h-8 w-8" />}
-                    {p.id === "lyft" && <LyftLogo className="h-8 w-8 text-[#FF00BF]" />}
-                    {p.id === "taxi" && <Car className="h-8 w-8 text-yellow-500" />}
+                  <div className="rounded-xl bg-muted p-2 w-16 h-16 flex items-center justify-center overflow-hidden">
+                    {BRAND_LOGOS[p.id] ? (
+                      <img src={BRAND_LOGOS[p.id]} alt={p.name} className="w-12 h-12 object-contain" />
+                    ) : (
+                      <Car className="h-8 w-8 text-yellow-500" />
+                    )}
                   </div>
                   <p className="font-semibold text-lg">{p.name}</p>
                 </CardContent>
@@ -328,8 +327,8 @@ export default function DeliveryPage() {
                 }}
               >
                 <CardContent className="flex flex-col items-center justify-center p-6 gap-3">
-                  <div className="rounded-xl bg-muted p-3 w-14 h-14 flex items-center justify-center">
-                    <FoodProviderIcon id={p.id} />
+                  <div className="rounded-xl bg-muted p-2 w-14 h-14 flex items-center justify-center overflow-hidden">
+                    <FoodProviderIcon id={p.id} name={p.name} />
                   </div>
                   <p className="font-medium text-sm text-center">{p.name}</p>
                 </CardContent>
@@ -587,33 +586,10 @@ export default function DeliveryPage() {
   );
 }
 
-// Simple colored icons for food/grocery providers
-function FoodProviderIcon({ id }: { id: string }) {
-  const colors: Record<string, string> = {
-    doordash: "text-red-500",
-    ubereats: "text-green-600",
-    grubhub: "text-orange-500",
-    seamless: "text-blue-600",
-    walmart: "text-blue-500",
-    bjs: "text-red-600",
-    weiss: "text-red-700",
-    giant: "text-purple-600",
-  };
-
-  const labels: Record<string, string> = {
-    doordash: "DD",
-    ubereats: "UE",
-    grubhub: "GH",
-    seamless: "S",
-    walmart: "W",
-    bjs: "BJ",
-    weiss: "WM",
-    giant: "G",
-  };
-
-  return (
-    <span className={`text-lg font-bold ${colors[id] || "text-muted-foreground"}`}>
-      {labels[id] || "?"}
-    </span>
-  );
+function FoodProviderIcon({ id, name }: { id: string; name: string }) {
+  const logo = BRAND_LOGOS[id];
+  if (logo) {
+    return <img src={logo} alt={name} className="w-10 h-10 object-contain" />;
+  }
+  return <Package className="h-6 w-6 text-muted-foreground" />;
 }

@@ -62,7 +62,7 @@ export async function POST(request: Request) {
   // Find the registration and its guest
   const { data: reg, error: regError } = await supabase
     .from("registration")
-    .select("id, guest_id, property_id")
+    .select("id, guest_id, property_id, lodgify_num_pets, upsells")
     .eq("id", registration_id)
     .single();
 
@@ -142,13 +142,31 @@ export async function POST(request: Request) {
       last_name: g.last_name.trim(),
       age_group: g.age_group || "over_21",
     })),
-    pets: (petList || []).filter((p) => p.name.trim()).map((p) => ({
-      name: p.name.trim(),
-      kind: p.kind.trim(),
-      rabies_doc_path: p.rabies_doc_path,
-      vaccination_doc_path: p.vaccination_doc_path,
-    })),
+    pets: [] as Array<{ name: string; kind: string; rabies_doc_path: string | null; vaccination_doc_path: string | null }>,
   };
+
+  // Separate pets: if guest added pets beyond the original booking, hold them
+  // in pending_pets until the pet fee is paid
+  const cleanPets = (petList || []).filter((p) => p.name.trim()).map((p) => ({
+    name: p.name.trim(),
+    kind: p.kind.trim(),
+    rabies_doc_path: p.rabies_doc_path,
+    vaccination_doc_path: p.vaccination_doc_path,
+  }));
+
+  const numOriginalPets = reg.lodgify_num_pets || 0;
+  const paidUpsells = (reg.upsells as Array<{ type: string; status: string }>) || [];
+  const petFeePaid = paidUpsells.some((u) => u.type === "pet_fee" && u.status === "paid");
+
+  if (cleanPets.length > numOriginalPets && !petFeePaid) {
+    // Extra pets not yet paid for — hold all pets in pending_pets
+    registrationUpdate.pets = cleanPets.slice(0, numOriginalPets);
+    registrationUpdate.pending_pets = cleanPets.slice(numOriginalPets);
+  } else {
+    // All pets included in original booking or fee already paid
+    registrationUpdate.pets = cleanPets;
+    registrationUpdate.pending_pets = null;
+  }
 
   if (signatureUrl) {
     registrationUpdate.signature_url = signatureUrl;
