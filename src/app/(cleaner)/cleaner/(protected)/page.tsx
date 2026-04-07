@@ -2,39 +2,17 @@ import { redirect } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { validateCleanerSession } from "@/lib/cleaner/auth";
 import { getSessionToken } from "@/lib/cleaner/session";
-import { ReservationCard } from "@/components/cleaner/reservation-card";
-import { CollapsibleSection } from "@/components/cleaner/collapsible-section";
-import { Card, CardContent } from "@/components/ui/card";
-import {
-  AlertTriangle,
-  CalendarCheck,
-  CalendarClock,
-  CheckCircle2,
-  Home,
-} from "lucide-react";
-import type { UpsellEntry, GuestListEntry, PetEntry } from "@/types/database";
+import { AnalyticsDashboard } from "@/components/cleaner/analytics-dashboard";
+import type { InvoiceLineItem } from "@/types/database";
 
 export const dynamic = "force-dynamic";
 
-type RegistrationRow = {
-  id: string;
-  property_id: string;
-  check_in_date: string;
-  check_out_date: string;
-  num_guests: number;
-  status: string;
-  upsells: UpsellEntry[] | null;
-  guest_list: GuestListEntry[] | null;
-  pets: PetEntry[] | null;
-};
-
-type CleaningStatusRow = {
-  registration_id: string;
-  is_cleaned: boolean;
-  fulfilled_upsells: string[];
-};
-
-export default async function CleanerDashboard() {
+export default async function CleanerHomePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
+  const { from, to } = await searchParams;
   const token = await getSessionToken();
   if (!token) redirect("/cleaner/login");
 
@@ -43,7 +21,7 @@ export default async function CleanerDashboard() {
 
   const supabase = createAdminClient();
 
-  // Get assigned property ids
+  // Get assigned properties with fees
   const { data: assignments } = await supabase
     .from("cleaner_property")
     .select("property_id")
@@ -53,221 +31,282 @@ export default async function CleanerDashboard() {
 
   if (propertyIds.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 text-center space-y-3">
-        <Home className="h-12 w-12 text-muted-foreground/30" />
-        <p className="text-muted-foreground">
-          No properties assigned yet.
-          <br />
-          Ask your host to assign properties to your account.
-        </p>
+      <div className="flex flex-col items-center justify-center py-20 text-center text-muted-foreground">
+        No properties assigned yet.
       </div>
     );
   }
 
-  // Get property names and cover images
   const { data: properties } = await supabase
     .from("property")
-    .select("id, name, nickname, cover_image_url")
+    .select("id, name, nickname, cleaning_fee_cents, pet_fee_cents")
     .in("id", propertyIds);
 
-  const propertyMap = new Map(
-    (properties || []).map((p) => [p.id, { name: p.name, nickname: p.nickname, coverImage: p.cover_image_url }])
+  const propMap = new Map(
+    (properties || []).map((p) => [
+      p.id,
+      {
+        name: p.nickname || p.name,
+        cleaningFee: p.cleaning_fee_cents ?? 0,
+        petFee: p.pet_fee_cents ?? 0,
+      },
+    ])
   );
 
-  // Get registrations: current, upcoming, and recently departed
   const today = new Date().toISOString().split("T")[0];
-  const twoDaysAgo = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
-    .toISOString()
-    .split("T")[0];
 
-  const { data: registrations } = await supabase
+  // Date filter bounds
+  const filterFrom = typeof from === "string" && from ? from : undefined;
+  const filterTo = typeof to === "string" && to ? to : undefined;
+
+  // --- Upcoming cleanings (check-out today or future, not yet cleaned) ---
+  const { data: upcomingRegs } = await supabase
     .from("registration")
-    .select("id, property_id, check_in_date, check_out_date, num_guests, status, upsells, guest_list, pets, updated_at")
+    .select("id")
     .in("property_id", propertyIds)
     .in("status", ["active", "completed"])
-    .gte("check_out_date", twoDaysAgo)
-    .order("check_in_date", { ascending: true });
+    .gte("check_out_date", today);
 
-  // Deduplicate: for same property with overlapping date ranges, keep the most recently updated
-  const allRegs = (registrations || []) as (RegistrationRow & { updated_at: string })[];
-  // Sort by updated_at descending so we keep the newest version first
-  allRegs.sort((a, b) => b.updated_at.localeCompare(a.updated_at));
-  const regs: RegistrationRow[] = [];
-  for (const reg of allRegs) {
-    const isDuplicate = regs.some(
-      (existing) =>
-        existing.property_id === reg.property_id &&
-        existing.check_in_date < reg.check_out_date &&
-        existing.check_out_date > reg.check_in_date
-    );
-    if (!isDuplicate) regs.push(reg);
+  const upcomingRegIds = (upcomingRegs || []).map((r) => r.id);
+  let upcomingCleanings = upcomingRegIds.length;
+  if (upcomingRegIds.length > 0) {
+    const { data: alreadyCleaned } = await supabase
+      .from("cleaning_status")
+      .select("registration_id")
+      .in("registration_id", upcomingRegIds)
+      .eq("is_cleaned", true);
+    upcomingCleanings = upcomingRegIds.length - (alreadyCleaned || []).length;
   }
-  // Re-sort by check-in ascending for display
-  regs.sort((a, b) => a.check_in_date.localeCompare(b.check_in_date));
 
-  // Get cleaning statuses
-  const regIds = regs.map((r) => r.id);
-  const { data: statuses } = await supabase
+  // --- All cleaned registrations (earned revenue) ---
+  const { data: cleanedStatuses } = await supabase
     .from("cleaning_status")
-    .select("registration_id, is_cleaned, fulfilled_upsells")
-    .in("registration_id", regIds.length > 0 ? regIds : ["_none_"]);
+    .select("registration_id, cleaned_at")
+    .eq("is_cleaned", true)
+    .eq("cleaner_id", cleaner.id);
 
-  const statusMap = new Map(
-    ((statuses as CleaningStatusRow[]) || []).map((s) => [s.registration_id, s])
+  const cleanedRegIds = (cleanedStatuses || []).map((s) => s.registration_id);
+  const cleanedAtMap = new Map(
+    (cleanedStatuses || []).map((s) => [s.registration_id, s.cleaned_at])
   );
 
-  // Categorize
-  const current: typeof regs = [];
-  const upcoming: typeof regs = [];
-  const departed: typeof regs = [];
+  type RegRow = {
+    id: string;
+    property_id: string;
+    check_out_date: string;
+    pets: Array<{ name?: string }> | null;
+  };
 
-  for (const reg of regs) {
-    if (reg.check_in_date <= today && reg.check_out_date > today) {
-      current.push(reg);
-    } else if (reg.check_in_date > today) {
-      upcoming.push(reg);
-    } else {
-      departed.push(reg);
-    }
+  let cleanedRegs: RegRow[] = [];
+  if (cleanedRegIds.length > 0) {
+    const { data } = await supabase
+      .from("registration")
+      .select("id, property_id, check_out_date, pets")
+      .in("id", cleanedRegIds);
+    cleanedRegs = (data || []) as RegRow[];
   }
 
-  // Stats
-  const needsCleaning = departed.filter(
-    (r) => !statusMap.get(r.id)?.is_cleaned
-  ).length;
-  const totalTasks = regs.length;
-  const completedTasks = regs.filter(
-    (r) => statusMap.get(r.id)?.is_cleaned
-  ).length;
+  // --- Future bookings (projected revenue) ---
+  const { data: futureRegsRaw } = await supabase
+    .from("registration")
+    .select("id, property_id, check_out_date, pets")
+    .in("property_id", propertyIds)
+    .in("status", ["active"])
+    .gt("check_out_date", today);
 
-  function renderCards(items: typeof regs, category: "current" | "upcoming" | "departed") {
-    return items.map((reg) => {
-      const paidUpsells = (reg.upsells || []).filter(
-        (u) => u.status === "paid"
-      );
-      const status = statusMap.get(reg.id);
-      const prop = propertyMap.get(reg.property_id);
-      return (
-        <ReservationCard
-          key={reg.id}
-          registrationId={reg.id}
-          propertyName={prop?.name || "Unknown"}
-          propertyNickname={prop?.nickname || null}
-          propertyCoverImage={prop?.coverImage || null}
-          checkIn={reg.check_in_date}
-          checkOut={reg.check_out_date}
-          numGuests={reg.num_guests}
-          guestList={reg.guest_list}
-          pets={reg.pets}
-          upsells={paidUpsells}
-          isCleaned={status?.is_cleaned ?? false}
-          fulfilledUpsells={status?.fulfilled_upsells ?? []}
-          category={category}
-        />
-      );
+  // Exclude already-cleaned ones
+  const cleanedSet = new Set(cleanedRegIds);
+  const futureRegs = ((futureRegsRaw || []) as RegRow[]).filter(
+    (r) => !cleanedSet.has(r.id)
+  );
+
+  // --- Helpers ---
+  function hasPets(reg: RegRow) {
+    return (reg.pets || []).some((p) => p.name?.trim());
+  }
+
+  function regRevenue(reg: RegRow) {
+    const prop = propMap.get(reg.property_id);
+    if (!prop) return { cleaning: 0, pet: 0 };
+    return {
+      cleaning: prop.cleaningFee,
+      pet: hasPets(reg) ? prop.petFee : 0,
+    };
+  }
+
+  function inDateRange(dateStr: string) {
+    if (filterFrom && dateStr < filterFrom) return false;
+    if (filterTo && dateStr > filterTo) return false;
+    return true;
+  }
+
+  // --- Build monthly data ---
+  const monthlyMap = new Map<
+    string,
+    { cleaning: number; pet: number; futureCleaning: number; futurePet: number }
+  >();
+
+  const propertyStats = new Map<
+    string,
+    {
+      cleanings: number;
+      cleaning: number;
+      pet: number;
+      futureCleanings: number;
+      futureCleaning: number;
+      futurePet: number;
+    }
+  >();
+
+  // Earned revenue from cleaned registrations
+  for (const reg of cleanedRegs) {
+    const dateStr = cleanedAtMap.get(reg.id) || reg.check_out_date;
+    if (!inDateRange(dateStr)) continue;
+
+    const rev = regRevenue(reg);
+    const monthKey = dateStr.slice(0, 7);
+
+    const existing = monthlyMap.get(monthKey) || {
+      cleaning: 0,
+      pet: 0,
+      futureCleaning: 0,
+      futurePet: 0,
+    };
+    existing.cleaning += rev.cleaning;
+    existing.pet += rev.pet;
+    monthlyMap.set(monthKey, existing);
+
+    const prop = propMap.get(reg.property_id);
+    if (!prop) continue;
+    const pStat = propertyStats.get(prop.name) || {
+      cleanings: 0,
+      cleaning: 0,
+      pet: 0,
+      futureCleanings: 0,
+      futureCleaning: 0,
+      futurePet: 0,
+    };
+    pStat.cleanings += 1;
+    pStat.cleaning += rev.cleaning;
+    pStat.pet += rev.pet;
+    propertyStats.set(prop.name, pStat);
+  }
+
+  // Projected revenue from future bookings
+  for (const reg of futureRegs) {
+    if (!inDateRange(reg.check_out_date)) continue;
+
+    const rev = regRevenue(reg);
+    const monthKey = reg.check_out_date.slice(0, 7);
+
+    const existing = monthlyMap.get(monthKey) || {
+      cleaning: 0,
+      pet: 0,
+      futureCleaning: 0,
+      futurePet: 0,
+    };
+    existing.futureCleaning += rev.cleaning;
+    existing.futurePet += rev.pet;
+    monthlyMap.set(monthKey, existing);
+
+    const prop = propMap.get(reg.property_id);
+    if (!prop) continue;
+    const pStat = propertyStats.get(prop.name) || {
+      cleanings: 0,
+      cleaning: 0,
+      pet: 0,
+      futureCleanings: 0,
+      futureCleaning: 0,
+      futurePet: 0,
+    };
+    pStat.futureCleanings += 1;
+    pStat.futureCleaning += rev.cleaning;
+    pStat.futurePet += rev.pet;
+    propertyStats.set(prop.name, pStat);
+  }
+
+  // Build month array — cover from 6 months ago through 3 months ahead
+  const months: Array<{
+    month: string;
+    cleaningRevenue: number;
+    petFeeRevenue: number;
+    futureCleaningRevenue: number;
+    futurePetFeeRevenue: number;
+  }> = [];
+
+  for (let i = -5; i <= 3; i++) {
+    const d = new Date();
+    d.setMonth(d.getMonth() + i);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    if (filterFrom && key < filterFrom.slice(0, 7)) continue;
+    if (filterTo && key > filterTo.slice(0, 7)) continue;
+    const data = monthlyMap.get(key) || {
+      cleaning: 0,
+      pet: 0,
+      futureCleaning: 0,
+      futurePet: 0,
+    };
+    months.push({
+      month: key,
+      cleaningRevenue: data.cleaning,
+      petFeeRevenue: data.pet,
+      futureCleaningRevenue: data.futureCleaning,
+      futurePetFeeRevenue: data.futurePet,
     });
   }
 
-  const uncleanedDeparted = departed.filter((r) => !statusMap.get(r.id)?.is_cleaned);
-  const cleanedDeparted = departed.filter((r) => statusMap.get(r.id)?.is_cleaned);
+  // Per-property sorted by total (earned + projected) desc
+  const byProperty = Array.from(propertyStats.entries())
+    .map(([name, s]) => ({
+      name,
+      cleanings: s.cleanings,
+      cleaningRevenue: s.cleaning,
+      petFeeRevenue: s.pet,
+      totalRevenue: s.cleaning + s.pet,
+      futureCleanings: s.futureCleanings,
+      futureRevenue: s.futureCleaning + s.futurePet,
+    }))
+    .sort((a, b) => b.totalRevenue + b.futureRevenue - (a.totalRevenue + a.futureRevenue));
+
+  // --- Open balance (unbilled cleanings — always unfiltered) ---
+  const { data: existingInvoices } = await supabase
+    .from("cleaner_invoice")
+    .select("line_items")
+    .eq("cleaner_id", cleaner.id)
+    .neq("status", "draft");
+
+  const billedRegIds = new Set<string>();
+  for (const inv of existingInvoices || []) {
+    const items = inv.line_items as InvoiceLineItem[];
+    for (const item of items) {
+      if (item.registration_id) billedRegIds.add(item.registration_id);
+    }
+  }
+
+  let openBalance = 0;
+  for (const reg of cleanedRegs) {
+    if (billedRegIds.has(reg.id)) continue;
+    const rev = regRevenue(reg);
+    openBalance += rev.cleaning + rev.pet;
+  }
+
+  // Future revenue total (within filter range)
+  let futureRevenue = 0;
+  for (const reg of futureRegs) {
+    if (!inDateRange(reg.check_out_date)) continue;
+    const rev = regRevenue(reg);
+    futureRevenue += rev.cleaning + rev.pet;
+  }
 
   return (
-    <div className="space-y-6 max-w-3xl mx-auto">
-      {/* Summary stats */}
-      <div className="grid grid-cols-3 gap-3">
-        <Card>
-          <CardContent className="pt-4 pb-3 text-center">
-            <p className="text-2xl font-bold">{current.length}</p>
-            <p className="text-xs text-muted-foreground">In-House</p>
-          </CardContent>
-        </Card>
-        <Card className={needsCleaning > 0 ? "border-red-300 bg-red-50/30 dark:bg-red-950/10" : ""}>
-          <CardContent className="pt-4 pb-3 text-center">
-            <p className={`text-2xl font-bold ${needsCleaning > 0 ? "text-red-600" : ""}`}>
-              {needsCleaning}
-            </p>
-            <p className="text-xs text-muted-foreground">Need Cleaning</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4 pb-3 text-center">
-            <p className="text-2xl font-bold">{upcoming.length}</p>
-            <p className="text-xs text-muted-foreground">Upcoming</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Needs cleaning alert */}
-      {needsCleaning > 0 && (
-        <div className="flex items-center gap-3 rounded-lg border border-red-200 bg-red-50 dark:bg-red-950/20 dark:border-red-900 px-4 py-3">
-          <AlertTriangle className="h-5 w-5 text-red-500 shrink-0" />
-          <p className="text-sm font-medium text-red-800 dark:text-red-300">
-            {needsCleaning} departed reservation{needsCleaning > 1 ? "s" : ""} still need
-            {needsCleaning === 1 ? "s" : ""} cleaning
-          </p>
-        </div>
-      )}
-
-      {/* Task list */}
-      <div className="space-y-6">
-        {uncleanedDeparted.length > 0 && (
-          <CollapsibleSection
-            title="Needs Cleaning"
-            icon={<AlertTriangle className="h-4 w-4 text-red-500" />}
-            count={uncleanedDeparted.length}
-            defaultOpen
-          >
-            <div className="space-y-3">
-              {renderCards(uncleanedDeparted, "departed")}
-            </div>
-          </CollapsibleSection>
-        )}
-
-        {current.length > 0 && (
-          <CollapsibleSection
-            title="Currently In-House"
-            icon={<CalendarCheck className="h-4 w-4 text-blue-500" />}
-            count={current.length}
-            defaultOpen
-          >
-            <div className="space-y-3">
-              {renderCards(current, "current")}
-            </div>
-          </CollapsibleSection>
-        )}
-
-        {upcoming.length > 0 && (
-          <CollapsibleSection
-            title="Upcoming Arrivals"
-            icon={<CalendarClock className="h-4 w-4 text-amber-500" />}
-            count={upcoming.length}
-            defaultOpen
-          >
-            <div className="space-y-3">
-              {renderCards(upcoming, "upcoming")}
-            </div>
-          </CollapsibleSection>
-        )}
-
-        {cleanedDeparted.length > 0 && (
-          <CollapsibleSection
-            title="Completed"
-            icon={<CheckCircle2 className="h-4 w-4 text-green-500" />}
-            count={cleanedDeparted.length}
-            defaultOpen={false}
-          >
-            <div className="space-y-3">
-              {renderCards(cleanedDeparted, "departed")}
-            </div>
-          </CollapsibleSection>
-        )}
-
-        {regs.length === 0 && (
-          <div className="text-center py-12 text-muted-foreground">
-            No reservations to show right now.
-          </div>
-        )}
-      </div>
-    </div>
+    <AnalyticsDashboard
+      upcomingCleanings={upcomingCleanings}
+      openBalance={openBalance}
+      futureRevenue={futureRevenue}
+      monthlyRevenue={months}
+      byProperty={byProperty}
+      filterFrom={filterFrom}
+      filterTo={filterTo}
+    />
   );
 }

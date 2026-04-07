@@ -219,12 +219,12 @@ export function ReservationCard({
                   src={propertyCoverImage}
                   alt={propertyName}
                   className="w-full h-full object-cover"
+                  onError={(e) => { e.currentTarget.style.display = "none"; e.currentTarget.nextElementSibling?.classList.remove("hidden"); }}
                 />
-              ) : (
-                <div className="w-full h-full bg-linear-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-800 flex items-center justify-center">
-                  <Home className="h-5 w-5 text-slate-400 dark:text-slate-500" />
-                </div>
-              )}
+              ) : null}
+              <div className={`w-full h-full bg-linear-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-800 flex items-center justify-center${propertyCoverImage ? " hidden" : ""}`}>
+                <Home className="h-5 w-5 text-slate-400 dark:text-slate-500" />
+              </div>
             </div>
             <div className="min-w-0 flex-1">
               <h3 className="font-semibold text-sm truncate">{propertyName}</h3>

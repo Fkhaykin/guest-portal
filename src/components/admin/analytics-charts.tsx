@@ -97,13 +97,29 @@ type ApiData = {
 
 // ─── Helpers ─────────────────────────────────────────────────
 
+/**
+ * Parse a YYYY-MM-DD date string into local-time midnight.
+ * Using `new Date("2026-02-15")` parses as UTC, which shifts the day
+ * backward in western timezones — this avoids that.
+ */
+function parseDate(s: string): Date {
+  const [y, m, d] = s.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+
+/** Today at midnight local time */
+function today(): Date {
+  const n = new Date();
+  return new Date(n.getFullYear(), n.getMonth(), n.getDate());
+}
+
 function formatDollars(v: number) {
   return `$${v.toLocaleString()}`;
 }
 
 function getPresetRange(preset: DatePreset): [Date | null, Date | null] {
   if (preset === "all" || preset === "custom") return [null, null];
-  const now = new Date();
+  const now = today();
   const from = new Date(now);
   if (preset === "30d") from.setDate(from.getDate() - 30);
   else if (preset === "90d") from.setDate(from.getDate() - 90);
@@ -112,29 +128,31 @@ function getPresetRange(preset: DatePreset): [Date | null, Date | null] {
   return [from, now];
 }
 
-function toBucketKey(date: string, groupBy: GroupBy): string {
-  const d = new Date(date);
-  const y = d.getFullYear();
-  const m = d.getMonth(); // 0-indexed
+function toBucketKey(dateStr: string, groupBy: GroupBy): string {
+  // Parse directly from string to avoid timezone issues
+  const [y, m, d] = dateStr.split("-").map(Number);
   if (groupBy === "week") {
-    // ISO week: floor to Monday
-    const day = new Date(d);
-    const dow = day.getDay();
-    day.setDate(day.getDate() - ((dow + 6) % 7));
-    return day.toISOString().slice(0, 10);
+    const date = new Date(y, m - 1, d);
+    const dow = date.getDay(); // 0=Sun
+    date.setDate(date.getDate() - ((dow + 6) % 7)); // floor to Monday
+    const wy = date.getFullYear();
+    const wm = String(date.getMonth() + 1).padStart(2, "0");
+    const wd = String(date.getDate()).padStart(2, "0");
+    return `${wy}-${wm}-${wd}`;
   }
   if (groupBy === "quarter") {
-    const q = Math.floor(m / 3) + 1;
+    const q = Math.floor((m - 1) / 3) + 1;
     return `${y}-Q${q}`;
   }
   // month
-  return `${y}-${String(m + 1).padStart(2, "0")}`;
+  return `${y}-${String(m).padStart(2, "0")}`;
 }
 
 function formatBucketLabel(key: string, groupBy: GroupBy): string {
   if (groupBy === "week") {
-    const d = new Date(key);
-    return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    const [y, m, d] = key.split("-").map(Number);
+    const date = new Date(y, m - 1, d);
+    return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
   }
   if (groupBy === "quarter") return key; // "2025-Q1"
   // month
@@ -172,8 +190,8 @@ export function AnalyticsCharts() {
   const [rangeFrom, rangeTo] = useMemo(() => {
     if (preset === "custom") {
       return [
-        customFrom ? new Date(customFrom) : null,
-        customTo ? new Date(customTo) : null,
+        customFrom ? parseDate(customFrom) : null,
+        customTo ? parseDate(customTo) : null,
       ];
     }
     return getPresetRange(preset);
@@ -184,7 +202,7 @@ export function AnalyticsCharts() {
     if (!raw) return [];
     return raw.registrations.filter((r) => {
       if (r.status === "cancelled") return false;
-      const d = new Date(r.checkIn);
+      const d = parseDate(r.checkIn);
       if (rangeFrom && d < rangeFrom) return false;
       if (rangeTo && d > rangeTo) return false;
       return true;
@@ -221,24 +239,21 @@ export function AnalyticsCharts() {
     });
 
     // 2. Occupancy %
-    const from = rangeFrom ?? new Date("2020-01-01");
-    const to = rangeTo ?? new Date();
+    const from = rangeFrom ?? new Date(2020, 0, 1);
+    const to = rangeTo ?? today();
     const totalDays = Math.max(
       1,
-      Math.floor((to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24))
+      Math.floor((to.getTime() - from.getTime()) / 86400000)
     );
     const occupancyByProperty = properties.map((p) => {
       const propRegs = regs.filter((r) => r.propertyId === p.id);
       let days = 0;
       for (const r of propRegs) {
-        const ci = new Date(r.checkIn);
-        const co = new Date(r.checkOut);
+        const ci = parseDate(r.checkIn);
+        const co = parseDate(r.checkOut);
         const s = ci > from ? ci : from;
         const e = co < to ? co : to;
-        days += Math.max(
-          0,
-          Math.floor((e.getTime() - s.getTime()) / (1000 * 60 * 60 * 24))
-        );
+        days += Math.max(0, Math.floor((e.getTime() - s.getTime()) / 86400000));
       }
       return {
         property: propNameMap[p.id],
@@ -276,7 +291,7 @@ export function AnalyticsCharts() {
           Math.max(
             1,
             Math.floor(
-              (new Date(r.checkOut).getTime() - new Date(r.checkIn).getTime()) /
+              (parseDate(r.checkOut).getTime() - parseDate(r.checkIn).getTime()) /
                 86400000
             )
           )
@@ -507,9 +522,13 @@ export function AnalyticsCharts() {
                   />
                   <YAxis tickFormatter={formatDollars} className="text-xs" />
                   <Tooltip
-                    formatter={((v: ValueType) => formatDollars(Number(v))) as never}
-                    labelFormatter={(l) => formatBucketLabel(String(l), groupBy)}
-                    contentStyle={TOOLTIP_STYLE}
+                    content={
+                      <RevenueTooltip
+                        groupBy={groupBy}
+                        propertyNames={propertyNames}
+                      />
+                    }
+                    wrapperStyle={{ zIndex: 10 }}
                   />
                   <Legend />
                   {propertyNames.map((name, i) => (
@@ -742,6 +761,59 @@ export function AnalyticsCharts() {
           </CardContent>
         </Card>
       </div>
+    </div>
+  );
+}
+
+function RevenueTooltip({
+  active,
+  payload,
+  label,
+  groupBy: gb,
+  propertyNames: names,
+}: {
+  active?: boolean;
+  payload?: Array<{ dataKey: string; value: number; color: string }>;
+  label?: string;
+  groupBy: GroupBy;
+  propertyNames: string[];
+}) {
+  if (!active || !payload?.length) return null;
+
+  // Sort: properties first (in original order), Total always last
+  const sorted = [...payload].sort((a, b) => {
+    if (a.dataKey === "Total") return 1;
+    if (b.dataKey === "Total") return -1;
+    return names.indexOf(a.dataKey) - names.indexOf(b.dataKey);
+  });
+
+  return (
+    <div
+      className="rounded-lg border bg-card px-3 py-2 text-sm shadow-md"
+      style={{ minWidth: 180 }}
+    >
+      <p className="mb-1.5 font-medium">
+        {formatBucketLabel(String(label), gb)}
+      </p>
+      {sorted.map((entry) => (
+        <div
+          key={entry.dataKey}
+          className={`flex items-center justify-between gap-4 ${
+            entry.dataKey === "Total"
+              ? "mt-1.5 border-t pt-1.5 font-semibold"
+              : ""
+          }`}
+        >
+          <span className="flex items-center gap-1.5">
+            <span
+              className="inline-block h-2.5 w-2.5 rounded-full"
+              style={{ background: entry.color }}
+            />
+            {entry.dataKey}
+          </span>
+          <span>{formatDollars(entry.value)}</span>
+        </div>
+      ))}
     </div>
   );
 }

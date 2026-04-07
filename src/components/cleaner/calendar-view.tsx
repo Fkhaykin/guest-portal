@@ -125,6 +125,7 @@ export function CalendarView({
 
   const [startDate, setStartDate] = useState(startOfWeek);
   const [selected, setSelected] = useState<CalendarReservation | null>(null);
+  const [failedImages, setFailedImages] = useState<Set<string>>(new Set());
 
   const todayStr = toDateStr(today);
 
@@ -283,8 +284,13 @@ export function CalendarView({
                   {/* Property label */}
                   <div className="flex items-center gap-2.5 pr-3 min-w-0 shrink-0" style={{ width: 200 }}>
                     <div className="h-9 w-9 rounded-lg overflow-hidden shrink-0 border border-border/50">
-                      {coverImage ? (
-                        <img src={coverImage} alt={propName} className="w-full h-full object-cover" />
+                      {coverImage && !failedImages.has(coverImage) ? (
+                        <img
+                          src={coverImage}
+                          alt={propName}
+                          className="w-full h-full object-cover"
+                          onError={() => setFailedImages((prev) => new Set(prev).add(coverImage))}
+                        />
                       ) : (
                         <div className={`w-full h-full ${color} opacity-20 flex items-center justify-center`}>
                           <Home className="h-4 w-4 text-muted-foreground" />
@@ -380,12 +386,13 @@ export function CalendarView({
               return (
                 <>
                   {/* Cover image header */}
-                  {selected.propertyCoverImage ? (
+                  {selected.propertyCoverImage && !failedImages.has(selected.propertyCoverImage) ? (
                     <div className="relative h-36 w-full">
                       <img
                         src={selected.propertyCoverImage}
                         alt={selected.propertyName}
                         className="w-full h-full object-cover"
+                        onError={() => setFailedImages((prev) => new Set(prev).add(selected.propertyCoverImage!))}
                       />
                       <div className="absolute inset-0 bg-linear-to-t from-black/70 via-black/20 to-transparent" />
                       <div className="absolute bottom-0 left-0 right-0 p-4">

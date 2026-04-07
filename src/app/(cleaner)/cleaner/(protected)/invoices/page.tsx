@@ -26,6 +26,8 @@ export type UnpaidCleaning = {
   registrationId: string;
   propertyName: string;
   propertyCoverImage: string | null;
+  guestName: string | null;
+  checkInDate: string;
   checkOutDate: string;
   cleanedAt: string | null;
   guestCount: number;
@@ -96,7 +98,7 @@ export default async function InvoicesPage() {
   if (unbilledRegIds.length > 0) {
     const { data: regs } = await supabase
       .from("registration")
-      .select("id, property_id, check_out_date, num_guests, pets")
+      .select("id, property_id, check_in_date, check_out_date, num_guests, pets, guest:guest_id(first_name, last_name)")
       .in("id", unbilledRegIds);
 
     unpaidCleanings = (regs || [])
@@ -107,10 +109,14 @@ export default async function InvoicesPage() {
         const hasPets = (pets || []).some((p) => p.name?.trim());
         const cleaningFee = prop.cleaning_fee_cents ?? 0;
         const petFee = hasPets ? (prop.pet_fee_cents ?? 0) : 0;
+        const guest = r.guest as unknown as { first_name: string; last_name: string } | null;
+        const guestName = guest ? `${guest.first_name} ${guest.last_name}`.trim() : null;
         return {
           registrationId: r.id,
           propertyName: prop.name,
           propertyCoverImage: prop.cover_image_url,
+          guestName,
+          checkInDate: r.check_in_date,
           checkOutDate: r.check_out_date,
           cleanedAt: cleanedAtMap.get(r.id) || null,
           guestCount: r.num_guests,

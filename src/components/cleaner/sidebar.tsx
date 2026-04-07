@@ -5,20 +5,20 @@ import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
+  BarChart3,
   ClipboardList,
   Calendar,
   Receipt,
-  BarChart3,
   LogOut,
   SprayCan,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const navItems = [
-  { label: "Tasks", href: "/cleaner", icon: ClipboardList },
+  { label: "Dashboard", href: "/cleaner", icon: BarChart3 },
+  { label: "Tasks", href: "/cleaner/tasks", icon: ClipboardList },
   { label: "Calendar", href: "/cleaner/calendar", icon: Calendar },
   { label: "Invoices", href: "/cleaner/invoices", icon: Receipt },
-  { label: "Analytics", href: "/cleaner/analytics", icon: BarChart3 },
 ];
 
 export function CleanerSidebar({

@@ -201,10 +201,13 @@ function UnpaidTab({
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate">{c.propertyName}</p>
-                  <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                  {c.guestName && (
+                    <p className="text-xs text-muted-foreground truncate">{c.guestName}</p>
+                  )}
+                  <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
                     <span className="flex items-center gap-1">
                       <CalendarDays className="h-3 w-3" />
-                      Checkout {formatDate(c.checkOutDate)}
+                      {formatDate(c.checkInDate)} – {formatDate(c.checkOutDate)}
                     </span>
                     <span className="flex items-center gap-1">
                       <Users className="h-3 w-3" />
@@ -217,6 +220,12 @@ function UnpaidTab({
                       </span>
                     )}
                   </div>
+                  {c.cleanedAt && (
+                    <p className="text-[10px] text-muted-foreground mt-0.5">
+                      <SprayCan className="h-2.5 w-2.5 inline mr-0.5" />
+                      Cleaned {formatTimestamp(c.cleanedAt)}
+                    </p>
+                  )}
                 </div>
                 <div className="text-right shrink-0">
                   <p className="text-sm font-semibold">{formatCents(c.totalFee)}</p>
