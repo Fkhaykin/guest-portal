@@ -102,6 +102,7 @@ type BucketReservation = {
   guestName: string;
   checkIn: string;
   amount: number;
+  nights: number;
 };
 
 type ApiData = {
@@ -382,10 +383,12 @@ export function AnalyticsCharts() {
       const key = toBucketKey(r.checkIn, groupBy);
       if (!reservationsByBucket[key]) reservationsByBucket[key] = {};
       if (!reservationsByBucket[key][r.propertyName]) reservationsByBucket[key][r.propertyName] = [];
+      const nights = Math.max(1, Math.floor((parseDate(r.checkOut).getTime() - parseDate(r.checkIn).getTime()) / 86400000));
       reservationsByBucket[key][r.propertyName].push({
         guestName: r.guestName,
         checkIn: r.checkIn,
         amount: r.amount,
+        nights,
       });
     }
 
@@ -638,7 +641,7 @@ export function AnalyticsCharts() {
                   <XAxis dataKey="bucket" tickFormatter={(v) => formatBucketLabel(v, groupBy)} className="text-xs" />
                   <YAxis tickFormatter={(v) => `${v}%`} domain={[0, 100]} className="text-xs" />
                   <Tooltip
-                    content={<BarTooltip groupBy={groupBy} propertyNames={propNames} formatter={(v) => `${v}%`} reservationsByBucket={charts.reservationsByBucket} />}
+                    content={<BarTooltip groupBy={groupBy} propertyNames={propNames} formatter={(v) => `${v}%`} reservationsByBucket={charts.reservationsByBucket} showNights />}
                     trigger="click"
                     allowEscapeViewBox={{ x: true, y: true }}
                     wrapperStyle={{ zIndex: 10, pointerEvents: "auto" }}
@@ -815,7 +818,7 @@ function formatCheckIn(dateStr: string): string {
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-function ReservationList({ reservations }: { reservations: BucketReservation[] }) {
+function ReservationList({ reservations, showNights }: { reservations: BucketReservation[]; showNights?: boolean }) {
   if (!reservations?.length) return null;
   return (
     <div className="ml-4 mt-0.5 mb-1 space-y-px">
@@ -824,7 +827,7 @@ function ReservationList({ reservations }: { reservations: BucketReservation[] }
           <span className="truncate max-w-[140px]">{r.guestName}</span>
           <span className="flex items-center gap-2 shrink-0">
             <span>{formatCheckIn(r.checkIn)}</span>
-            <span className="font-medium">{formatDollars(r.amount / 100)}</span>
+            <span className="font-medium">{showNights ? `${r.nights}n` : formatDollars(r.amount / 100)}</span>
           </span>
         </div>
       ))}
@@ -863,7 +866,7 @@ function RevenueTooltip({
   });
 
   return (
-    <div className="rounded-lg border bg-card px-3 py-2 text-sm shadow-md" style={{ minWidth: 220, maxWidth: 360 }}>
+    <div className="rounded-lg border bg-card px-3 py-2 text-sm shadow-md max-h-80 overflow-y-auto" style={{ minWidth: 220, maxWidth: 360 }}>
       <p className="mb-1.5 font-medium">{formatBucketLabel(bucketKey, gb)}</p>
       {sorted.map((entry) => {
         const resList = entry.dataKey !== "Total" ? bucketReservations[entry.dataKey] : undefined;
@@ -910,6 +913,7 @@ function BarTooltip({
   propertyNames: names,
   formatter: fmt,
   reservationsByBucket,
+  showNights,
 }: {
   active?: boolean;
   payload?: Array<{ dataKey: string; value: number; color: string }>;
@@ -918,6 +922,7 @@ function BarTooltip({
   propertyNames: string[];
   formatter: (v: number) => string;
   reservationsByBucket: Record<string, Record<string, BucketReservation[]>>;
+  showNights?: boolean;
 }) {
   const [, forceUpdate] = useState(0);
   if (!active || !payload?.length) return null;
@@ -930,7 +935,7 @@ function BarTooltip({
   );
 
   return (
-    <div className="rounded-lg border bg-card px-3 py-2 text-sm shadow-md" style={{ minWidth: 220, maxWidth: 360 }}>
+    <div className="rounded-lg border bg-card px-3 py-2 text-sm shadow-md max-h-80 overflow-y-auto" style={{ minWidth: 220, maxWidth: 360 }}>
       <p className="mb-1.5 font-medium">{formatBucketLabel(bucketKey, gb)}</p>
       {sorted.map((entry) => {
         const resList = bucketReservations[entry.dataKey];
@@ -954,12 +959,13 @@ function BarTooltip({
               </span>
               <span className="flex items-center gap-1.5">
                 <span>{fmt(entry.value)}</span>
+                {showNights && resList && <span className="text-muted-foreground">({resList.reduce((s, r) => s + r.nights, 0)}n)</span>}
                 {hasReservations && (
                   <span className="text-[10px] text-muted-foreground w-3">{isExpanded ? "▾" : "▸"}</span>
                 )}
               </span>
             </div>
-            {isExpanded && resList && <ReservationList reservations={resList} />}
+            {isExpanded && resList && <ReservationList reservations={resList} showNights={showNights} />}
           </div>
         );
       })}
