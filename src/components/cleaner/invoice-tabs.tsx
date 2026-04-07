@@ -31,7 +31,9 @@ import {
   CheckCircle2,
   FileText,
   Sparkles,
+  ReceiptText,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import type { InvoiceRow, UnpaidCleaning } from "@/app/(cleaner)/cleaner/(protected)/invoices/page";
 import type { InvoiceLineItem } from "@/types/database";
 
@@ -150,12 +152,20 @@ function UnpaidTab({
 }) {
   if (cleanings.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 text-center space-y-3">
-        <CheckCircle2 className="h-12 w-12 text-green-500/30" />
-        <p className="text-muted-foreground">All cleanings have been invoiced.</p>
-        <p className="text-xs text-muted-foreground">
-          New cleanings will appear here until the next weekly invoice is generated.
-        </p>
+      <div className="space-y-4">
+        <div className="flex flex-col items-center justify-center py-16 text-center space-y-3">
+          <CheckCircle2 className="h-12 w-12 text-green-500/30" />
+          <p className="text-muted-foreground">All cleanings have been invoiced.</p>
+          <p className="text-xs text-muted-foreground">
+            New cleanings will appear here until the next weekly invoice is generated.
+          </p>
+        </div>
+        <Link href="/cleaner/invoices/reimbursement">
+          <Button variant="outline" size="sm" className="w-full">
+            <ReceiptText className="h-4 w-4 mr-1.5" />
+            Reimbursement Request
+          </Button>
+        </Link>
       </div>
     );
   }
@@ -179,6 +189,14 @@ function UnpaidTab({
           </div>
         </CardContent>
       </Card>
+
+      {/* Reimbursement request */}
+      <Link href="/cleaner/invoices/reimbursement">
+        <Button variant="outline" size="sm" className="w-full">
+          <ReceiptText className="h-4 w-4 mr-1.5" />
+          Reimbursement Request
+        </Button>
+      </Link>
 
       {/* Cleaning list */}
       <div className="space-y-2">
@@ -324,10 +342,12 @@ function InvoiceModal({
   const cleaningItems = invoice.line_items.filter((i) => i.type === "cleaning");
   const petFeeItems = invoice.line_items.filter((i) => i.type === "pet_fee");
   const extraItems = invoice.line_items.filter((i) => i.type === "extra");
+  const reimbursementItems = invoice.line_items.filter((i) => i.type === "reimbursement");
 
   const cleaningTotal = cleaningItems.reduce((s, i) => s + i.amount, 0);
   const petFeeTotal = petFeeItems.reduce((s, i) => s + i.amount, 0);
   const extraTotal = extraItems.reduce((s, i) => s + i.amount, 0);
+  const reimbursementTotal = reimbursementItems.reduce((s, i) => s + i.amount, 0);
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
@@ -402,6 +422,28 @@ function InvoiceModal({
                   <p className="text-xs font-semibold">{formatCents(extraTotal)}</p>
                 </div>
                 {extraItems.map((item, i) => (
+                  <div key={i} className="flex items-center justify-between text-sm pl-4">
+                    <p className="truncate">{item.description}</p>
+                    <span className="shrink-0 ml-2 font-medium">{formatCents(item.amount)}</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
+          {/* Reimbursement items */}
+          {reimbursementItems.length > 0 && (
+            <>
+              <Separator />
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+                    <ReceiptText className="h-3 w-3" />
+                    Reimbursements ({reimbursementItems.length})
+                  </p>
+                  <p className="text-xs font-semibold">{formatCents(reimbursementTotal)}</p>
+                </div>
+                {reimbursementItems.map((item, i) => (
                   <div key={i} className="flex items-center justify-between text-sm pl-4">
                     <p className="truncate">{item.description}</p>
                     <span className="shrink-0 ml-2 font-medium">{formatCents(item.amount)}</span>

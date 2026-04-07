@@ -30,7 +30,7 @@ export type CleaningChecklistItem = {
 
 export type InvoiceLineItem = {
   description: string;
-  type: "cleaning" | "pet_fee" | "extra";
+  type: "cleaning" | "pet_fee" | "extra" | "reimbursement";
   property_name?: string;
   registration_id?: string;
   amount: number; // cents

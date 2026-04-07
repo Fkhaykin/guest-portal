@@ -331,6 +331,7 @@ export function InvoiceForm({
                         <SelectItem value="cleaning">Cleaning</SelectItem>
                         <SelectItem value="pet_fee">Pet Fee</SelectItem>
                         <SelectItem value="extra">Extra</SelectItem>
+                        <SelectItem value="reimbursement">Reimbursement</SelectItem>
                       </SelectContent>
                     </Select>
                     <Input
