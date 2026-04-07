@@ -8,6 +8,7 @@ import {
   ClipboardList,
   Calendar,
   Receipt,
+  BarChart3,
   LogOut,
   SprayCan,
 } from "lucide-react";
@@ -17,6 +18,7 @@ const navItems = [
   { label: "Tasks", href: "/cleaner", icon: ClipboardList },
   { label: "Calendar", href: "/cleaner/calendar", icon: Calendar },
   { label: "Invoices", href: "/cleaner/invoices", icon: Receipt },
+  { label: "Analytics", href: "/cleaner/analytics", icon: BarChart3 },
 ];
 
 export function CleanerSidebar({
