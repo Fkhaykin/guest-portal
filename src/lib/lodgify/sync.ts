@@ -1,7 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getBookings, getBookingById, getProperties, type LodgifyBooking } from "./client";
-import { notifyCleanersOfNewBooking } from "@/lib/sms/notify-cleaners";
+import { notifyCleanersOfNewBooking, notifyCleanersOfCancellation } from "@/lib/sms/notify-cleaners";
 
 const STATUS_MAP: Record<string, "active" | "completed" | "cancelled"> = {
   Booked: "active",
@@ -280,11 +280,12 @@ export async function syncBooking(booking: LodgifyBooking) {
   // 3. Check if this booking already exists (to distinguish new vs update)
   const { data: existingReg } = await supabase
     .from("registration")
-    .select("id")
+    .select("id, status")
     .eq("lodgify_booking_id", booking.id)
     .maybeSingle();
 
   const isNewBooking = !existingReg;
+  const wasPreviouslyActive = existingReg?.status === "active";
 
   // 4. Upsert registration by lodgify_booking_id
   const { error: regError } = await supabase
@@ -310,16 +311,23 @@ export async function syncBooking(booking: LodgifyBooking) {
     return { skipped: true, reason: "upsert_failed" };
   }
 
-  // 5. Notify cleaners of new bookings (fire-and-forget)
-  if (isNewBooking && mapStatus(booking.status) === "active") {
-    notifyCleanersOfNewBooking({
-      propertyId,
-      guestName: booking.guest.name,
-      checkIn: booking.arrival,
-      checkOut: booking.departure,
-      numGuests: booking.guests || 1,
-    }).catch((err) => {
+  // 5. Notify cleaners (fire-and-forget)
+  const newStatus = mapStatus(booking.status);
+  const notifyParams = {
+    propertyId,
+    guestName: booking.guest.name,
+    checkIn: booking.arrival,
+    checkOut: booking.departure,
+    numGuests: booking.guests || 1,
+  };
+
+  if (isNewBooking && newStatus === "active") {
+    notifyCleanersOfNewBooking(notifyParams).catch((err) => {
       console.error(`[lodgify-sync] Failed to notify cleaners for booking ${booking.id}:`, err);
+    });
+  } else if (wasPreviouslyActive && newStatus === "cancelled") {
+    notifyCleanersOfCancellation(notifyParams).catch((err) => {
+      console.error(`[lodgify-sync] Failed to notify cleaners of cancellation ${booking.id}:`, err);
     });
   }
 

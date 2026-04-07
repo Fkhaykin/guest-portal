@@ -59,6 +59,19 @@ export type UpsellEntry = {
   meta?: Record<string, unknown>;
 };
 
+export type NotificationEvent = {
+  enabled: boolean;
+  message: string;
+};
+
+export type NotificationSettings = {
+  cleaner_new_booking: NotificationEvent;
+  cleaner_cancellation: NotificationEvent;
+  cleaner_checkout: NotificationEvent;
+};
+
+export type NotificationEventKey = keyof NotificationSettings;
+
 export type Database = {
   public: {
     Tables: {
@@ -69,6 +82,7 @@ export type Database = {
           email: string;
           full_name: string;
           signature_url: string | null;
+          notification_settings: NotificationSettings;
           created_at: string;
           updated_at: string;
         };
@@ -78,6 +92,7 @@ export type Database = {
           email: string;
           full_name: string;
           signature_url?: string | null;
+          notification_settings?: NotificationSettings;
           created_at?: string;
           updated_at?: string;
         };
@@ -87,6 +102,7 @@ export type Database = {
           email?: string;
           full_name?: string;
           signature_url?: string | null;
+          notification_settings?: NotificationSettings;
           created_at?: string;
           updated_at?: string;
         };
