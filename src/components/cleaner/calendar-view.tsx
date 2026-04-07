@@ -276,11 +276,9 @@ export function CalendarView({
         ) : (
           <div className="space-y-1">
             {properties.map(([groupKey, { color, coverImage, label, reservations: propRes }]) => {
-              // Assign lanes to avoid overlaps
-              const lanes = assignLanes(propRes, getBarPosition);
-              const laneCount = Math.max(1, ...lanes.map((l) => l + 1));
-              const ROW_H = 28; // px per lane
-              const totalH = laneCount * ROW_H + 4; // +padding
+              // Single lane — all bars on one row
+              const ROW_H = 28;
+              const totalH = ROW_H + 4;
 
               return (
                 <div key={groupKey} className="flex items-start border-b border-muted/10 last:border-b-0 py-1">
@@ -318,9 +316,8 @@ export function CalendarView({
                     </div>
 
                     {/* Bars */}
-                    {propRes.map((r, rIdx) => {
+                    {propRes.map((r) => {
                       const { startIdx, endIdx, isClampedStart, isClampedEnd } = getBarPosition(r);
-                      const lane = lanes[rIdx];
 
                       const colPct = 100 / VISIBLE_DAYS;
                       const leftPct = startIdx * colPct + (isClampedStart ? 0 : colPct * 0.4);
@@ -341,7 +338,7 @@ export function CalendarView({
                           style={{
                             left: `${leftPct}%`,
                             width: `${widthPct}%`,
-                            top: lane * ROW_H + 2,
+                            top: 2,
                             minWidth: "24px",
                           }}
                         >
