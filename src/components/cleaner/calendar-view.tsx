@@ -148,26 +148,28 @@ export function CalendarView({
     ? `${MONTH_NAMES_SHORT[headerStart.getMonth()]} ${headerStart.getDate()} – ${headerEnd.getDate()}, ${headerEnd.getFullYear()}`
     : `${MONTH_NAMES_SHORT[headerStart.getMonth()]} ${headerStart.getDate()} – ${MONTH_NAMES_SHORT[headerEnd.getMonth()]} ${headerEnd.getDate()}, ${headerEnd.getFullYear()}`;
 
-  // Group reservations by property, only those overlapping the visible range
-  const byProperty = new Map<
+  // Group reservations by nickname (case-insensitive), merging properties that share one
+  const byGroup = new Map<
     string,
-    { color: string; coverImage: string | null; nickname: string | null; reservations: CalendarReservation[] }
+    { color: string; coverImage: string | null; label: string; nickname: string | null; reservations: CalendarReservation[] }
   >();
   for (const r of reservations) {
     if (r.checkOut <= rangeStart || r.checkIn > rangeEnd) continue;
-    if (!byProperty.has(r.propertyName)) {
-      byProperty.set(r.propertyName, {
+    const groupKey = (r.propertyNickname || r.propertyName).toLowerCase();
+    if (!byGroup.has(groupKey)) {
+      byGroup.set(groupKey, {
         color: r.propertyColor,
         coverImage: r.propertyCoverImage,
-        nickname: r.propertyNickname,
+        label: r.propertyNickname || r.propertyName,
+        nickname: null,
         reservations: [],
       });
     }
-    byProperty.get(r.propertyName)!.reservations.push(r);
+    byGroup.get(groupKey)!.reservations.push(r);
   }
 
-  const properties = [...byProperty.entries()].sort((a, b) =>
-    a[0].localeCompare(b[0])
+  const properties = [...byGroup.entries()].sort((a, b) =>
+    a[1].label.localeCompare(b[1].label)
   );
 
   function prevPeriod() {
@@ -273,7 +275,7 @@ export function CalendarView({
           </p>
         ) : (
           <div className="space-y-1">
-            {properties.map(([propName, { color, coverImage, nickname, reservations: propRes }]) => {
+            {properties.map(([groupKey, { color, coverImage, label, reservations: propRes }]) => {
               // Assign lanes to avoid overlaps
               const lanes = assignLanes(propRes, getBarPosition);
               const laneCount = Math.max(1, ...lanes.map((l) => l + 1));
@@ -281,14 +283,14 @@ export function CalendarView({
               const totalH = laneCount * ROW_H + 4; // +padding
 
               return (
-                <div key={propName} className="flex items-start border-b border-muted/10 last:border-b-0 py-1">
+                <div key={groupKey} className="flex items-start border-b border-muted/10 last:border-b-0 py-1">
                   {/* Property label */}
                   <div className="flex items-center gap-2.5 pr-3 min-w-0 shrink-0" style={{ width: 200 }}>
                     <div className="h-9 w-9 rounded-lg overflow-hidden shrink-0 border border-border/50">
                       {coverImage && !failedImages.has(coverImage) ? (
                         <img
                           src={coverImage}
-                          alt={propName}
+                          alt={label}
                           className="w-full h-full object-cover"
                           onError={() => setFailedImages((prev) => new Set(prev).add(coverImage))}
                         />
@@ -299,10 +301,7 @@ export function CalendarView({
                       )}
                     </div>
                     <div className="min-w-0">
-                      <span className="text-xs font-medium truncate block">{propName}</span>
-                      {nickname && (
-                        <span className="text-[10px] text-muted-foreground truncate block">{nickname}</span>
-                      )}
+                      <span className="text-xs font-medium truncate block">{label}</span>
                     </div>
                   </div>
 
