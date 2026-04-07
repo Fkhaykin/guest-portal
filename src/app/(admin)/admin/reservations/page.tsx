@@ -34,6 +34,7 @@ type Registration = {
   lodgify_adults: number;
   lodgify_children: number;
   lodgify_infants: number;
+  lodgify_num_pets: number;
   status: "active" | "completed" | "cancelled";
   booking_source: string | null;
   signature_url: string | null;
@@ -75,7 +76,7 @@ export default function AdminReservationsPage() {
     setLoading(true);
     const { data } = await supabase
       .from("registration")
-      .select("id, property_id, check_in_date, check_out_date, num_guests, lodgify_adults, lodgify_children, lodgify_infants, status, booking_source, signature_url, total_amount_cents, guest_list, pets, created_at, guest:guest_id(full_name, email, phone), property:property_id(name, nickname)")
+      .select("id, property_id, check_in_date, check_out_date, num_guests, lodgify_adults, lodgify_children, lodgify_infants, lodgify_num_pets, status, booking_source, signature_url, total_amount_cents, guest_list, pets, created_at, guest:guest_id(full_name, email, phone), property:property_id(name, nickname)")
       .order("check_in_date", { ascending: false });
     if (data) setRegistrations(data as unknown as Registration[]);
     setLoading(false);
@@ -84,29 +85,27 @@ export default function AdminReservationsPage() {
   function getGuestBreakdown(reg: Registration) {
     const list = reg.guest_list ?? [];
     const petCount = reg.pets?.length ?? 0;
+    const hasLodgifyBreakdown = reg.lodgify_adults > 0 || reg.lodgify_children > 0 || reg.lodgify_infants > 0 || reg.lodgify_num_pets > 0;
+
+    const booked = hasLodgifyBreakdown ? {
+      adults: reg.lodgify_adults,
+      children: reg.lodgify_children,
+      infants: reg.lodgify_infants,
+      pets: reg.lodgify_num_pets,
+    } : null;
 
     // Prefer guest_list (manually entered during registration) if it has entries
-    if (list.length > 0) {
-      return {
-        adults: list.filter((g) => g.age_group === "over_21").length,
-        children: list.filter((g) => g.age_group === "under_21").length,
-        infants: list.filter((g) => g.age_group === "infant").length,
-        pets: petCount,
-      };
-    }
+    const registered = list.length > 0 ? {
+      adults: list.filter((g) => g.age_group === "over_21").length,
+      children: list.filter((g) => g.age_group === "under_21").length,
+      infants: list.filter((g) => g.age_group === "infant").length,
+      pets: petCount,
+    } : null;
 
-    // Fall back to Lodgify booking breakdown
-    const hasLodgifyBreakdown = reg.lodgify_adults > 0 || reg.lodgify_children > 0 || reg.lodgify_infants > 0;
-    if (hasLodgifyBreakdown) {
-      return {
-        adults: reg.lodgify_adults,
-        children: reg.lodgify_children,
-        infants: reg.lodgify_infants,
-        pets: petCount,
-      };
-    }
+    // Display values: prefer registered, fall back to booked
+    const display = registered ?? booked ?? { adults: 0, children: 0, infants: 0, pets: petCount };
 
-    return { adults: 0, children: 0, infants: 0, pets: petCount };
+    return { booked, registered, display, extraPets: booked ? petCount - booked.pets : 0 };
   }
 
   function formatCents(cents: number) {
@@ -328,16 +327,31 @@ export default function AdminReservationsPage() {
                     <TableCell className="text-sm">{reg.check_in_date}</TableCell>
                     <TableCell className="text-sm">{reg.check_out_date}</TableCell>
                     <TableCell>
-                      <div className="text-sm space-y-0.5">
-                        <div className="flex flex-wrap gap-x-2 gap-y-0.5 text-xs">
-                          {breakdown.adults > 0 && <span>{breakdown.adults} adult{breakdown.adults !== 1 ? "s" : ""}</span>}
-                          {breakdown.children > 0 && <span>{breakdown.children} child{breakdown.children !== 1 ? "ren" : ""}</span>}
-                          {breakdown.infants > 0 && <span>{breakdown.infants} infant{breakdown.infants !== 1 ? "s" : ""}</span>}
-                          {breakdown.pets > 0 && <span>{breakdown.pets} pet{breakdown.pets !== 1 ? "s" : ""}</span>}
-                          {breakdown.adults === 0 && breakdown.children === 0 && breakdown.infants === 0 && breakdown.pets === 0 && (
-                            <span className="text-muted-foreground">{reg.num_guests} guest{reg.num_guests !== 1 ? "s" : ""}</span>
-                          )}
-                        </div>
+                      <div className="text-xs space-y-0.5">
+                        {breakdown.booked && (
+                          <div className="flex flex-wrap gap-x-2 gap-y-0.5 text-muted-foreground">
+                            <span className="font-medium text-muted-foreground/70 w-full">Booked</span>
+                            {breakdown.booked.adults > 0 && <span>{breakdown.booked.adults}A</span>}
+                            {breakdown.booked.children > 0 && <span>{breakdown.booked.children}C</span>}
+                            {breakdown.booked.infants > 0 && <span>{breakdown.booked.infants}I</span>}
+                            {breakdown.booked.pets > 0 && <span>{breakdown.booked.pets}P</span>}
+                          </div>
+                        )}
+                        {breakdown.registered ? (
+                          <div className="flex flex-wrap gap-x-2 gap-y-0.5">
+                            {breakdown.booked && <span className="font-medium text-muted-foreground/70 w-full">Registered</span>}
+                            {breakdown.registered.adults > 0 && <span>{breakdown.registered.adults}A</span>}
+                            {breakdown.registered.children > 0 && <span>{breakdown.registered.children}C</span>}
+                            {breakdown.registered.infants > 0 && <span>{breakdown.registered.infants}I</span>}
+                            {breakdown.registered.pets > 0 && (
+                              <span className={breakdown.extraPets > 0 ? "text-amber-600 font-medium" : ""}>
+                                {breakdown.registered.pets}P{breakdown.extraPets > 0 && ` (+${breakdown.extraPets})`}
+                              </span>
+                            )}
+                          </div>
+                        ) : !breakdown.booked && (
+                          <span className="text-muted-foreground">{reg.num_guests} guest{reg.num_guests !== 1 ? "s" : ""}</span>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell className="text-sm font-medium">

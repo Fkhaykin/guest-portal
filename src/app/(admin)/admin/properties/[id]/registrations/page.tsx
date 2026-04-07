@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/table";
 import { ExternalLink } from "lucide-react";
 import { RegistrationActions } from "@/components/admin/registration-actions";
+import type { GuestListEntry, PetEntry } from "@/types/database";
 
 export default async function AdminRegistrationsPage({
   params,
@@ -49,7 +50,8 @@ export default async function AdminRegistrationsPage({
               <TableHead>Guest</TableHead>
               <TableHead>Check-in</TableHead>
               <TableHead>Check-out</TableHead>
-              <TableHead>Guests</TableHead>
+              <TableHead>Booked</TableHead>
+              <TableHead>Registered</TableHead>
               <TableHead>Source</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="w-32 text-right">Actions</TableHead>
@@ -72,7 +74,47 @@ export default async function AdminRegistrationsPage({
                   </TableCell>
                   <TableCell>{reg.check_in_date}</TableCell>
                   <TableCell>{reg.check_out_date}</TableCell>
-                  <TableCell>{reg.num_guests}</TableCell>
+                  <TableCell>
+                    {(() => {
+                      const la = (reg as Record<string, number>).lodgify_adults ?? 0;
+                      const lc = (reg as Record<string, number>).lodgify_children ?? 0;
+                      const li = (reg as Record<string, number>).lodgify_infants ?? 0;
+                      const lp = (reg as Record<string, number>).lodgify_num_pets ?? 0;
+                      if (!la && !lc && !li && !lp) return <span className="text-muted-foreground text-xs">{reg.num_guests} guest{reg.num_guests !== 1 ? "s" : ""}</span>;
+                      return (
+                        <div className="flex flex-wrap gap-x-2 text-xs text-muted-foreground">
+                          {la > 0 && <span>{la}A</span>}
+                          {lc > 0 && <span>{lc}C</span>}
+                          {li > 0 && <span>{li}I</span>}
+                          {lp > 0 && <span>{lp}P</span>}
+                        </div>
+                      );
+                    })()}
+                  </TableCell>
+                  <TableCell>
+                    {(() => {
+                      const guestList = (reg.guest_list ?? []) as GuestListEntry[];
+                      const pets = (reg.pets ?? []) as PetEntry[];
+                      const lp = (reg as Record<string, number>).lodgify_num_pets ?? 0;
+                      if (!guestList.length && !pets.length) return <span className="text-xs text-muted-foreground">—</span>;
+                      const a = guestList.filter((g) => g.age_group === "over_21").length;
+                      const c = guestList.filter((g) => g.age_group === "under_21").length;
+                      const inf = guestList.filter((g) => g.age_group === "infant").length;
+                      const extraPets = lp > 0 ? pets.length - lp : 0;
+                      return (
+                        <div className="flex flex-wrap gap-x-2 text-xs">
+                          {a > 0 && <span>{a}A</span>}
+                          {c > 0 && <span>{c}C</span>}
+                          {inf > 0 && <span>{inf}I</span>}
+                          {pets.length > 0 && (
+                            <span className={extraPets > 0 ? "text-amber-600 font-medium" : ""}>
+                              {pets.length}P{extraPets > 0 && ` (+${extraPets})`}
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })()}
+                  </TableCell>
                   <TableCell>
                     {reg.booking_source ? (() => {
                       const listingUrls = (property.listing_urls ?? {}) as Record<string, string>;

@@ -55,6 +55,10 @@ type FullRegistration = {
   pets: PetEntry[] | null;
   upsells: UpsellEntry[] | null;
   lodgify_booking_id: number | null;
+  lodgify_adults: number;
+  lodgify_children: number;
+  lodgify_infants: number;
+  lodgify_num_pets: number;
   created_at: string;
   updated_at: string;
   guest: {
@@ -154,7 +158,8 @@ export default function ReservationDetailPage() {
       .select(`
         id, property_id, guest_id, check_in_date, check_out_date, num_guests, notes,
         status, booking_source, signature_url, total_amount_cents, guest_list, pets,
-        upsells, lodgify_booking_id, created_at, updated_at,
+        upsells, lodgify_booking_id, lodgify_adults, lodgify_children, lodgify_infants,
+        lodgify_num_pets, created_at, updated_at,
         guest:guest_id(id, full_name, email, phone, mailing_address, lodgify_guest_id),
         property:property_id(id, name, nickname, address, slug, max_guests, lodgify_property_id, listing_urls, owner_name, owner_phone, owner_email, hoa_submission_email, emergency_contact_name, emergency_contact_phone)
       `)
@@ -444,11 +449,48 @@ export default function ReservationDetailPage() {
                 <Row label="Email" value={guest?.email ?? "—"} />
                 <Row label="Phone" value={guest?.phone ?? "—"} />
                 <Row label="Address" value={guest?.mailing_address ?? "—"} />
-                <Row label="Total guests" value={String(reg.num_guests)} />
-                {guestList.length > 0 && (
-                  <div className="pt-1">
-                    <p className="text-xs text-muted-foreground mb-1">Breakdown: {adults} adult{adults !== 1 ? "s" : ""}, {children} child{children !== 1 ? "ren" : ""}, {infants} infant{infants !== 1 ? "s" : ""}</p>
+                {(reg.lodgify_adults > 0 || reg.lodgify_children > 0 || reg.lodgify_infants > 0 || reg.lodgify_num_pets > 0) && (
+                  <div className="pt-2">
+                    <Separator className="mb-3" />
+                    <div className="grid grid-cols-[1fr_auto_auto] gap-x-4 gap-y-1 text-xs">
+                      <span className="text-muted-foreground font-medium" />
+                      <span className="text-muted-foreground font-medium text-center">Booked</span>
+                      <span className="text-muted-foreground font-medium text-center">Registered</span>
+
+                      <span className="text-muted-foreground">Adults</span>
+                      <span className="text-center">{reg.lodgify_adults}</span>
+                      <span className="text-center">{guestList.length > 0 ? adults : "—"}</span>
+
+                      <span className="text-muted-foreground">Children</span>
+                      <span className="text-center">{reg.lodgify_children}</span>
+                      <span className="text-center">{guestList.length > 0 ? children : "—"}</span>
+
+                      <span className="text-muted-foreground">Infants</span>
+                      <span className="text-center">{reg.lodgify_infants}</span>
+                      <span className="text-center">{guestList.length > 0 ? infants : "—"}</span>
+
+                      <span className="text-muted-foreground">Pets</span>
+                      <span className="text-center">{reg.lodgify_num_pets}</span>
+                      <span className={`text-center ${pets.length > reg.lodgify_num_pets ? "text-amber-600 font-medium" : ""}`}>
+                        {pets.length > 0 ? pets.length : "—"}
+                      </span>
+                    </div>
+                    {pets.length > reg.lodgify_num_pets && (
+                      <p className="text-xs text-amber-600 mt-2">
+                        +{pets.length - reg.lodgify_num_pets} additional pet{pets.length - reg.lodgify_num_pets !== 1 ? "s" : ""} beyond booking
+                      </p>
+                    )}
                   </div>
+                )}
+                {!reg.lodgify_adults && !reg.lodgify_children && !reg.lodgify_infants && !reg.lodgify_num_pets && (
+                  <>
+                    <Row label="Total guests" value={String(reg.num_guests)} />
+                    {guestList.length > 0 && (
+                      <div className="pt-1">
+                        <p className="text-xs text-muted-foreground mb-1">Breakdown: {adults} adult{adults !== 1 ? "s" : ""}, {children} child{children !== 1 ? "ren" : ""}, {infants} infant{infants !== 1 ? "s" : ""}</p>
+                      </div>
+                    )}
+                  </>
                 )}
               </CardContent>
             </Card>
@@ -518,26 +560,50 @@ export default function ReservationDetailPage() {
           )}
 
           {/* Pets */}
-          {pets.length > 0 && (
+          {(pets.length > 0 || reg.lodgify_num_pets > 0) && (
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2">
-                  <PawPrint className="h-4 w-4" /> Pets ({pets.length})
+                  <PawPrint className="h-4 w-4" /> Pets
+                  <span className="text-sm font-normal text-muted-foreground">
+                    {reg.lodgify_num_pets > 0
+                      ? `${pets.length} registered / ${reg.lodgify_num_pets} booked`
+                      : `(${pets.length})`}
+                  </span>
+                  {pets.length > reg.lodgify_num_pets && reg.lodgify_num_pets > 0 && (
+                    <Badge variant="outline" className="text-xs text-amber-600 border-amber-300">
+                      +{pets.length - reg.lodgify_num_pets} extra
+                    </Badge>
+                  )}
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {pets.map((p, i) => (
-                    <div key={i} className="bg-muted rounded-md px-3 py-2 text-sm">
-                      <span className="font-medium">{p.name}</span>
-                      <span className="text-muted-foreground ml-2">({p.kind})</span>
-                      <div className="flex gap-2 mt-1">
-                        {p.rabies_doc_path && <Badge variant="outline" className="text-xs">Rabies doc</Badge>}
-                        {p.vaccination_doc_path && <Badge variant="outline" className="text-xs">Vaccination doc</Badge>}
+                {pets.length > 0 ? (
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {pets.map((p, i) => (
+                      <div key={i} className="bg-muted rounded-md px-3 py-2 text-sm">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">{p.name}</span>
+                          <span className="text-muted-foreground">({p.kind})</span>
+                          {reg.lodgify_num_pets > 0 && i < reg.lodgify_num_pets && (
+                            <Badge variant="outline" className="text-xs text-green-700 border-green-300">Pre-paid</Badge>
+                          )}
+                          {reg.lodgify_num_pets > 0 && i >= reg.lodgify_num_pets && (
+                            <Badge variant="outline" className="text-xs text-amber-600 border-amber-300">Add-on</Badge>
+                          )}
+                        </div>
+                        <div className="flex gap-2 mt-1">
+                          {p.rabies_doc_path && <Badge variant="outline" className="text-xs">Rabies doc</Badge>}
+                          {p.vaccination_doc_path && <Badge variant="outline" className="text-xs">Vaccination doc</Badge>}
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    {reg.lodgify_num_pets} pet{reg.lodgify_num_pets !== 1 ? "s" : ""} booked — not yet registered
+                  </p>
+                )}
               </CardContent>
             </Card>
           )}
