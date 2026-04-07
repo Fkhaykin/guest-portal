@@ -56,7 +56,7 @@ export default function AdminReservationsPage() {
   const [selectedStatuses, setSelectedStatuses] = useState<Set<string>>(new Set());
   const [onlyCompleted, setOnlyCompleted] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [sortColumn, setSortColumn] = useState<string>("check_in_date");
+  const [sortColumn, setSortColumn] = useState<string>("booked");
   const [sortAsc, setSortAsc] = useState(false);
 
   useEffect(() => {
