@@ -31,12 +31,20 @@ export default async function NewInvoicePage() {
     .order("name");
 
   // Find completed cleanings not yet invoiced
-  // Get all cleaning_status records that are cleaned, for cleaner's properties
+  // Get all registrations for the cleaner's assigned properties
+  const { data: allRegs } = await supabase
+    .from("registration")
+    .select("id")
+    .in("property_id", propertyIds.length > 0 ? propertyIds : ["_none_"]);
+
+  const allRegIds = (allRegs || []).map((r) => r.id);
+
+  // Get cleaned statuses for those registrations
   const { data: cleanedStatuses } = await supabase
     .from("cleaning_status")
     .select("registration_id, cleaned_at")
     .eq("is_cleaned", true)
-    .eq("cleaner_id", cleaner.id);
+    .in("registration_id", allRegIds.length > 0 ? allRegIds : ["_none_"]);
 
   const cleanedRegIds = (cleanedStatuses || []).map((s) => s.registration_id);
 

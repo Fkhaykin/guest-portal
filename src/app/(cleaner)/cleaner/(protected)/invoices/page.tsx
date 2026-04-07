@@ -65,12 +65,20 @@ export default async function InvoicesPage() {
     (properties || []).map((p) => [p.id, p])
   );
 
-  // Get all cleaned registrations for this cleaner
+  // Get all registrations for the cleaner's assigned properties
+  const { data: allRegs } = await supabase
+    .from("registration")
+    .select("id")
+    .in("property_id", propertyIds.length > 0 ? propertyIds : ["_none_"]);
+
+  const allRegIds = (allRegs || []).map((r) => r.id);
+
+  // Get cleaned statuses for those registrations
   const { data: cleanedStatuses } = await supabase
     .from("cleaning_status")
     .select("registration_id, cleaned_at")
     .eq("is_cleaned", true)
-    .eq("cleaner_id", cleaner.id);
+    .in("registration_id", allRegIds.length > 0 ? allRegIds : ["_none_"]);
 
   const cleanedRegIds = (cleanedStatuses || []).map((s) => s.registration_id);
   const cleanedAtMap = new Map(
@@ -98,7 +106,7 @@ export default async function InvoicesPage() {
   if (unbilledRegIds.length > 0) {
     const { data: regs } = await supabase
       .from("registration")
-      .select("id, property_id, check_in_date, check_out_date, num_guests, pets, guest:guest_id(first_name, last_name)")
+      .select("id, property_id, check_in_date, check_out_date, num_guests, pets, guest:guest_id(full_name)")
       .in("id", unbilledRegIds);
 
     unpaidCleanings = (regs || [])
@@ -109,8 +117,8 @@ export default async function InvoicesPage() {
         const hasPets = (pets || []).some((p) => p.name?.trim());
         const cleaningFee = prop.cleaning_fee_cents ?? 0;
         const petFee = hasPets ? (prop.pet_fee_cents ?? 0) : 0;
-        const guest = r.guest as unknown as { first_name: string; last_name: string } | null;
-        const guestName = guest ? `${guest.first_name} ${guest.last_name}`.trim() : null;
+        const guest = r.guest as unknown as { full_name: string } | null;
+        const guestName = guest?.full_name || null;
         return {
           registrationId: r.id,
           propertyName: prop.name,

@@ -30,12 +30,26 @@ export async function POST(request: Request) {
   let invoicesCreated = 0;
 
   for (const cleaner of cleaners) {
-    // Get all cleaned registrations for this cleaner
+    // Get all cleaned registrations for this cleaner's assigned properties
+    const { data: clAssign } = await supabase
+      .from("cleaner_property")
+      .select("property_id")
+      .eq("cleaner_id", cleaner.id);
+
+    const clPropertyIds = (clAssign || []).map((a) => a.property_id);
+
+    const { data: clRegs } = await supabase
+      .from("registration")
+      .select("id")
+      .in("property_id", clPropertyIds.length > 0 ? clPropertyIds : ["_none_"]);
+
+    const clRegIds = (clRegs || []).map((r) => r.id);
+
     const { data: cleanedStatuses } = await supabase
       .from("cleaning_status")
       .select("registration_id, cleaned_at")
       .eq("is_cleaned", true)
-      .eq("cleaner_id", cleaner.id);
+      .in("registration_id", clRegIds.length > 0 ? clRegIds : ["_none_"]);
 
     if (!cleanedStatuses || cleanedStatuses.length === 0) continue;
 
