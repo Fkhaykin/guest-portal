@@ -40,7 +40,7 @@ export async function POST(request: Request) {
   // Get the registration with property info
   const { data: reg, error: regError } = await supabase
     .from("registration")
-    .select("id, check_in_date, check_out_date, num_guests, property_id, upsells, pets, lodgify_num_pets")
+    .select("id, check_in_date, check_out_date, num_guests, property_id, upsells, pets, pending_pets, lodgify_num_pets")
     .eq("id", registration_id)
     .single();
 
@@ -194,8 +194,10 @@ export async function POST(request: Request) {
 
   // Pet fee: charge if guest added pets beyond what was on the original reservation
   // num_pets from request body is used during registration (pets not yet saved to DB)
+  // Also count pending_pets (extra pets held until fee is paid)
   const regPets = (reg.pets as Array<{ name?: string }>) || [];
-  const numRegisteredPets = typeof num_pets === "number" ? num_pets : regPets.filter((p) => p.name?.trim()).length;
+  const pendingPets = (reg.pending_pets as Array<{ name?: string }>) || [];
+  const numRegisteredPets = typeof num_pets === "number" ? num_pets : (regPets.filter((p) => p.name?.trim()).length + pendingPets.filter((p) => p.name?.trim()).length);
   const numOriginalPets = reg.lodgify_num_pets || 0;
 
   if (numRegisteredPets > numOriginalPets) {

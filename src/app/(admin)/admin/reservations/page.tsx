@@ -4,8 +4,10 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Table,
   TableBody,
@@ -14,7 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, ChevronDown } from "lucide-react";
 import type { GuestListEntry, PetEntry } from "@/types/database";
 
 type Property = {
@@ -189,54 +191,98 @@ export default function AdminReservationsPage() {
       </div>
 
       {/* Filters */}
-      <div className="space-y-4">
-        {/* Properties */}
-        <div className="space-y-2">
-          <p className="text-sm font-medium text-muted-foreground">Properties</p>
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+      <div className="flex flex-wrap items-center gap-3">
+        {/* Property dropdown */}
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" className="w-50 justify-between">
+              {selectedProperties.size === 0
+                ? "All properties"
+                : selectedProperties.size === 1
+                  ? (properties.find((p) => selectedProperties.has(p.id))?.nickname || properties.find((p) => selectedProperties.has(p.id))?.name)
+                  : `${selectedProperties.size} properties`}
+              <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-56 p-2" align="start">
             {properties.map((p) => (
-              <div key={p.id} className="flex items-center gap-2">
+              <div
+                key={p.id}
+                className="flex items-center gap-2 rounded-sm px-2 py-1.5 hover:bg-muted cursor-pointer"
+                onClick={() => setSelectedProperties((prev) => toggleSetValue(prev, p.id))}
+              >
                 <Checkbox
-                  id={`prop-${p.id}`}
                   checked={selectedProperties.has(p.id)}
                   onCheckedChange={() => setSelectedProperties((prev) => toggleSetValue(prev, p.id))}
                 />
-                <Label htmlFor={`prop-${p.id}`} className="text-sm cursor-pointer">
+                <Label className="text-sm cursor-pointer flex-1">
                   {p.nickname || p.name}
                 </Label>
               </div>
             ))}
-          </div>
-        </div>
+            {selectedProperties.size > 0 && (
+              <button
+                className="w-full text-xs text-muted-foreground hover:text-foreground mt-1 pt-1 border-t"
+                onClick={() => setSelectedProperties(new Set())}
+              >
+                Clear
+              </button>
+            )}
+          </PopoverContent>
+        </Popover>
 
-        {/* Status + Registration completed */}
-        <div className="space-y-2">
-          <p className="text-sm font-medium text-muted-foreground">Status</p>
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        {/* Status dropdown */}
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" className="w-44 justify-between">
+              {selectedStatuses.size === 0
+                ? "All statuses"
+                : selectedStatuses.size === 1
+                  ? [...selectedStatuses][0]
+                  : `${selectedStatuses.size} statuses`}
+              <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-44 p-2" align="start">
             {(["current", "future", "past", "cancelled"] as const).map((status) => (
-              <div key={status} className="flex items-center gap-2">
+              <div
+                key={status}
+                className="flex items-center gap-2 rounded-sm px-2 py-1.5 hover:bg-muted cursor-pointer"
+                onClick={() => setSelectedStatuses((prev) => toggleSetValue(prev, status))}
+              >
                 <Checkbox
-                  id={`status-${status}`}
                   checked={selectedStatuses.has(status)}
                   onCheckedChange={() => setSelectedStatuses((prev) => toggleSetValue(prev, status))}
                 />
-                <Label htmlFor={`status-${status}`} className="text-sm capitalize cursor-pointer">
+                <Label className="text-sm capitalize cursor-pointer flex-1">
                   {status}
                 </Label>
               </div>
             ))}
+            {selectedStatuses.size > 0 && (
+              <button
+                className="w-full text-xs text-muted-foreground hover:text-foreground mt-1 pt-1 border-t"
+                onClick={() => setSelectedStatuses(new Set())}
+              >
+                Clear
+              </button>
+            )}
+          </PopoverContent>
+        </Popover>
 
-            <div className="ml-2 border-l pl-4 flex items-center gap-2">
-              <Checkbox
-                id="only-completed"
-                checked={onlyCompleted}
-                onCheckedChange={(checked) => setOnlyCompleted(checked === true)}
-              />
-              <Label htmlFor="only-completed" className="text-sm cursor-pointer">
-                Registration completed
-              </Label>
-            </div>
-          </div>
+        {/* Registration completed */}
+        <div
+          className="flex items-center gap-2 cursor-pointer select-none"
+          onClick={() => setOnlyCompleted((prev) => !prev)}
+        >
+          <Checkbox
+            id="only-completed"
+            checked={onlyCompleted}
+            onCheckedChange={(checked) => setOnlyCompleted(checked === true)}
+          />
+          <Label htmlFor="only-completed" className="text-sm cursor-pointer">
+            Registration completed
+          </Label>
         </div>
       </div>
 

@@ -113,10 +113,21 @@ function splitName(fullName: string): GuestEntry {
 
 const SESSION_KEY = "guest-portal-session";
 const REG_KEY = "guest-portal-registration";
+const STRIPE_BACKUP_SESSION = "guest-portal-stripe-session";
+const STRIPE_BACKUP_REG = "guest-portal-stripe-reg";
 
 function loadSession(): SessionData | null {
   try {
-    const raw = sessionStorage.getItem(SESSION_KEY);
+    let raw = sessionStorage.getItem(SESSION_KEY);
+    if (!raw) {
+      // Restore from localStorage backup after Stripe redirect
+      const backup = localStorage.getItem(STRIPE_BACKUP_SESSION);
+      if (backup) {
+        sessionStorage.setItem(SESSION_KEY, backup);
+        localStorage.removeItem(STRIPE_BACKUP_SESSION);
+        raw = backup;
+      }
+    }
     if (!raw) return null;
     return JSON.parse(raw);
   } catch {
@@ -145,11 +156,32 @@ function saveRegistrationProgress(data: {
 
 function loadRegistrationProgress() {
   try {
-    const raw = sessionStorage.getItem(REG_KEY);
+    let raw = sessionStorage.getItem(REG_KEY);
+    if (!raw) {
+      // Restore from localStorage backup after Stripe redirect
+      const backup = localStorage.getItem(STRIPE_BACKUP_REG);
+      if (backup) {
+        sessionStorage.setItem(REG_KEY, backup);
+        localStorage.removeItem(STRIPE_BACKUP_REG);
+        raw = backup;
+      }
+    }
     if (!raw) return null;
     return JSON.parse(raw);
   } catch {
     return null;
+  }
+}
+
+/** Save session + registration data to localStorage before Stripe redirect */
+function backupForStripeRedirect() {
+  try {
+    const session = sessionStorage.getItem(SESSION_KEY);
+    if (session) localStorage.setItem(STRIPE_BACKUP_SESSION, session);
+    const reg = sessionStorage.getItem(REG_KEY);
+    if (reg) localStorage.setItem(STRIPE_BACKUP_REG, reg);
+  } catch {
+    // Ignore
   }
 }
 
@@ -330,7 +362,10 @@ export default function RegisterPage() {
       });
       if (res.ok) {
         const data = await res.json();
-        if (data.url) window.location.href = data.url;
+        if (data.url) {
+          backupForStripeRedirect();
+          window.location.href = data.url;
+        }
       }
     } catch {
       // Handle error

@@ -25,7 +25,7 @@ export async function POST(request: Request) {
 
   const { data: reg } = await supabase
     .from("registration")
-    .select("id, upsells")
+    .select("id, upsells, pets, pending_pets")
     .eq("id", registration_id)
     .single();
 
@@ -42,9 +42,22 @@ export async function POST(request: Request) {
     return u;
   });
 
+  const registrationUpdate: Record<string, unknown> = { upsells: updated };
+
+  // If a pet fee was just paid, move pending_pets into pets
+  const petFeeJustPaid = updated.some(
+    (u) => u.stripe_session_id === session_id && u.type === "pet_fee" && u.status === "paid"
+  );
+  if (petFeeJustPaid && reg.pending_pets) {
+    const currentPets = (reg.pets as Array<Record<string, unknown>>) || [];
+    const pending = (reg.pending_pets as Array<Record<string, unknown>>) || [];
+    registrationUpdate.pets = [...currentPets, ...pending];
+    registrationUpdate.pending_pets = null;
+  }
+
   await supabase
     .from("registration")
-    .update({ upsells: updated })
+    .update(registrationUpdate)
     .eq("id", reg.id);
 
   return NextResponse.json({ ok: true, upsells: updated.filter((u) => u.status === "paid") });
