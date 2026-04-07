@@ -1,32 +1,37 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import Link from "next/link";
-import { Receipt } from "lucide-react";
+import { AdminInvoiceTabs } from "@/components/admin/invoice-tabs";
 import type { InvoiceLineItem, InvoiceStatus } from "@/types/database";
 
 export const dynamic = "force-dynamic";
 
-const STATUS_STYLES: Record<string, string> = {
-  draft: "bg-muted text-muted-foreground",
-  submitted: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
-  approved: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
-  paid: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
+export type AdminInvoiceRow = {
+  id: string;
+  invoice_number: string;
+  status: InvoiceStatus;
+  period_start: string;
+  period_end: string;
+  total: number;
+  created_at: string;
+  cleaner_name: string;
 };
 
-function formatCents(cents: number) {
-  return `$${(cents / 100).toFixed(2)}`;
-}
-
-function formatDate(dateStr: string) {
-  return new Date(dateStr + "T00:00:00").toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-}
+export type AdminUnpaidCleaning = {
+  registrationId: string;
+  propertyName: string;
+  propertyCoverImage: string | null;
+  cleanerName: string;
+  guestName: string | null;
+  checkInDate: string;
+  checkOutDate: string;
+  cleanedAt: string | null;
+  guestCount: number;
+  hasPets: boolean;
+  cleaningFee: number;
+  petFee: number;
+  totalFee: number;
+};
 
 export default async function AdminInvoicesPage() {
   const supabase = await createClient();
@@ -36,7 +41,6 @@ export default async function AdminInvoicesPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/auth/login");
 
-  // Get host record
   const { data: host } = await supabase
     .from("host")
     .select("id")
@@ -44,60 +48,164 @@ export default async function AdminInvoicesPage() {
     .single();
   if (!host) redirect("/auth/login");
 
-  // Get all invoices for this host, with cleaner name
-  // Use admin client — cleaner tables have no host RLS policies
   const admin = createAdminClient();
+
+  // --- Get all cleaners for this host ---
+  const { data: cleaners } = await admin
+    .from("cleaner")
+    .select("id, name")
+    .eq("host_id", host.id)
+    .eq("is_active", true);
+
+  const cleanerIds = (cleaners || []).map((c) => c.id);
+  const cleanerNameMap = new Map(
+    (cleaners || []).map((c) => [c.id, c.name])
+  );
+
+  // --- Tab 1: Unpaid cleanings across all cleaners ---
+  let unpaidCleanings: AdminUnpaidCleaning[] = [];
+
+  if (cleanerIds.length > 0) {
+    // Get all cleaner-property assignments
+    const { data: assignments } = await admin
+      .from("cleaner_property")
+      .select("cleaner_id, property_id")
+      .in("cleaner_id", cleanerIds);
+
+    const allPropertyIds = [
+      ...new Set((assignments || []).map((a) => a.property_id)),
+    ];
+
+    // Build cleaner→properties map
+    const cleanerPropertyMap = new Map<string, string[]>();
+    for (const a of assignments || []) {
+      const list = cleanerPropertyMap.get(a.cleaner_id) || [];
+      list.push(a.property_id);
+      cleanerPropertyMap.set(a.cleaner_id, list);
+    }
+
+    // Build property→cleaner map (for display)
+    const propertyCleanerMap = new Map<string, string>();
+    for (const a of assignments || []) {
+      propertyCleanerMap.set(a.property_id, a.cleaner_id);
+    }
+
+    if (allPropertyIds.length > 0) {
+      // Get properties with fees
+      const { data: properties } = await admin
+        .from("property")
+        .select("id, name, cover_image_url, cleaning_fee_cents, pet_fee_cents")
+        .in("id", allPropertyIds);
+
+      const propMap = new Map(
+        (properties || []).map((p) => [p.id, p])
+      );
+
+      // Get all cleaned statuses for these properties
+      const { data: cleanedStatuses } = await admin
+        .from("cleaning_status")
+        .select(
+          "registration_id, cleaned_at, registration!inner(property_id)"
+        )
+        .eq("is_cleaned", true)
+        .in(
+          "registration.property_id",
+          allPropertyIds
+        );
+
+      const cleanedRegIds = (cleanedStatuses || []).map(
+        (s) => s.registration_id
+      );
+      const cleanedAtMap = new Map(
+        (cleanedStatuses || []).map((s) => [
+          s.registration_id,
+          s.cleaned_at,
+        ])
+      );
+
+      // Get registration IDs already on non-draft invoices across all cleaners
+      const { data: existingInvoices } = await admin
+        .from("cleaner_invoice")
+        .select("line_items")
+        .in("cleaner_id", cleanerIds)
+        .neq("status", "draft");
+
+      const billedRegIds = new Set<string>();
+      for (const inv of existingInvoices || []) {
+        const items = inv.line_items as InvoiceLineItem[];
+        for (const item of items) {
+          if (item.registration_id) billedRegIds.add(item.registration_id);
+        }
+      }
+
+      const unbilledRegIds = cleanedRegIds.filter(
+        (id) => !billedRegIds.has(id)
+      );
+
+      if (unbilledRegIds.length > 0) {
+        const { data: regs } = await admin
+          .from("registration")
+          .select(
+            "id, property_id, check_in_date, check_out_date, num_guests, pets, guest:guest_id(full_name)"
+          )
+          .in("id", unbilledRegIds);
+
+        unpaidCleanings = (regs || [])
+          .filter((r) => propMap.has(r.property_id))
+          .map((r) => {
+            const prop = propMap.get(r.property_id)!;
+            const pets = r.pets as Array<{ name?: string }> | null;
+            const hasPets = (pets || []).some((p) => p.name?.trim());
+            const cleaningFee = prop.cleaning_fee_cents ?? 0;
+            const petFee = hasPets ? (prop.pet_fee_cents ?? 0) : 0;
+            const guest = r.guest as unknown as {
+              full_name: string;
+            } | null;
+            const cleanerId = propertyCleanerMap.get(r.property_id) || "";
+            return {
+              registrationId: r.id,
+              propertyName: prop.name,
+              propertyCoverImage: prop.cover_image_url,
+              cleanerName: cleanerNameMap.get(cleanerId) || "Unknown",
+              guestName: guest?.full_name || null,
+              checkInDate: r.check_in_date,
+              checkOutDate: r.check_out_date,
+              cleanedAt: cleanedAtMap.get(r.id) || null,
+              guestCount: r.num_guests,
+              hasPets,
+              cleaningFee,
+              petFee,
+              totalFee: cleaningFee + petFee,
+            };
+          })
+          .sort((a, b) => b.checkOutDate.localeCompare(a.checkOutDate));
+      }
+    }
+  }
+
+  // --- Tab 2: Invoice history ---
   const { data: invoices } = await admin
     .from("cleaner_invoice")
     .select("*, cleaner:cleaner_id(name)")
     .eq("host_id", host.id)
     .order("created_at", { ascending: false });
 
-  const rows = (invoices || []) as Array<{
-    id: string;
-    invoice_number: string;
-    status: InvoiceStatus;
-    period_start: string;
-    period_end: string;
-    total: number;
-    created_at: string;
-    cleaner: { name: string } | null;
-  }>;
+  const invoiceRows: AdminInvoiceRow[] = (invoices || []).map((inv) => ({
+    id: inv.id,
+    invoice_number: inv.invoice_number,
+    status: inv.status as InvoiceStatus,
+    period_start: inv.period_start,
+    period_end: inv.period_end,
+    total: inv.total,
+    created_at: inv.created_at,
+    cleaner_name:
+      (inv.cleaner as { name: string } | null)?.name || "Unknown",
+  }));
 
   return (
-    <div className="space-y-4">
-      <h1 className="text-lg font-semibold">Cleaner Invoices</h1>
-
-      {rows.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 text-center space-y-3">
-          <Receipt className="h-12 w-12 text-muted-foreground/30" />
-          <p className="text-muted-foreground">No invoices submitted yet.</p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {rows.map((inv) => (
-            <Link key={inv.id} href={`/admin/invoices/${inv.id}`}>
-              <Card className="hover:bg-accent/50 transition-colors cursor-pointer">
-                <CardContent className="py-4 flex items-center justify-between">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-medium">{inv.invoice_number}</p>
-                      <Badge className={STATUS_STYLES[inv.status]}>
-                        {inv.status}
-                      </Badge>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      {inv.cleaner?.name || "Unknown"} &middot;{" "}
-                      {formatDate(inv.period_start)} &ndash; {formatDate(inv.period_end)}
-                    </p>
-                  </div>
-                  <p className="text-sm font-semibold">{formatCents(inv.total)}</p>
-                </CardContent>
-              </Card>
-            </Link>
-          ))}
-        </div>
-      )}
-    </div>
+    <AdminInvoiceTabs
+      unpaidCleanings={unpaidCleanings}
+      invoices={invoiceRows}
+    />
   );
 }
