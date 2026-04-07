@@ -1,5 +1,6 @@
 import { redirect, notFound } from "next/navigation";
 import { createClient as createServerClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { AdminInvoiceDetail } from "@/components/admin/invoice-detail";
 import type { InvoiceLineItem, InvoiceStatus } from "@/types/database";
 
@@ -25,7 +26,8 @@ export default async function AdminInvoiceDetailPage({
     .single();
   if (!host) redirect("/auth/login");
 
-  const { data: invoice } = await supabase
+  const admin = createAdminClient();
+  const { data: invoice } = await admin
     .from("cleaner_invoice")
     .select("*, cleaner:cleaner_id(name)")
     .eq("id", id)

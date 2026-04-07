@@ -16,7 +16,6 @@ import {
   Wrench,
   User,
 } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
 import type { InvoiceLineItem, InvoiceStatus } from "@/types/database";
 
 const STATUS_STYLES: Record<string, string> = {
@@ -87,17 +86,14 @@ export function AdminInvoiceDetail({
 
   async function updateStatus(newStatus: "approved" | "paid") {
     setSaving(true);
-    const supabase = createClient();
-    const updates: Record<string, unknown> = { status: newStatus };
-    if (newStatus === "approved") updates.approved_at = new Date().toISOString();
-    if (newStatus === "paid") updates.paid_at = new Date().toISOString();
 
-    const { error } = await supabase
-      .from("cleaner_invoice")
-      .update(updates)
-      .eq("id", invoice.id);
+    const res = await fetch("/api/admin/invoices", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ invoice_id: invoice.id, status: newStatus }),
+    });
 
-    if (!error) {
+    if (res.ok) {
       setStatus(newStatus);
       router.refresh();
     }

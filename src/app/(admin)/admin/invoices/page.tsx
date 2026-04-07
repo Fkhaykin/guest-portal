@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
@@ -44,7 +45,9 @@ export default async function AdminInvoicesPage() {
   if (!host) redirect("/auth/login");
 
   // Get all invoices for this host, with cleaner name
-  const { data: invoices } = await supabase
+  // Use admin client — cleaner tables have no host RLS policies
+  const admin = createAdminClient();
+  const { data: invoices } = await admin
     .from("cleaner_invoice")
     .select("*, cleaner:cleaner_id(name)")
     .eq("host_id", host.id)
