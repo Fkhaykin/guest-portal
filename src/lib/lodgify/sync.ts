@@ -322,6 +322,7 @@ export async function syncBooking(booking: LodgifyBooking) {
         notes: booking.notes,
         status: mapStatus(booking.status),
         booking_source: booking.source,
+        ...(booking.date_created ? { booked_at: booking.date_created } : {}),
       },
       { onConflict: "lodgify_booking_id" }
     );

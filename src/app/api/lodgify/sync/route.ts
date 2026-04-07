@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { syncAllBookings } from "@/lib/lodgify/sync";
 
+export const maxDuration = 300;
+
 export async function POST(request: Request) {
   // Protect with a shared secret so only admins/cron can trigger
   const secret = process.env.LODGIFY_WEBHOOK_SECRET;

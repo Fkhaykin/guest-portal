@@ -42,6 +42,7 @@ type Registration = {
   guest_list: GuestListEntry[] | null;
   pets: PetEntry[] | null;
   created_at: string;
+  booked_at: string | null;
   guest: { full_name: string; email: string | null; phone: string | null } | null;
   property: { name: string; nickname: string | null } | null;
 };
@@ -76,7 +77,7 @@ export default function AdminReservationsPage() {
     setLoading(true);
     const { data } = await supabase
       .from("registration")
-      .select("id, property_id, check_in_date, check_out_date, num_guests, lodgify_adults, lodgify_children, lodgify_infants, lodgify_num_pets, status, booking_source, signature_url, total_amount_cents, guest_list, pets, created_at, guest:guest_id(full_name, email, phone), property:property_id(name, nickname)")
+      .select("id, property_id, check_in_date, check_out_date, num_guests, lodgify_adults, lodgify_children, lodgify_infants, lodgify_num_pets, status, booking_source, signature_url, total_amount_cents, guest_list, pets, created_at, booked_at, guest:guest_id(full_name, email, phone), property:property_id(name, nickname)")
       .order("check_in_date", { ascending: false });
     if (data) setRegistrations(data as unknown as Registration[]);
     setLoading(false);
@@ -157,7 +158,7 @@ export default function AdminReservationsPage() {
       case "property": return reg.property?.nickname || reg.property?.name || "";
       case "check_in_date": return reg.check_in_date ?? "";
       case "check_out_date": return reg.check_out_date ?? "";
-      case "booked": return reg.created_at ?? "";
+      case "booked": return reg.booked_at || reg.created_at || "";
       case "revenue": return String(reg.total_amount_cents ?? 0).padStart(12, "0");
       case "source": return reg.booking_source ?? "";
       case "status": return getDisplayStatus(reg);
@@ -322,7 +323,7 @@ export default function AdminReservationsPage() {
                       {reg.property?.nickname || reg.property?.name || "—"}
                     </TableCell>
                     <TableCell className="text-sm">
-                      {reg.created_at ? new Date(reg.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—"}
+                      {(reg.booked_at || reg.created_at) ? new Date(reg.booked_at || reg.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—"}
                     </TableCell>
                     <TableCell className="text-sm">{reg.check_in_date}</TableCell>
                     <TableCell className="text-sm">{reg.check_out_date}</TableCell>

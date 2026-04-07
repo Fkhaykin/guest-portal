@@ -61,6 +61,7 @@ export interface LodgifyBooking {
   source: string | null;
   notes: string | null;
   total_amount: number | null;
+  date_created: string | null; // ISO datetime from Lodgify
 }
 
 // v1 response shape
@@ -103,6 +104,7 @@ interface LodgifyV1Booking {
   total_amount?: number | null;
   amount?: number | null;
   total?: number | null;
+  date_created?: string | null;
 }
 
 // --- API methods ---
@@ -159,6 +161,7 @@ export async function getBookings(params?: {
       source: b.source,
       notes: b.notes,
       total_amount: b.total_amount ?? b.amount ?? b.total ?? null,
+      date_created: b.date_created ?? null,
     };
   });
 
@@ -178,6 +181,7 @@ export async function getBookingById(bookingId: number): Promise<LodgifyBooking>
     total_amount?: number | null;
     amount?: number | null;
     subtotals?: { stay?: number | null };
+    created_at?: string | null;
     rooms?: Array<{
       people: number;
       guest_breakdown?: { adults: number; children: number; infants: number; pets: number };
@@ -211,5 +215,6 @@ export async function getBookingById(bookingId: number): Promise<LodgifyBooking>
     source: raw.source,
     notes: raw.notes ?? null,
     total_amount: resolvedAmount,
+    date_created: raw.created_at ?? null,
   };
 }
