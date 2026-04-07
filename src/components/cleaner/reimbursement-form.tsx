@@ -2,11 +2,16 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -26,9 +31,13 @@ function formatCents(cents: number) {
   return `$${(cents / 100).toFixed(2)}`;
 }
 
-export function ReimbursementForm({
+export function ReimbursementModal({
+  open,
+  onClose,
   properties,
 }: {
+  open: boolean;
+  onClose: () => void;
   properties: Property[];
 }) {
   const router = useRouter();
@@ -44,6 +53,22 @@ export function ReimbursementForm({
   const [error, setError] = useState("");
 
   const selectedProperty = properties.find((p) => p.id === propertyId);
+
+  function reset() {
+    setDescription("");
+    setCategory("supplies");
+    setAmount(0);
+    setExpenseDate("");
+    setPropertyId("");
+    setNotes("");
+    setAttachments([]);
+    setError("");
+  }
+
+  function handleClose() {
+    reset();
+    onClose();
+  }
 
   async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -89,7 +114,6 @@ export function ReimbursementForm({
       return;
     }
 
-    // Build an invoice with a single reimbursement line item
     const lineItem = {
       description: `Reimbursement — ${description.trim()}`,
       type: "reimbursement" as const,
@@ -115,7 +139,8 @@ export function ReimbursementForm({
       });
 
       if (res.ok) {
-        router.push("/cleaner/invoices");
+        reset();
+        onClose();
         router.refresh();
       } else {
         const data = await res.json();
@@ -127,37 +152,34 @@ export function ReimbursementForm({
   }
 
   return (
-    <div className="space-y-6 max-w-3xl mx-auto">
-      <h1 className="text-lg font-semibold">Reimbursement Request</h1>
+    <Dialog open={open} onOpenChange={(o) => !o && handleClose()}>
+      <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="text-base">Reimbursement Request</DialogTitle>
+        </DialogHeader>
 
-      {error && (
-        <Card className="border-red-200 bg-red-50/50 dark:bg-red-950/20 dark:border-red-900">
-          <CardContent className="py-3">
-            <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
-          </CardContent>
-        </Card>
-      )}
+        <div className="space-y-4">
+          {error && (
+            <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+          )}
 
-      {/* Expense details */}
-      <Card>
-        <CardContent className="pt-4 space-y-4">
-          <p className="text-sm font-medium">Expense Details</p>
-
+          {/* Description */}
           <div className="space-y-1.5">
-            <Label htmlFor="description" className="text-xs">Description</Label>
+            <Label htmlFor="reimb-description" className="text-xs">Description</Label>
             <Input
-              id="description"
+              id="reimb-description"
               placeholder="e.g. Cleaning supplies from Home Depot"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          {/* Category + Amount */}
+          <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label htmlFor="category" className="text-xs">Category</Label>
+              <Label htmlFor="reimb-category" className="text-xs">Category</Label>
               <Select value={category} onValueChange={(val) => { if (val) setCategory(val); }}>
-                <SelectTrigger id="category">
+                <SelectTrigger id="reimb-category">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -170,9 +192,9 @@ export function ReimbursementForm({
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="amount" className="text-xs">Amount ($)</Label>
+              <Label htmlFor="reimb-amount" className="text-xs">Amount ($)</Label>
               <Input
-                id="amount"
+                id="reimb-amount"
                 type="number"
                 min="0.01"
                 step="0.01"
@@ -186,11 +208,12 @@ export function ReimbursementForm({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          {/* Date + Property */}
+          <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label htmlFor="expense_date" className="text-xs">Expense Date</Label>
+              <Label htmlFor="reimb-date" className="text-xs">Expense Date</Label>
               <Input
-                id="expense_date"
+                id="reimb-date"
                 type="date"
                 value={expenseDate}
                 onChange={(e) => setExpenseDate(e.target.value)}
@@ -198,9 +221,9 @@ export function ReimbursementForm({
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="property" className="text-xs">Property (optional)</Label>
+              <Label htmlFor="reimb-property" className="text-xs">Property (optional)</Label>
               <Select value={propertyId} onValueChange={(val) => setPropertyId(val ?? "")}>
-                <SelectTrigger id="property">
+                <SelectTrigger id="reimb-property">
                   <SelectValue placeholder="None" />
                 </SelectTrigger>
                 <SelectContent>
@@ -214,105 +237,100 @@ export function ReimbursementForm({
               </Select>
             </div>
           </div>
-        </CardContent>
-      </Card>
 
-      {/* Receipts */}
-      <Card>
-        <CardContent className="pt-4 space-y-4">
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-medium">Receipts</p>
-            <label className="cursor-pointer">
-              <input
-                type="file"
-                accept="image/jpeg,image/png,image/webp,application/pdf"
-                onChange={handleFileUpload}
-                className="hidden"
-                disabled={uploading}
-              />
-              <span className="inline-flex items-center justify-center rounded-md text-xs font-medium border border-input bg-background hover:bg-accent hover:text-accent-foreground h-8 px-3">
-                <Paperclip className="h-3 w-3 mr-1" />
-                {uploading ? "Uploading..." : "Upload Receipt"}
-              </span>
-            </label>
+          {/* Receipts */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-medium">Receipts</p>
+              <label className="cursor-pointer">
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,application/pdf"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                  disabled={uploading}
+                />
+                <span className="inline-flex items-center justify-center rounded-md text-[11px] font-medium border border-input bg-background hover:bg-accent hover:text-accent-foreground h-7 px-2">
+                  <Paperclip className="h-3 w-3 mr-1" />
+                  {uploading ? "Uploading..." : "Upload"}
+                </span>
+              </label>
+            </div>
+
+            {attachments.length === 0 ? (
+              <p className="text-xs text-muted-foreground">
+                Attach photos of receipts or expense documentation.
+              </p>
+            ) : (
+              <div className="space-y-1.5">
+                {attachments.map((att, idx) => (
+                  <div
+                    key={idx}
+                    className="flex items-center gap-2 px-2.5 py-1.5 bg-muted/50 rounded-lg"
+                  >
+                    <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    <span className="text-xs font-medium flex-1 truncate">
+                      {att.name}
+                    </span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => removeAttachment(idx)}
+                      className="h-5 w-5 text-muted-foreground hover:text-destructive"
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
-          {attachments.length === 0 ? (
-            <p className="text-xs text-muted-foreground">
-              Attach photos of receipts or expense documentation.
-            </p>
-          ) : (
-            <div className="space-y-2">
-              {attachments.map((att, idx) => (
-                <div
-                  key={idx}
-                  className="flex items-center gap-2 px-3 py-2 bg-muted/50 rounded-lg"
-                >
-                  <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
-                  <span className="text-xs font-medium flex-1 truncate">
-                    {att.name}
-                  </span>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => removeAttachment(idx)}
-                    className="h-6 w-6 text-muted-foreground hover:text-destructive"
-                  >
-                    <X className="h-3 w-3" />
-                  </Button>
-                </div>
-              ))}
+          {/* Notes */}
+          <div className="space-y-1.5">
+            <Label htmlFor="reimb-notes" className="text-xs">Notes (optional)</Label>
+            <Textarea
+              id="reimb-notes"
+              placeholder="Any additional context..."
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={2}
+            />
+          </div>
+
+          {/* Amount summary */}
+          {amount > 0 && (
+            <div className="flex items-center justify-between pt-1">
+              <p className="text-sm font-semibold">Request Amount</p>
+              <p className="text-lg font-bold">{formatCents(amount)}</p>
             </div>
           )}
-        </CardContent>
-      </Card>
 
-      {/* Notes */}
-      <Card>
-        <CardContent className="pt-4 space-y-2">
-          <Label htmlFor="notes" className="text-sm font-medium">Notes (optional)</Label>
-          <Textarea
-            id="notes"
-            placeholder="Any additional context..."
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            rows={3}
-          />
-        </CardContent>
-      </Card>
-
-      {/* Total + Actions */}
-      {amount > 0 && (
-        <Card>
-          <CardContent className="pt-4">
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold">Request Amount</p>
-              <p className="text-xl font-bold">{formatCents(amount)}</p>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      <div className="flex gap-3">
-        <Button
-          variant="outline"
-          onClick={() => handleSave(false)}
-          disabled={saving}
-          className="flex-1"
-        >
-          <Save className="h-4 w-4 mr-1" />
-          Save Draft
-        </Button>
-        <Button
-          onClick={() => handleSave(true)}
-          disabled={saving || !description || !amount || !expenseDate}
-          className="flex-1"
-        >
-          <Send className="h-4 w-4 mr-1" />
-          Submit Request
-        </Button>
-      </div>
-    </div>
+          {/* Actions */}
+          <div className="flex gap-3 pt-1">
+            <Button
+              variant="outline"
+              onClick={() => handleSave(false)}
+              disabled={saving}
+              className="flex-1"
+              size="sm"
+            >
+              <Save className="h-3.5 w-3.5 mr-1" />
+              Save Draft
+            </Button>
+            <Button
+              onClick={() => handleSave(true)}
+              disabled={saving || !description || !amount || !expenseDate}
+              className="flex-1"
+              size="sm"
+            >
+              <Send className="h-3.5 w-3.5 mr-1" />
+              Submit
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }

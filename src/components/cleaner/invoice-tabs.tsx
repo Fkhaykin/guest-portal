@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -34,6 +33,7 @@ import {
   ReceiptText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ReimbursementModal } from "@/components/cleaner/reimbursement-form";
 import type { InvoiceRow, UnpaidCleaning } from "@/app/(cleaner)/cleaner/(protected)/invoices/page";
 import type { InvoiceLineItem } from "@/types/database";
 
@@ -77,18 +77,31 @@ function formatTimestamp(ts: string) {
 export function InvoiceTabs({
   unpaidCleanings,
   invoices,
+  properties,
 }: {
   unpaidCleanings: UnpaidCleaning[];
   invoices: InvoiceRow[];
+  properties: { id: string; name: string }[];
 }) {
   const [tab, setTab] = useState<"unpaid" | "history">("unpaid");
   const [selectedInvoice, setSelectedInvoice] = useState<InvoiceRow | null>(null);
+  const [showReimbursement, setShowReimbursement] = useState(false);
 
   const totalUnpaid = unpaidCleanings.reduce((s, c) => s + c.totalFee, 0);
 
   return (
     <div className="space-y-4 max-w-3xl mx-auto">
-      <h1 className="text-lg font-semibold">Invoices</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-lg font-semibold">Invoices</h1>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setShowReimbursement(true)}
+        >
+          <ReceiptText className="h-4 w-4 mr-1.5" />
+          Reimbursement Request
+        </Button>
+      </div>
 
       {/* Tab bar */}
       <div className="flex gap-1 bg-muted rounded-lg p-1">
@@ -137,6 +150,13 @@ export function InvoiceTabs({
         invoice={selectedInvoice}
         onClose={() => setSelectedInvoice(null)}
       />
+
+      {/* Reimbursement modal */}
+      <ReimbursementModal
+        open={showReimbursement}
+        onClose={() => setShowReimbursement(false)}
+        properties={properties}
+      />
     </div>
   );
 }
@@ -152,20 +172,12 @@ function UnpaidTab({
 }) {
   if (cleanings.length === 0) {
     return (
-      <div className="space-y-4">
-        <div className="flex flex-col items-center justify-center py-16 text-center space-y-3">
-          <CheckCircle2 className="h-12 w-12 text-green-500/30" />
-          <p className="text-muted-foreground">All cleanings have been invoiced.</p>
-          <p className="text-xs text-muted-foreground">
-            New cleanings will appear here until the next weekly invoice is generated.
-          </p>
-        </div>
-        <Link href="/cleaner/invoices/reimbursement">
-          <Button variant="outline" size="sm" className="w-full">
-            <ReceiptText className="h-4 w-4 mr-1.5" />
-            Reimbursement Request
-          </Button>
-        </Link>
+      <div className="flex flex-col items-center justify-center py-16 text-center space-y-3">
+        <CheckCircle2 className="h-12 w-12 text-green-500/30" />
+        <p className="text-muted-foreground">All cleanings have been invoiced.</p>
+        <p className="text-xs text-muted-foreground">
+          New cleanings will appear here until the next weekly invoice is generated.
+        </p>
       </div>
     );
   }
@@ -189,14 +201,6 @@ function UnpaidTab({
           </div>
         </CardContent>
       </Card>
-
-      {/* Reimbursement request */}
-      <Link href="/cleaner/invoices/reimbursement">
-        <Button variant="outline" size="sm" className="w-full">
-          <ReceiptText className="h-4 w-4 mr-1.5" />
-          Reimbursement Request
-        </Button>
-      </Link>
 
       {/* Cleaning list */}
       <div className="space-y-2">

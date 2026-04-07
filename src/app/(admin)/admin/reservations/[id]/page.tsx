@@ -292,14 +292,19 @@ export default function ReservationDetailPage() {
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <Badge
-            variant={
-              displayStatus === "current" ? "default" : displayStatus === "future" ? "secondary" : displayStatus === "cancelled" ? "destructive" : "outline"
-            }
-            className="text-sm capitalize"
-          >
-            {displayStatus}
-          </Badge>
+          {(() => {
+            const colors = {
+              current: "bg-blue-100 text-blue-800 border-blue-200",
+              future: "bg-green-100 text-green-800 border-green-200",
+              past: "bg-yellow-100 text-yellow-800 border-yellow-200",
+              cancelled: "bg-red-100 text-red-800 border-red-200",
+            };
+            return (
+              <Badge variant="outline" className={`text-sm capitalize ${colors[displayStatus]}`}>
+                {displayStatus}
+              </Badge>
+            );
+          })()}
           {hasSignature ? (
             <Badge variant="outline" className="text-sm gap-1">
               <CheckCircle2 className="h-3 w-3 text-green-600" /> Registered

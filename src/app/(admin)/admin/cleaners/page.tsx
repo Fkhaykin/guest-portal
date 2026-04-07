@@ -20,7 +20,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Pencil, Trash2, Eye, EyeOff } from "lucide-react";
+import { Plus, Pencil, Trash2, Eye, EyeOff, Phone } from "lucide-react";
 import type { Tables } from "@/types/database";
 
 type CleanerWithCount = Tables<"cleaner"> & { property_count: number };
@@ -71,13 +71,14 @@ export default function AdminCleanersPage() {
 
     const formData = new FormData(e.currentTarget);
     const name = formData.get("name") as string;
+    const phone = (formData.get("phone") as string)?.trim() || null;
     const password = formData.get("password") as string;
 
     if (editing) {
-      // Update name
+      // Update name and phone
       await supabase
         .from("cleaner")
-        .update({ name })
+        .update({ name, phone })
         .eq("id", editing.id);
 
       // Update password if provided
@@ -134,6 +135,7 @@ export default function AdminCleanersPage() {
       await supabase.from("cleaner").insert({
         host_id: host.id,
         name,
+        phone,
         password_hash: hash,
       });
     }
@@ -195,6 +197,16 @@ export default function AdminCleanersPage() {
                 />
               </div>
               <div className="space-y-2">
+                <Label htmlFor="phone">Phone (for SMS notifications)</Label>
+                <Input
+                  id="phone"
+                  name="phone"
+                  type="tel"
+                  defaultValue={editing?.phone ?? ""}
+                  placeholder="+1 555 123 4567"
+                />
+              </div>
+              <div className="space-y-2">
                 <Label htmlFor="password">
                   Password{editing ? " (leave blank to keep current)" : ""}
                 </Label>
@@ -242,6 +254,12 @@ export default function AdminCleanersPage() {
                   <CardTitle className="text-base">{cleaner.name}</CardTitle>
                   <p className="text-sm text-muted-foreground">
                     {cleaner.property_count} propert{cleaner.property_count === 1 ? "y" : "ies"} assigned
+                    {cleaner.phone && (
+                      <span className="inline-flex items-center gap-1 ml-2">
+                        <Phone className="h-3 w-3" />
+                        {cleaner.phone}
+                      </span>
+                    )}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">

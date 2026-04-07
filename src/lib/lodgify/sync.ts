@@ -1,15 +1,17 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getBookings, getBookingById, getProperties, type LodgifyBooking } from "./client";
+import { notifyCleanersOfNewBooking } from "@/lib/sms/notify-cleaners";
 
 const STATUS_MAP: Record<string, "active" | "completed" | "cancelled"> = {
   Booked: "active",
-  Tentative: "active",
-  Open: "active",
   CheckedOut: "completed",
   Cancelled: "cancelled",
   Declined: "cancelled",
 };
+
+// Unconfirmed statuses that should not be synced
+const SKIP_STATUSES = new Set(["Tentative", "Open"]);
 
 function mapStatus(lodgifyStatus: string): "active" | "completed" | "cancelled" {
   return STATUS_MAP[lodgifyStatus] ?? "active";
@@ -209,6 +211,23 @@ async function ensureProperty(lodgifyPropertyId: number): Promise<string | null>
 export async function syncBooking(booking: LodgifyBooking) {
   const supabase = createAdminClient();
 
+  // Skip unconfirmed bookings; if one was previously synced, remove it
+  if (SKIP_STATUSES.has(booking.status)) {
+    const { data: existing } = await supabase
+      .from("registration")
+      .select("id")
+      .eq("lodgify_booking_id", booking.id)
+      .maybeSingle();
+    if (existing) {
+      await supabase.from("vehicle").delete().eq("registration_id", existing.id);
+      await supabase.from("cleaning_status").delete().eq("registration_id", existing.id);
+      await supabase.from("registration_update_log").delete().eq("registration_id", existing.id);
+      await supabase.from("registration").delete().eq("id", existing.id);
+      console.log(`[lodgify-sync] Removed unconfirmed booking ${booking.id} (status: ${booking.status})`);
+    }
+    return { skipped: true, reason: "unconfirmed" };
+  }
+
   // 1. Find or create the property
   const propertyId = await ensureProperty(booking.property_id);
 
@@ -258,7 +277,16 @@ export async function syncBooking(booking: LodgifyBooking) {
     guestId = newGuest.id;
   }
 
-  // 3. Upsert registration by lodgify_booking_id
+  // 3. Check if this booking already exists (to distinguish new vs update)
+  const { data: existingReg } = await supabase
+    .from("registration")
+    .select("id")
+    .eq("lodgify_booking_id", booking.id)
+    .maybeSingle();
+
+  const isNewBooking = !existingReg;
+
+  // 4. Upsert registration by lodgify_booking_id
   const { error: regError } = await supabase
     .from("registration")
     .upsert(
@@ -280,6 +308,19 @@ export async function syncBooking(booking: LodgifyBooking) {
   if (regError) {
     console.error(`[lodgify-sync] Failed to upsert registration for booking ${booking.id}:`, regError);
     return { skipped: true, reason: "upsert_failed" };
+  }
+
+  // 5. Notify cleaners of new bookings (fire-and-forget)
+  if (isNewBooking && mapStatus(booking.status) === "active") {
+    notifyCleanersOfNewBooking({
+      propertyId,
+      guestName: booking.guest.name,
+      checkIn: booking.arrival,
+      checkOut: booking.departure,
+      numGuests: booking.guests || 1,
+    }).catch((err) => {
+      console.error(`[lodgify-sync] Failed to notify cleaners for booking ${booking.id}:`, err);
+    });
   }
 
   return { skipped: false };

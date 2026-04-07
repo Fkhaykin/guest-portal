@@ -141,6 +141,7 @@ export default async function InvoicesPage() {
     <InvoiceTabs
       unpaidCleanings={unpaidCleanings}
       invoices={(invoices || []) as InvoiceRow[]}
+      properties={(properties || []).map((p) => ({ id: p.id, name: p.name }))}
     />
   );
 }

@@ -21,9 +21,14 @@ export async function sendPEPOAPDF({
 }) {
   const subject = `Short-Term Tenant Registration — ${guestName} — ${propertyName}`;
 
+  const fromEmail = process.env.RESEND_FROM_EMAIL;
+  if (!fromEmail) {
+    throw new Error("RESEND_FROM_EMAIL environment variable is not set");
+  }
+
   const resend = getResend();
-  await resend.emails.send({
-    from: process.env.RESEND_FROM_EMAIL || "noreply@guests.example.com",
+  const { error } = await resend.emails.send({
+    from: fromEmail,
     to,
     subject,
     text: [
@@ -41,4 +46,8 @@ export async function sendPEPOAPDF({
       },
     ],
   });
+
+  if (error) {
+    throw new Error(`Resend API error: ${error.message}`);
+  }
 }

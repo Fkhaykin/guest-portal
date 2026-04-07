@@ -613,6 +613,7 @@ export type Database = {
           id: string;
           host_id: string;
           name: string;
+          phone: string | null;
           password_hash: string;
           is_active: boolean;
           created_at: string;
@@ -622,6 +623,7 @@ export type Database = {
           id?: string;
           host_id: string;
           name: string;
+          phone?: string | null;
           password_hash: string;
           is_active?: boolean;
           created_at?: string;
@@ -631,6 +633,7 @@ export type Database = {
           id?: string;
           host_id?: string;
           name?: string;
+          phone?: string | null;
           password_hash?: string;
           is_active?: boolean;
           created_at?: string;

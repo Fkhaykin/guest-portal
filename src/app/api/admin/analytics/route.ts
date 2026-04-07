@@ -19,21 +19,33 @@ export async function GET() {
     return NextResponse.json({ properties: [], registrations: [], qrScans: 0 });
   }
 
-  // Build unique display names — disambiguate duplicates
-  const rawNames = properties.map((p) => p.nickname || p.name);
-  const nameCounts: Record<string, number> = {};
-  for (const n of rawNames) {
-    nameCounts[n] = (nameCounts[n] ?? 0) + 1;
-  }
-  const nameIndex: Record<string, number> = {};
+  // Build display names — merge properties with same nickname (case-insensitive)
+  // e.g. "chalet" and "Chalet" are the same house on different listings
   const displayNames: Record<string, string> = {};
   for (const p of properties) {
-    const base = p.nickname || p.name;
-    if (nameCounts[base] > 1) {
-      nameIndex[base] = (nameIndex[base] ?? 0) + 1;
-      displayNames[p.id] = `${base} (${nameIndex[base]})`;
+    displayNames[p.id] = p.nickname || p.name;
+  }
+
+  // Deduplicate: properties that share a nickname (case-insensitive) are the same house
+  const seen = new Map<string, string>(); // lowercase name → canonical name
+  for (const p of properties) {
+    const name = displayNames[p.id];
+    const key = name.toLowerCase();
+    if (seen.has(key)) {
+      displayNames[p.id] = seen.get(key)!;
     } else {
-      displayNames[p.id] = base;
+      seen.set(key, name);
+    }
+  }
+
+  // Build deduplicated property list for the client (one entry per unique display name)
+  const uniqueProperties: { id: string; name: string }[] = [];
+  const seenNames = new Set<string>();
+  for (const p of properties) {
+    const name = displayNames[p.id];
+    if (!seenNames.has(name)) {
+      seenNames.add(name);
+      uniqueProperties.push({ id: p.id, name });
     }
   }
 
@@ -54,13 +66,11 @@ export async function GET() {
   const qrScans = (qrCodes ?? []).reduce((sum, q) => sum + q.scan_count, 0);
 
   return NextResponse.json({
-    properties: properties.map((p) => ({
-      id: p.id,
-      name: displayNames[p.id],
-    })),
+    properties: uniqueProperties,
     registrations: (registrations ?? []).map((r) => ({
       id: r.id,
       propertyId: r.property_id,
+      propertyName: displayNames[r.property_id],
       checkIn: r.check_in_date,
       checkOut: r.check_out_date,
       guests: r.num_guests,

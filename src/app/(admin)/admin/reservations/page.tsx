@@ -228,18 +228,14 @@ export default function AdminReservationsPage() {
                     <TableCell>
                       {(() => {
                         const displayStatus = getDisplayStatus(reg);
+                        const colors = {
+                          current: "bg-blue-100 text-blue-800 border-blue-200",
+                          future: "bg-green-100 text-green-800 border-green-200",
+                          past: "bg-yellow-100 text-yellow-800 border-yellow-200",
+                          cancelled: "bg-red-100 text-red-800 border-red-200",
+                        };
                         return (
-                          <Badge
-                            variant={
-                              displayStatus === "current"
-                                ? "default"
-                                : displayStatus === "future"
-                                  ? "secondary"
-                                  : displayStatus === "cancelled"
-                                    ? "destructive"
-                                    : "outline"
-                            }
-                          >
+                          <Badge variant="outline" className={colors[displayStatus]}>
                             {displayStatus}
                           </Badge>
                         );

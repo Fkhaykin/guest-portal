@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import {
   Card,
   CardContent,
@@ -62,8 +62,13 @@ const TOOLTIP_STYLE = {
   fontSize: "13px",
 };
 
-type GroupBy = "week" | "month" | "quarter";
+const SOURCE_RENAME: Record<string, string> = {
+  AirbnbIntegration: "Airbnb",
+  BookingComIntegration: "Booking.com",
+  VrboIntegration: "VRBO",
+};
 
+type GroupBy = "week" | "month" | "quarter";
 type DatePreset = "30d" | "90d" | "6m" | "1y" | "all" | "custom";
 
 const PRESETS: { value: DatePreset; label: string }[] = [
@@ -80,6 +85,7 @@ const PRESETS: { value: DatePreset; label: string }[] = [
 type Registration = {
   id: string;
   propertyId: string;
+  propertyName: string;
   checkIn: string;
   checkOut: string;
   guests: number;
@@ -97,17 +103,11 @@ type ApiData = {
 
 // ─── Helpers ─────────────────────────────────────────────────
 
-/**
- * Parse a YYYY-MM-DD date string into local-time midnight.
- * Using `new Date("2026-02-15")` parses as UTC, which shifts the day
- * backward in western timezones — this avoids that.
- */
 function parseDate(s: string): Date {
   const [y, m, d] = s.split("-").map(Number);
   return new Date(y, m - 1, d);
 }
 
-/** Today at midnight local time */
 function today(): Date {
   const n = new Date();
   return new Date(n.getFullYear(), n.getMonth(), n.getDate());
@@ -129,12 +129,11 @@ function getPresetRange(preset: DatePreset): [Date | null, Date | null] {
 }
 
 function toBucketKey(dateStr: string, groupBy: GroupBy): string {
-  // Parse directly from string to avoid timezone issues
   const [y, m, d] = dateStr.split("-").map(Number);
   if (groupBy === "week") {
     const date = new Date(y, m - 1, d);
-    const dow = date.getDay(); // 0=Sun
-    date.setDate(date.getDate() - ((dow + 6) % 7)); // floor to Monday
+    const dow = date.getDay();
+    date.setDate(date.getDate() - ((dow + 6) % 7));
     const wy = date.getFullYear();
     const wm = String(date.getMonth() + 1).padStart(2, "0");
     const wd = String(date.getDate()).padStart(2, "0");
@@ -144,7 +143,6 @@ function toBucketKey(dateStr: string, groupBy: GroupBy): string {
     const q = Math.floor((m - 1) / 3) + 1;
     return `${y}-Q${q}`;
   }
-  // month
   return `${y}-${String(m).padStart(2, "0")}`;
 }
 
@@ -154,8 +152,7 @@ function formatBucketLabel(key: string, groupBy: GroupBy): string {
     const date = new Date(y, m - 1, d);
     return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
   }
-  if (groupBy === "quarter") return key; // "2025-Q1"
-  // month
+  if (groupBy === "quarter") return key;
   const MONTHS = [
     "Jan", "Feb", "Mar", "Apr", "May", "Jun",
     "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
@@ -164,29 +161,40 @@ function formatBucketLabel(key: string, groupBy: GroupBy): string {
   return `${MONTHS[parseInt(mo) - 1]} ${yr.slice(2)}`;
 }
 
+function cleanSourceName(raw: string | null): string {
+  if (!raw) return "Direct";
+  return SOURCE_RENAME[raw] ?? raw;
+}
+
 // ─── Component ───────────────────────────────────────────────
 
 export function AnalyticsCharts() {
   const [raw, setRaw] = useState<ApiData | null>(null);
   const [loading, setLoading] = useState(true);
-
-  // Filter state
   const [preset, setPreset] = useState<DatePreset>("1y");
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
   const [groupBy, setGroupBy] = useState<GroupBy>("month");
 
+  // Revenue line visibility toggles
+  const [hiddenSeries, setHiddenSeries] = useState<Set<string>>(new Set());
+
+  const toggleSeries = useCallback((name: string) => {
+    setHiddenSeries((prev) => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      return next;
+    });
+  }, []);
+
   useEffect(() => {
     fetch("/api/admin/analytics")
       .then((r) => r.json())
-      .then((d) => {
-        setRaw(d);
-        setLoading(false);
-      })
+      .then((d) => { setRaw(d); setLoading(false); })
       .catch(() => setLoading(false));
   }, []);
 
-  // Compute effective date range
   const [rangeFrom, rangeTo] = useMemo(() => {
     if (preset === "custom") {
       return [
@@ -197,7 +205,6 @@ export function AnalyticsCharts() {
     return getPresetRange(preset);
   }, [preset, customFrom, customTo]);
 
-  // Filter registrations by date range
   const regs = useMemo(() => {
     if (!raw) return [];
     return raw.registrations.filter((r) => {
@@ -209,101 +216,120 @@ export function AnalyticsCharts() {
     });
   }, [raw, rangeFrom, rangeTo]);
 
-  // Derive all charts from filtered data
   const charts = useMemo(() => {
     if (!raw) return null;
-    const properties = raw.properties;
-    const propNameMap: Record<string, string> = {};
-    for (const p of properties) propNameMap[p.id] = p.name;
+    const propNames = raw.properties.map((p) => p.name);
+    const from = rangeFrom ?? new Date(2020, 0, 1);
+    const to = rangeTo ?? today();
 
-    // 1. Revenue over time by property
+    // ── Revenue over time (line chart data) ──
     const revBuckets: Record<string, Record<string, number>> = {};
     for (const r of regs) {
       if (!r.amount) continue;
       const key = toBucketKey(r.checkIn, groupBy);
       if (!revBuckets[key]) revBuckets[key] = {};
-      revBuckets[key][r.propertyId] =
-        (revBuckets[key][r.propertyId] ?? 0) + r.amount;
+      revBuckets[key][r.propertyName] =
+        (revBuckets[key][r.propertyName] ?? 0) + r.amount;
     }
     const revKeys = Object.keys(revBuckets).sort();
     const revenueOverTime = revKeys.map((key) => {
       const entry: Record<string, unknown> = { bucket: key };
       let total = 0;
-      for (const p of properties) {
-        const val = (revBuckets[key]?.[p.id] ?? 0) / 100;
-        entry[propNameMap[p.id]] = val;
+      for (const name of propNames) {
+        const val = (revBuckets[key]?.[name] ?? 0) / 100;
+        entry[name] = val;
         total += val;
       }
       entry["Total"] = total;
       return entry;
     });
 
-    // 2. Occupancy %
-    const from = rangeFrom ?? new Date(2020, 0, 1);
-    const to = rangeTo ?? today();
-    const totalDays = Math.max(
-      1,
-      Math.floor((to.getTime() - from.getTime()) / 86400000)
-    );
-    const occupancyByProperty = properties.map((p) => {
-      const propRegs = regs.filter((r) => r.propertyId === p.id);
-      let days = 0;
-      for (const r of propRegs) {
-        const ci = parseDate(r.checkIn);
-        const co = parseDate(r.checkOut);
-        const s = ci > from ? ci : from;
-        const e = co < to ? co : to;
-        days += Math.max(0, Math.floor((e.getTime() - s.getTime()) / 86400000));
+    // ── Occupancy % over time (grouped bar) ──
+    // For each bucket period, compute occupancy per property
+    const allBucketKeys = new Set<string>();
+    for (const r of regs) allBucketKeys.add(toBucketKey(r.checkIn, groupBy));
+    const sortedBuckets = [...allBucketKeys].sort();
+
+    // Pre-compute bucket date ranges
+    function bucketRange(key: string): [Date, Date] {
+      if (groupBy === "week") {
+        const s = parseDate(key);
+        const e = new Date(s); e.setDate(e.getDate() + 7);
+        return [s, e];
       }
-      return {
-        property: propNameMap[p.id],
-        occupancy: Math.round((days / totalDays) * 100),
-      };
+      if (groupBy === "quarter") {
+        const [y, qStr] = key.split("-Q");
+        const q = parseInt(qStr);
+        const s = new Date(parseInt(y), (q - 1) * 3, 1);
+        const e = new Date(parseInt(y), q * 3, 1);
+        return [s, e];
+      }
+      // month
+      const [y, m] = key.split("-").map(Number);
+      return [new Date(y, m - 1, 1), new Date(y, m, 1)];
+    }
+
+    const occupancyOverTime = sortedBuckets.map((key) => {
+      const [bStart, bEnd] = bucketRange(key);
+      const clampStart = bStart < from ? from : bStart;
+      const clampEnd = bEnd > to ? to : bEnd;
+      const periodDays = Math.max(1, Math.floor((clampEnd.getTime() - clampStart.getTime()) / 86400000));
+      const entry: Record<string, unknown> = { bucket: key };
+      for (const name of propNames) {
+        const propRegs = regs.filter((r) => r.propertyName === name);
+        const days = new Set<number>();
+        for (const r of propRegs) {
+          const ci = parseDate(r.checkIn);
+          const co = parseDate(r.checkOut);
+          const s = ci > clampStart ? ci : clampStart;
+          const e = co < clampEnd ? co : clampEnd;
+          let day = new Date(s);
+          while (day < e) {
+            days.add(day.getTime());
+            day = new Date(day.getTime() + 86400000);
+          }
+        }
+        entry[name] = Math.round((days.size / periodDays) * 100);
+      }
+      return entry;
     });
 
-    // 3. Revenue by property
-    const revenueByProperty = properties.map((p) => {
-      const total = regs
-        .filter((r) => r.propertyId === p.id)
-        .reduce((s, r) => s + r.amount, 0);
-      return { property: propNameMap[p.id], revenue: total / 100 };
+    // ── Revenue by property over time (grouped bar) ──
+    const revenueByPropTime = revKeys.map((key) => {
+      const entry: Record<string, unknown> = { bucket: key };
+      for (const name of propNames) {
+        entry[name] = (revBuckets[key]?.[name] ?? 0) / 100;
+      }
+      return entry;
     });
 
-    // 4. Bookings per period
-    const bookBuckets: Record<string, number> = {};
+    // ── Bookings per property per period (grouped bar) ──
+    const bookBuckets: Record<string, Record<string, number>> = {};
     for (const r of regs) {
       const key = toBucketKey(r.checkIn, groupBy);
-      bookBuckets[key] = (bookBuckets[key] ?? 0) + 1;
+      if (!bookBuckets[key]) bookBuckets[key] = {};
+      bookBuckets[key][r.propertyName] =
+        (bookBuckets[key][r.propertyName] ?? 0) + 1;
     }
     const bookKeys = Object.keys(bookBuckets).sort();
-    const bookingsPerPeriod = bookKeys.map((key) => ({
-      bucket: key,
-      bookings: bookBuckets[key],
-    }));
-
-    // 5. Avg stay duration by property
-    const avgStayByProperty = properties.map((p) => {
-      const propRegs = regs.filter((r) => r.propertyId === p.id);
-      if (!propRegs.length) return { property: propNameMap[p.id], avgNights: 0 };
-      const nights = propRegs.reduce((s, r) => {
-        return (
-          s +
-          Math.max(
-            1,
-            Math.floor(
-              (parseDate(r.checkOut).getTime() - parseDate(r.checkIn).getTime()) /
-                86400000
-            )
-          )
-        );
-      }, 0);
-      return {
-        property: propNameMap[p.id],
-        avgNights: Math.round((nights / propRegs.length) * 10) / 10,
-      };
+    const bookingsPerPeriod = bookKeys.map((key) => {
+      const entry: Record<string, unknown> = { bucket: key };
+      for (const name of propNames) {
+        entry[name] = bookBuckets[key]?.[name] ?? 0;
+      }
+      return entry;
     });
 
-    // 6. Guest volume per period
+    // ── Avg stay duration ──
+    const avgStayByProperty = propNames.map((name) => {
+      const propRegs = regs.filter((r) => r.propertyName === name);
+      if (!propRegs.length) return { property: name, avgNights: 0 };
+      const nights = propRegs.reduce((s, r) =>
+        s + Math.max(1, Math.floor((parseDate(r.checkOut).getTime() - parseDate(r.checkIn).getTime()) / 86400000)), 0);
+      return { property: name, avgNights: Math.round((nights / propRegs.length) * 10) / 10 };
+    });
+
+    // ── Guest volume ──
     const guestBuckets: Record<string, number> = {};
     for (const r of regs) {
       const key = toBucketKey(r.checkIn, groupBy);
@@ -315,16 +341,15 @@ export function AnalyticsCharts() {
       guests: guestBuckets[key],
     }));
 
-    // 7. Booking sources
+    // ── Booking sources ──
     const srcCount: Record<string, number> = {};
     for (const r of regs) {
-      const src = r.source || "Direct";
+      const src = cleanSourceName(r.source);
       srcCount[src] = (srcCount[src] ?? 0) + 1;
     }
-    const sourceBreakdown = Object.entries(srcCount).map(([name, value]) => ({
-      name,
-      value,
-    }));
+    const sourceBreakdown = Object.entries(srcCount)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
 
     // Stats
     const totalRevenue = regs.reduce((s, r) => s + r.amount, 0);
@@ -332,17 +357,13 @@ export function AnalyticsCharts() {
 
     return {
       revenueOverTime,
-      occupancyByProperty,
-      revenueByProperty,
+      occupancyOverTime,
+      revenueByPropTime,
       bookingsPerPeriod,
       avgStayByProperty,
       guestVolume,
       sourceBreakdown,
-      stats: {
-        totalRevenue,
-        totalBookings: regs.length,
-        activeBookings: activeCount,
-      },
+      stats: { totalRevenue, totalBookings: regs.length, activeBookings: activeCount },
     };
   }, [raw, regs, groupBy, rangeFrom, rangeTo]);
 
@@ -390,17 +411,18 @@ export function AnalyticsCharts() {
     );
   }
 
-  const propertyNames = raw.properties.map((p) => p.name);
+  const propNames = raw.properties.map((p) => p.name);
+  const allSeriesNames = [...propNames, "Total"];
   const { stats } = charts;
   const groupLabel =
     groupBy === "week" ? "Weekly" : groupBy === "quarter" ? "Quarterly" : "Monthly";
+  const periodLabel = groupBy === "week" ? "Week" : groupBy === "quarter" ? "Quarter" : "Month";
 
   return (
     <div className="space-y-4">
       {/* Controls bar */}
       <div className="flex flex-wrap items-center gap-3">
         <CalendarRange className="h-4 w-4 text-muted-foreground" />
-
         <div className="flex items-center gap-1">
           {PRESETS.map((p) => (
             <Button
@@ -414,25 +436,13 @@ export function AnalyticsCharts() {
             </Button>
           ))}
         </div>
-
         {preset === "custom" && (
           <div className="flex items-center gap-1.5">
-            <Input
-              type="date"
-              value={customFrom}
-              onChange={(e) => setCustomFrom(e.target.value)}
-              className="h-7 w-36 text-xs"
-            />
+            <Input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} className="h-7 w-36 text-xs" />
             <span className="text-xs text-muted-foreground">to</span>
-            <Input
-              type="date"
-              value={customTo}
-              onChange={(e) => setCustomTo(e.target.value)}
-              className="h-7 w-36 text-xs"
-            />
+            <Input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} className="h-7 w-36 text-xs" />
           </div>
         )}
-
         <div className="ml-auto flex items-center gap-1.5">
           <span className="text-xs text-muted-foreground">Group by</span>
           <Select value={groupBy} onValueChange={(v) => setGroupBy(v as GroupBy)}>
@@ -456,9 +466,7 @@ export function AnalyticsCharts() {
             <CreditCard className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {formatDollars(stats.totalRevenue / 100)}
-            </div>
+            <div className="text-2xl font-bold">{formatDollars(stats.totalRevenue / 100)}</div>
             <p className="text-xs text-muted-foreground">In selected range</p>
           </CardContent>
         </Card>
@@ -469,9 +477,7 @@ export function AnalyticsCharts() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.totalBookings}</div>
-            <p className="text-xs text-muted-foreground">
-              {stats.activeBookings} currently active
-            </p>
+            <p className="text-xs text-muted-foreground">{stats.activeBookings} currently active</p>
           </CardContent>
         </Card>
         <Card>
@@ -490,9 +496,7 @@ export function AnalyticsCharts() {
             <QrCode className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {raw.qrScans.toLocaleString()}
-            </div>
+            <div className="text-2xl font-bold">{raw.qrScans.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">Total across all codes</p>
           </CardContent>
         </Card>
@@ -500,153 +504,151 @@ export function AnalyticsCharts() {
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* 1. Revenue Over Time */}
+
+        {/* 1. Revenue Over Time — line chart with checkboxes */}
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle>Revenue Over Time</CardTitle>
-            <CardDescription>
-              {groupLabel} booking revenue by property
-            </CardDescription>
+            <CardDescription>{groupLabel} booking revenue by property</CardDescription>
           </CardHeader>
           <CardContent>
             {charts.revenueOverTime.length === 0 ? (
               <EmptyState label="No revenue data in this range" />
             ) : (
-              <ResponsiveContainer width="100%" height={320}>
-                <LineChart data={charts.revenueOverTime}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                  <XAxis
-                    dataKey="bucket"
-                    tickFormatter={(v) => formatBucketLabel(v, groupBy)}
-                    className="text-xs"
-                  />
-                  <YAxis tickFormatter={formatDollars} className="text-xs" />
-                  <Tooltip
-                    content={
-                      <RevenueTooltip
-                        groupBy={groupBy}
-                        propertyNames={propertyNames}
-                      />
-                    }
-                    wrapperStyle={{ zIndex: 10 }}
-                  />
-                  <Legend />
-                  {propertyNames.map((name, i) => (
-                    <Line
-                      key={name}
-                      type="monotone"
-                      dataKey={name}
-                      stroke={COLORS[i % COLORS.length]}
-                      strokeWidth={2}
-                      dot={false}
+              <>
+                <div className="flex flex-wrap gap-x-4 gap-y-1 mb-3">
+                  {allSeriesNames.map((name, i) => {
+                    const color = name === "Total"
+                      ? "hsl(var(--foreground))"
+                      : COLORS[i % COLORS.length];
+                    const hidden = hiddenSeries.has(name);
+                    return (
+                      <label
+                        key={name}
+                        className="flex items-center gap-1.5 cursor-pointer text-xs select-none"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={!hidden}
+                          onChange={() => toggleSeries(name)}
+                          className="rounded border-muted-foreground"
+                        />
+                        <span
+                          className="inline-block h-2.5 w-2.5 rounded-full"
+                          style={{ background: color, opacity: hidden ? 0.3 : 1 }}
+                        />
+                        <span style={{ opacity: hidden ? 0.4 : 1 }}>{name}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+                <ResponsiveContainer width="100%" height={320}>
+                  <LineChart data={charts.revenueOverTime}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                    <XAxis dataKey="bucket" tickFormatter={(v) => formatBucketLabel(v, groupBy)} className="text-xs" />
+                    <YAxis tickFormatter={formatDollars} className="text-xs" />
+                    <Tooltip
+                      content={<RevenueTooltip groupBy={groupBy} propertyNames={propNames} hiddenSeries={hiddenSeries} />}
+                      wrapperStyle={{ zIndex: 10 }}
                     />
-                  ))}
-                  <Line
-                    type="monotone"
-                    dataKey="Total"
-                    stroke="hsl(var(--foreground))"
-                    strokeWidth={2.5}
-                    strokeDasharray="6 3"
-                    dot={false}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+                    {propNames.map((name, i) =>
+                      !hiddenSeries.has(name) ? (
+                        <Line key={name} type="monotone" dataKey={name} stroke={COLORS[i % COLORS.length]} strokeWidth={2} dot={false} />
+                      ) : null
+                    )}
+                    {!hiddenSeries.has("Total") && (
+                      <Line type="monotone" dataKey="Total" stroke="hsl(var(--foreground))" strokeWidth={2.5} strokeDasharray="6 3" dot={false} />
+                    )}
+                  </LineChart>
+                </ResponsiveContainer>
+              </>
             )}
           </CardContent>
         </Card>
 
-        {/* 2. Occupancy % */}
-        <Card>
+        {/* 2. Occupancy Rate — grouped bar over time */}
+        <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle>Occupancy Rate</CardTitle>
-            <CardDescription>In selected date range</CardDescription>
+            <CardDescription>{groupLabel} occupancy % by property</CardDescription>
           </CardHeader>
           <CardContent>
-            {charts.occupancyByProperty.length === 0 ? (
+            {charts.occupancyOverTime.length === 0 ? (
               <EmptyState />
             ) : (
-              <ResponsiveContainer width="100%" height={280}>
-                <BarChart data={charts.occupancyByProperty}>
+              <ResponsiveContainer width="100%" height={320}>
+                <BarChart data={charts.occupancyOverTime}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                  <XAxis dataKey="property" className="text-xs" />
-                  <YAxis
-                    tickFormatter={(v) => `${v}%`}
-                    domain={[0, 100]}
-                    className="text-xs"
-                  />
+                  <XAxis dataKey="bucket" tickFormatter={(v) => formatBucketLabel(v, groupBy)} className="text-xs" />
+                  <YAxis tickFormatter={(v) => `${v}%`} domain={[0, 100]} className="text-xs" />
                   <Tooltip
+                    labelFormatter={(l) => formatBucketLabel(String(l), groupBy)}
                     formatter={((v: ValueType) => `${v}%`) as never}
                     contentStyle={TOOLTIP_STYLE}
                   />
-                  <Bar dataKey="occupancy" radius={[6, 6, 0, 0]}>
-                    {charts.occupancyByProperty.map((_, i) => (
-                      <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                    ))}
-                  </Bar>
+                  <Legend />
+                  {propNames.map((name, i) => (
+                    <Bar key={name} dataKey={name} fill={COLORS[i % COLORS.length]} radius={[3, 3, 0, 0]} />
+                  ))}
                 </BarChart>
               </ResponsiveContainer>
             )}
           </CardContent>
         </Card>
 
-        {/* 3. Revenue by Property */}
-        <Card>
+        {/* 3. Revenue by Property — grouped bar over time */}
+        <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle>Revenue by Property</CardTitle>
-            <CardDescription>Total in selected range</CardDescription>
+            <CardDescription>{groupLabel} revenue per property</CardDescription>
           </CardHeader>
           <CardContent>
-            {charts.revenueByProperty.length === 0 ? (
+            {charts.revenueByPropTime.length === 0 ? (
               <EmptyState />
             ) : (
-              <ResponsiveContainer width="100%" height={280}>
-                <BarChart data={charts.revenueByProperty}>
+              <ResponsiveContainer width="100%" height={320}>
+                <BarChart data={charts.revenueByPropTime}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                  <XAxis dataKey="property" className="text-xs" />
+                  <XAxis dataKey="bucket" tickFormatter={(v) => formatBucketLabel(v, groupBy)} className="text-xs" />
                   <YAxis tickFormatter={formatDollars} className="text-xs" />
                   <Tooltip
+                    labelFormatter={(l) => formatBucketLabel(String(l), groupBy)}
                     formatter={((v: ValueType) => formatDollars(Number(v))) as never}
                     contentStyle={TOOLTIP_STYLE}
                   />
-                  <Bar dataKey="revenue" radius={[6, 6, 0, 0]}>
-                    {charts.revenueByProperty.map((_, i) => (
-                      <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                    ))}
-                  </Bar>
+                  <Legend />
+                  {propNames.map((name, i) => (
+                    <Bar key={name} dataKey={name} fill={COLORS[i % COLORS.length]} radius={[3, 3, 0, 0]} />
+                  ))}
                 </BarChart>
               </ResponsiveContainer>
             )}
           </CardContent>
         </Card>
 
-        {/* 4. Bookings Per Period */}
-        <Card>
+        {/* 4. Bookings Per Period — grouped bar by property */}
+        <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle>Bookings Per {groupBy === "week" ? "Week" : groupBy === "quarter" ? "Quarter" : "Month"}</CardTitle>
-            <CardDescription>Total bookings trend</CardDescription>
+            <CardTitle>Bookings Per {periodLabel}</CardTitle>
+            <CardDescription>{groupLabel} bookings by property</CardDescription>
           </CardHeader>
           <CardContent>
             {charts.bookingsPerPeriod.length === 0 ? (
               <EmptyState />
             ) : (
-              <ResponsiveContainer width="100%" height={280}>
+              <ResponsiveContainer width="100%" height={320}>
                 <BarChart data={charts.bookingsPerPeriod}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                  <XAxis
-                    dataKey="bucket"
-                    tickFormatter={(v) => formatBucketLabel(v, groupBy)}
-                    className="text-xs"
-                  />
+                  <XAxis dataKey="bucket" tickFormatter={(v) => formatBucketLabel(v, groupBy)} className="text-xs" />
                   <YAxis allowDecimals={false} className="text-xs" />
                   <Tooltip
                     labelFormatter={(l) => formatBucketLabel(String(l), groupBy)}
                     contentStyle={TOOLTIP_STYLE}
                   />
-                  <Bar
-                    dataKey="bookings"
-                    fill="hsl(220, 70%, 55%)"
-                    radius={[6, 6, 0, 0]}
-                  />
+                  <Legend />
+                  {propNames.map((name, i) => (
+                    <Bar key={name} dataKey={name} fill={COLORS[i % COLORS.length]} radius={[3, 3, 0, 0]} />
+                  ))}
                 </BarChart>
               </ResponsiveContainer>
             )}
@@ -667,12 +669,7 @@ export function AnalyticsCharts() {
                 <BarChart data={charts.avgStayByProperty} layout="vertical">
                   <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                   <XAxis type="number" className="text-xs" />
-                  <YAxis
-                    dataKey="property"
-                    type="category"
-                    width={120}
-                    className="text-xs"
-                  />
+                  <YAxis dataKey="property" type="category" width={120} className="text-xs" />
                   <Tooltip
                     formatter={((v: ValueType) => `${v} nights`) as never}
                     contentStyle={TOOLTIP_STYLE}
@@ -701,24 +698,10 @@ export function AnalyticsCharts() {
               <ResponsiveContainer width="100%" height={280}>
                 <AreaChart data={charts.guestVolume}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                  <XAxis
-                    dataKey="bucket"
-                    tickFormatter={(v) => formatBucketLabel(v, groupBy)}
-                    className="text-xs"
-                  />
+                  <XAxis dataKey="bucket" tickFormatter={(v) => formatBucketLabel(v, groupBy)} className="text-xs" />
                   <YAxis allowDecimals={false} className="text-xs" />
-                  <Tooltip
-                    labelFormatter={(l) => formatBucketLabel(String(l), groupBy)}
-                    contentStyle={TOOLTIP_STYLE}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="guests"
-                    stroke="hsl(160, 60%, 45%)"
-                    fill="hsl(160, 60%, 45%)"
-                    fillOpacity={0.15}
-                    strokeWidth={2}
-                  />
+                  <Tooltip labelFormatter={(l) => formatBucketLabel(String(l), groupBy)} contentStyle={TOOLTIP_STYLE} />
+                  <Area type="monotone" dataKey="guests" stroke="hsl(160, 60%, 45%)" fill="hsl(160, 60%, 45%)" fillOpacity={0.15} strokeWidth={2} />
                 </AreaChart>
               </ResponsiveContainer>
             )}
@@ -729,9 +712,7 @@ export function AnalyticsCharts() {
         <Card>
           <CardHeader>
             <CardTitle>Booking Sources</CardTitle>
-            <CardDescription>
-              Where bookings come from (Airbnb, VRBO, etc.)
-            </CardDescription>
+            <CardDescription>Where bookings come from</CardDescription>
           </CardHeader>
           <CardContent>
             {charts.sourceBreakdown.length === 0 ? (
@@ -771,44 +752,36 @@ function RevenueTooltip({
   label,
   groupBy: gb,
   propertyNames: names,
+  hiddenSeries,
 }: {
   active?: boolean;
   payload?: Array<{ dataKey: string; value: number; color: string }>;
   label?: string;
   groupBy: GroupBy;
   propertyNames: string[];
+  hiddenSeries: Set<string>;
 }) {
   if (!active || !payload?.length) return null;
 
-  // Sort: properties first (in original order), Total always last
-  const sorted = [...payload].sort((a, b) => {
+  const visible = payload.filter((e) => !hiddenSeries.has(e.dataKey));
+  const sorted = [...visible].sort((a, b) => {
     if (a.dataKey === "Total") return 1;
     if (b.dataKey === "Total") return -1;
     return names.indexOf(a.dataKey) - names.indexOf(b.dataKey);
   });
 
   return (
-    <div
-      className="rounded-lg border bg-card px-3 py-2 text-sm shadow-md"
-      style={{ minWidth: 180 }}
-    >
-      <p className="mb-1.5 font-medium">
-        {formatBucketLabel(String(label), gb)}
-      </p>
+    <div className="rounded-lg border bg-card px-3 py-2 text-sm shadow-md" style={{ minWidth: 180 }}>
+      <p className="mb-1.5 font-medium">{formatBucketLabel(String(label), gb)}</p>
       {sorted.map((entry) => (
         <div
           key={entry.dataKey}
           className={`flex items-center justify-between gap-4 ${
-            entry.dataKey === "Total"
-              ? "mt-1.5 border-t pt-1.5 font-semibold"
-              : ""
+            entry.dataKey === "Total" ? "mt-1.5 border-t pt-1.5 font-semibold" : ""
           }`}
         >
           <span className="flex items-center gap-1.5">
-            <span
-              className="inline-block h-2.5 w-2.5 rounded-full"
-              style={{ background: entry.color }}
-            />
+            <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: entry.color }} />
             {entry.dataKey}
           </span>
           <span>{formatDollars(entry.value)}</span>
