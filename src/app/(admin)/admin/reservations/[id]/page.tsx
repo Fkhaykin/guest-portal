@@ -268,6 +268,14 @@ export default function ReservationDetailPage() {
     : null;
   const guestPortalUrl = property ? `/p/${property.slug}/register` : null;
 
+  const displayStatus = (() => {
+    if (reg.status === "cancelled") return "cancelled" as const;
+    const today = new Date().toISOString().split("T")[0];
+    if (reg.check_out_date <= today) return "past" as const;
+    if (reg.check_in_date <= today) return "current" as const;
+    return "future" as const;
+  })();
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -286,11 +294,11 @@ export default function ReservationDetailPage() {
         <div className="flex items-center gap-2 shrink-0">
           <Badge
             variant={
-              reg.status === "active" ? "default" : reg.status === "completed" ? "secondary" : "destructive"
+              displayStatus === "current" ? "default" : displayStatus === "future" ? "secondary" : displayStatus === "cancelled" ? "destructive" : "outline"
             }
-            className="text-sm"
+            className="text-sm capitalize"
           >
-            {reg.status}
+            {displayStatus}
           </Badge>
           {hasSignature ? (
             <Badge variant="outline" className="text-sm gap-1">
@@ -373,7 +381,7 @@ export default function ReservationDetailPage() {
                 <Row label="Check-in" value={reg.check_in_date} />
                 <Row label="Check-out" value={reg.check_out_date} />
                 <Row label="Nights" value={String(nights)} />
-                <Row label="Source" value={reg.booking_source ? reg.booking_source.charAt(0).toUpperCase() + reg.booking_source.slice(1) : "—"} />
+                <Row label="Source" value={reg.booking_source ? reg.booking_source.replace(/\s*integration\s*/i, "").replace(/\s*api\s*/i, "").trim() : "—"} />
                 <Row label="Revenue" value={reg.total_amount_cents ? `$${(reg.total_amount_cents / 100).toLocaleString()}` : "—"} />
                 {reg.lodgify_booking_id && <Row label="Lodgify ID" value={String(reg.lodgify_booking_id)} />}
                 <Row label="Created" value={new Date(reg.created_at).toLocaleDateString()} />

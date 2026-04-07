@@ -92,9 +92,24 @@ export default function AdminReservationsPage() {
     return "$" + (cents / 100).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
   }
 
+  function cleanSourceName(source: string) {
+    return source
+      .replace(/\s*integration\s*/i, "")
+      .replace(/\s*api\s*/i, "")
+      .trim();
+  }
+
+  function getDisplayStatus(reg: Registration): "past" | "current" | "future" | "cancelled" {
+    if (reg.status === "cancelled") return "cancelled";
+    const today = new Date().toISOString().split("T")[0];
+    if (reg.check_out_date <= today) return "past";
+    if (reg.check_in_date <= today) return "current";
+    return "future";
+  }
+
   const filtered = registrations.filter((reg) => {
     if (selectedProperty !== "all" && reg.property_id !== selectedProperty) return false;
-    if (selectedStatus !== "all" && reg.status !== selectedStatus) return false;
+    if (selectedStatus !== "all" && getDisplayStatus(reg) !== selectedStatus) return false;
     if (onlyCompleted && !reg.signature_url) return false;
     return true;
   });
@@ -128,8 +143,9 @@ export default function AdminReservationsPage() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All statuses</SelectItem>
-            <SelectItem value="active">Active</SelectItem>
-            <SelectItem value="completed">Completed</SelectItem>
+            <SelectItem value="current">Current</SelectItem>
+            <SelectItem value="future">Future</SelectItem>
+            <SelectItem value="past">Past</SelectItem>
             <SelectItem value="cancelled">Cancelled</SelectItem>
           </SelectContent>
         </Select>
@@ -204,23 +220,30 @@ export default function AdminReservationsPage() {
                     </TableCell>
                     <TableCell>
                       {reg.booking_source ? (
-                        <span className="text-sm capitalize">{reg.booking_source}</span>
+                        <span className="text-sm capitalize">{cleanSourceName(reg.booking_source)}</span>
                       ) : (
                         <span className="text-sm text-muted-foreground">—</span>
                       )}
                     </TableCell>
                     <TableCell>
-                      <Badge
-                        variant={
-                          reg.status === "active"
-                            ? "default"
-                            : reg.status === "completed"
-                              ? "secondary"
-                              : "destructive"
-                        }
-                      >
-                        {reg.status}
-                      </Badge>
+                      {(() => {
+                        const displayStatus = getDisplayStatus(reg);
+                        return (
+                          <Badge
+                            variant={
+                              displayStatus === "current"
+                                ? "default"
+                                : displayStatus === "future"
+                                  ? "secondary"
+                                  : displayStatus === "cancelled"
+                                    ? "destructive"
+                                    : "outline"
+                            }
+                          >
+                            {displayStatus}
+                          </Badge>
+                        );
+                      })()}
                     </TableCell>
                   </TableRow>
                 );
