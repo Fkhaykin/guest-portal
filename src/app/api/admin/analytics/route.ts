@@ -19,6 +19,24 @@ export async function GET() {
     return NextResponse.json({ properties: [], registrations: [], qrScans: 0 });
   }
 
+  // Build unique display names — disambiguate duplicates
+  const rawNames = properties.map((p) => p.nickname || p.name);
+  const nameCounts: Record<string, number> = {};
+  for (const n of rawNames) {
+    nameCounts[n] = (nameCounts[n] ?? 0) + 1;
+  }
+  const nameIndex: Record<string, number> = {};
+  const displayNames: Record<string, string> = {};
+  for (const p of properties) {
+    const base = p.nickname || p.name;
+    if (nameCounts[base] > 1) {
+      nameIndex[base] = (nameIndex[base] ?? 0) + 1;
+      displayNames[p.id] = `${base} (${nameIndex[base]})`;
+    } else {
+      displayNames[p.id] = base;
+    }
+  }
+
   const propertyIds = properties.map((p) => p.id);
 
   const { data: registrations } = await supabase
@@ -38,7 +56,7 @@ export async function GET() {
   return NextResponse.json({
     properties: properties.map((p) => ({
       id: p.id,
-      name: p.nickname || p.name,
+      name: displayNames[p.id],
     })),
     registrations: (registrations ?? []).map((r) => ({
       id: r.id,
