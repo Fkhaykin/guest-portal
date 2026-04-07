@@ -603,7 +603,8 @@ export function AnalyticsCharts() {
                     <YAxis tickFormatter={formatDollars} className="text-xs" />
                     <Tooltip
                       content={<RevenueTooltip groupBy={groupBy} propertyNames={propNames} hiddenSeries={hiddenSeries} reservationsByBucket={charts.reservationsByBucket} />}
-                      wrapperStyle={{ zIndex: 10 }}
+                      trigger="click"
+                      wrapperStyle={{ zIndex: 10, pointerEvents: "auto" }}
                     />
                     {propNames.map((name, i) =>
                       !hiddenSeries.has(name) ? (
@@ -637,7 +638,8 @@ export function AnalyticsCharts() {
                   <YAxis tickFormatter={(v) => `${v}%`} domain={[0, 100]} className="text-xs" />
                   <Tooltip
                     content={<BarTooltip groupBy={groupBy} propertyNames={propNames} formatter={(v) => `${v}%`} reservationsByBucket={charts.reservationsByBucket} />}
-                    wrapperStyle={{ zIndex: 10 }}
+                    trigger="click"
+                    wrapperStyle={{ zIndex: 10, pointerEvents: "auto" }}
                   />
                   <Legend />
                   {propNames.map((name, i) => (
@@ -666,7 +668,8 @@ export function AnalyticsCharts() {
                   <YAxis tickFormatter={formatDollars} className="text-xs" />
                   <Tooltip
                     content={<BarTooltip groupBy={groupBy} propertyNames={propNames} formatter={formatDollars} reservationsByBucket={charts.reservationsByBucket} />}
-                    wrapperStyle={{ zIndex: 10 }}
+                    trigger="click"
+                    wrapperStyle={{ zIndex: 10, pointerEvents: "auto" }}
                   />
                   <Legend />
                   {propNames.map((name, i) => (
@@ -695,7 +698,8 @@ export function AnalyticsCharts() {
                   <YAxis allowDecimals={false} className="text-xs" />
                   <Tooltip
                     content={<BarTooltip groupBy={groupBy} propertyNames={propNames} formatter={(v) => String(v)} reservationsByBucket={charts.reservationsByBucket} />}
-                    wrapperStyle={{ zIndex: 10 }}
+                    trigger="click"
+                    wrapperStyle={{ zIndex: 10, pointerEvents: "auto" }}
                   />
                   <Legend />
                   {propNames.map((name, i) => (
