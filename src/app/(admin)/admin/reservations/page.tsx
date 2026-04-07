@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+// Button unused after popover trigger refactor
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -194,15 +194,13 @@ export default function AdminReservationsPage() {
       <div className="flex flex-wrap items-center gap-3">
         {/* Property dropdown */}
         <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="outline" className="w-50 justify-between">
+          <PopoverTrigger className="inline-flex items-center justify-between gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm font-medium ring-offset-background hover:bg-accent hover:text-accent-foreground w-50 cursor-pointer">
               {selectedProperties.size === 0
                 ? "All properties"
                 : selectedProperties.size === 1
                   ? (properties.find((p) => selectedProperties.has(p.id))?.nickname || properties.find((p) => selectedProperties.has(p.id))?.name)
                   : `${selectedProperties.size} properties`}
-              <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
-            </Button>
+              <ChevronDown className="h-4 w-4 opacity-50" />
           </PopoverTrigger>
           <PopoverContent className="w-56 p-2" align="start">
             {properties.map((p) => (
@@ -233,15 +231,13 @@ export default function AdminReservationsPage() {
 
         {/* Status dropdown */}
         <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="outline" className="w-44 justify-between">
+          <PopoverTrigger className="inline-flex items-center justify-between gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm font-medium ring-offset-background hover:bg-accent hover:text-accent-foreground w-44 cursor-pointer">
               {selectedStatuses.size === 0
                 ? "All statuses"
                 : selectedStatuses.size === 1
                   ? [...selectedStatuses][0]
                   : `${selectedStatuses.size} statuses`}
-              <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
-            </Button>
+              <ChevronDown className="h-4 w-4 opacity-50" />
           </PopoverTrigger>
           <PopoverContent className="w-44 p-2" align="start">
             {(["current", "future", "past", "cancelled"] as const).map((status) => (
