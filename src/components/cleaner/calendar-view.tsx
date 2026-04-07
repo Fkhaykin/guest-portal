@@ -335,8 +335,8 @@ export function CalendarView({
                           onClick={() => setSelected(r)}
                           className={`absolute h-6 rounded-full text-[10px] font-semibold flex items-center px-2.5 truncate cursor-pointer hover:brightness-110 active:scale-[0.98] transition-all z-10 shadow-sm ${
                             !r.guestName
-                              ? "bg-gray-300 text-gray-500 dark:bg-gray-700 dark:text-gray-400"
-                              : `bg-blue-500 text-white ${r.isCleaned ? "opacity-40" : ""}`
+                              ? "bg-gray-200 text-gray-500 dark:bg-gray-700 dark:text-gray-400"
+                              : `bg-teal-700 text-white ${r.isCleaned ? "opacity-40" : ""}`
                           }`}
                           style={{
                             left: `${leftPct}%`,
