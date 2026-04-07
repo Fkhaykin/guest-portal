@@ -32,6 +32,7 @@ import {
   Sparkles,
   ReceiptText,
 } from "lucide-react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ReimbursementModal } from "@/components/cleaner/reimbursement-form";
 import type { InvoiceRow, UnpaidCleaning, RecentBooking } from "@/app/(cleaner)/cleaner/(protected)/invoices/page";
@@ -245,6 +246,14 @@ function UnpaidTab({
                       </span>
                     )}
                   </div>
+                  <div className="mt-2 text-xs">
+                    <Link
+                      href={`/cleaner/reservations/${c.registrationId}`}
+                      className="text-primary hover:underline"
+                    >
+                      View reservation
+                    </Link>
+                  </div>
                   {c.cleanedAt && (
                     <p className="text-[10px] text-muted-foreground mt-0.5">
                       <SprayCan className="h-2.5 w-2.5 inline mr-0.5" />
@@ -381,14 +390,24 @@ function InvoiceModal({
                 <p className="text-xs font-semibold">{formatCents(cleaningTotal)}</p>
               </div>
               {cleaningItems.map((item, i) => (
-                <div key={i} className="flex items-center justify-between text-sm pl-4">
-                  <div className="min-w-0">
-                    <p className="truncate">{item.description}</p>
-                    {item.property_name && (
-                      <p className="text-xs text-muted-foreground">{item.property_name}</p>
-                    )}
+                <div key={i} className="flex flex-col gap-1 text-sm pl-4">
+                  <div className="flex items-center justify-between gap-3 min-w-0">
+                    <div className="min-w-0">
+                      <p className="truncate">{item.description}</p>
+                      {item.property_name && (
+                        <p className="text-xs text-muted-foreground">{item.property_name}</p>
+                      )}
+                    </div>
+                    <span className="shrink-0 font-medium">{formatCents(item.amount)}</span>
                   </div>
-                  <span className="shrink-0 ml-2 font-medium">{formatCents(item.amount)}</span>
+                  {item.registration_id && (
+                    <Link
+                      href={`/cleaner/reservations/${item.registration_id}`}
+                      className="text-xs text-primary hover:underline"
+                    >
+                      View reservation
+                    </Link>
+                  )}
                 </div>
               ))}
             </div>
