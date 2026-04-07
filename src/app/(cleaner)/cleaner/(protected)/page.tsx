@@ -79,18 +79,11 @@ export default async function CleanerHomePage({
   }
 
   // --- All cleaned registrations (earned revenue) ---
-  const { data: allPropertyRegs } = await supabase
-    .from("registration")
-    .select("id")
-    .in("property_id", propertyIds);
-
-  const allPropertyRegIds = (allPropertyRegs || []).map((r) => r.id);
-
   const { data: cleanedStatuses } = await supabase
     .from("cleaning_status")
-    .select("registration_id, cleaned_at")
+    .select("registration_id, cleaned_at, registration!inner(property_id)")
     .eq("is_cleaned", true)
-    .in("registration_id", allPropertyRegIds.length > 0 ? allPropertyRegIds : ["_none_"]);
+    .in("registration.property_id", propertyIds.length > 0 ? propertyIds : ["_none_"]);
 
   const cleanedRegIds = (cleanedStatuses || []).map((s) => s.registration_id);
   const cleanedAtMap = new Map(

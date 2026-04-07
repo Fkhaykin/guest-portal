@@ -65,20 +65,13 @@ export default async function InvoicesPage() {
     (properties || []).map((p) => [p.id, p])
   );
 
-  // Get all registrations for the cleaner's assigned properties
-  const { data: allRegs } = await supabase
-    .from("registration")
-    .select("id")
-    .in("property_id", propertyIds.length > 0 ? propertyIds : ["_none_"]);
-
-  const allRegIds = (allRegs || []).map((r) => r.id);
-
-  // Get cleaned statuses for those registrations
+  // Get cleaned statuses for registrations at the cleaner's assigned properties
+  // Uses a PostgREST inner join so we filter by property in a single query
   const { data: cleanedStatuses } = await supabase
     .from("cleaning_status")
-    .select("registration_id, cleaned_at")
+    .select("registration_id, cleaned_at, registration!inner(property_id)")
     .eq("is_cleaned", true)
-    .in("registration_id", allRegIds.length > 0 ? allRegIds : ["_none_"]);
+    .in("registration.property_id", propertyIds.length > 0 ? propertyIds : ["_none_"]);
 
   const cleanedRegIds = (cleanedStatuses || []).map((s) => s.registration_id);
   const cleanedAtMap = new Map(

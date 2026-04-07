@@ -38,18 +38,11 @@ export async function POST(request: Request) {
 
     const clPropertyIds = (clAssign || []).map((a) => a.property_id);
 
-    const { data: clRegs } = await supabase
-      .from("registration")
-      .select("id")
-      .in("property_id", clPropertyIds.length > 0 ? clPropertyIds : ["_none_"]);
-
-    const clRegIds = (clRegs || []).map((r) => r.id);
-
     const { data: cleanedStatuses } = await supabase
       .from("cleaning_status")
-      .select("registration_id, cleaned_at")
+      .select("registration_id, cleaned_at, registration!inner(property_id)")
       .eq("is_cleaned", true)
-      .in("registration_id", clRegIds.length > 0 ? clRegIds : ["_none_"]);
+      .in("registration.property_id", clPropertyIds.length > 0 ? clPropertyIds : ["_none_"]);
 
     if (!cleanedStatuses || cleanedStatuses.length === 0) continue;
 
