@@ -23,7 +23,7 @@ import { useRouter } from "next/navigation";
 const navItems = [
   { label: "Dashboard", href: "/admin", icon: Home },
   { label: "Properties", href: "/admin/properties", icon: Building2 },
-  { label: "Registrations", href: "/admin/registrations", icon: ClipboardList },
+  { label: "Reservations", href: "/admin/reservations", icon: ClipboardList },
   { label: "Cleaners", href: "/admin/cleaners", icon: SprayCan },
   { label: "Invoices", href: "/admin/invoices", icon: Receipt },
   { label: "Settings", href: "/admin/settings", icon: Settings },

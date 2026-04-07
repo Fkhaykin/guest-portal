@@ -1,0 +1,705 @@
+"use client";
+
+import { useEffect, useState, useCallback } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import {
+  ArrowLeft,
+  Pencil,
+  Eye,
+  Download,
+  Mail,
+  History,
+  ExternalLink,
+  Loader2,
+  CheckCircle2,
+  XCircle,
+  Users,
+  PawPrint,
+  Car,
+  CalendarDays,
+  DollarSign,
+  Home,
+  ClipboardCheck,
+  Camera,
+} from "lucide-react";
+import { EditRegistrationDialog } from "@/components/admin/edit-registration-dialog";
+import type { GuestListEntry, PetEntry, UpsellEntry, CleaningPhoto, CleaningChecklistItem } from "@/types/database";
+
+type FullRegistration = {
+  id: string;
+  property_id: string;
+  guest_id: string;
+  check_in_date: string;
+  check_out_date: string;
+  num_guests: number;
+  notes: string | null;
+  status: "active" | "completed" | "cancelled";
+  booking_source: string | null;
+  signature_url: string | null;
+  total_amount_cents: number;
+  guest_list: GuestListEntry[] | null;
+  pets: PetEntry[] | null;
+  upsells: UpsellEntry[] | null;
+  lodgify_booking_id: number | null;
+  created_at: string;
+  updated_at: string;
+  guest: {
+    id: string;
+    full_name: string;
+    email: string | null;
+    phone: string | null;
+    mailing_address: string | null;
+    lodgify_guest_id: number | null;
+  } | null;
+  property: {
+    id: string;
+    name: string;
+    nickname: string | null;
+    address: string | null;
+    slug: string;
+    max_guests: number;
+    lodgify_property_id: number | null;
+    listing_urls: Record<string, string>;
+    owner_name: string | null;
+    owner_phone: string | null;
+    owner_email: string | null;
+    hoa_submission_email: string | null;
+    emergency_contact_name: string | null;
+    emergency_contact_phone: string | null;
+  } | null;
+};
+
+type Vehicle = {
+  id: string;
+  year: string | null;
+  make: string | null;
+  model: string | null;
+  color: string | null;
+  license_plate: string;
+  state_or_region: string | null;
+  driver_name: string | null;
+};
+
+type CleaningStatus = {
+  id: string;
+  is_cleaned: boolean;
+  cleaned_at: string | null;
+  photos: CleaningPhoto[];
+  checklist: CleaningChecklistItem[];
+  notes: string | null;
+  cleaner_id: string | null;
+};
+
+type UpdateLog = {
+  id: string;
+  changed_by: string;
+  change_type: string;
+  summary: string | null;
+  previous_data: Record<string, unknown> | null;
+  new_data: Record<string, unknown> | null;
+  created_at: string;
+};
+
+export default function ReservationDetailPage() {
+  const params = useParams();
+  const router = useRouter();
+  const id = params.id as string;
+  const supabase = createClient();
+
+  const [reg, setReg] = useState<FullRegistration | null>(null);
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [cleaning, setCleaning] = useState<CleaningStatus | null>(null);
+  const [prevCleaning, setPrevCleaning] = useState<CleaningStatus | null>(null);
+  const [photoUrls, setPhotoUrls] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(true);
+  const [editOpen, setEditOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyLogs, setHistoryLogs] = useState<UpdateLog[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [emailing, setEmailing] = useState(false);
+  const [emailResult, setEmailResult] = useState<"success" | "error" | null>(null);
+
+  const loadData = useCallback(async () => {
+    setLoading(true);
+
+    // Fetch registration with joins
+    const { data: regData } = await supabase
+      .from("registration")
+      .select(`
+        id, property_id, guest_id, check_in_date, check_out_date, num_guests, notes,
+        status, booking_source, signature_url, total_amount_cents, guest_list, pets,
+        upsells, lodgify_booking_id, created_at, updated_at,
+        guest:guest_id(id, full_name, email, phone, mailing_address, lodgify_guest_id),
+        property:property_id(id, name, nickname, address, slug, max_guests, lodgify_property_id, listing_urls, owner_name, owner_phone, owner_email, hoa_submission_email, emergency_contact_name, emergency_contact_phone)
+      `)
+      .eq("id", id)
+      .single();
+
+    if (regData) {
+      setReg(regData as unknown as FullRegistration);
+
+      // Fetch vehicles
+      const { data: vehicleData } = await supabase
+        .from("vehicle")
+        .select("id, year, make, model, color, license_plate, state_or_region, driver_name")
+        .eq("registration_id", id);
+      setVehicles(vehicleData ?? []);
+
+      // Fetch cleaning status for THIS registration
+      const { data: cleaningData } = await supabase
+        .from("cleaning_status")
+        .select("id, is_cleaned, cleaned_at, photos, checklist, notes, cleaner_id")
+        .eq("registration_id", id)
+        .maybeSingle();
+      setCleaning(cleaningData);
+
+      // Fetch previous reservation's cleaning (photos from the turnover before this guest's check-in)
+      const { data: prevRegs } = await supabase
+        .from("registration")
+        .select("id")
+        .eq("property_id", regData.property_id)
+        .lt("check_out_date", (regData as { check_in_date: string }).check_in_date)
+        .order("check_out_date", { ascending: false })
+        .limit(1);
+
+      if (prevRegs && prevRegs.length > 0) {
+        const { data: prevCleaningData } = await supabase
+          .from("cleaning_status")
+          .select("id, is_cleaned, cleaned_at, photos, checklist, notes, cleaner_id")
+          .eq("registration_id", prevRegs[0].id)
+          .maybeSingle();
+        setPrevCleaning(prevCleaningData);
+
+        // Get signed URLs for previous cleaning photos
+        if (prevCleaningData?.photos?.length) {
+          const urls: Record<string, string> = {};
+          for (const photo of prevCleaningData.photos) {
+            const { data: signedUrl } = await supabase.storage
+              .from("cleaning-photos")
+              .createSignedUrl(photo.path, 3600);
+            if (signedUrl) urls[photo.path] = signedUrl.signedUrl;
+          }
+          setPhotoUrls(urls);
+        }
+      }
+    }
+
+    setLoading(false);
+  }, [id, supabase]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  async function openHistory() {
+    setHistoryOpen(true);
+    setHistoryLoading(true);
+    const { data } = await supabase
+      .from("registration_update_log")
+      .select("id, changed_by, change_type, summary, previous_data, new_data, created_at")
+      .eq("registration_id", id)
+      .order("created_at", { ascending: false });
+    setHistoryLogs(data ?? []);
+    setHistoryLoading(false);
+  }
+
+  async function handleEmail() {
+    setEmailing(true);
+    setEmailResult(null);
+    try {
+      const res = await fetch("/api/pepoa/submit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ registration_id: id }),
+      });
+      setEmailResult(res.ok ? "success" : "error");
+    } catch {
+      setEmailResult("error");
+    } finally {
+      setEmailing(false);
+      setTimeout(() => setEmailResult(null), 3000);
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center gap-2 text-muted-foreground py-12">
+        <Loader2 className="h-4 w-4 animate-spin" /> Loading reservation...
+      </div>
+    );
+  }
+
+  if (!reg) {
+    return (
+      <div className="space-y-4">
+        <Button variant="ghost" size="sm" onClick={() => router.push("/admin/reservations")}>
+          <ArrowLeft className="h-4 w-4 mr-1" /> Back
+        </Button>
+        <p className="text-muted-foreground">Reservation not found.</p>
+      </div>
+    );
+  }
+
+  const guest = reg.guest;
+  const property = reg.property;
+  const guestList = reg.guest_list ?? [];
+  const pets = reg.pets ?? [];
+  const upsells = reg.upsells ?? [];
+  const adults = guestList.filter((g) => g.age_group === "over_21").length;
+  const children = guestList.filter((g) => g.age_group === "under_21").length;
+  const infants = guestList.filter((g) => g.age_group === "infant").length;
+  const nights = Math.max(1, Math.round((new Date(reg.check_out_date).getTime() - new Date(reg.check_in_date).getTime()) / 86400000));
+  const hasSignature = !!reg.signature_url;
+  const lodgifyBookingUrl = reg.lodgify_booking_id
+    ? `https://app.lodgify.com/#/reservation/details/${reg.lodgify_booking_id}`
+    : null;
+  const guestPortalUrl = property ? `/p/${property.slug}/register` : null;
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-4">
+        <div className="space-y-1">
+          <Button variant="ghost" size="sm" className="mb-2 -ml-2" onClick={() => router.push("/admin/reservations")}>
+            <ArrowLeft className="h-4 w-4 mr-1" /> Reservations
+          </Button>
+          <h1 className="text-2xl font-bold tracking-tight">
+            {guest?.full_name ?? "Unknown Guest"}
+          </h1>
+          <p className="text-muted-foreground">
+            {property?.nickname || property?.name || "Unknown Property"} &middot; {reg.check_in_date} &rarr; {reg.check_out_date} ({nights} night{nights !== 1 ? "s" : ""})
+          </p>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <Badge
+            variant={
+              reg.status === "active" ? "default" : reg.status === "completed" ? "secondary" : "destructive"
+            }
+            className="text-sm"
+          >
+            {reg.status}
+          </Badge>
+          {hasSignature ? (
+            <Badge variant="outline" className="text-sm gap-1">
+              <CheckCircle2 className="h-3 w-3 text-green-600" /> Registered
+            </Badge>
+          ) : (
+            <Badge variant="outline" className="text-sm gap-1 text-muted-foreground">
+              <XCircle className="h-3 w-3" /> Not registered
+            </Badge>
+          )}
+        </div>
+      </div>
+
+      {/* Quick Actions */}
+      <div className="flex flex-wrap gap-2">
+        <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
+          <Pencil className="h-4 w-4 mr-1" /> Edit
+        </Button>
+        {hasSignature && (
+          <>
+            <a href={`/api/pepoa/generate?registration_id=${id}&disposition=inline`} target="_blank" rel="noopener noreferrer">
+              <Button variant="outline" size="sm">
+                <Eye className="h-4 w-4 mr-1" /> View PDF
+              </Button>
+            </a>
+            <a href={`/api/pepoa/generate?registration_id=${id}`} target="_blank" rel="noopener noreferrer">
+              <Button variant="outline" size="sm">
+                <Download className="h-4 w-4 mr-1" /> Download PDF
+              </Button>
+            </a>
+            <Button variant="outline" size="sm" onClick={handleEmail} disabled={emailing}>
+              {emailing ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : emailResult === "success" ? <Mail className="h-4 w-4 mr-1 text-green-600" /> : emailResult === "error" ? <Mail className="h-4 w-4 mr-1 text-red-600" /> : <Mail className="h-4 w-4 mr-1" />}
+              {emailResult === "success" ? "Sent!" : emailResult === "error" ? "Failed" : "Email to HOA"}
+            </Button>
+          </>
+        )}
+        <Button variant="outline" size="sm" onClick={openHistory}>
+          <History className="h-4 w-4 mr-1" /> History
+        </Button>
+        {lodgifyBookingUrl && (
+          <a href={lodgifyBookingUrl} target="_blank" rel="noopener noreferrer">
+            <Button variant="outline" size="sm">
+              <ExternalLink className="h-4 w-4 mr-1" /> Lodgify
+            </Button>
+          </a>
+        )}
+        {guestPortalUrl && (
+          <a href={guestPortalUrl} target="_blank" rel="noopener noreferrer">
+            <Button variant="outline" size="sm">
+              <ExternalLink className="h-4 w-4 mr-1" /> Guest Portal
+            </Button>
+          </a>
+        )}
+        {property?.listing_urls && Object.entries(property.listing_urls).map(([source, url]) => (
+          <a key={source} href={url} target="_blank" rel="noopener noreferrer">
+            <Button variant="outline" size="sm">
+              <ExternalLink className="h-4 w-4 mr-1" /> {source}
+            </Button>
+          </a>
+        ))}
+      </div>
+
+      <Tabs defaultValue="details">
+        <TabsList>
+          <TabsTrigger value="details">Details</TabsTrigger>
+          <TabsTrigger value="cleaning">Cleaning Photos</TabsTrigger>
+        </TabsList>
+
+        {/* Details Tab */}
+        <TabsContent value="details" className="space-y-6 mt-4">
+          <div className="grid gap-6 md:grid-cols-2">
+            {/* Booking Info */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <CalendarDays className="h-4 w-4" /> Booking
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2 text-sm">
+                <Row label="Check-in" value={reg.check_in_date} />
+                <Row label="Check-out" value={reg.check_out_date} />
+                <Row label="Nights" value={String(nights)} />
+                <Row label="Source" value={reg.booking_source ? reg.booking_source.charAt(0).toUpperCase() + reg.booking_source.slice(1) : "—"} />
+                <Row label="Revenue" value={reg.total_amount_cents ? `$${(reg.total_amount_cents / 100).toLocaleString()}` : "—"} />
+                {reg.lodgify_booking_id && <Row label="Lodgify ID" value={String(reg.lodgify_booking_id)} />}
+                <Row label="Created" value={new Date(reg.created_at).toLocaleDateString()} />
+                <Row label="Updated" value={new Date(reg.updated_at).toLocaleDateString()} />
+              </CardContent>
+            </Card>
+
+            {/* Guest Info */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Users className="h-4 w-4" /> Guest
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2 text-sm">
+                <Row label="Name" value={guest?.full_name ?? "Unknown"} />
+                <Row label="Email" value={guest?.email ?? "—"} />
+                <Row label="Phone" value={guest?.phone ?? "—"} />
+                <Row label="Address" value={guest?.mailing_address ?? "—"} />
+                <Row label="Total guests" value={String(reg.num_guests)} />
+                {guestList.length > 0 && (
+                  <div className="pt-1">
+                    <p className="text-xs text-muted-foreground mb-1">Breakdown: {adults} adult{adults !== 1 ? "s" : ""}, {children} child{children !== 1 ? "ren" : ""}, {infants} infant{infants !== 1 ? "s" : ""}</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Property Info */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Home className="h-4 w-4" /> Property
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2 text-sm">
+                <Row label="Name" value={property?.name ?? "—"} />
+                {property?.nickname && <Row label="Nickname" value={property.nickname} />}
+                <Row label="Address" value={property?.address ?? "—"} />
+                <Row label="Max guests" value={String(property?.max_guests ?? "—")} />
+                {property?.owner_name && <Row label="Owner" value={property.owner_name} />}
+                {property?.owner_phone && <Row label="Owner phone" value={property.owner_phone} />}
+                {property?.owner_email && <Row label="Owner email" value={property.owner_email} />}
+                {property?.hoa_submission_email && <Row label="HOA email" value={property.hoa_submission_email} />}
+                {property?.emergency_contact_name && (
+                  <Row label="Emergency" value={`${property.emergency_contact_name} ${property.emergency_contact_phone ?? ""}`} />
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Registration Status */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <ClipboardCheck className="h-4 w-4" /> Registration
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2 text-sm">
+                <Row label="Status" value={hasSignature ? "Completed" : "Incomplete"} />
+                {reg.notes && <Row label="Notes" value={reg.notes} />}
+                {hasSignature && (
+                  <div className="pt-1">
+                    <p className="text-xs text-muted-foreground">Signature on file</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Guest List */}
+          {guestList.length > 0 && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Users className="h-4 w-4" /> Guest List ({guestList.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                  {guestList.map((g, i) => (
+                    <div key={i} className="flex items-center justify-between bg-muted rounded-md px-3 py-2 text-sm">
+                      <span>{g.first_name} {g.last_name}</span>
+                      <Badge variant="outline" className="text-xs capitalize">
+                        {g.age_group === "over_21" ? "Adult" : g.age_group === "under_21" ? "Child" : "Infant"}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Pets */}
+          {pets.length > 0 && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <PawPrint className="h-4 w-4" /> Pets ({pets.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {pets.map((p, i) => (
+                    <div key={i} className="bg-muted rounded-md px-3 py-2 text-sm">
+                      <span className="font-medium">{p.name}</span>
+                      <span className="text-muted-foreground ml-2">({p.kind})</span>
+                      <div className="flex gap-2 mt-1">
+                        {p.rabies_doc_path && <Badge variant="outline" className="text-xs">Rabies doc</Badge>}
+                        {p.vaccination_doc_path && <Badge variant="outline" className="text-xs">Vaccination doc</Badge>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Vehicles */}
+          {vehicles.length > 0 && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Car className="h-4 w-4" /> Vehicles ({vehicles.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {vehicles.map((v) => (
+                    <div key={v.id} className="bg-muted rounded-md px-3 py-2 text-sm space-y-0.5">
+                      <p className="font-medium">
+                        {[v.year, v.make, v.model].filter(Boolean).join(" ") || "Unknown vehicle"}
+                      </p>
+                      <p className="text-muted-foreground text-xs">
+                        {v.color && <span>{v.color} &middot; </span>}
+                        {v.license_plate} {v.state_or_region && `(${v.state_or_region})`}
+                      </p>
+                      {v.driver_name && <p className="text-xs text-muted-foreground">Driver: {v.driver_name}</p>}
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Upsells */}
+          {upsells.length > 0 && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <DollarSign className="h-4 w-4" /> Upsells ({upsells.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {upsells.map((u, i) => (
+                    <div key={i} className="flex items-center justify-between bg-muted rounded-md px-3 py-2 text-sm">
+                      <span>{u.label}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">${(u.price_cents / 100).toFixed(0)}</span>
+                        <Badge variant={u.status === "paid" ? "default" : "outline"} className="text-xs capitalize">
+                          {u.status}
+                        </Badge>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        {/* Cleaning Photos Tab */}
+        <TabsContent value="cleaning" className="space-y-6 mt-4">
+          {/* Current reservation cleaning status */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <ClipboardCheck className="h-4 w-4" /> Post-Stay Cleaning
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {cleaning ? (
+                <div className="space-y-2 text-sm">
+                  <Row label="Status" value={cleaning.is_cleaned ? "Cleaned" : "Pending"} />
+                  {cleaning.cleaned_at && <Row label="Cleaned at" value={new Date(cleaning.cleaned_at).toLocaleString()} />}
+                  {cleaning.notes && <Row label="Notes" value={cleaning.notes} />}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">No cleaning record yet.</p>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Previous reservation cleaning photos (pre-arrival photos) */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Camera className="h-4 w-4" /> Pre-Arrival Cleaning Photos
+              </CardTitle>
+              <p className="text-xs text-muted-foreground">Photos from the turnover cleaning before this guest checked in</p>
+            </CardHeader>
+            <CardContent>
+              {prevCleaning?.photos && prevCleaning.photos.length > 0 ? (
+                <div className="space-y-4">
+                  {/* Group photos by room */}
+                  {Object.entries(
+                    prevCleaning.photos.reduce<Record<string, CleaningPhoto[]>>((acc, photo) => {
+                      const room = photo.room || "Other";
+                      if (!acc[room]) acc[room] = [];
+                      acc[room].push(photo);
+                      return acc;
+                    }, {})
+                  ).map(([room, photos]) => (
+                    <div key={room}>
+                      <h4 className="text-sm font-medium mb-2">{room}</h4>
+                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                        {photos.map((photo) => (
+                          <a
+                            key={photo.path}
+                            href={photoUrls[photo.path] || "#"}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="block aspect-square rounded-lg overflow-hidden bg-muted hover:ring-2 ring-primary transition-all"
+                          >
+                            {photoUrls[photo.path] ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={photoUrls[photo.path]}
+                                alt={`${room} cleaning photo`}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                                <Camera className="h-6 w-6" />
+                              </div>
+                            )}
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                  {prevCleaning.cleaned_at && (
+                    <p className="text-xs text-muted-foreground">
+                      Cleaned on {new Date(prevCleaning.cleaned_at).toLocaleString()}
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  No cleaning photos available for the turnover prior to this reservation.
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+      {/* Edit Dialog */}
+      <EditRegistrationDialog
+        registrationId={id}
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        onSaved={loadData}
+      />
+
+      {/* History Dialog */}
+      <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
+        <DialogContent className="sm:max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Version History</DialogTitle>
+            <DialogDescription>{guest?.full_name ?? "Unknown"}</DialogDescription>
+          </DialogHeader>
+
+          {historyLoading ? (
+            <p className="text-sm text-muted-foreground py-4">Loading...</p>
+          ) : historyLogs.length > 0 ? (
+            <div className="space-y-4">
+              {historyLogs.map((log) => (
+                <div key={log.id} className="border rounded-lg p-3 space-y-1">
+                  <div className="flex items-center justify-between">
+                    <Badge variant="secondary" className="text-xs">
+                      {log.change_type.replace(/_/g, " ")}
+                    </Badge>
+                    <span className="text-xs text-muted-foreground">
+                      {new Date(log.created_at).toLocaleString()}
+                    </span>
+                  </div>
+                  {log.summary && <p className="text-sm">{log.summary}</p>}
+                  <p className="text-xs text-muted-foreground">by {log.changed_by}</p>
+                  {log.new_data && Object.keys(log.new_data).length > 0 && (
+                    <div className="mt-2">
+                      <p className="text-xs font-medium text-muted-foreground">New data</p>
+                      <pre className="mt-1 text-xs bg-muted p-2 rounded overflow-x-auto">
+                        {JSON.stringify(log.new_data, null, 2)}
+                      </pre>
+                    </div>
+                  )}
+                  {log.previous_data && Object.keys(log.previous_data).length > 0 && (
+                    <details className="mt-2">
+                      <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground">
+                        Previous data
+                      </summary>
+                      <pre className="mt-1 text-xs bg-muted p-2 rounded overflow-x-auto">
+                        {JSON.stringify(log.previous_data, null, 2)}
+                      </pre>
+                    </details>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground py-4">
+              No changes recorded for this reservation.
+            </p>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex justify-between gap-4">
+      <span className="text-muted-foreground shrink-0">{label}</span>
+      <span className="text-right">{value}</span>
+    </div>
+  );
+}
