@@ -33,9 +33,10 @@ export async function POST(request: Request) {
         to: hoaEmail,
         pdfBuffer,
         guestName: (data.guest.full_name as string) || "Guest",
-        propertyName: (data.property.name as string) || "Property",
-        leaseStart: data.reg.check_in_date as string,
-        leaseEnd: data.reg.check_out_date as string,
+        lotSection: (data.property.lot_section as string) || "N/A",
+        checkInDate: data.reg.check_in_date as string,
+        ownerPhone: (data.property.owner_phone as string) || "",
+        ownerEmail: (data.property.owner_email as string) || (data.host.email as string) || "",
       });
     } catch (err) {
       console.error("Failed to send registration PDF email:", err);

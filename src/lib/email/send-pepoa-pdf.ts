@@ -8,23 +8,32 @@ export async function sendPEPOAPDF({
   to,
   pdfBuffer,
   guestName,
-  propertyName,
-  leaseStart,
-  leaseEnd,
+  lotSection,
+  checkInDate,
+  ownerPhone,
+  ownerEmail,
 }: {
   to: string;
   pdfBuffer: Buffer;
   guestName: string;
-  propertyName: string;
-  leaseStart: string;
-  leaseEnd: string;
+  lotSection: string;
+  checkInDate: string;
+  ownerPhone: string;
+  ownerEmail: string;
 }) {
-  const subject = `Short-Term Tenant Registration — ${guestName} — ${propertyName}`;
+  const subject = `Short-Term Tenant Registration — Lot/Section ${lotSection} — Check-in ${checkInDate}`;
 
   const fromEmail = process.env.RESEND_FROM_EMAIL;
   if (!fromEmail) {
     throw new Error("RESEND_FROM_EMAIL environment variable is not set");
   }
+
+  const contactLines = [
+    "",
+    "If you have any questions, please contact us:",
+  ];
+  if (ownerPhone) contactLines.push(`  Phone: ${ownerPhone}`);
+  if (ownerEmail) contactLines.push(`  Email: ${ownerEmail}`);
 
   const resend = getResend();
   const { error } = await resend.emails.send({
@@ -32,12 +41,13 @@ export async function sendPEPOAPDF({
     to,
     subject,
     text: [
-      `A new tenant registration form has been submitted for ${propertyName}.`,
+      `A new tenant registration form has been submitted for Lot/Section ${lotSection}.`,
       "",
       `Registered Guest: ${guestName}`,
-      `Lease Period: ${leaseStart} — ${leaseEnd}`,
+      `Check-in Date: ${checkInDate}`,
       "",
-      "The completed PEPOA Short-Term Tenant Registration Form and Lease is attached as a PDF.",
+      "The completed Short-Term Tenant Registration Form and Lease is attached as a PDF.",
+      ...contactLines,
     ].join("\n"),
     attachments: [
       {
