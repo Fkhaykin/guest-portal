@@ -13,6 +13,7 @@ import {
   DollarSign,
   Home,
   PawPrint,
+  Pencil,
   Wrench,
   ReceiptText,
   User,
@@ -135,7 +136,15 @@ export function AdminInvoiceDetail({
             </div>
           </div>
         </div>
-        <Badge className={STATUS_STYLES[status]}>{status}</Badge>
+        <div className="flex items-center gap-2">
+          <Link href={`/admin/invoices/${invoice.id}/edit`}>
+            <Button variant="outline" size="sm">
+              <Pencil className="h-3.5 w-3.5 mr-1" />
+              Edit
+            </Button>
+          </Link>
+          <Badge className={STATUS_STYLES[status]}>{status}</Badge>
+        </div>
       </div>
 
       {/* Line items */}

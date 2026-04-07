@@ -58,6 +58,11 @@ export function InvoiceForm({
   properties,
   unbilledCleanings,
   initialData,
+  saveEndpoint = "/api/cleaner/invoices",
+  saveMethod = "POST",
+  uploadEndpoint = "/api/cleaner/upload-attachment",
+  redirectPath = "/cleaner/invoices",
+  mode = "cleaner",
 }: {
   properties: Property[];
   unbilledCleanings?: UnbilledCleaning[];
@@ -70,6 +75,11 @@ export function InvoiceForm({
     attachments?: InvoiceAttachment[];
     notes: string | null;
   };
+  saveEndpoint?: string;
+  saveMethod?: "POST" | "PUT";
+  uploadEndpoint?: string;
+  redirectPath?: string;
+  mode?: "cleaner" | "admin";
 }) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
@@ -176,7 +186,7 @@ export function InvoiceForm({
       const formData = new FormData();
       formData.append("file", file);
 
-      const res = await fetch("/api/cleaner/upload-attachment", {
+      const res = await fetch(uploadEndpoint, {
         method: "POST",
         body: formData,
       });
@@ -207,23 +217,30 @@ export function InvoiceForm({
 
     setSaving(true);
     try {
-      const res = await fetch("/api/cleaner/invoices", {
-        method: "POST",
+      const payload: Record<string, unknown> = {
+        period_start: periodStart,
+        period_end: periodEnd,
+        line_items: validLines,
+        adjustments: validAdjustments,
+        attachments,
+        notes: notes || undefined,
+      };
+
+      if (mode === "cleaner") {
+        payload.id = initialData?.id;
+        payload.submit = submit;
+      } else {
+        payload.invoice_id = initialData?.id;
+      }
+
+      const res = await fetch(saveEndpoint, {
+        method: saveMethod,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: initialData?.id,
-          period_start: periodStart,
-          period_end: periodEnd,
-          line_items: validLines,
-          adjustments: validAdjustments,
-          attachments,
-          notes: notes || undefined,
-          submit,
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (res.ok) {
-        router.push("/cleaner/invoices");
+        router.push(redirectPath);
         router.refresh();
       }
     } finally {
@@ -598,25 +615,36 @@ export function InvoiceForm({
         </CardContent>
       </Card>
 
-      <div className="flex gap-3">
+      {mode === "admin" ? (
         <Button
-          variant="outline"
           onClick={() => handleSave(false)}
-          disabled={saving || !periodStart || !periodEnd}
-          className="flex-1"
+          disabled={saving || !periodStart || !periodEnd || total === 0}
+          className="w-full"
         >
           <Save className="h-4 w-4 mr-1" />
-          Save Draft
+          {saving ? "Saving..." : "Save Changes"}
         </Button>
-        <Button
-          onClick={() => handleSave(true)}
-          disabled={saving || !periodStart || !periodEnd || total === 0}
-          className="flex-1"
-        >
-          <Send className="h-4 w-4 mr-1" />
-          Submit Invoice
-        </Button>
-      </div>
+      ) : (
+        <div className="flex gap-3">
+          <Button
+            variant="outline"
+            onClick={() => handleSave(false)}
+            disabled={saving || !periodStart || !periodEnd}
+            className="flex-1"
+          >
+            <Save className="h-4 w-4 mr-1" />
+            Save Draft
+          </Button>
+          <Button
+            onClick={() => handleSave(true)}
+            disabled={saving || !periodStart || !periodEnd || total === 0}
+            className="flex-1"
+          >
+            <Send className="h-4 w-4 mr-1" />
+            Submit Invoice
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
