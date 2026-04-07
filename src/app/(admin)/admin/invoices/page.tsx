@@ -101,21 +101,26 @@ export default async function AdminInvoicesPage() {
         (properties || []).map((p) => [p.id, p])
       );
 
-      // Get all cleaned statuses for these properties
-      const { data: cleanedStatuses } = await admin
-        .from("cleaning_status")
+      // Get all registrations with checkouts since 2026-03-15 at assigned properties
+      const { data: allRegs } = await admin
+        .from("registration")
         .select(
-          "registration_id, cleaned_at, registration!inner(property_id)"
+          "id, property_id, check_in_date, check_out_date, num_guests, pets, guest:guest_id(full_name)"
         )
-        .eq("is_cleaned", true)
-        .in(
-          "registration.property_id",
-          allPropertyIds
-        );
+        .in("property_id", allPropertyIds)
+        .gte("check_out_date", "2026-03-15");
 
-      const cleanedRegIds = (cleanedStatuses || []).map(
-        (s) => s.registration_id
-      );
+      const allRegIds = (allRegs || []).map((r) => r.id);
+
+      // Get cleaned statuses for these registrations
+      const { data: cleanedStatuses } = allRegIds.length > 0
+        ? await admin
+            .from("cleaning_status")
+            .select("registration_id, cleaned_at")
+            .eq("is_cleaned", true)
+            .in("registration_id", allRegIds)
+        : { data: [] };
+
       const cleanedAtMap = new Map(
         (cleanedStatuses || []).map((s) => [
           s.registration_id,
@@ -138,20 +143,12 @@ export default async function AdminInvoicesPage() {
         }
       }
 
-      const unbilledRegIds = cleanedRegIds.filter(
-        (id) => !billedRegIds.has(id)
+      const unbilledRegs = (allRegs || []).filter(
+        (r) => !billedRegIds.has(r.id) && propMap.has(r.property_id)
       );
 
-      if (unbilledRegIds.length > 0) {
-        const { data: regs } = await admin
-          .from("registration")
-          .select(
-            "id, property_id, check_in_date, check_out_date, num_guests, pets, guest:guest_id(full_name)"
-          )
-          .in("id", unbilledRegIds);
-
-        unpaidCleanings = (regs || [])
-          .filter((r) => propMap.has(r.property_id))
+      if (unbilledRegs.length > 0) {
+        unpaidCleanings = unbilledRegs
           .map((r) => {
             const prop = propMap.get(r.property_id)!;
             const pets = r.pets as Array<{ name?: string }> | null;

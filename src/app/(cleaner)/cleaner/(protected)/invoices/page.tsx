@@ -73,15 +73,23 @@ export default async function InvoicesPage() {
     (properties || []).map((p) => [p.id, p])
   );
 
-  // Get cleaned statuses for registrations at the cleaner's assigned properties
-  // Uses a PostgREST inner join so we filter by property in a single query
-  const { data: cleanedStatuses } = await supabase
-    .from("cleaning_status")
-    .select("registration_id, cleaned_at, registration!inner(property_id)")
-    .eq("is_cleaned", true)
-    .in("registration.property_id", propertyIds.length > 0 ? propertyIds : ["_none_"]);
+  // Get all registrations with checkouts since 2026-03-15 at assigned properties
+  const { data: allRegs } = await supabase
+    .from("registration")
+    .select("id, property_id, check_in_date, check_out_date, num_guests, pets, guest:guest_id(full_name)")
+    .in("property_id", propertyIds.length > 0 ? propertyIds : ["_none_"])
+    .gte("check_out_date", "2026-03-15");
 
-  const cleanedRegIds = (cleanedStatuses || []).map((s) => s.registration_id);
+  // Get cleaned statuses for these registrations
+  const allRegIds = (allRegs || []).map((r) => r.id);
+  const { data: cleanedStatuses } = allRegIds.length > 0
+    ? await supabase
+        .from("cleaning_status")
+        .select("registration_id, cleaned_at")
+        .eq("is_cleaned", true)
+        .in("registration_id", allRegIds)
+    : { data: [] };
+
   const cleanedAtMap = new Map(
     (cleanedStatuses || []).map((s) => [s.registration_id, s.cleaned_at])
   );
@@ -101,17 +109,11 @@ export default async function InvoicesPage() {
     }
   }
 
-  const unbilledRegIds = cleanedRegIds.filter((id) => !billedRegIds.has(id));
-
   let unpaidCleanings: UnpaidCleaning[] = [];
-  if (unbilledRegIds.length > 0) {
-    const { data: regs } = await supabase
-      .from("registration")
-      .select("id, property_id, check_in_date, check_out_date, num_guests, pets, guest:guest_id(full_name)")
-      .in("id", unbilledRegIds);
+  const unbilledRegs = (allRegs || []).filter((r) => !billedRegIds.has(r.id) && propMap.has(r.property_id));
 
-    unpaidCleanings = (regs || [])
-      .filter((r) => propMap.has(r.property_id))
+  if (unbilledRegs.length > 0) {
+    unpaidCleanings = unbilledRegs
       .map((r) => {
         const prop = propMap.get(r.property_id)!;
         const pets = r.pets as Array<{ name?: string }> | null;

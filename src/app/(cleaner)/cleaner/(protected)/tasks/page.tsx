@@ -67,11 +67,11 @@ export default async function CleanerDashboard() {
   // Get property names and cover images
   const { data: properties } = await supabase
     .from("property")
-    .select("id, name, nickname, cover_image_url")
+    .select("id, name, nickname, cover_image_url, cleaning_photo_areas")
     .in("id", propertyIds);
 
   const propertyMap = new Map(
-    (properties || []).map((p) => [p.id, { name: p.name, nickname: p.nickname, coverImage: p.cover_image_url }])
+    (properties || []).map((p) => [p.id, { name: p.name, nickname: p.nickname, coverImage: p.cover_image_url, photoAreas: p.cleaning_photo_areas as string[] | null }])
   );
 
   // Get registrations: current, upcoming, and recently departed
@@ -162,6 +162,7 @@ export default async function CleanerDashboard() {
           upsells={paidUpsells}
           isCleaned={status?.is_cleaned ?? false}
           fulfilledUpsells={status?.fulfilled_upsells ?? []}
+          photoAreas={prop?.photoAreas || null}
           category={category}
         />
       );

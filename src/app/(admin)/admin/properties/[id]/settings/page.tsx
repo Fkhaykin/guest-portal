@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Save } from "lucide-react";
+import { Save, Plus, X, GripVertical } from "lucide-react";
 
 export default function PropertySettingsPage({
   params,
@@ -26,6 +26,8 @@ export default function PropertySettingsPage({
   const [description, setDescription] = useState("");
   const [cleaningFee, setCleaningFee] = useState("");
   const [petFee, setPetFee] = useState("");
+  const [photoAreas, setPhotoAreas] = useState<string[]>([]);
+  const [newArea, setNewArea] = useState("");
 
   const supabase = createClient();
 
@@ -33,7 +35,7 @@ export default function PropertySettingsPage({
     async function load() {
       const { data } = await supabase
         .from("property")
-        .select("name, nickname, address, description, cleaning_fee_cents, pet_fee_cents")
+        .select("name, nickname, address, description, cleaning_fee_cents, pet_fee_cents, cleaning_photo_areas")
         .eq("id", id)
         .single();
 
@@ -44,6 +46,7 @@ export default function PropertySettingsPage({
         setDescription(data.description || "");
         setCleaningFee(data.cleaning_fee_cents ? (data.cleaning_fee_cents / 100).toFixed(2) : "");
         setPetFee(data.pet_fee_cents ? (data.pet_fee_cents / 100).toFixed(2) : "");
+        setPhotoAreas(data.cleaning_photo_areas || []);
       }
       setLoading(false);
     }
@@ -65,6 +68,7 @@ export default function PropertySettingsPage({
         description: description.trim() || null,
         cleaning_fee_cents: cleaningFee ? Math.round(parseFloat(cleaningFee) * 100) : 0,
         pet_fee_cents: petFee ? Math.round(parseFloat(petFee) * 100) : 0,
+        cleaning_photo_areas: photoAreas,
       })
       .eq("id", id);
 
@@ -178,6 +182,67 @@ export default function PropertySettingsPage({
                   placeholder="0.00"
                 />
               </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Cleaning Photo Areas</CardTitle>
+            <CardDescription>
+              Areas the cleaner must photograph when completing a cleaning. Add or remove areas specific to this property.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {photoAreas.map((area, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <GripVertical className="h-4 w-4 text-muted-foreground/40 shrink-0" />
+                <Input
+                  value={area}
+                  onChange={(e) => {
+                    const updated = [...photoAreas];
+                    updated[i] = e.target.value;
+                    setPhotoAreas(updated);
+                  }}
+                  className="flex-1"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setPhotoAreas(photoAreas.filter((_, idx) => idx !== i))}
+                  className="shrink-0 text-muted-foreground hover:text-destructive"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            ))}
+            <div className="flex items-center gap-2">
+              <Input
+                value={newArea}
+                onChange={(e) => setNewArea(e.target.value)}
+                placeholder="Add new area..."
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && newArea.trim()) {
+                    e.preventDefault();
+                    setPhotoAreas([...photoAreas, newArea.trim()]);
+                    setNewArea("");
+                  }
+                }}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                disabled={!newArea.trim()}
+                onClick={() => {
+                  setPhotoAreas([...photoAreas, newArea.trim()]);
+                  setNewArea("");
+                }}
+                className="shrink-0"
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
             </div>
           </CardContent>
         </Card>

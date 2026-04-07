@@ -84,17 +84,16 @@ function DateBlock({
 }) {
   const { dayOfWeek, month, day } = formatDateProminent(dateStr);
   return (
-    <div className="text-center min-w-13">
-      <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+    <div className="text-center">
+      <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-0.5">
         {label}
       </p>
-      {time && (
-        <p className="text-base font-bold text-primary leading-tight">{time}</p>
-      )}
-      <p className="text-lg font-bold leading-tight">{day}</p>
-      <p className="text-xs text-muted-foreground">
-        {dayOfWeek}, {month}
+      <p className="text-sm font-semibold leading-tight">
+        {dayOfWeek}, {month} {day}
       </p>
+      {time && (
+        <p className="text-xs text-muted-foreground leading-tight">{time}</p>
+      )}
     </div>
   );
 }
@@ -112,6 +111,7 @@ export function ReservationCard({
   upsells,
   isCleaned: initialCleaned,
   fulfilledUpsells: initialFulfilled,
+  photoAreas,
   category,
 }: {
   registrationId: string;
@@ -126,6 +126,7 @@ export function ReservationCard({
   upsells: UpsellEntry[];
   isCleaned: boolean;
   fulfilledUpsells: string[];
+  photoAreas: string[] | null;
   category: "current" | "upcoming" | "departed";
 }) {
   const [isCleaned, setIsCleaned] = useState(initialCleaned);
@@ -217,7 +218,7 @@ export function ReservationCard({
               : ""
         }`}
       >
-        <CardContent className="pt-4 space-y-3">
+        <CardContent className="pt-3 pb-3 space-y-2">
           {/* Property header: thumbnail + name + timing */}
           <div className="flex items-center gap-3">
             <div className="h-12 w-12 rounded-lg overflow-hidden shrink-0">
@@ -248,8 +249,8 @@ export function ReservationCard({
               )}
             </div>
           </div>
-          {/* Prominent dates */}
-          <div className="flex items-center justify-center gap-6 py-2 bg-muted/30 rounded-lg">
+          {/* Dates */}
+          <div className="flex items-center justify-center gap-4 py-1.5 bg-muted/30 rounded-lg">
             <DateBlock dateStr={checkIn} label="Check-in" time={checkInTime} />
             <div className="text-muted-foreground text-lg">&rarr;</div>
             <DateBlock dateStr={checkOut} label="Check-out" time={checkOutTime} />
@@ -322,12 +323,12 @@ export function ReservationCard({
           {/* Cleaned button */}
           <Separator />
           {isCleaned ? (
-            <div className="flex items-center justify-center gap-2 w-full py-2.5 rounded-lg text-sm font-medium bg-green-600 text-white">
+            <div className="flex items-center justify-center gap-2 w-full py-2 rounded-lg text-sm font-medium bg-green-600 text-white">
               <Check className="h-4 w-4" />
               Cleaned
             </div>
           ) : !isCheckoutPassed ? (
-            <div className="flex items-center justify-center gap-2 w-full py-2.5 rounded-lg text-sm font-medium bg-muted text-muted-foreground cursor-not-allowed" title="Can only mark clean after checkout">
+            <div className="flex items-center justify-center gap-2 w-full py-2 rounded-lg text-sm font-medium bg-muted text-muted-foreground cursor-not-allowed" title="Can only mark clean after checkout">
               <Clock className="h-4 w-4" />
               Available after checkout
             </div>
@@ -335,7 +336,7 @@ export function ReservationCard({
             <button
               onClick={() => setDialogOpen(true)}
               disabled={saving}
-              className="flex items-center justify-center gap-2 w-full py-2.5 rounded-lg text-sm font-medium transition-all bg-muted hover:bg-muted/80 text-muted-foreground"
+              className="flex items-center justify-center gap-2 w-full py-2 rounded-lg text-sm font-medium transition-all bg-primary text-primary-foreground hover:bg-primary/90"
             >
               <SprayCan className="h-4 w-4" />
               Mark as Cleaned
@@ -350,6 +351,7 @@ export function ReservationCard({
         registrationId={registrationId}
         propertyName={propertyName}
         checkOutDate={checkOut}
+        photoAreas={photoAreas}
         onComplete={handleCleaningComplete}
       />
     </>
