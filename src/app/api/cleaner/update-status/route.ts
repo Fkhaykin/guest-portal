@@ -20,7 +20,8 @@ export async function POST(request: Request) {
     is_skipped?: boolean;
     fulfilled_upsells?: string[];
     checklist?: { room: string; item: string; checked: boolean }[];
-    photos?: { room: string; path: string; uploaded_at: string }[];
+    photos?: { room: string; path: string; uploaded_at: string; note?: string }[];
+    notes?: string | null;
   };
   try {
     body = await request.json();
@@ -28,7 +29,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { registration_id, is_cleaned, is_skipped, fulfilled_upsells, checklist, photos } = body;
+  const { registration_id, is_cleaned, is_skipped, fulfilled_upsells, checklist, photos, notes } = body;
   if (!registration_id) {
     return NextResponse.json(
       { error: "registration_id is required" },
@@ -100,6 +101,10 @@ export async function POST(request: Request) {
 
   if (is_skipped !== undefined) {
     payload.is_skipped = is_skipped;
+  }
+
+  if (notes !== undefined) {
+    payload.notes = notes;
   }
 
   const { data: status, error } = await supabase

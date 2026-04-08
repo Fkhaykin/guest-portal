@@ -15,9 +15,10 @@ import {
   Camera,
   X,
   Loader2,
-  ImageIcon,
 } from "lucide-react";
 import type { CleaningPhoto } from "@/types/database";
+
+type PhotoWithUrl = CleaningPhoto & { url?: string | null };
 
 const DEFAULT_PHOTO_AREAS = [
   "Front Yard",
@@ -64,13 +65,15 @@ export function CleaningDialog({
   onComplete: () => void;
 }) {
   const areas = photoAreas && photoAreas.length > 0 ? photoAreas : DEFAULT_PHOTO_AREAS;
-  const [photos, setPhotos] = useState<CleaningPhoto[]>([]);
+  const [photos, setPhotos] = useState<PhotoWithUrl[]>([]);
   const [uploading, setUploading] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [activeRoom, setActiveRoom] = useState<string | null>(null);
+  const [fullscreenUrl, setFullscreenUrl] = useState<string | null>(null);
+  const [notes, setNotes] = useState<Record<string, string>>({});
 
-  const photosPerArea = areas.reduce<Record<string, CleaningPhoto[]>>((acc, area) => {
+  const photosPerArea = areas.reduce<Record<string, PhotoWithUrl[]>>((acc, area) => {
     acc[area] = photos.filter((p) => p.room === area);
     return acc;
   }, {});
@@ -114,13 +117,19 @@ export function CleaningDialog({
   async function handleSubmit() {
     setSubmitting(true);
 
+    // Attach per-room notes to photos
+    const photosWithNotes = photos.map((p) => ({
+      ...p,
+      note: notes[p.room] || undefined,
+    }));
+
     await fetch("/api/cleaner/update-status", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         registration_id: registrationId,
         is_cleaned: true,
-        photos,
+        photos: photosWithNotes,
       }),
     });
 
@@ -172,12 +181,31 @@ export function CleaningDialog({
                       return (
                         <div
                           key={i}
-                          className="relative w-16 h-16 rounded-lg bg-muted flex items-center justify-center border overflow-hidden group"
+                          className="relative w-16 h-16 rounded-lg bg-muted border overflow-hidden"
                         >
-                          <ImageIcon className="h-6 w-6 text-muted-foreground/50" />
+                          {photo.url ? (
+                            <button
+                              type="button"
+                              onClick={() => setFullscreenUrl(photo.url!)}
+                              className="w-full h-full"
+                            >
+                              <img
+                                src={photo.url}
+                                alt={photo.room}
+                                className="w-full h-full object-cover"
+                              />
+                            </button>
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <Camera className="h-5 w-5 text-muted-foreground/50" />
+                            </div>
+                          )}
                           <button
-                            onClick={() => removePhoto(globalIdx)}
-                            className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              removePhoto(globalIdx);
+                            }}
+                            className="absolute top-0.5 right-0.5 bg-black/60 text-white rounded-full p-0.5"
                           >
                             <X className="h-3 w-3" />
                           </button>
@@ -207,6 +235,19 @@ export function CleaningDialog({
                       ? "Add another photo"
                       : "Take or upload photo"}
                 </button>
+
+                {/* Optional note */}
+                {areaPhotos.length > 0 && (
+                  <input
+                    type="text"
+                    placeholder="Add a note (optional)"
+                    value={notes[area] || ""}
+                    onChange={(e) =>
+                      setNotes((prev) => ({ ...prev, [area]: e.target.value }))
+                    }
+                    className="w-full px-3 py-2 rounded-lg border text-sm bg-background placeholder:text-muted-foreground/60"
+                  />
+                )}
               </div>
             );
           })}
@@ -242,6 +283,27 @@ export function CleaningDialog({
           </Button>
         </div>
       </DialogContent>
+
+      {/* Fullscreen image viewer */}
+      {fullscreenUrl && (
+        <div
+          className="fixed inset-0 z-100 bg-black/90 flex items-center justify-center"
+          onClick={() => setFullscreenUrl(null)}
+        >
+          <button
+            onClick={() => setFullscreenUrl(null)}
+            className="absolute top-4 right-4 bg-black/60 text-white rounded-full p-2"
+          >
+            <X className="h-6 w-6" />
+          </button>
+          <img
+            src={fullscreenUrl}
+            alt="Full size"
+            className="max-w-full max-h-full object-contain p-4"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
     </Dialog>
   );
 }

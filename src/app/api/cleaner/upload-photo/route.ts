@@ -75,12 +75,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Upload failed" }, { status: 500 });
   }
 
+  const { data: urlData } = await supabase.storage
+    .from("cleaning-photos")
+    .createSignedUrl(path, 3600);
+
   return NextResponse.json({
     ok: true,
     photo: {
       room,
       path,
       uploaded_at: new Date().toISOString(),
+      url: urlData?.signedUrl ?? null,
     },
   });
 }

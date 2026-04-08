@@ -153,6 +153,7 @@ export default async function AdminRegistrationsPage({
                     <RegistrationActions
                       registrationId={reg.id}
                       hasSignature={!!reg.signature_url}
+                      guestName={guest?.full_name ?? "Unknown"}
                     />
                   </TableCell>
                 </TableRow>

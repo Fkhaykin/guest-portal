@@ -371,7 +371,7 @@ export default function RegisterPage() {
             setStep(4);
           } else {
             setCart([]);
-            setStep(7);
+            setStep(6);
           }
         }
       });
@@ -458,6 +458,7 @@ export default function RegisterPage() {
       if (res.ok) {
         const data = await res.json();
         if (data.url) {
+          saveRegistrationProgress({ step: 6, fullName, email, phone, address, guests, hasPets, pets, notes, vehicles, needsHighchair, needsPackNPlay });
           backupForStripeRedirect();
           window.location.href = data.url;
         }

@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import type { UpsellEntry, GuestListEntry, PetEntry } from "@/types/database";
 import { CleaningDialog } from "./cleaning-dialog";
+import { CompletedCleaningDialog } from "./completed-cleaning-dialog";
 
 const UPSELL_LABELS: Record<string, string> = {
   early_checkin: "Early Check-In (1 PM)",
@@ -113,6 +114,7 @@ export function ReservationCard({
   const [fulfilled, setFulfilled] = useState<string[]>(initialFulfilled);
   const [saving, setSaving] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [detailOpen, setDetailOpen] = useState(false);
   const router = useRouter();
 
   const tipUpsells = upsells.filter((u) => u.type.startsWith("tip_"));
@@ -256,10 +258,13 @@ export function ReservationCard({
             {/* Action buttons */}
             <div className="shrink-0 flex items-center gap-1.5">
               {isCleaned ? (
-                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-green-600 text-white">
+                <button
+                  onClick={() => setDetailOpen(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-green-600 text-white hover:bg-green-700 transition-colors"
+                >
                   <Check className="h-3.5 w-3.5" />
                   Cleaned
-                </div>
+                </button>
               ) : isSkipped ? (
                 <button
                   onClick={handleSkip}
@@ -377,6 +382,15 @@ export function ReservationCard({
         checkOutDate={checkOut}
         photoAreas={photoAreas}
         onComplete={handleCleaningComplete}
+      />
+
+      <CompletedCleaningDialog
+        open={detailOpen}
+        onOpenChange={setDetailOpen}
+        registrationId={registrationId}
+        propertyName={propertyNickname || propertyName}
+        checkIn={checkIn}
+        checkOut={checkOut}
       />
     </>
   );

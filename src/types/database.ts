@@ -20,6 +20,7 @@ export type CleaningPhoto = {
   room: string;
   path: string;
   uploaded_at: string;
+  note?: string;
 };
 
 export type CleaningChecklistItem = {

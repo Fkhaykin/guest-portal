@@ -2,21 +2,25 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Download, Eye, Mail, Loader2, Pencil } from "lucide-react";
+import { Download, Eye, Mail, Loader2, Pencil, Camera } from "lucide-react";
 import { EditRegistrationDialog } from "@/components/admin/edit-registration-dialog";
+import { CleaningPhotosDialog } from "@/components/admin/cleaning-photos-dialog";
 
 export function RegistrationActions({
   registrationId,
   hasSignature,
+  guestName,
   onUpdated,
 }: {
   registrationId: string;
   hasSignature: boolean;
+  guestName?: string;
   onUpdated?: () => void;
 }) {
   const [emailing, setEmailing] = useState(false);
   const [emailResult, setEmailResult] = useState<"success" | "error" | null>(null);
   const [editOpen, setEditOpen] = useState(false);
+  const [photosOpen, setPhotosOpen] = useState(false);
 
   async function handleEmail() {
     setEmailing(true);
@@ -39,6 +43,14 @@ export function RegistrationActions({
   return (
     <>
       <div className="flex items-center justify-end gap-1">
+        <Button
+          variant="ghost"
+          size="icon"
+          title="Cleaning photos"
+          onClick={() => setPhotosOpen(true)}
+        >
+          <Camera className="h-4 w-4" />
+        </Button>
         <Button
           variant="ghost"
           size="icon"
@@ -96,6 +108,12 @@ export function RegistrationActions({
         open={editOpen}
         onOpenChange={setEditOpen}
         onSaved={onUpdated}
+      />
+      <CleaningPhotosDialog
+        open={photosOpen}
+        onOpenChange={setPhotosOpen}
+        registrationId={registrationId}
+        guestName={guestName || "Reservation"}
       />
     </>
   );
