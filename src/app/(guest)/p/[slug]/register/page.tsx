@@ -23,7 +23,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Trash2, Car, ChevronRight, ChevronLeft, Check, User, Mail, Users, PawPrint, Upload, FileCheck, ShoppingCart, Sparkles, X, PenLine, Undo2, Clock } from "lucide-react";
+import { Plus, Trash2, Car, ChevronRight, ChevronLeft, Check, User, Mail, Users, PawPrint, Upload, FileCheck, ShoppingCart, Sparkles, X, PenLine, Undo2, Clock, Send, Loader2, Baby } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 
 type AgeGroup = "over_21" | "under_21" | "infant";
 
@@ -51,6 +52,7 @@ type UpsellOption = {
   image?: string;
   available: boolean;
   unavailable_reason?: string | null;
+  request_only?: boolean;
   purchased?: boolean;
   meta?: {
     dates?: string[];
@@ -98,6 +100,7 @@ type SessionData = {
     check_in_date: string;
     check_out_date: string;
     num_guests: number;
+    booking_source: string | null;
     property: {
       slug: string;
     };
@@ -146,6 +149,8 @@ function saveRegistrationProgress(data: {
   pets: PetEntry[];
   notes: string;
   vehicles: Vehicle[];
+  needsHighchair?: boolean;
+  needsPackNPlay?: boolean;
 }) {
   try {
     sessionStorage.setItem(REG_KEY, JSON.stringify(data));
@@ -223,7 +228,11 @@ export default function RegisterPage() {
   const [picnicDate, setPicnicDate] = useState("");
   const [breakfastDays, setBreakfastDays] = useState<Array<{ date: string; servings: number; time: string }>>([]);
   const [tips, setTips] = useState({ breakfast: "", delivery: "", cleaning: "" });
+  const [requestSending, setRequestSending] = useState<string | null>(null);
+  const [requestSent, setRequestSent] = useState<Set<string>>(new Set());
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [needsHighchair, setNeedsHighchair] = useState(false);
+  const [needsPackNPlay, setNeedsPackNPlay] = useState(false);
 
   // Pet fee state
   const [lodgifyNumPets, setLodgifyNumPets] = useState(0);
@@ -237,6 +246,9 @@ export default function RegisterPage() {
   const [idBackPath, setIdBackPath] = useState<string | null>(null);
   const [idBackName, setIdBackName] = useState<string | null>(null);
   const [uploadingIdSide, setUploadingIdSide] = useState<string | null>(null);
+
+  // Airbnb guests already verified by the platform — skip ID upload
+  const isAirbnb = /airbnb/i.test(session?.reservation.booking_source ?? "");
 
   // Signature
   const [signatureDataUrl, setSignatureDataUrl] = useState<string | null>(null);
@@ -265,6 +277,8 @@ export default function RegisterPage() {
       setPets(progress.pets || []);
       setNotes(progress.notes || "");
       setVehicles(progress.vehicles || []);
+      setNeedsHighchair(progress.needsHighchair || false);
+      setNeedsPackNPlay(progress.needsPackNPlay || false);
     } else {
       setFullName(s.guestName);
       // Pre-populate guest list with the primary guest
@@ -290,8 +304,8 @@ export default function RegisterPage() {
   // Persist progress on changes
   useEffect(() => {
     if (!loaded) return;
-    saveRegistrationProgress({ step, fullName, email, phone, address, guests, hasPets, pets, notes, vehicles });
-  }, [step, fullName, email, phone, address, guests, hasPets, pets, notes, vehicles, loaded]);
+    saveRegistrationProgress({ step, fullName, email, phone, address, guests, hasPets, pets, notes, vehicles, needsHighchair, needsPackNPlay });
+  }, [step, fullName, email, phone, address, guests, hasPets, pets, notes, vehicles, needsHighchair, needsPackNPlay, loaded]);
 
   // Load upsells when entering step 6
   async function loadUpsells() {
@@ -314,6 +328,25 @@ export default function RegisterPage() {
       // Non-critical
     } finally {
       setUpsellsLoading(false);
+    }
+  }
+
+  async function handleUpsellRequest(type: "early_checkin" | "late_checkout") {
+    if (!session) return;
+    setRequestSending(type);
+    try {
+      const res = await fetch("/api/guest/upsells/request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ registration_id: session.reservation.id, type }),
+      });
+      if (res.ok) {
+        setRequestSent((prev) => new Set(prev).add(type));
+      }
+    } catch {
+      // Non-critical
+    } finally {
+      setRequestSending(null);
     }
   }
 
@@ -572,6 +605,10 @@ export default function RegisterPage() {
             delivery: tips.delivery ? parseInt(tips.delivery) * 100 : 0,
             cleaning: tips.cleaning ? parseInt(tips.cleaning) * 100 : 0,
           },
+          infant_needs: {
+            highchair: needsHighchair,
+            pack_n_play: needsPackNPlay,
+          },
           vehicles: vehicles.filter((v) => v.license_plate.trim()),
           signature: signatureDataUrl,
         }),
@@ -733,7 +770,7 @@ export default function RegisterPage() {
       {step === 2 && (
         <form onSubmit={(e) => {
           e.preventDefault();
-          if (!idFrontPath || !idBackPath) return;
+          if (!isAirbnb && (!idFrontPath || !idBackPath)) return;
           setStep(3);
         }} className="space-y-6">
           <Card>
@@ -799,6 +836,8 @@ export default function RegisterPage() {
                   </div>
                 </div>
               </div>
+              {!isAirbnb && (
+              <>
               <Separator />
               <div className="space-y-3">
                 <Label className="flex items-center gap-2">
@@ -876,9 +915,11 @@ export default function RegisterPage() {
                 </div>
                 </div>
               </div>
+              </>
+              )}
             </CardContent>
           </Card>
-          {(!idFrontPath || !idBackPath) && (
+          {!isAirbnb && (!idFrontPath || !idBackPath) && (
             <p className="text-sm text-destructive text-center">
               Please upload both sides of your ID to continue.
             </p>
@@ -985,6 +1026,33 @@ export default function RegisterPage() {
               <p className="text-xs text-muted-foreground pt-2">
                 {guests.length} guest{guests.length !== 1 ? "s" : ""} listed
               </p>
+
+              {/* Infant equipment needs — shown when any guest is an infant */}
+              {guests.some((g) => g.age_group === "infant") && (
+                <>
+                  <Separator />
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2 text-sm font-medium">
+                      <Baby className="h-4 w-4" /> Infant Needs
+                    </div>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <Checkbox
+                        checked={needsHighchair}
+                        onCheckedChange={(checked) => setNeedsHighchair(checked === true)}
+                      />
+                      <span className="text-sm">Needs highchair</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <Checkbox
+                        checked={needsPackNPlay}
+                        onCheckedChange={(checked) => setNeedsPackNPlay(checked === true)}
+                      />
+                      <span className="text-sm">Needs pack &apos;n play</span>
+                    </label>
+                    <p className="text-xs text-muted-foreground">Limited to one of each per reservation.</p>
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
 
@@ -1403,7 +1471,27 @@ export default function RegisterPage() {
                               )}
                             </div>
                           )}
-                          {!option.available && option.unavailable_reason && (
+                          {!option.available && option.request_only && (
+                            <div className="mt-2 space-y-2">
+                              <p className="text-xs text-muted-foreground leading-snug">{option.unavailable_reason}</p>
+                              {requestSent.has(option.type) ? (
+                                <Badge variant="secondary" className="text-green-700 bg-green-50 border-green-200">
+                                  <Check className="h-3 w-3 mr-1" /> Request sent
+                                </Badge>
+                              ) : (
+                                <Button type="button" variant="outline" size="sm"
+                                  disabled={requestSending === option.type}
+                                  onClick={() => handleUpsellRequest(option.type as "early_checkin" | "late_checkout")}>
+                                  {requestSending === option.type ? (
+                                    <><Loader2 className="h-3 w-3 mr-1 animate-spin" /> Sending...</>
+                                  ) : (
+                                    <><Send className="h-3 w-3 mr-1" /> Request {option.type === "early_checkin" ? "Early Check-In" : "Late Check-Out"}</>
+                                  )}
+                                </Button>
+                              )}
+                            </div>
+                          )}
+                          {!option.available && !option.request_only && option.unavailable_reason && (
                             <p className="text-xs text-amber-600 mt-2">{option.unavailable_reason}</p>
                           )}
                         </div>

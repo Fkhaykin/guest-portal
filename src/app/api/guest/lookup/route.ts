@@ -80,6 +80,7 @@ export async function POST(request: Request) {
       notes,
       status,
       signature_url,
+      booking_source,
       lodgify_booking_id,
       property:property_id (
         id,

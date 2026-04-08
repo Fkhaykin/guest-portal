@@ -67,6 +67,7 @@ type Reservation = {
   notes: string | null;
   status: string;
   signature_url: string | null;
+  booking_source: string | null;
   property: {
     id: string;
     name: string;
