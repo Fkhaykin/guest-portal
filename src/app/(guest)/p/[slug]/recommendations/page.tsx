@@ -1,17 +1,32 @@
 import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
+import Image from "next/image";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import {
   MapPin,
   Globe,
-  ExternalLink,
+  Navigation,
   Star,
   UtensilsCrossed,
   Compass,
   CalendarDays,
+  ExternalLink,
+  Coffee,
+  Beer,
+  ShoppingBag,
+  Waves,
+  TreePine,
+  Mountain,
+  Camera,
+  Music,
+  Ticket,
+  Landmark,
+  Bike,
+  Fish,
 } from "lucide-react";
 
 type Recommendation = {
@@ -27,30 +42,54 @@ type Recommendation = {
   sort_order: number;
 };
 
+/* ---------- category icon mapping ---------- */
+const categoryIcons: Record<string, React.ElementType> = {
+  restaurant: UtensilsCrossed,
+  cafe: Coffee,
+  bar: Beer,
+  shopping: ShoppingBag,
+  activity: Compass,
+  attraction: Camera,
+  waterfront: Waves,
+  hiking: TreePine,
+  mountain: Mountain,
+  music: Music,
+  event: Ticket,
+  landmark: Landmark,
+  biking: Bike,
+  fishing: Fish,
+  other: CalendarDays,
+};
+
+/* ---------- guide tab config ---------- */
 const guideTabs = [
   {
     key: "food",
     label: "Food & Drink",
     icon: UtensilsCrossed,
-    categories: ["restaurant", "shopping"],
+    categories: ["restaurant", "cafe", "bar", "shopping"],
     emptyMessage: "No food & drink recommendations yet.",
+    gradient: "from-orange-500/10 to-amber-500/5",
   },
   {
     key: "activities",
     label: "Activities",
     icon: Compass,
-    categories: ["activity", "attraction"],
+    categories: ["activity", "attraction", "waterfront", "hiking", "mountain", "biking", "fishing", "landmark"],
     emptyMessage: "No activity recommendations yet.",
+    gradient: "from-emerald-500/10 to-teal-500/5",
   },
   {
     key: "events",
     label: "Events",
     icon: CalendarDays,
-    categories: ["other"],
+    categories: ["other", "event", "music"],
     emptyMessage: "No event recommendations yet.",
+    gradient: "from-violet-500/10 to-purple-500/5",
   },
 ];
 
+/* ---------- star rating ---------- */
 function RatingStars({ rating }: { rating: number }) {
   return (
     <div className="flex items-center gap-0.5">
@@ -60,69 +99,104 @@ function RatingStars({ rating }: { rating: number }) {
           className={`h-3.5 w-3.5 ${
             i < Math.round(rating)
               ? "fill-amber-400 text-amber-400"
-              : "text-muted-foreground/30"
+              : "text-muted-foreground/25"
           }`}
         />
       ))}
+      <span className="text-xs text-muted-foreground ml-1.5 font-medium">
+        {rating.toFixed(1)}
+      </span>
     </div>
   );
 }
 
+/* ---------- recommendation card ---------- */
 function RecommendationCard({ rec }: { rec: Recommendation }) {
+  const CategoryIcon = categoryIcons[rec.category] || Compass;
+
   return (
-    <Card className="overflow-hidden transition-shadow hover:shadow-md">
-      <CardContent className="p-4 space-y-3">
-        <div className="flex items-start justify-between gap-3">
-          <div className="space-y-1 min-w-0">
-            <h3 className="font-semibold text-base leading-tight">
-              {rec.name}
-            </h3>
-            {rec.address && (
-              <p className="text-muted-foreground text-xs flex items-center gap-1">
-                <MapPin className="h-3 w-3 shrink-0" />
-                <span className="truncate">{rec.address}</span>
-              </p>
-            )}
+    <Card className="overflow-hidden transition-all hover:shadow-lg hover:-translate-y-0.5 duration-200 group">
+      {/* Image */}
+      {rec.image_url ? (
+        <div className="relative h-44 w-full overflow-hidden bg-muted">
+          <Image
+            src={rec.image_url}
+            alt={rec.name}
+            fill
+            className="object-cover transition-transform duration-300 group-hover:scale-105"
+            sizes="(max-width: 768px) 100vw, 50vw"
+          />
+          {/* Category badge overlay */}
+          <div className="absolute top-3 left-3">
+            <Badge className="bg-black/60 text-white border-0 backdrop-blur-sm gap-1.5 text-xs font-medium">
+              <CategoryIcon className="h-3 w-3" />
+              {rec.category.charAt(0).toUpperCase() + rec.category.slice(1)}
+            </Badge>
           </div>
+        </div>
+      ) : (
+        <div className="relative h-32 w-full bg-linear-to-br from-muted to-muted/50 flex items-center justify-center">
+          <CategoryIcon className="h-12 w-12 text-muted-foreground/20" />
+          <div className="absolute top-3 left-3">
+            <Badge variant="secondary" className="gap-1.5 text-xs font-medium">
+              <CategoryIcon className="h-3 w-3" />
+              {rec.category.charAt(0).toUpperCase() + rec.category.slice(1)}
+            </Badge>
+          </div>
+        </div>
+      )}
+
+      <CardContent className="p-4 space-y-3">
+        {/* Name + Rating */}
+        <div className="space-y-1.5">
+          <h3 className="font-semibold text-base leading-tight line-clamp-1">
+            {rec.name}
+          </h3>
           {rec.rating && <RatingStars rating={rec.rating} />}
         </div>
 
+        {/* Address */}
+        {rec.address && (
+          <p className="text-muted-foreground text-xs flex items-start gap-1.5">
+            <MapPin className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+            <span className="line-clamp-2">{rec.address}</span>
+          </p>
+        )}
+
+        {/* Description */}
         {rec.description && (
-          <p className="text-sm text-muted-foreground leading-relaxed">
+          <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3">
             {rec.description}
           </p>
         )}
 
+        {/* Action buttons */}
         {(rec.website_url || rec.map_url) && (
-          <div className="flex flex-wrap gap-2 pt-1">
-            {rec.website_url && (
-              <a
-                href={rec.website_url}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <Badge
-                  variant="outline"
-                  className="gap-1.5 cursor-pointer hover:bg-accent transition-colors text-xs"
-                >
-                  <Globe className="h-3 w-3" />
-                  Website
-                </Badge>
-              </a>
-            )}
+          <div className="flex gap-2 pt-1">
             {rec.map_url && (
               <a
                 href={rec.map_url}
                 target="_blank"
                 rel="noopener noreferrer"
+                className="flex-1"
               >
-                <Badge
-                  variant="outline"
-                  className="gap-1.5 cursor-pointer hover:bg-accent transition-colors text-xs"
-                >
-                  <ExternalLink className="h-3 w-3" />
-                  Get Directions
-                </Badge>
+                <Button variant="default" size="sm" className="w-full gap-1.5">
+                  <Navigation className="h-3.5 w-3.5" />
+                  Directions
+                </Button>
+              </a>
+            )}
+            {rec.website_url && (
+              <a
+                href={rec.website_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1"
+              >
+                <Button variant="outline" size="sm" className="w-full gap-1.5">
+                  <Globe className="h-3.5 w-3.5" />
+                  Website
+                </Button>
               </a>
             )}
           </div>
@@ -132,6 +206,7 @@ function RecommendationCard({ rec }: { rec: Recommendation }) {
   );
 }
 
+/* ---------- page ---------- */
 export default async function RecommendationsPage({
   params,
 }: {
@@ -154,7 +229,7 @@ export default async function RecommendationsPage({
     .select("*")
     .order("sort_order");
 
-  // Group recommendations into guide tabs by mapping DB categories
+  // Group recommendations into guide tabs
   const grouped: Record<string, Recommendation[]> = {};
   for (const tab of guideTabs) {
     grouped[tab.key] = [];
@@ -167,24 +242,32 @@ export default async function RecommendationsPage({
   });
 
   const hasAny = recommendations && recommendations.length > 0;
-  // Default to first tab that has recommendations, or just the first tab
   const defaultTab =
     guideTabs.find((t) => grouped[t.key].length > 0)?.key ?? guideTabs[0].key;
+  const totalCount = recommendations?.length ?? 0;
 
   return (
     <div className="space-y-6">
-      <div className="space-y-1">
-        <h2 className="text-2xl font-bold tracking-tight">Local Guide</h2>
-        <p className="text-muted-foreground">
-          Hand-picked favorites and things to do near {property.name}
-        </p>
+      {/* Header */}
+      <div className="space-y-2">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center justify-center h-10 w-10 rounded-xl bg-primary/10">
+            <Compass className="h-5 w-5 text-primary" />
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold tracking-tight">Local Guide</h2>
+            <p className="text-muted-foreground text-sm">
+              {totalCount} hand-picked spots near your stay
+            </p>
+          </div>
+        </div>
       </div>
 
       <Separator />
 
       {hasAny ? (
         <Tabs defaultValue={defaultTab} className="w-full">
-          <TabsList className="w-full grid grid-cols-3">
+          <TabsList className="w-full grid grid-cols-3 h-11">
             {guideTabs.map((tab) => {
               const Icon = tab.icon;
               const count = grouped[tab.key].length;
@@ -192,14 +275,18 @@ export default async function RecommendationsPage({
                 <TabsTrigger
                   key={tab.key}
                   value={tab.key}
-                  className="gap-1.5 text-xs sm:text-sm"
+                  className="gap-1.5 text-xs sm:text-sm data-[state=active]:shadow-sm"
                 >
                   <Icon className="h-4 w-4" />
-                  <span>{tab.label}</span>
+                  <span className="hidden sm:inline">{tab.label}</span>
+                  <span className="sm:hidden">{tab.label.split(" ")[0]}</span>
                   {count > 0 && (
-                    <span className="text-muted-foreground ml-0.5">
-                      ({count})
-                    </span>
+                    <Badge
+                      variant="secondary"
+                      className="h-5 min-w-5 px-1.5 text-[10px] font-semibold"
+                    >
+                      {count}
+                    </Badge>
                   )}
                 </TabsTrigger>
               );
@@ -207,28 +294,44 @@ export default async function RecommendationsPage({
           </TabsList>
 
           {guideTabs.map((tab) => (
-            <TabsContent key={tab.key} value={tab.key} className="mt-4">
+            <TabsContent key={tab.key} value={tab.key} className="mt-5">
               {grouped[tab.key].length > 0 ? (
-                <div className="grid gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {grouped[tab.key].map((rec) => (
                     <RecommendationCard key={rec.id} rec={rec} />
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-12 text-muted-foreground">
-                  <tab.icon className="h-10 w-10 mx-auto mb-3 opacity-30" />
-                  <p>{tab.emptyMessage}</p>
+                <div className="text-center py-16 text-muted-foreground">
+                  <div className={`inline-flex items-center justify-center h-16 w-16 rounded-2xl bg-linear-to-br ${tab.gradient} mb-4`}>
+                    <tab.icon className="h-8 w-8 opacity-40" />
+                  </div>
+                  <p className="font-medium">{tab.emptyMessage}</p>
+                  <p className="text-sm mt-1 opacity-70">
+                    We&apos;re always adding new places to explore.
+                  </p>
                 </div>
               )}
             </TabsContent>
           ))}
         </Tabs>
       ) : (
-        <div className="text-center py-16 text-muted-foreground">
-          <Compass className="h-12 w-12 mx-auto mb-4 opacity-30" />
+        <div className="text-center py-20 text-muted-foreground">
+          <div className="inline-flex items-center justify-center h-20 w-20 rounded-2xl bg-linear-to-br from-muted to-muted/50 mb-5">
+            <Compass className="h-10 w-10 opacity-30" />
+          </div>
           <p className="text-lg font-medium">No recommendations yet</p>
           <p className="text-sm mt-1">
             Check back soon — we&apos;re curating the best local spots for you.
+          </p>
+        </div>
+      )}
+
+      {/* Footer tip */}
+      {hasAny && (
+        <div className="text-center py-4">
+          <p className="text-xs text-muted-foreground/60">
+            Tap &quot;Directions&quot; to open in Google Maps
           </p>
         </div>
       )}
