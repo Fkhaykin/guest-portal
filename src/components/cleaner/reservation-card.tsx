@@ -3,21 +3,15 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import {
   Check,
   Users,
   Clock,
   Home,
-  Sparkles,
-  CircleDot,
   SprayCan,
-  Baby,
-  PawPrint,
-  User,
   ArrowDownToLine,
   ArrowUpFromLine,
+  Heart,
 } from "lucide-react";
 import type { UpsellEntry, GuestListEntry, PetEntry } from "@/types/database";
 import { CleaningDialog } from "./cleaning-dialog";
@@ -73,30 +67,6 @@ function getRelativeDayLabel(dateStr: string) {
   return null; // No relative label for distant dates
 }
 
-function DateBlock({
-  dateStr,
-  label,
-  time,
-}: {
-  dateStr: string;
-  label: string;
-  time?: string | null;
-}) {
-  const { dayOfWeek, month, day } = formatDateProminent(dateStr);
-  return (
-    <div className="text-center">
-      <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-0.5">
-        {label}
-      </p>
-      <p className="text-sm font-semibold leading-tight">
-        {dayOfWeek}, {month} {day}
-      </p>
-      {time && (
-        <p className="text-xs text-muted-foreground leading-tight">{time}</p>
-      )}
-    </div>
-  );
-}
 
 export function ReservationCard({
   registrationId,
@@ -135,9 +105,12 @@ export function ReservationCard({
   const [dialogOpen, setDialogOpen] = useState(false);
   const router = useRouter();
 
+  const tipUpsells = upsells.filter((u) => u.type.startsWith("tip_"));
+  const regularUpsells = upsells.filter((u) => !u.type.startsWith("tip_"));
+
   const allUpsellsDone =
-    upsells.length > 0 && upsells.every((u) => fulfilled.includes(u.type));
-  const isFullyDone = isCleaned && (upsells.length === 0 || allUpsellsDone);
+    regularUpsells.length > 0 && regularUpsells.every((u) => fulfilled.includes(u.type));
+  const isFullyDone = isCleaned && (regularUpsells.length === 0 || allUpsellsDone);
 
   // Check-in/out times based on upsell purchases
   const hasEarlyCheckin = upsells.some((u) => u.type === "early_checkin");
@@ -207,6 +180,9 @@ export function ReservationCard({
     return checkout <= today;
   })();
 
+  const { dayOfWeek: ciDow, month: ciMonth, day: ciDay } = formatDateProminent(checkIn);
+  const { dayOfWeek: coDow, month: coMonth, day: coDay } = formatDateProminent(checkOut);
+
   return (
     <>
       <Card
@@ -218,10 +194,11 @@ export function ReservationCard({
               : ""
         }`}
       >
-        <CardContent className="pt-3 pb-3 space-y-2">
-          {/* Property header: thumbnail + name + timing */}
+        <CardContent className="py-3 px-4">
+          {/* Main row: thumbnail + info + dates + action */}
           <div className="flex items-center gap-3">
-            <div className="h-12 w-12 rounded-lg overflow-hidden shrink-0">
+            {/* Thumbnail */}
+            <div className="h-10 w-10 rounded-lg overflow-hidden shrink-0">
               {propertyCoverImage ? (
                 <img
                   src={propertyCoverImage}
@@ -231,116 +208,112 @@ export function ReservationCard({
                 />
               ) : null}
               <div className={`w-full h-full bg-linear-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-800 flex items-center justify-center${propertyCoverImage ? " hidden" : ""}`}>
-                <Home className="h-5 w-5 text-slate-400 dark:text-slate-500" />
+                <Home className="h-4 w-4 text-slate-400 dark:text-slate-500" />
               </div>
             </div>
+
+            {/* Property info + meta */}
             <div className="min-w-0 flex-1">
-              <h3 className="font-semibold text-sm truncate">{propertyName}</h3>
-              {propertyNickname && (
-                <p className="text-xs text-muted-foreground truncate">{propertyNickname}</p>
-              )}
-              {timingBadge && (
-                <span
-                  className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full mt-1 ${timingBadge.color}`}
+              <div className="flex items-center gap-2">
+                <h3 className="font-semibold text-sm truncate">{propertyNickname || propertyName}</h3>
+                {timingBadge && (
+                  <span
+                    className={`inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full shrink-0 ${timingBadge.color}`}
+                  >
+                    <Clock className="h-2.5 w-2.5" />
+                    {timingBadge.text}
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
+                <span>{ciDow} {ciMonth} {ciDay}, {checkInTime}</span>
+                <span>&rarr;</span>
+                <span>{coDow} {coMonth} {coDay}, {checkOutTime}</span>
+                <span className="text-muted-foreground/40">|</span>
+                <GuestBreakdownInline numGuests={numGuests} guestList={guestList} pets={pets} />
+              </div>
+            </div>
+
+            {/* Action button */}
+            <div className="shrink-0">
+              {isCleaned ? (
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-green-600 text-white">
+                  <Check className="h-3.5 w-3.5" />
+                  Cleaned
+                </div>
+              ) : !isCheckoutPassed ? (
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-muted text-muted-foreground cursor-not-allowed" title="Can only mark clean after checkout">
+                  <Clock className="h-3.5 w-3.5" />
+                  After checkout
+                </div>
+              ) : (
+                <button
+                  onClick={() => setDialogOpen(true)}
+                  disabled={saving}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all bg-primary text-primary-foreground hover:bg-primary/90"
                 >
-                  <Clock className="h-3 w-3" />
-                  {timingBadge.text}
+                  <SprayCan className="h-3.5 w-3.5" />
+                  Clean
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Secondary row: early/late callouts + tips + upsells (only if present) */}
+          {(hasEarlyCheckin || hasLateCheckout || tipUpsells.length > 0 || regularUpsells.length > 0) && (
+            <div className="flex flex-wrap items-center gap-1.5 mt-2 pt-2 border-t border-border/50">
+              {hasEarlyCheckin && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-orange-100 text-orange-700 dark:bg-orange-950/30 dark:text-orange-300 border border-orange-200 dark:border-orange-900">
+                  <ArrowDownToLine className="h-3 w-3" />
+                  Early 1 PM
                 </span>
               )}
-            </div>
-          </div>
-          {/* Dates */}
-          <div className="flex items-center justify-center gap-4 py-1.5 bg-muted/30 rounded-lg">
-            <DateBlock dateStr={checkIn} label="Check-in" time={checkInTime} />
-            <div className="text-muted-foreground text-lg">&rarr;</div>
-            <DateBlock dateStr={checkOut} label="Check-out" time={checkOutTime} />
-          </div>
-
-          {/* Early check-in / Late check-out callouts */}
-          {(hasEarlyCheckin || hasLateCheckout) && (
-            <div className="flex flex-wrap gap-2">
-              {hasEarlyCheckin && (
-                <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-orange-100 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-900">
-                  <ArrowDownToLine className="h-3.5 w-3.5 text-orange-600 dark:text-orange-400" />
-                  <span className="text-xs font-semibold text-orange-700 dark:text-orange-300">Early Check-In — 1 PM</span>
-                </div>
-              )}
               {hasLateCheckout && (
-                <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-purple-100 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-900">
-                  <ArrowUpFromLine className="h-3.5 w-3.5 text-purple-600 dark:text-purple-400" />
-                  <span className="text-xs font-semibold text-purple-700 dark:text-purple-300">Late Check-Out — 2 PM</span>
-                </div>
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-purple-100 text-purple-700 dark:bg-purple-950/30 dark:text-purple-300 border border-purple-200 dark:border-purple-900">
+                  <ArrowUpFromLine className="h-3 w-3" />
+                  Late 2 PM
+                </span>
               )}
+              {tipUpsells.map((tip) => {
+                const label = tip.type === "tip_cleaning"
+                  ? "Cleaning"
+                  : tip.type === "tip_delivery"
+                    ? "Delivery"
+                    : tip.type === "tip_breakfast"
+                      ? "Breakfast"
+                      : "Staff";
+                const amount = `$${(tip.price_cents / 100).toFixed(0)}`;
+                return (
+                  <span
+                    key={tip.type}
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-rose-100 text-rose-700 dark:bg-rose-950/30 dark:text-rose-300 border border-rose-200 dark:border-rose-800"
+                  >
+                    <Heart className="h-3 w-3 fill-rose-500 text-rose-500" />
+                    {amount} {label}
+                  </span>
+                );
+              })}
+              {regularUpsells.map((upsell) => {
+                const isDone = fulfilled.includes(upsell.type);
+                const icon = UPSELL_ICONS[upsell.type] || "•";
+                return (
+                  <button
+                    key={upsell.type}
+                    onClick={() => handleUpsellToggle(upsell.type)}
+                    disabled={saving}
+                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium transition-colors ${
+                      isDone
+                        ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 border border-green-200 dark:border-green-800"
+                        : "bg-muted/50 text-foreground hover:bg-muted border border-border/50"
+                    }`}
+                  >
+                    <span>{icon}</span>
+                    <span>{UPSELL_LABELS[upsell.type]?.replace(/ \(.*\)/, "") || upsell.label || upsell.type}</span>
+                    {isDone && <Check className="h-3 w-3" />}
+                  </button>
+                );
+              })}
             </div>
-          )}
-
-          {/* Guest breakdown */}
-          <GuestBreakdown numGuests={numGuests} guestList={guestList} pets={pets} />
-
-          {/* Upsells section */}
-          {upsells.length > 0 && (
-            <>
-              <Separator />
-              <div className="space-y-2">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1">
-                  <Sparkles className="h-3 w-3" />
-                  Add-ons ({fulfilled.length}/{upsells.length} done)
-                </p>
-                <div className="space-y-1.5">
-                  {upsells.map((upsell) => {
-                    const isDone = fulfilled.includes(upsell.type);
-                    const icon = UPSELL_ICONS[upsell.type] || "•";
-                    return (
-                      <button
-                        key={upsell.type}
-                        onClick={() => handleUpsellToggle(upsell.type)}
-                        disabled={saving}
-                        className={`flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm text-left transition-colors ${
-                          isDone
-                            ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
-                            : "bg-muted/50 hover:bg-muted text-foreground"
-                        }`}
-                      >
-                        <span className="text-base leading-none">{icon}</span>
-                        <span className="flex-1 font-medium text-xs">
-                          {UPSELL_LABELS[upsell.type] ||
-                            upsell.label ||
-                            upsell.type}
-                        </span>
-                        {isDone ? (
-                          <Check className="h-4 w-4 text-green-600 dark:text-green-400" />
-                        ) : (
-                          <CircleDot className="h-4 w-4 text-muted-foreground/40" />
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </>
-          )}
-
-          {/* Cleaned button */}
-          <Separator />
-          {isCleaned ? (
-            <div className="flex items-center justify-center gap-2 w-full py-2 rounded-lg text-sm font-medium bg-green-600 text-white">
-              <Check className="h-4 w-4" />
-              Cleaned
-            </div>
-          ) : !isCheckoutPassed ? (
-            <div className="flex items-center justify-center gap-2 w-full py-2 rounded-lg text-sm font-medium bg-muted text-muted-foreground cursor-not-allowed" title="Can only mark clean after checkout">
-              <Clock className="h-4 w-4" />
-              Available after checkout
-            </div>
-          ) : (
-            <button
-              onClick={() => setDialogOpen(true)}
-              disabled={saving}
-              className="flex items-center justify-center gap-2 w-full py-2 rounded-lg text-sm font-medium transition-all bg-primary text-primary-foreground hover:bg-primary/90"
-            >
-              <SprayCan className="h-4 w-4" />
-              Mark as Cleaned
-            </button>
           )}
         </CardContent>
       </Card>
@@ -358,7 +331,7 @@ export function ReservationCard({
   );
 }
 
-function GuestBreakdown({
+function GuestBreakdownInline({
   numGuests,
   guestList,
   pets,
@@ -373,41 +346,24 @@ function GuestBreakdown({
   const petCount = pets?.filter((p) => p.name?.trim()).length ?? 0;
   const hasBreakdown = guestList && guestList.length > 0;
 
+  const parts: string[] = [];
+  if (hasBreakdown) {
+    if (adults > 0) parts.push(`${adults}A`);
+    if (children > 0) parts.push(`${children}C`);
+    if (infants > 0) parts.push(`${infants}I`);
+  } else {
+    parts.push(`${numGuests} guest${numGuests !== 1 ? "s" : ""}`);
+  }
+
   return (
-    <div className="flex flex-wrap items-center gap-3 text-xs">
-      {hasBreakdown ? (
-        <>
-          {adults > 0 && (
-            <span className="flex items-center gap-1 text-muted-foreground">
-              <User className="h-3.5 w-3.5" />
-              {adults} adult{adults !== 1 ? "s" : ""}
-            </span>
-          )}
-          {children > 0 && (
-            <span className="flex items-center gap-1 text-muted-foreground">
-              <Users className="h-3.5 w-3.5" />
-              {children} child{children !== 1 ? "ren" : ""}
-            </span>
-          )}
-          {infants > 0 && (
-            <span className="flex items-center gap-1 text-muted-foreground">
-              <Baby className="h-3.5 w-3.5" />
-              {infants} infant{infants !== 1 ? "s" : ""}
-            </span>
-          )}
-        </>
-      ) : (
-        <span className="flex items-center gap-1 text-muted-foreground">
-          <Users className="h-3.5 w-3.5" />
-          {numGuests} guest{numGuests !== 1 ? "s" : ""}
-        </span>
-      )}
+    <span className="inline-flex items-center gap-1 whitespace-nowrap">
+      <Users className="h-3 w-3" />
+      {parts.join("/")}
       {petCount > 0 && (
-        <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400 font-medium">
-          <PawPrint className="h-3.5 w-3.5" />
-          {petCount} pet{petCount !== 1 ? "s" : ""}
+        <span className="text-amber-600 dark:text-amber-400 font-medium ml-0.5">
+          +{petCount} pet{petCount !== 1 ? "s" : ""}
         </span>
       )}
-    </div>
+    </span>
   );
 }

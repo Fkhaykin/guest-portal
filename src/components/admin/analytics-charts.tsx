@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useCallback } from "react";
+import Link from "next/link";
 import {
   Card,
   CardContent,
@@ -113,6 +114,7 @@ type BucketReservation = {
   checkIn: string;
   amount: number;
   nights: number;
+  registrationId: string;
 };
 
 type ApiData = {
@@ -399,6 +401,7 @@ export function AnalyticsCharts() {
         checkIn: r.checkIn,
         amount: r.amount,
         nights,
+        registrationId: r.id,
       });
     }
 
@@ -417,6 +420,7 @@ export function AnalyticsCharts() {
         checkIn: r.checkIn,
         amount: r.petFeeCents,
         nights: 0,
+        registrationId: r.id,
       });
     }
     const petFeeKeys = Object.keys(petFeeBuckets).sort();
@@ -441,6 +445,7 @@ export function AnalyticsCharts() {
         checkIn: r.checkIn,
         amount: r.cleaningFeeCents,
         nights: 0,
+        registrationId: r.id,
       });
     }
     const cleanFeeKeys = Object.keys(cleanFeeBuckets).sort();
@@ -469,6 +474,7 @@ export function AnalyticsCharts() {
           checkIn: r.checkIn,
           amount: u.priceCents,
           nights: 0,
+          registrationId: r.id,
         });
       }
     }
@@ -675,7 +681,7 @@ export function AnalyticsCharts() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
         {/* 1. Revenue Over Time — line chart with checkboxes */}
-        <Card className="lg:col-span-2">
+        <Card className="lg:col-span-2 overflow-visible">
           <CardHeader>
             <CardTitle>Revenue Over Time</CardTitle>
             <CardDescription>{groupLabel} booking revenue by property</CardDescription>
@@ -727,7 +733,7 @@ export function AnalyticsCharts() {
         </Card>
 
         {/* 2. Occupancy Rate — grouped bar over time */}
-        <Card className="lg:col-span-2">
+        <Card className="lg:col-span-2 overflow-visible">
           <CardHeader>
             <CardTitle>Occupancy Rate</CardTitle>
             <CardDescription>{groupLabel} occupancy % by property</CardDescription>
@@ -758,7 +764,7 @@ export function AnalyticsCharts() {
         </Card>
 
         {/* 3. Revenue by Property — grouped bar over time */}
-        <Card className="lg:col-span-2">
+        <Card className="lg:col-span-2 overflow-visible">
           <CardHeader>
             <CardTitle>Revenue by Property</CardTitle>
             <CardDescription>{groupLabel} revenue per property</CardDescription>
@@ -789,7 +795,7 @@ export function AnalyticsCharts() {
         </Card>
 
         {/* 4. Bookings Per Period — grouped bar by property */}
-        <Card className="lg:col-span-2">
+        <Card className="lg:col-span-2 overflow-visible">
           <CardHeader>
             <CardTitle>Bookings Per {periodLabel}</CardTitle>
             <CardDescription>{groupLabel} bookings by property</CardDescription>
@@ -820,7 +826,7 @@ export function AnalyticsCharts() {
         </Card>
 
         {/* 5. Average Stay Duration */}
-        <Card>
+        <Card className="overflow-visible">
           <CardHeader>
             <CardTitle>Average Stay Duration</CardTitle>
             <CardDescription>Nights per booking by property</CardDescription>
@@ -850,7 +856,7 @@ export function AnalyticsCharts() {
         </Card>
 
         {/* 6. Guest Volume */}
-        <Card>
+        <Card className="overflow-visible">
           <CardHeader>
             <CardTitle>Guest Volume</CardTitle>
             <CardDescription>{groupLabel} total guests</CardDescription>
@@ -873,7 +879,7 @@ export function AnalyticsCharts() {
         </Card>
 
         {/* 7. Booking Sources */}
-        <Card>
+        <Card className="overflow-visible">
           <CardHeader>
             <CardTitle>Booking Sources</CardTitle>
             <CardDescription>Where bookings come from</CardDescription>
@@ -907,7 +913,7 @@ export function AnalyticsCharts() {
         </Card>
 
         {/* 8. Cleaning Fee Revenue */}
-        <Card className="lg:col-span-2">
+        <Card className="lg:col-span-2 overflow-visible">
           <CardHeader>
             <CardTitle>Cleaning Fee Revenue</CardTitle>
             <CardDescription>{groupLabel} cleaning fees by property</CardDescription>
@@ -938,7 +944,7 @@ export function AnalyticsCharts() {
         </Card>
 
         {/* 9. Pet Fee Revenue */}
-        <Card className="lg:col-span-2">
+        <Card className="lg:col-span-2 overflow-visible">
           <CardHeader>
             <CardTitle>Pet Fee Revenue</CardTitle>
             <CardDescription>{groupLabel} pet fees by property (fee × number of pets)</CardDescription>
@@ -969,7 +975,7 @@ export function AnalyticsCharts() {
         </Card>
 
         {/* 10. Add-ons Revenue */}
-        <Card className="lg:col-span-2">
+        <Card className="lg:col-span-2 overflow-visible">
           <CardHeader>
             <CardTitle>Add-ons Revenue</CardTitle>
             <CardDescription>{groupLabel} upsell revenue by type</CardDescription>
@@ -1017,13 +1023,13 @@ function ReservationList({ reservations, showNights }: { reservations: BucketRes
   return (
     <div className="ml-4 mt-0.5 mb-1 space-y-px">
       {reservations.map((r, i) => (
-        <div key={i} className="flex items-center justify-between gap-3 text-[11px] text-muted-foreground">
-          <span className="truncate max-w-[140px]">{r.guestName}</span>
+        <Link key={i} href={`/admin/reservations/${r.registrationId}`} className="flex items-center justify-between gap-3 text-[11px] text-muted-foreground hover:text-foreground transition-colors">
+          <span className="truncate max-w-[140px] underline">{r.guestName}</span>
           <span className="flex items-center gap-2 shrink-0">
             <span>{formatCheckIn(r.checkIn)}</span>
             <span className="font-medium">{showNights ? `${r.nights}n` : formatDollars(r.amount / 100)}</span>
           </span>
-        </div>
+        </Link>
       ))}
     </div>
   );
