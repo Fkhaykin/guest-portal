@@ -35,6 +35,7 @@ import {
   ClipboardCheck,
   Camera,
   Clock,
+  Baby,
 } from "lucide-react";
 import { EditRegistrationDialog } from "@/components/admin/edit-registration-dialog";
 import type { GuestListEntry, PetEntry, UpsellEntry, CleaningPhoto, CleaningChecklistItem, InvoiceLineItem, InvoiceStatus } from "@/types/database";
@@ -56,6 +57,7 @@ type FullRegistration = {
   pets: PetEntry[] | null;
   upsells: UpsellEntry[] | null;
   lodgify_booking_id: number | null;
+  tips: Record<string, unknown> | null;
   lodgify_adults: number;
   lodgify_children: number;
   lodgify_infants: number;
@@ -159,7 +161,7 @@ export default function ReservationDetailPage() {
       .select(`
         id, property_id, guest_id, check_in_date, check_out_date, num_guests, notes,
         status, booking_source, signature_url, total_amount_cents, guest_list, pets,
-        upsells, lodgify_booking_id, lodgify_adults, lodgify_children, lodgify_infants,
+        upsells, tips, lodgify_booking_id, lodgify_adults, lodgify_children, lodgify_infants,
         lodgify_num_pets, created_at, updated_at,
         guest:guest_id(id, full_name, email, phone, mailing_address, lodgify_guest_id),
         property:property_id(id, name, nickname, address, slug, max_guests, lodgify_property_id, listing_urls, owner_name, owner_phone, owner_email, hoa_submission_email, emergency_contact_name, emergency_contact_phone)
@@ -592,6 +594,27 @@ export default function ReservationDetailPage() {
                       </Badge>
                     </div>
                   ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Infant Needs */}
+          {(!!reg.tips?.needs_highchair || !!reg.tips?.needs_pack_n_play) && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Baby className="h-4 w-4" /> Infant Needs
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-wrap gap-2">
+                  {!!reg.tips?.needs_highchair && (
+                    <Badge variant="secondary">Highchair</Badge>
+                  )}
+                  {!!reg.tips?.needs_pack_n_play && (
+                    <Badge variant="secondary">Pack &apos;n Play</Badge>
+                  )}
                 </div>
               </CardContent>
             </Card>

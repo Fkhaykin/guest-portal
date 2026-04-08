@@ -27,6 +27,7 @@ type RegistrationRow = {
   upsells: UpsellEntry[] | null;
   guest_list: GuestListEntry[] | null;
   pets: PetEntry[] | null;
+  tips: Record<string, unknown> | null;
 };
 
 type CleaningStatusRow = {
@@ -80,7 +81,7 @@ export default async function CleanerDashboard() {
   const today = new Date().toISOString().split("T")[0];
   const { data: registrations } = await supabase
     .from("registration")
-    .select("id, property_id, check_in_date, check_out_date, num_guests, status, upsells, guest_list, pets, updated_at")
+    .select("id, property_id, check_in_date, check_out_date, num_guests, status, upsells, guest_list, pets, tips, updated_at")
     .in("property_id", propertyIds)
     .in("status", ["active", "completed"])
     .gte("check_out_date", "2026-03-15")
@@ -158,6 +159,8 @@ export default async function CleanerDashboard() {
           guestList={reg.guest_list}
           pets={reg.pets}
           upsells={paidUpsells}
+          needsHighchair={!!reg.tips?.needs_highchair}
+          needsPackNPlay={!!reg.tips?.needs_pack_n_play}
           isCleaned={status?.is_cleaned ?? false}
           isSkipped={status?.is_skipped ?? false}
           fulfilledUpsells={status?.fulfilled_upsells ?? []}

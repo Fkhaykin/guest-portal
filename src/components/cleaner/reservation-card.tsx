@@ -14,6 +14,7 @@ import {
   Heart,
   SkipForward,
   Undo2,
+  Baby,
 } from "lucide-react";
 import type { UpsellEntry, GuestListEntry, PetEntry } from "@/types/database";
 import { CleaningDialog } from "./cleaning-dialog";
@@ -81,6 +82,8 @@ export function ReservationCard({
   guestList,
   pets,
   upsells,
+  needsHighchair,
+  needsPackNPlay,
   isCleaned: initialCleaned,
   isSkipped: initialSkipped,
   fulfilledUpsells: initialFulfilled,
@@ -97,6 +100,8 @@ export function ReservationCard({
   guestList: GuestListEntry[] | null;
   pets: PetEntry[] | null;
   upsells: UpsellEntry[];
+  needsHighchair: boolean;
+  needsPackNPlay: boolean;
   isCleaned: boolean;
   isSkipped: boolean;
   fulfilledUpsells: string[];
@@ -293,8 +298,8 @@ export function ReservationCard({
             </div>
           </div>
 
-          {/* Secondary row: early/late callouts + tips + upsells (only if present) */}
-          {(hasEarlyCheckin || hasLateCheckout || tipUpsells.length > 0 || regularUpsells.length > 0) && (
+          {/* Secondary row: early/late callouts + infant needs + tips + upsells (only if present) */}
+          {(hasEarlyCheckin || hasLateCheckout || needsHighchair || needsPackNPlay || tipUpsells.length > 0 || regularUpsells.length > 0) && (
             <div className="flex flex-wrap items-center gap-1.5 mt-2 pt-2 border-t border-border/50">
               {hasEarlyCheckin && (
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-orange-100 text-orange-700 dark:bg-orange-950/30 dark:text-orange-300 border border-orange-200 dark:border-orange-900">
@@ -306,6 +311,18 @@ export function ReservationCard({
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-purple-100 text-purple-700 dark:bg-purple-950/30 dark:text-purple-300 border border-purple-200 dark:border-purple-900">
                   <ArrowUpFromLine className="h-3 w-3" />
                   Late 2 PM
+                </span>
+              )}
+              {needsHighchair && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-sky-100 text-sky-700 dark:bg-sky-950/30 dark:text-sky-300 border border-sky-200 dark:border-sky-900">
+                  <Baby className="h-3 w-3" />
+                  Highchair
+                </span>
+              )}
+              {needsPackNPlay && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-sky-100 text-sky-700 dark:bg-sky-950/30 dark:text-sky-300 border border-sky-200 dark:border-sky-900">
+                  <Baby className="h-3 w-3" />
+                  Pack &apos;n Play
                 </span>
               )}
               {tipUpsells.map((tip) => {
