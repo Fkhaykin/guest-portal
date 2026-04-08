@@ -12,6 +12,8 @@ import {
   ArrowDownToLine,
   ArrowUpFromLine,
   Heart,
+  SkipForward,
+  Undo2,
 } from "lucide-react";
 import type { UpsellEntry, GuestListEntry, PetEntry } from "@/types/database";
 import { CleaningDialog } from "./cleaning-dialog";
@@ -80,6 +82,7 @@ export function ReservationCard({
   pets,
   upsells,
   isCleaned: initialCleaned,
+  isSkipped: initialSkipped,
   fulfilledUpsells: initialFulfilled,
   photoAreas,
   category,
@@ -95,11 +98,13 @@ export function ReservationCard({
   pets: PetEntry[] | null;
   upsells: UpsellEntry[];
   isCleaned: boolean;
+  isSkipped: boolean;
   fulfilledUpsells: string[];
   photoAreas: string[] | null;
   category: "current" | "upcoming" | "departed";
 }) {
   const [isCleaned, setIsCleaned] = useState(initialCleaned);
+  const [isSkipped, setIsSkipped] = useState(initialSkipped);
   const [fulfilled, setFulfilled] = useState<string[]>(initialFulfilled);
   const [saving, setSaving] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -149,7 +154,7 @@ export function ReservationCard({
   }
 
   async function updateStatus(
-    updates: { is_cleaned?: boolean; fulfilled_upsells?: string[] }
+    updates: { is_cleaned?: boolean; is_skipped?: boolean; fulfilled_upsells?: string[] }
   ) {
     setSaving(true);
     await fetch("/api/cleaner/update-status", {
@@ -173,6 +178,13 @@ export function ReservationCard({
     router.refresh();
   }
 
+  async function handleSkip() {
+    const next = !isSkipped;
+    setIsSkipped(next);
+    await updateStatus({ is_skipped: next });
+    router.refresh();
+  }
+
   const isCheckoutPassed = (() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -189,9 +201,11 @@ export function ReservationCard({
         className={`transition-all ${
           isFullyDone
             ? "border-green-500/50 bg-green-50/30 dark:bg-green-950/10 opacity-75"
-            : category === "departed" && !isCleaned
-              ? "border-red-300 bg-red-50/30 dark:bg-red-950/10"
-              : ""
+            : isSkipped
+              ? "border-muted opacity-60"
+              : category === "departed" && !isCleaned
+                ? "border-red-300 bg-red-50/30 dark:bg-red-950/10"
+                : ""
         }`}
       >
         <CardContent className="py-3 px-4">
@@ -234,27 +248,47 @@ export function ReservationCard({
               </div>
             </div>
 
-            {/* Action button */}
-            <div className="shrink-0">
+            {/* Action buttons */}
+            <div className="shrink-0 flex items-center gap-1.5">
               {isCleaned ? (
                 <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-green-600 text-white">
                   <Check className="h-3.5 w-3.5" />
                   Cleaned
                 </div>
+              ) : isSkipped ? (
+                <button
+                  onClick={handleSkip}
+                  disabled={saving}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all bg-muted text-muted-foreground hover:bg-muted/80"
+                >
+                  <Undo2 className="h-3.5 w-3.5" />
+                  Unskip
+                </button>
               ) : !isCheckoutPassed ? (
                 <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-muted text-muted-foreground cursor-not-allowed" title="Can only mark clean after checkout">
                   <Clock className="h-3.5 w-3.5" />
                   After checkout
                 </div>
               ) : (
-                <button
-                  onClick={() => setDialogOpen(true)}
-                  disabled={saving}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all bg-primary text-primary-foreground hover:bg-primary/90"
-                >
-                  <SprayCan className="h-3.5 w-3.5" />
-                  Clean
-                </button>
+                <>
+                  <button
+                    onClick={handleSkip}
+                    disabled={saving}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all bg-muted text-muted-foreground hover:bg-muted/80"
+                    title="Skip this task"
+                  >
+                    <SkipForward className="h-3.5 w-3.5" />
+                    Skip
+                  </button>
+                  <button
+                    onClick={() => setDialogOpen(true)}
+                    disabled={saving}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all bg-primary text-primary-foreground hover:bg-primary/90"
+                  >
+                    <SprayCan className="h-3.5 w-3.5" />
+                    Clean
+                  </button>
+                </>
               )}
             </div>
           </div>

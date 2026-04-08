@@ -11,6 +11,7 @@ import {
   CalendarClock,
   CheckCircle2,
   Home,
+  SkipForward,
 } from "lucide-react";
 import type { UpsellEntry, GuestListEntry, PetEntry } from "@/types/database";
 
@@ -31,6 +32,7 @@ type RegistrationRow = {
 type CleaningStatusRow = {
   registration_id: string;
   is_cleaned: boolean;
+  is_skipped: boolean;
   fulfilled_upsells: string[];
 };
 
@@ -105,7 +107,7 @@ export default async function CleanerDashboard() {
   const regIds = regs.map((r) => r.id);
   const { data: statuses } = await supabase
     .from("cleaning_status")
-    .select("registration_id, is_cleaned, fulfilled_upsells")
+    .select("registration_id, is_cleaned, is_skipped, fulfilled_upsells")
     .in("registration_id", regIds.length > 0 ? regIds : ["_none_"]);
 
   const statusMap = new Map(
@@ -129,7 +131,7 @@ export default async function CleanerDashboard() {
 
   // Stats
   const needsCleaning = departed.filter(
-    (r) => !statusMap.get(r.id)?.is_cleaned
+    (r) => !statusMap.get(r.id)?.is_cleaned && !statusMap.get(r.id)?.is_skipped
   ).length;
   const totalTasks = regs.length;
   const completedTasks = regs.filter(
@@ -157,6 +159,7 @@ export default async function CleanerDashboard() {
           pets={reg.pets}
           upsells={paidUpsells}
           isCleaned={status?.is_cleaned ?? false}
+          isSkipped={status?.is_skipped ?? false}
           fulfilledUpsells={status?.fulfilled_upsells ?? []}
           photoAreas={prop?.photoAreas || null}
           category={category}
@@ -165,7 +168,8 @@ export default async function CleanerDashboard() {
     });
   }
 
-  const uncleanedDeparted = departed.filter((r) => !statusMap.get(r.id)?.is_cleaned);
+  const uncleanedDeparted = departed.filter((r) => !statusMap.get(r.id)?.is_cleaned && !statusMap.get(r.id)?.is_skipped);
+  const skippedDeparted = departed.filter((r) => statusMap.get(r.id)?.is_skipped && !statusMap.get(r.id)?.is_cleaned);
   const cleanedDeparted = departed.filter((r) => statusMap.get(r.id)?.is_cleaned);
 
   return (
@@ -255,6 +259,19 @@ export default async function CleanerDashboard() {
           >
             <div className="space-y-3">
               {renderCards(cleanedDeparted, "departed")}
+            </div>
+          </CollapsibleSection>
+        )}
+
+        {skippedDeparted.length > 0 && (
+          <CollapsibleSection
+            title="Skipped"
+            icon={<SkipForward className="h-4 w-4 text-muted-foreground" />}
+            count={skippedDeparted.length}
+            defaultOpen={false}
+          >
+            <div className="space-y-3">
+              {renderCards(skippedDeparted, "departed")}
             </div>
           </CollapsibleSection>
         )}
