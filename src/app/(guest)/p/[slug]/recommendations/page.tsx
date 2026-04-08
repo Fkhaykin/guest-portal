@@ -22,7 +22,6 @@ import {
   Music,
   Ticket,
   Landmark,
-  Play,
   Lightbulb,
   Sparkles,
   Baby,
@@ -39,26 +38,10 @@ type Recommendation = {
   website_url: string | null;
   map_url: string | null;
   image_url: string | null;
-  youtube_url: string | null;
   tips: string | null;
   rating: number | null;
   sort_order: number;
 };
-
-/* ---------- helpers ---------- */
-
-/** Extract YouTube video ID from various URL formats */
-function getYouTubeId(url: string): string | null {
-  const patterns = [
-    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/,
-    /youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})/,
-  ];
-  for (const p of patterns) {
-    const m = url.match(p);
-    if (m) return m[1];
-  }
-  return null;
-}
 
 /* ---------- category icon mapping ---------- */
 const categoryIcons: Record<string, React.ElementType> = {
@@ -138,25 +121,6 @@ function RatingStars({ rating }: { rating: number }) {
       <span className="text-xs text-muted-foreground ml-1.5 font-medium">
         {rating.toFixed(1)}
       </span>
-    </div>
-  );
-}
-
-/* ---------- youtube embed ---------- */
-function YouTubeEmbed({ url, name }: { url: string; name: string }) {
-  const videoId = getYouTubeId(url);
-  if (!videoId) return null;
-
-  return (
-    <div className="relative w-full rounded-lg overflow-hidden bg-black aspect-video">
-      <iframe
-        src={`https://www.youtube-nocookie.com/embed/${videoId}?rel=0`}
-        title={`${name} video`}
-        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-        allowFullScreen
-        className="absolute inset-0 w-full h-full"
-        loading="lazy"
-      />
     </div>
   );
 }
@@ -254,11 +218,6 @@ function RecommendationCard({ rec }: { rec: Recommendation }) {
           </div>
         )}
 
-        {/* YouTube embed */}
-        {rec.youtube_url && (
-          <YouTubeEmbed url={rec.youtube_url} name={rec.name} />
-        )}
-
         {/* Action buttons */}
         <div className="flex gap-2 pt-1">
           {rec.map_url && (
@@ -284,19 +243,6 @@ function RecommendationCard({ rec }: { rec: Recommendation }) {
               <Button variant="outline" size="sm" className="w-full gap-1.5">
                 <Globe className="h-3.5 w-3.5" />
                 Website
-              </Button>
-            </a>
-          )}
-          {rec.youtube_url && !getYouTubeId(rec.youtube_url) && (
-            <a
-              href={rec.youtube_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex-1"
-            >
-              <Button variant="outline" size="sm" className="w-full gap-1.5">
-                <Play className="h-3.5 w-3.5" />
-                Watch
               </Button>
             </a>
           )}
