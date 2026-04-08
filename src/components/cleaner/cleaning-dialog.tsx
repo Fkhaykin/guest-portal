@@ -20,6 +20,17 @@ import type { CleaningPhoto } from "@/types/database";
 
 type PhotoWithPreview = CleaningPhoto & { previewUrl: string };
 
+function UploadError({ message, onDismiss }: { message: string; onDismiss: () => void }) {
+  return (
+    <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
+      <span className="flex-1">{message}</span>
+      <button onClick={onDismiss} className="shrink-0">
+        <X className="h-3.5 w-3.5" />
+      </button>
+    </div>
+  );
+}
+
 const DEFAULT_PHOTO_AREAS = [
   "Front Yard",
   "Entryway",
@@ -72,15 +83,14 @@ export function CleaningDialog({
   const [activeRoom, setActiveRoom] = useState<string | null>(null);
   const [fullscreenUrl, setFullscreenUrl] = useState<string | null>(null);
   const [notes, setNotes] = useState<Record<string, string>>({});
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   const photosPerArea = areas.reduce<Record<string, PhotoWithPreview[]>>((acc, area) => {
     acc[area] = photos.filter((p) => p.room === area);
     return acc;
   }, {});
 
-  const allAreasHavePhotos = areas.every(
-    (area) => (photosPerArea[area]?.length ?? 0) > 0
-  );
+  const hasAnyPhotos = photos.length > 0;
 
   async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -96,6 +106,7 @@ export function CleaningDialog({
     formData.append("room", activeRoom);
 
     try {
+      setUploadError(null);
       const res = await fetch("/api/cleaner/upload-photo", {
         method: "POST",
         body: formData,
@@ -106,9 +117,12 @@ export function CleaningDialog({
         setPhotos((prev) => [...prev, { ...data.photo, previewUrl }]);
       } else {
         URL.revokeObjectURL(previewUrl);
+        const data = await res.json().catch(() => null);
+        setUploadError(data?.error || "Upload failed — please try again");
       }
     } catch {
       URL.revokeObjectURL(previewUrl);
+      setUploadError("Network error — check your connection and try again");
     } finally {
       setUploading(null);
       setActiveRoom(null);
@@ -171,8 +185,12 @@ export function CleaningDialog({
         <Separator />
 
         <div className="space-y-4">
+          {uploadError && (
+            <UploadError message={uploadError} onDismiss={() => setUploadError(null)} />
+          )}
+
           <p className="text-sm text-muted-foreground">
-            Upload at least one photo per area to verify the cleaning.
+            Optionally upload photos to document the cleaning.
           </p>
 
           {areas.map((area) => {
@@ -190,7 +208,7 @@ export function CleaningDialog({
                     </Badge>
                   ) : (
                     <Badge variant="outline" className="text-xs">
-                      Required
+                      Optional
                     </Badge>
                   )}
                 </div>
@@ -265,7 +283,7 @@ export function CleaningDialog({
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/jpeg,image/png,image/webp,image/heic"
+            accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
             className="hidden"
             onChange={handleFileSelect}
           />
@@ -274,7 +292,7 @@ export function CleaningDialog({
 
           <Button
             onClick={handleSubmit}
-            disabled={!allAreasHavePhotos || submitting}
+            disabled={submitting}
             className="w-full"
           >
             {submitting ? (
@@ -282,13 +300,11 @@ export function CleaningDialog({
                 <Loader2 className="h-4 w-4 mr-1 animate-spin" />
                 Submitting...
               </>
-            ) : allAreasHavePhotos ? (
+            ) : (
               <>
                 <Check className="h-4 w-4 mr-1" />
                 Complete Cleaning
               </>
-            ) : (
-              "Photo required for each area"
             )}
           </Button>
         </div>

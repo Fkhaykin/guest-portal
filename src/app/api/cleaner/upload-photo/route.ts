@@ -26,7 +26,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/heic"];
+  const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"];
   if (!allowedTypes.includes(file.type)) {
     return NextResponse.json(
       { error: "File must be JPEG, PNG, WebP, or HEIC" },
@@ -78,26 +78,27 @@ export async function POST(request: Request) {
   // Persist photo to cleaning_status record immediately
   const photo = { room, path, uploaded_at: new Date().toISOString() };
 
-  const { data: existing } = await supabase
-    .from("cleaning_status")
-    .select("photos")
-    .eq("registration_id", registrationId)
-    .single();
-
-  const currentPhotos: { room: string; path: string; uploaded_at: string }[] =
-    existing?.photos ?? [];
-  const updatedPhotos = [...currentPhotos, photo];
-
+  // Ensure cleaning_status row exists, then atomically append the photo.
+  // Using ignoreDuplicates so concurrent inserts don't conflict.
   await supabase
     .from("cleaning_status")
     .upsert(
       {
         registration_id: registrationId,
         cleaner_id: cleaner.id,
-        photos: updatedPhotos,
+        photos: [],
       },
-      { onConflict: "registration_id" }
+      { onConflict: "registration_id", ignoreDuplicates: true }
     );
+
+  const { error: appendError } = await supabase.rpc("append_cleaning_photo", {
+    p_registration_id: registrationId,
+    p_photo: photo,
+  });
+
+  if (appendError) {
+    console.error("Failed to save photo metadata:", appendError);
+  }
 
   return NextResponse.json({ ok: true, photo });
 }

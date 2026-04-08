@@ -2,8 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Card,
   CardContent,
@@ -40,8 +38,9 @@ import {
   ShoppingBag,
   Package,
 } from "lucide-react";
-import { GuestHeader, PropertyHeader } from "@/components/guest/guest-header";
+import { PropertyHeader } from "@/components/guest/guest-header";
 import { GuestNav } from "@/components/guest/guest-nav";
+import { LandingPage } from "@/components/guest/landing-page";
 
 type GuestBreakdown = {
   adults: number;
@@ -116,140 +115,6 @@ function getDaysUntil(dateStr: string) {
   today.setHours(0, 0, 0, 0);
   const target = new Date(dateStr + "T00:00:00");
   return Math.ceil((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-}
-
-// --- Search Form ---
-function BookingSearch({
-  onFound,
-}: {
-  onFound: (data: { guestName: string; reservation: Reservation }) => void;
-}) {
-  const [fullName, setFullName] = useState("");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-  const [checkInDate, setCheckInDate] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const hasIdentifier = fullName.trim() || email.trim() || phone.trim();
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!hasIdentifier) {
-      setError("Please enter at least your name, email, or phone number.");
-      return;
-    }
-    setLoading(true);
-    setError(null);
-
-    try {
-      const body: Record<string, string> = { check_in_date: checkInDate };
-      if (fullName.trim()) body.full_name = fullName.trim();
-      if (email.trim()) body.email = email.trim();
-      if (phone.trim()) body.phone = phone.trim();
-
-      const res = await fetch("/api/guest/lookup", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        setError(data.error || "Something went wrong. Please try again.");
-      } else {
-        onFound({ guestName: data.guest_name, reservation: data.reservation });
-      }
-    } catch {
-      setError("Unable to connect. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  return (
-    <main className="flex-1 flex flex-col items-center justify-center p-6">
-      <div className="max-w-lg w-full space-y-8">
-        <div className="text-center space-y-3">
-          <h1 className="text-4xl font-bold tracking-tight">
-            Welcome
-          </h1>
-          <p className="text-muted-foreground text-lg">
-            Find your booking to get started
-          </p>
-        </div>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Find Your Booking</CardTitle>
-            <CardDescription>
-              Enter your details to pull up your reservation
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="full-name">Name</Label>
-                <Input
-                  id="full-name"
-                  type="text"
-                  placeholder="John Smith"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="john@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="phone">Phone Number</Label>
-                <Input
-                  id="phone"
-                  type="tel"
-                  placeholder="+1 (555) 000-0000"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="check-in">Check-in Date</Label>
-                <Input
-                  id="check-in"
-                  type="date"
-                  value={checkInDate}
-                  onChange={(e) => setCheckInDate(e.target.value)}
-                  required
-                />
-              </div>
-
-              <p className="text-xs text-muted-foreground">
-                Enter any combination of name, email, or phone along with your check-in date.
-              </p>
-
-              {error && (
-                <p className="text-sm text-destructive">{error}</p>
-              )}
-
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? "Searching..." : "Find My Booking"}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-      </div>
-    </main>
-  );
 }
 
 // --- Guest Dashboard ---
@@ -847,16 +712,13 @@ export default function HomePage() {
           />
         </>
       ) : (
-        <>
-          <GuestHeader />
-          <BookingSearch
-            onFound={({ guestName: name, reservation: res }) => {
-              setGuestName(name);
-              setReservation(res);
-              saveSession(name, res);
-            }}
-          />
-        </>
+        <LandingPage
+          onFound={({ guestName: name, reservation: res }) => {
+            setGuestName(name);
+            setReservation(res);
+            saveSession(name, res);
+          }}
+        />
       )}
     </>
   );

@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Guest Portal",
-  description: "Your complete guide to an amazing stay",
+  title: "Summit Lakeside Rentals — Poconos Lakehouse Vacations",
+  description: "Lakefront vacation homes in the Poconos with hot tubs, game rooms, boats, and direct lake access. Book direct and save.",
 };
 
 export default function RootLayout({
