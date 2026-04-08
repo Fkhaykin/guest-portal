@@ -14,19 +14,20 @@ import {
   UtensilsCrossed,
   Compass,
   CalendarDays,
-  ExternalLink,
   Coffee,
   Beer,
   ShoppingBag,
-  Waves,
   TreePine,
-  Mountain,
   Camera,
   Music,
   Ticket,
   Landmark,
-  Bike,
-  Fish,
+  Play,
+  Lightbulb,
+  Sparkles,
+  Baby,
+  Dumbbell,
+  CakeSlice,
 } from "lucide-react";
 
 type Recommendation = {
@@ -38,27 +39,58 @@ type Recommendation = {
   website_url: string | null;
   map_url: string | null;
   image_url: string | null;
+  youtube_url: string | null;
+  tips: string | null;
   rating: number | null;
   sort_order: number;
 };
+
+/* ---------- helpers ---------- */
+
+/** Extract YouTube video ID from various URL formats */
+function getYouTubeId(url: string): string | null {
+  const patterns = [
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/,
+    /youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})/,
+  ];
+  for (const p of patterns) {
+    const m = url.match(p);
+    if (m) return m[1];
+  }
+  return null;
+}
 
 /* ---------- category icon mapping ---------- */
 const categoryIcons: Record<string, React.ElementType> = {
   restaurant: UtensilsCrossed,
   cafe: Coffee,
   bar: Beer,
+  bakery: CakeSlice,
   shopping: ShoppingBag,
   activity: Compass,
   attraction: Camera,
-  waterfront: Waves,
-  hiking: TreePine,
-  mountain: Mountain,
-  music: Music,
-  event: Ticket,
-  landmark: Landmark,
-  biking: Bike,
-  fishing: Fish,
+  nature: TreePine,
+  nightlife: Music,
+  spa: Sparkles,
+  family: Baby,
+  sports: Dumbbell,
   other: CalendarDays,
+};
+
+const categoryLabels: Record<string, string> = {
+  restaurant: "Restaurant",
+  cafe: "Cafe",
+  bar: "Bar & Brewery",
+  bakery: "Bakery & Sweets",
+  shopping: "Shopping",
+  activity: "Activity",
+  attraction: "Attraction",
+  nature: "Nature",
+  nightlife: "Nightlife",
+  spa: "Spa & Wellness",
+  family: "Family Fun",
+  sports: "Sports & Recreation",
+  other: "Event & Entertainment",
 };
 
 /* ---------- guide tab config ---------- */
@@ -67,7 +99,7 @@ const guideTabs = [
     key: "food",
     label: "Food & Drink",
     icon: UtensilsCrossed,
-    categories: ["restaurant", "cafe", "bar", "shopping"],
+    categories: ["restaurant", "cafe", "bar", "bakery", "shopping"],
     emptyMessage: "No food & drink recommendations yet.",
     gradient: "from-orange-500/10 to-amber-500/5",
   },
@@ -75,7 +107,7 @@ const guideTabs = [
     key: "activities",
     label: "Activities",
     icon: Compass,
-    categories: ["activity", "attraction", "waterfront", "hiking", "mountain", "biking", "fishing", "landmark"],
+    categories: ["activity", "attraction", "nature", "family", "sports", "spa"],
     emptyMessage: "No activity recommendations yet.",
     gradient: "from-emerald-500/10 to-teal-500/5",
   },
@@ -83,7 +115,7 @@ const guideTabs = [
     key: "events",
     label: "Events",
     icon: CalendarDays,
-    categories: ["other", "event", "music"],
+    categories: ["other", "nightlife"],
     emptyMessage: "No event recommendations yet.",
     gradient: "from-violet-500/10 to-purple-500/5",
   },
@@ -110,15 +142,35 @@ function RatingStars({ rating }: { rating: number }) {
   );
 }
 
+/* ---------- youtube embed ---------- */
+function YouTubeEmbed({ url, name }: { url: string; name: string }) {
+  const videoId = getYouTubeId(url);
+  if (!videoId) return null;
+
+  return (
+    <div className="relative w-full rounded-lg overflow-hidden bg-black aspect-video">
+      <iframe
+        src={`https://www.youtube-nocookie.com/embed/${videoId}?rel=0`}
+        title={`${name} video`}
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        allowFullScreen
+        className="absolute inset-0 w-full h-full"
+        loading="lazy"
+      />
+    </div>
+  );
+}
+
 /* ---------- recommendation card ---------- */
 function RecommendationCard({ rec }: { rec: Recommendation }) {
   const CategoryIcon = categoryIcons[rec.category] || Compass;
+  const label = categoryLabels[rec.category] || rec.category;
 
   return (
     <Card className="overflow-hidden transition-all hover:shadow-lg hover:-translate-y-0.5 duration-200 group">
-      {/* Image */}
+      {/* Hero image */}
       {rec.image_url ? (
-        <div className="relative h-44 w-full overflow-hidden bg-muted">
+        <div className="relative h-48 w-full overflow-hidden bg-muted">
           <Image
             src={rec.image_url}
             alt={rec.name}
@@ -126,81 +178,129 @@ function RecommendationCard({ rec }: { rec: Recommendation }) {
             className="object-cover transition-transform duration-300 group-hover:scale-105"
             sizes="(max-width: 768px) 100vw, 50vw"
           />
-          {/* Category badge overlay */}
+          <div className="absolute inset-0 bg-linear-to-t from-black/40 to-transparent" />
+          {/* Category badge */}
           <div className="absolute top-3 left-3">
             <Badge className="bg-black/60 text-white border-0 backdrop-blur-sm gap-1.5 text-xs font-medium">
               <CategoryIcon className="h-3 w-3" />
-              {rec.category.charAt(0).toUpperCase() + rec.category.slice(1)}
+              {label}
             </Badge>
+          </div>
+          {/* Rating overlay */}
+          {rec.rating && (
+            <div className="absolute top-3 right-3">
+              <Badge className="bg-white/90 text-black border-0 backdrop-blur-sm gap-1 text-xs font-semibold">
+                <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
+                {rec.rating.toFixed(1)}
+              </Badge>
+            </div>
+          )}
+          {/* Name overlay at bottom */}
+          <div className="absolute bottom-0 left-0 right-0 p-4">
+            <h3 className="font-bold text-lg text-white leading-tight drop-shadow-md">
+              {rec.name}
+            </h3>
           </div>
         </div>
       ) : (
-        <div className="relative h-32 w-full bg-linear-to-br from-muted to-muted/50 flex items-center justify-center">
-          <CategoryIcon className="h-12 w-12 text-muted-foreground/20" />
+        <div className="relative h-36 w-full bg-linear-to-br from-muted to-muted/50 flex items-center justify-center">
+          <CategoryIcon className="h-14 w-14 text-muted-foreground/15" />
           <div className="absolute top-3 left-3">
             <Badge variant="secondary" className="gap-1.5 text-xs font-medium">
               <CategoryIcon className="h-3 w-3" />
-              {rec.category.charAt(0).toUpperCase() + rec.category.slice(1)}
+              {label}
             </Badge>
+          </div>
+          {rec.rating && (
+            <div className="absolute top-3 right-3">
+              <Badge variant="secondary" className="gap-1 text-xs font-semibold">
+                <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
+                {rec.rating.toFixed(1)}
+              </Badge>
+            </div>
+          )}
+          <div className="absolute bottom-0 left-0 right-0 p-4">
+            <h3 className="font-bold text-lg leading-tight">{rec.name}</h3>
           </div>
         </div>
       )}
 
       <CardContent className="p-4 space-y-3">
-        {/* Name + Rating */}
-        <div className="space-y-1.5">
-          <h3 className="font-semibold text-base leading-tight line-clamp-1">
-            {rec.name}
-          </h3>
-          {rec.rating && <RatingStars rating={rec.rating} />}
-        </div>
-
         {/* Address */}
         {rec.address && (
-          <p className="text-muted-foreground text-xs flex items-start gap-1.5">
-            <MapPin className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-            <span className="line-clamp-2">{rec.address}</span>
-          </p>
+          <div className="flex items-start gap-2 text-muted-foreground">
+            <MapPin className="h-4 w-4 shrink-0 mt-0.5 text-primary/60" />
+            <span className="text-sm line-clamp-2">{rec.address}</span>
+          </div>
         )}
+
+        {/* Rating stars (below image if no image) */}
+        {rec.rating && !rec.image_url && <RatingStars rating={rec.rating} />}
 
         {/* Description */}
         {rec.description && (
-          <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3">
+          <p className="text-sm text-muted-foreground leading-relaxed">
             {rec.description}
           </p>
         )}
 
-        {/* Action buttons */}
-        {(rec.website_url || rec.map_url) && (
-          <div className="flex gap-2 pt-1">
-            {rec.map_url && (
-              <a
-                href={rec.map_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex-1"
-              >
-                <Button variant="default" size="sm" className="w-full gap-1.5">
-                  <Navigation className="h-3.5 w-3.5" />
-                  Directions
-                </Button>
-              </a>
-            )}
-            {rec.website_url && (
-              <a
-                href={rec.website_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex-1"
-              >
-                <Button variant="outline" size="sm" className="w-full gap-1.5">
-                  <Globe className="h-3.5 w-3.5" />
-                  Website
-                </Button>
-              </a>
-            )}
+        {/* Tips callout */}
+        {rec.tips && (
+          <div className="flex gap-2.5 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200/50 dark:border-amber-900/30 p-3">
+            <Lightbulb className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+            <p className="text-xs text-amber-800 dark:text-amber-200 leading-relaxed">
+              {rec.tips}
+            </p>
           </div>
         )}
+
+        {/* YouTube embed */}
+        {rec.youtube_url && (
+          <YouTubeEmbed url={rec.youtube_url} name={rec.name} />
+        )}
+
+        {/* Action buttons */}
+        <div className="flex gap-2 pt-1">
+          {rec.map_url && (
+            <a
+              href={rec.map_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-1"
+            >
+              <Button variant="default" size="sm" className="w-full gap-1.5">
+                <Navigation className="h-3.5 w-3.5" />
+                Directions
+              </Button>
+            </a>
+          )}
+          {rec.website_url && (
+            <a
+              href={rec.website_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-1"
+            >
+              <Button variant="outline" size="sm" className="w-full gap-1.5">
+                <Globe className="h-3.5 w-3.5" />
+                Website
+              </Button>
+            </a>
+          )}
+          {rec.youtube_url && !getYouTubeId(rec.youtube_url) && (
+            <a
+              href={rec.youtube_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-1"
+            >
+              <Button variant="outline" size="sm" className="w-full gap-1.5">
+                <Play className="h-3.5 w-3.5" />
+                Watch
+              </Button>
+            </a>
+          )}
+        </div>
       </CardContent>
     </Card>
   );
@@ -251,8 +351,8 @@ export default async function RecommendationsPage({
       {/* Header */}
       <div className="space-y-2">
         <div className="flex items-center gap-3">
-          <div className="flex items-center justify-center h-10 w-10 rounded-xl bg-primary/10">
-            <Compass className="h-5 w-5 text-primary" />
+          <div className="flex items-center justify-center h-11 w-11 rounded-xl bg-primary/10">
+            <Compass className="h-5.5 w-5.5 text-primary" />
           </div>
           <div>
             <h2 className="text-2xl font-bold tracking-tight">Local Guide</h2>
@@ -303,7 +403,9 @@ export default async function RecommendationsPage({
                 </div>
               ) : (
                 <div className="text-center py-16 text-muted-foreground">
-                  <div className={`inline-flex items-center justify-center h-16 w-16 rounded-2xl bg-linear-to-br ${tab.gradient} mb-4`}>
+                  <div
+                    className={`inline-flex items-center justify-center h-16 w-16 rounded-2xl bg-linear-to-br ${tab.gradient} mb-4`}
+                  >
                     <tab.icon className="h-8 w-8 opacity-40" />
                   </div>
                   <p className="font-medium">{tab.emptyMessage}</p>
@@ -327,9 +429,9 @@ export default async function RecommendationsPage({
         </div>
       )}
 
-      {/* Footer tip */}
+      {/* Footer */}
       {hasAny && (
-        <div className="text-center py-4">
+        <div className="text-center py-4 space-y-1">
           <p className="text-xs text-muted-foreground/60">
             Tap &quot;Directions&quot; to open in Google Maps
           </p>

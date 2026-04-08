@@ -27,9 +27,17 @@ import type { Tables } from "@/types/database";
 
 const categories = [
   { value: "restaurant", label: "Restaurant" },
+  { value: "cafe", label: "Cafe" },
+  { value: "bar", label: "Bar & Brewery" },
+  { value: "bakery", label: "Bakery & Sweets" },
   { value: "attraction", label: "Attraction" },
   { value: "activity", label: "Activity" },
+  { value: "nature", label: "Nature" },
+  { value: "family", label: "Family Fun" },
+  { value: "sports", label: "Sports & Recreation" },
+  { value: "spa", label: "Spa & Wellness" },
   { value: "shopping", label: "Shopping" },
+  { value: "nightlife", label: "Nightlife" },
   { value: "other", label: "Other" },
 ] as const;
 
@@ -73,6 +81,9 @@ export default function AdminRecommendationsPage({
       address: (formData.get("address") as string) || null,
       website_url: (formData.get("website_url") as string) || null,
       map_url: (formData.get("map_url") as string) || null,
+      image_url: (formData.get("image_url") as string) || null,
+      youtube_url: (formData.get("youtube_url") as string) || null,
+      tips: (formData.get("tips") as string) || null,
     };
 
     if (editing) {
@@ -173,6 +184,36 @@ export default function AdminRecommendationsPage({
                   name="map_url"
                   type="url"
                   defaultValue={editing?.map_url ?? ""}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="image_url">Image URL</Label>
+                <Input
+                  id="image_url"
+                  name="image_url"
+                  type="url"
+                  defaultValue={editing?.image_url ?? ""}
+                  placeholder="https://images.unsplash.com/..."
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="youtube_url">YouTube Video URL</Label>
+                <Input
+                  id="youtube_url"
+                  name="youtube_url"
+                  type="url"
+                  defaultValue={editing?.youtube_url ?? ""}
+                  placeholder="https://youtube.com/watch?v=..."
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="tips">Insider Tip</Label>
+                <Textarea
+                  id="tips"
+                  name="tips"
+                  defaultValue={editing?.tips ?? ""}
+                  rows={2}
+                  placeholder="Pro tip for guests visiting this place..."
                 />
               </div>
               <Button type="submit" disabled={loading} className="w-full">
