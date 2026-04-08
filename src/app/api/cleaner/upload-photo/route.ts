@@ -26,8 +26,22 @@ export async function POST(request: Request) {
     );
   }
 
-  const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"];
-  if (!allowedTypes.includes(file.type)) {
+  // Resolve MIME type — iOS sometimes sends application/octet-stream or empty type
+  const extMimeMap: Record<string, string> = {
+    jpg: "image/jpeg",
+    jpeg: "image/jpeg",
+    png: "image/png",
+    webp: "image/webp",
+    heic: "image/heic",
+    heif: "image/heif",
+  };
+  const allowedTypes = Object.values(extMimeMap);
+  const fileExt = file.name.split(".").pop()?.toLowerCase() || "";
+  const resolvedType = allowedTypes.includes(file.type)
+    ? file.type
+    : extMimeMap[fileExt] || file.type;
+
+  if (!allowedTypes.includes(resolvedType)) {
     return NextResponse.json(
       { error: "File must be JPEG, PNG, WebP, or HEIC" },
       { status: 400 }
@@ -60,19 +74,23 @@ export async function POST(request: Request) {
   }
 
   // Upload photo
-  const ext = file.name.split(".").pop() || "jpg";
+  const ext = fileExt || "jpg";
   const path = `${registrationId}/${room}-${Date.now()}.${ext}`;
   const buffer = await file.arrayBuffer();
 
   const { error: uploadError } = await supabase.storage
     .from("cleaning-photos")
     .upload(path, buffer, {
-      contentType: file.type,
+      contentType: resolvedType,
       upsert: false,
     });
 
   if (uploadError) {
-    return NextResponse.json({ error: "Upload failed" }, { status: 500 });
+    console.error("Storage upload error:", uploadError);
+    return NextResponse.json(
+      { error: `Upload failed: ${uploadError.message}` },
+      { status: 500 }
+    );
   }
 
   // Persist photo to cleaning_status record immediately
