@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import type { CleaningPhoto } from "@/types/database";
 
-type PhotoWithUrl = CleaningPhoto & { url?: string | null };
+type PhotoWithPreview = CleaningPhoto & { previewUrl: string };
 
 const DEFAULT_PHOTO_AREAS = [
   "Front Yard",
@@ -65,7 +65,7 @@ export function CleaningDialog({
   onComplete: () => void;
 }) {
   const areas = photoAreas && photoAreas.length > 0 ? photoAreas : DEFAULT_PHOTO_AREAS;
-  const [photos, setPhotos] = useState<PhotoWithUrl[]>([]);
+  const [photos, setPhotos] = useState<PhotoWithPreview[]>([]);
   const [uploading, setUploading] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -73,7 +73,7 @@ export function CleaningDialog({
   const [fullscreenUrl, setFullscreenUrl] = useState<string | null>(null);
   const [notes, setNotes] = useState<Record<string, string>>({});
 
-  const photosPerArea = areas.reduce<Record<string, PhotoWithUrl[]>>((acc, area) => {
+  const photosPerArea = areas.reduce<Record<string, PhotoWithPreview[]>>((acc, area) => {
     acc[area] = photos.filter((p) => p.room === area);
     return acc;
   }, {});
@@ -87,6 +87,7 @@ export function CleaningDialog({
     if (!file || !activeRoom) return;
     e.target.value = "";
 
+    const previewUrl = URL.createObjectURL(file);
     setUploading(activeRoom);
 
     const formData = new FormData();
@@ -102,8 +103,12 @@ export function CleaningDialog({
 
       if (res.ok) {
         const data = await res.json();
-        setPhotos((prev) => [...prev, data.photo]);
+        setPhotos((prev) => [...prev, { ...data.photo, previewUrl }]);
+      } else {
+        URL.revokeObjectURL(previewUrl);
       }
+    } catch {
+      URL.revokeObjectURL(previewUrl);
     } finally {
       setUploading(null);
       setActiveRoom(null);
@@ -111,15 +116,32 @@ export function CleaningDialog({
   }
 
   function removePhoto(index: number) {
-    setPhotos((prev) => prev.filter((_, i) => i !== index));
+    setPhotos((prev) => {
+      const photo = prev[index];
+      URL.revokeObjectURL(photo.previewUrl);
+
+      // Remove from server
+      fetch("/api/cleaner/delete-photo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          registration_id: registrationId,
+          path: photo.path,
+        }),
+      });
+
+      return prev.filter((_, i) => i !== index);
+    });
   }
 
   async function handleSubmit() {
     setSubmitting(true);
 
-    // Attach per-room notes to photos
+    // Photos are already saved per-upload; attach notes and mark complete
     const photosWithNotes = photos.map((p) => ({
-      ...p,
+      room: p.room,
+      path: p.path,
+      uploaded_at: p.uploaded_at,
       note: notes[p.room] || undefined,
     }));
 
@@ -173,41 +195,29 @@ export function CleaningDialog({
                   )}
                 </div>
 
-                {/* Uploaded photos */}
+                {/* Uploaded photo thumbnails */}
                 {areaPhotos.length > 0 && (
-                  <div className="flex gap-2 flex-wrap">
+                  <div className="flex gap-3 flex-wrap pt-1 pr-1">
                     {areaPhotos.map((photo, i) => {
                       const globalIdx = photos.indexOf(photo);
                       return (
-                        <div
-                          key={i}
-                          className="relative w-16 h-16 rounded-lg bg-muted border overflow-hidden"
-                        >
-                          {photo.url ? (
-                            <button
-                              type="button"
-                              onClick={() => setFullscreenUrl(photo.url!)}
-                              className="w-full h-full"
-                            >
-                              <img
-                                src={photo.url}
-                                alt={photo.room}
-                                className="w-full h-full object-cover"
-                              />
-                            </button>
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center">
-                              <Camera className="h-5 w-5 text-muted-foreground/50" />
-                            </div>
-                          )}
+                        <div key={i} className="relative">
                           <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              removePhoto(globalIdx);
-                            }}
-                            className="absolute top-0.5 right-0.5 bg-black/60 text-white rounded-full p-0.5"
+                            type="button"
+                            onClick={() => setFullscreenUrl(photo.previewUrl)}
+                            className="w-16 h-16 rounded-lg overflow-hidden border bg-muted block"
                           >
-                            <X className="h-3 w-3" />
+                            <img
+                              src={photo.previewUrl}
+                              alt={photo.room}
+                              className="w-full h-full object-cover"
+                            />
+                          </button>
+                          <button
+                            onClick={() => removePhoto(globalIdx)}
+                            className="absolute -top-1.5 -right-1.5 bg-black/70 text-white rounded-full p-0.5"
+                          >
+                            <X className="h-3.5 w-3.5" />
                           </button>
                         </div>
                       );

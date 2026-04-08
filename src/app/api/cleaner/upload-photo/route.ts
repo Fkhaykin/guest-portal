@@ -75,17 +75,29 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Upload failed" }, { status: 500 });
   }
 
-  const { data: urlData } = await supabase.storage
-    .from("cleaning-photos")
-    .createSignedUrl(path, 3600);
+  // Persist photo to cleaning_status record immediately
+  const photo = { room, path, uploaded_at: new Date().toISOString() };
 
-  return NextResponse.json({
-    ok: true,
-    photo: {
-      room,
-      path,
-      uploaded_at: new Date().toISOString(),
-      url: urlData?.signedUrl ?? null,
-    },
-  });
+  const { data: existing } = await supabase
+    .from("cleaning_status")
+    .select("photos")
+    .eq("registration_id", registrationId)
+    .single();
+
+  const currentPhotos: { room: string; path: string; uploaded_at: string }[] =
+    existing?.photos ?? [];
+  const updatedPhotos = [...currentPhotos, photo];
+
+  await supabase
+    .from("cleaning_status")
+    .upsert(
+      {
+        registration_id: registrationId,
+        cleaner_id: cleaner.id,
+        photos: updatedPhotos,
+      },
+      { onConflict: "registration_id" }
+    );
+
+  return NextResponse.json({ ok: true, photo });
 }

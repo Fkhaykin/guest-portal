@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,8 @@ import {
   TrendingUp,
   Sparkles,
   X,
+  PiggyBank,
+  Info,
 } from "lucide-react";
 import {
   BarChart,
@@ -81,6 +83,154 @@ function ChartTooltip({
         </p>
       ))}
     </div>
+  );
+}
+
+const TAX_RATE_KEY = "cleaner-tax-savings-rate";
+
+function TaxSavingsCard({ monthlyRevenue }: { monthlyRevenue: MonthData[] }) {
+  const [rate, setRate] = useState(25);
+  const [isEditing, setIsEditing] = useState(false);
+  const [inputValue, setInputValue] = useState("25");
+
+  useEffect(() => {
+    const saved = localStorage.getItem(TAX_RATE_KEY);
+    if (saved) {
+      const parsed = Number(saved);
+      if (!isNaN(parsed) && parsed >= 0 && parsed <= 100) {
+        setRate(parsed);
+        setInputValue(String(parsed));
+      }
+    }
+  }, []);
+
+  function saveRate() {
+    const parsed = Number(inputValue);
+    if (!isNaN(parsed) && parsed >= 0 && parsed <= 100) {
+      setRate(parsed);
+      localStorage.setItem(TAX_RATE_KEY, String(parsed));
+    }
+    setIsEditing(false);
+  }
+
+  const rows = monthlyRevenue.map((m) => {
+    const earned = m.cleaningRevenue + m.petFeeRevenue;
+    const projected = m.futureCleaningRevenue + m.futurePetFeeRevenue;
+    const total = earned + projected;
+    const savings = Math.round(total * (rate / 100));
+    return {
+      month: formatMonthLabel(m.month),
+      earned,
+      projected,
+      total,
+      savings,
+      hasProjected: projected > 0,
+    };
+  });
+
+  const totalSavings = rows.reduce((sum, r) => sum + r.savings, 0);
+  const totalEarnedOnly = rows.reduce(
+    (sum, r) => sum + Math.round(r.earned * (rate / 100)),
+    0
+  );
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <PiggyBank className="h-4 w-4 text-rose-500" />
+            <CardTitle className="text-sm font-medium">
+              Tax Savings Tracker
+            </CardTitle>
+          </div>
+          {isEditing ? (
+            <div className="flex items-center gap-1.5">
+              <Input
+                type="number"
+                min={0}
+                max={100}
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && saveRate()}
+                className="h-7 w-16 text-xs text-center"
+                autoFocus
+              />
+              <span className="text-xs text-muted-foreground">%</span>
+              <Button size="sm" variant="ghost" onClick={saveRate} className="h-7 px-2 text-xs">
+                Save
+              </Button>
+            </div>
+          ) : (
+            <button
+              onClick={() => {
+                setInputValue(String(rate));
+                setIsEditing(true);
+              }}
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {rate}% rate &middot; Edit
+            </button>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent>
+        {rows.length === 0 ? (
+          <div className="flex items-center justify-center h-24 text-sm text-muted-foreground">
+            No revenue data yet
+          </div>
+        ) : (
+          <>
+            <div className="space-y-2">
+              {rows.map((r) => (
+                <div
+                  key={r.month}
+                  className="flex items-center justify-between py-1.5 border-b last:border-0"
+                >
+                  <div>
+                    <p className="text-sm font-medium">{r.month}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {formatCents(r.earned)} earned
+                      {r.hasProjected && (
+                        <span className="text-purple-500">
+                          {" "}+ {formatCents(r.projected)} projected
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                  <p className="text-sm font-semibold text-rose-600 dark:text-rose-400">
+                    {formatCents(r.savings)}
+                  </p>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-3 pt-3 border-t flex items-center justify-between">
+              <p className="text-sm font-medium">Total to set aside</p>
+              <div className="text-right">
+                <p className="text-base font-bold text-rose-600 dark:text-rose-400">
+                  {formatCents(totalSavings)}
+                </p>
+                {totalSavings !== totalEarnedOnly && (
+                  <p className="text-[11px] text-muted-foreground">
+                    {formatCents(totalEarnedOnly)} from earned only
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="mt-3 flex items-start gap-2 rounded-md bg-muted/50 px-3 py-2">
+              <Info className="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-0.5" />
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                This is not financial or tax advice. It&apos;s meant as a helpful guide
+                to track how much you might want to save. Consult a tax professional
+                for advice specific to your situation.
+              </p>
+            </div>
+          </>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -350,6 +500,9 @@ export function AnalyticsDashboard({
           )}
         </CardContent>
       </Card>
+
+      {/* Tax Savings Tracker */}
+      <TaxSavingsCard monthlyRevenue={monthlyRevenue} />
 
       {/* Revenue by property */}
       <Card>
