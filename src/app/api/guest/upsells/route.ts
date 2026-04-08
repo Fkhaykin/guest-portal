@@ -51,35 +51,118 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: regError?.message || "Registration not found" }, { status: 404 });
   }
 
-  // Check if early check-in (1pm) is available on check-in date
-  // Not available if another booking on the same property checks out late (2pm) that day
-  const { data: lateCheckoutConflicts } = await supabase
-    .from("registration")
-    .select("id, upsells")
-    .eq("property_id", reg.property_id)
-    .eq("check_in_date", reg.check_in_date)
-    .neq("id", reg.id)
-    .in("status", ["active", "completed"]);
+  // --- Cross-property turnaround logic ---
+  // A "same-day turnaround" on date D for property P means at least one
+  // registration checks out on D AND at least one checks in on D for that property.
+  // We count turnarounds across ALL properties owned by the same host.
+  //
+  // 0-1 turnarounds: freely available
+  // 2 turnarounds: max 1 early checkin + 1 late checkout across all properties
+  // 3+ turnarounds: request-only (no purchase)
 
-  const hasLateCheckoutConflict = (lateCheckoutConflicts || []).some((r) => {
-    const upsells = (r.upsells as Array<{ type: string; status: string }>) || [];
-    return upsells.some((u) => u.type === "late_checkout" && u.status === "paid");
-  });
+  // Get the host_id for cross-property queries
+  const { data: property } = await supabase
+    .from("property")
+    .select("host_id, name, nickname")
+    .eq("id", reg.property_id)
+    .single();
 
-  // Check if late checkout (2pm) is available on checkout date
-  // Not available if another booking on the same property checks in early (1pm) that day
-  const { data: earlyCheckinConflicts } = await supabase
-    .from("registration")
-    .select("id, upsells")
-    .eq("property_id", reg.property_id)
-    .eq("check_in_date", reg.check_out_date)
-    .neq("id", reg.id)
-    .in("status", ["active", "completed"]);
+  if (!property) {
+    return NextResponse.json({ error: "Property not found" }, { status: 404 });
+  }
 
-  const hasEarlyCheckinConflict = (earlyCheckinConflicts || []).some((r) => {
-    const upsells = (r.upsells as Array<{ type: string; status: string }>) || [];
-    return upsells.some((u) => u.type === "early_checkin" && u.status === "paid");
-  });
+  // Get all property IDs for this host
+  const { data: hostProperties } = await supabase
+    .from("property")
+    .select("id")
+    .eq("host_id", property.host_id);
+
+  const allPropertyIds = (hostProperties || []).map((p) => p.id);
+
+  // Helper: count same-day turnarounds on a given date across all host properties
+  async function countTurnaroundsOnDate(date: string): Promise<number> {
+    // Find properties that have at least one checkout on this date
+    const { data: checkouts } = await supabase
+      .from("registration")
+      .select("property_id")
+      .in("property_id", allPropertyIds)
+      .eq("check_out_date", date)
+      .in("status", ["active", "completed"]);
+
+    // Find properties that have at least one checkin on this date
+    const { data: checkins } = await supabase
+      .from("registration")
+      .select("property_id")
+      .in("property_id", allPropertyIds)
+      .eq("check_in_date", date)
+      .in("status", ["active", "completed"]);
+
+    const checkoutProps = new Set((checkouts || []).map((r) => r.property_id));
+    const checkinProps = new Set((checkins || []).map((r) => r.property_id));
+
+    // A turnaround = a property that has BOTH a checkout and a checkin on this date
+    let count = 0;
+    for (const pid of checkoutProps) {
+      if (checkinProps.has(pid)) count++;
+    }
+    return count;
+  }
+
+  // Helper: count already-purchased early checkins or late checkouts on a date across all properties
+  const regId = reg.id;
+  async function countPaidUpsellOnDate(date: string, upsellType: "early_checkin" | "late_checkout", dateField: "check_in_date" | "check_out_date"): Promise<number> {
+    const { data: regs } = await supabase
+      .from("registration")
+      .select("id, upsells")
+      .in("property_id", allPropertyIds)
+      .eq(dateField, date)
+      .neq("id", regId)
+      .in("status", ["active", "completed"]);
+
+    return (regs || []).filter((r) => {
+      const upsells = (r.upsells as Array<{ type: string; status: string }>) || [];
+      return upsells.some((u) => u.type === upsellType && u.status === "paid");
+    }).length;
+  }
+
+  // Check-in date turnarounds (affects early checkin availability)
+  const checkinTurnarounds = await countTurnaroundsOnDate(reg.check_in_date);
+  // Checkout date turnarounds (affects late checkout availability)
+  const checkoutTurnarounds = await countTurnaroundsOnDate(reg.check_out_date);
+
+  // Determine early checkin availability
+  let earlyCheckinAvailable = true;
+  let earlyCheckinRequestOnly = false;
+  let earlyCheckinReason: string | null = null;
+
+  if (checkinTurnarounds >= 3) {
+    earlyCheckinAvailable = false;
+    earlyCheckinRequestOnly = true;
+    earlyCheckinReason = "High turnover day — early check-in is subject to availability. Submit a request and we'll let you know on the day of check-in.";
+  } else if (checkinTurnarounds === 2) {
+    const paidCount = await countPaidUpsellOnDate(reg.check_in_date, "early_checkin", "check_in_date");
+    if (paidCount >= 1) {
+      earlyCheckinAvailable = false;
+      earlyCheckinReason = "Not available — the early check-in slot for this day has been taken";
+    }
+  }
+
+  // Determine late checkout availability
+  let lateCheckoutAvailable = true;
+  let lateCheckoutRequestOnly = false;
+  let lateCheckoutReason: string | null = null;
+
+  if (checkoutTurnarounds >= 3) {
+    lateCheckoutAvailable = false;
+    lateCheckoutRequestOnly = true;
+    lateCheckoutReason = "High turnover day — late check-out is subject to availability. Submit a request and we'll let you know on the day of check-out.";
+  } else if (checkoutTurnarounds === 2) {
+    const paidCount = await countPaidUpsellOnDate(reg.check_out_date, "late_checkout", "check_out_date");
+    if (paidCount >= 1) {
+      lateCheckoutAvailable = false;
+      lateCheckoutReason = "Not available — the late check-out slot for this day has been taken";
+    }
+  }
 
   // Build booking dates array for private chef date picker
   const dates: string[] = [];
@@ -102,8 +185,9 @@ export async function POST(request: Request) {
       description: "Standard check-in is 4:00 PM. Arrive 3 hours early.",
       price_cents: 10000,
       image: UPSELL_IMAGES.early_checkin,
-      available: !hasLateCheckoutConflict && !purchased.some((u) => u.type === "early_checkin" && u.status === "paid"),
-      unavailable_reason: hasLateCheckoutConflict ? "Not available — another guest has a late checkout that day" : null,
+      available: earlyCheckinAvailable && !purchased.some((u) => u.type === "early_checkin" && u.status === "paid"),
+      unavailable_reason: earlyCheckinReason,
+      request_only: earlyCheckinRequestOnly,
     },
     {
       type: "late_checkout",
@@ -112,8 +196,9 @@ export async function POST(request: Request) {
       description: "Standard check-out is 11:00 AM. Stay 3 extra hours.",
       price_cents: 10000,
       image: UPSELL_IMAGES.late_checkout,
-      available: !hasEarlyCheckinConflict && !purchased.some((u) => u.type === "late_checkout" && u.status === "paid"),
-      unavailable_reason: hasEarlyCheckinConflict ? "Not available — another guest has an early check-in that day" : null,
+      available: lateCheckoutAvailable && !purchased.some((u) => u.type === "late_checkout" && u.status === "paid"),
+      unavailable_reason: lateCheckoutReason,
+      request_only: lateCheckoutRequestOnly,
     },
     {
       type: "new_sheets",

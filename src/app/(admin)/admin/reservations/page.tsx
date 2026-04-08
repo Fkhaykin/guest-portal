@@ -123,7 +123,8 @@ export default function AdminReservationsPage() {
 
   function getDisplayStatus(reg: Registration): "past" | "current" | "future" | "cancelled" {
     if (reg.status === "cancelled") return "cancelled";
-    const today = new Date().toISOString().split("T")[0];
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
     if (reg.check_out_date <= today) return "past";
     if (reg.check_in_date <= today) return "current";
     return "future";

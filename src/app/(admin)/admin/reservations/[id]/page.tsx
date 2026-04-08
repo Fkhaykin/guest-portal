@@ -34,6 +34,7 @@ import {
   Home,
   ClipboardCheck,
   Camera,
+  Clock,
 } from "lucide-react";
 import { EditRegistrationDialog } from "@/components/admin/edit-registration-dialog";
 import type { GuestListEntry, PetEntry, UpsellEntry, CleaningPhoto, CleaningChecklistItem, InvoiceLineItem, InvoiceStatus } from "@/types/database";
@@ -305,6 +306,10 @@ export default function ReservationDetailPage() {
   const children = guestList.filter((g) => g.age_group === "under_21").length;
   const infants = guestList.filter((g) => g.age_group === "infant").length;
   const nights = Math.max(1, Math.round((new Date(reg.check_out_date).getTime() - new Date(reg.check_in_date).getTime()) / 86400000));
+  const hasEarlyCheckin = upsells.some((u) => u.type === "early_checkin" && u.status === "paid");
+  const hasLateCheckout = upsells.some((u) => u.type === "late_checkout" && u.status === "paid");
+  const checkInTime = hasEarlyCheckin ? "1:00 PM" : "4:00 PM";
+  const checkOutTime = hasLateCheckout ? "2:00 PM" : "11:00 AM";
   const hasSignature = !!reg.signature_url;
   const lodgifyBookingUrl = reg.lodgify_booking_id
     ? `https://app.lodgify.com/#/reservation/details/${reg.lodgify_booking_id}`
@@ -321,7 +326,8 @@ export default function ReservationDetailPage() {
 
   const displayStatus = (() => {
     if (reg.status === "cancelled") return "cancelled" as const;
-    const today = new Date().toISOString().split("T")[0];
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
     if (reg.check_out_date <= today) return "past" as const;
     if (reg.check_in_date <= today) return "current" as const;
     return "future" as const;
@@ -434,8 +440,32 @@ export default function ReservationDetailPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-2 text-sm">
-                <Row label="Check-in" value={reg.check_in_date} />
-                <Row label="Check-out" value={reg.check_out_date} />
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Check-in</span>
+                  <div className="flex items-center gap-2">
+                    <span>{reg.check_in_date}</span>
+                    <span className="text-muted-foreground">·</span>
+                    <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{checkInTime}</span>
+                    {hasEarlyCheckin && (
+                      <span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
+                        Early Check-In
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Check-out</span>
+                  <div className="flex items-center gap-2">
+                    <span>{reg.check_out_date}</span>
+                    <span className="text-muted-foreground">·</span>
+                    <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{checkOutTime}</span>
+                    {hasLateCheckout && (
+                      <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+                        Late Check-Out
+                      </span>
+                    )}
+                  </div>
+                </div>
                 <Row label="Nights" value={String(nights)} />
                 <Row label="Source" value={reg.booking_source ? reg.booking_source.replace(/\s*integration\s*/i, "").replace(/\s*api\s*/i, "").trim() : "—"} />
                 <Row label="Revenue" value={reg.total_amount_cents ? `$${(reg.total_amount_cents / 100).toLocaleString()}` : "—"} />

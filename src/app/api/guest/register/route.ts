@@ -39,6 +39,10 @@ export async function POST(request: Request) {
       delivery: number;
       cleaning: number;
     };
+    infant_needs?: {
+      highchair: boolean;
+      pack_n_play: boolean;
+    };
     signature?: string;
   };
 
@@ -48,7 +52,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { registration_id, full_name, email, phone, address, guests: guestList, pets: petList, notes, tips, vehicles, signature } = body;
+  const { registration_id, full_name, email, phone, address, guests: guestList, pets: petList, notes, tips, infant_needs, vehicles, signature } = body;
 
   if (!registration_id || !full_name || !email) {
     return NextResponse.json(
@@ -160,12 +164,18 @@ export async function POST(request: Request) {
     registrationUpdate.signature_url = signatureUrl;
   }
 
+  const tipsData: Record<string, unknown> = {};
   if (tips && (tips.breakfast || tips.delivery || tips.cleaning)) {
-    registrationUpdate.tips = {
-      breakfast_cents: tips.breakfast || 0,
-      delivery_cents: tips.delivery || 0,
-      cleaning_cents: tips.cleaning || 0,
-    };
+    tipsData.breakfast_cents = tips.breakfast || 0;
+    tipsData.delivery_cents = tips.delivery || 0;
+    tipsData.cleaning_cents = tips.cleaning || 0;
+  }
+  if (infant_needs && (infant_needs.highchair || infant_needs.pack_n_play)) {
+    tipsData.needs_highchair = infant_needs.highchair || false;
+    tipsData.needs_pack_n_play = infant_needs.pack_n_play || false;
+  }
+  if (Object.keys(tipsData).length > 0) {
+    registrationUpdate.tips = tipsData;
   }
 
   await supabase

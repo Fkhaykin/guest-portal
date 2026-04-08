@@ -21,7 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ShoppingCart, Sparkles, X, Clock, Loader2, Check, Flame, BedDouble, UtensilsCrossed, TreePine, Baby, Coffee, DoorOpen, DoorClosed } from "lucide-react";
+import { ShoppingCart, Sparkles, X, Clock, Loader2, Check, Flame, BedDouble, UtensilsCrossed, TreePine, Baby, Coffee, DoorOpen, DoorClosed, Send } from "lucide-react";
 
 type UpsellOption = {
   type: string;
@@ -33,6 +33,7 @@ type UpsellOption = {
   available: boolean;
   purchased?: boolean;
   unavailable_reason?: string | null;
+  request_only?: boolean;
   meta?: {
     dates?: string[];
     num_guests?: number;
@@ -122,6 +123,8 @@ export default function AddOnsPage() {
   const [picnicDate, setPicnicDate] = useState("");
   const [breakfastDays, setBreakfastDays] = useState<Array<{ date: string; servings: number; time: string }>>([]);
   const [tips, setTips] = useState({ breakfast: "", delivery: "", cleaning: "" });
+  const [requestSending, setRequestSending] = useState<string | null>(null);
+  const [requestSent, setRequestSent] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const s = loadSession();
@@ -178,6 +181,25 @@ export default function AddOnsPage() {
       setError("Could not load add-ons. Please try again.");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleUpsellRequest(type: "early_checkin" | "late_checkout") {
+    if (!session) return;
+    setRequestSending(type);
+    try {
+      const res = await fetch("/api/guest/upsells/request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ registration_id: session.reservation.id, type }),
+      });
+      if (res.ok) {
+        setRequestSent((prev) => new Set(prev).add(type));
+      }
+    } catch {
+      // Non-critical
+    } finally {
+      setRequestSending(null);
     }
   }
 
@@ -321,7 +343,27 @@ export default function AddOnsPage() {
                             )}
                           </div>
                         )}
-                        {!option.purchased && !option.available && option.unavailable_reason && (
+                        {!option.purchased && !option.available && option.request_only && (
+                          <div className="mt-2 space-y-2">
+                            <p className="text-xs text-muted-foreground leading-snug">{option.unavailable_reason}</p>
+                            {requestSent.has(option.type) ? (
+                              <Badge variant="secondary" className="text-green-700 bg-green-50 border-green-200">
+                                <Check className="h-3 w-3 mr-1" /> Request sent
+                              </Badge>
+                            ) : (
+                              <Button type="button" variant="outline" size="sm"
+                                disabled={requestSending === option.type}
+                                onClick={() => handleUpsellRequest(option.type as "early_checkin" | "late_checkout")}>
+                                {requestSending === option.type ? (
+                                  <><Loader2 className="h-3 w-3 mr-1 animate-spin" /> Sending...</>
+                                ) : (
+                                  <><Send className="h-3 w-3 mr-1" /> Request {option.type === "early_checkin" ? "Early Check-In" : "Late Check-Out"}</>
+                                )}
+                              </Button>
+                            )}
+                          </div>
+                        )}
+                        {!option.purchased && !option.available && !option.request_only && option.unavailable_reason && (
                           <p className="text-xs text-amber-600 mt-2">{option.unavailable_reason}</p>
                         )}
                       </div>
