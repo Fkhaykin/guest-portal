@@ -88,152 +88,6 @@ function ChartTooltip({
 
 const TAX_RATE_KEY = "cleaner-tax-savings-rate";
 
-function TaxSavingsCard({ monthlyRevenue }: { monthlyRevenue: MonthData[] }) {
-  const [rate, setRate] = useState(25);
-  const [isEditing, setIsEditing] = useState(false);
-  const [inputValue, setInputValue] = useState("25");
-
-  useEffect(() => {
-    const saved = localStorage.getItem(TAX_RATE_KEY);
-    if (saved) {
-      const parsed = Number(saved);
-      if (!isNaN(parsed) && parsed >= 0 && parsed <= 100) {
-        setRate(parsed);
-        setInputValue(String(parsed));
-      }
-    }
-  }, []);
-
-  function saveRate() {
-    const parsed = Number(inputValue);
-    if (!isNaN(parsed) && parsed >= 0 && parsed <= 100) {
-      setRate(parsed);
-      localStorage.setItem(TAX_RATE_KEY, String(parsed));
-    }
-    setIsEditing(false);
-  }
-
-  const rows = monthlyRevenue.map((m) => {
-    const earned = m.cleaningRevenue + m.petFeeRevenue;
-    const projected = m.futureCleaningRevenue + m.futurePetFeeRevenue;
-    const total = earned + projected;
-    const savings = Math.round(total * (rate / 100));
-    return {
-      month: formatMonthLabel(m.month),
-      earned,
-      projected,
-      total,
-      savings,
-      hasProjected: projected > 0,
-    };
-  });
-
-  const totalSavings = rows.reduce((sum, r) => sum + r.savings, 0);
-  const totalEarnedOnly = rows.reduce(
-    (sum, r) => sum + Math.round(r.earned * (rate / 100)),
-    0
-  );
-
-  return (
-    <Card>
-      <CardHeader className="pb-2">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <PiggyBank className="h-4 w-4 text-rose-500" />
-            <CardTitle className="text-sm font-medium">
-              Tax Savings Tracker
-            </CardTitle>
-          </div>
-          {isEditing ? (
-            <div className="flex items-center gap-1.5">
-              <Input
-                type="number"
-                min={0}
-                max={100}
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && saveRate()}
-                className="h-7 w-16 text-xs text-center"
-                autoFocus
-              />
-              <span className="text-xs text-muted-foreground">%</span>
-              <Button size="sm" variant="ghost" onClick={saveRate} className="h-7 px-2 text-xs">
-                Save
-              </Button>
-            </div>
-          ) : (
-            <button
-              onClick={() => {
-                setInputValue(String(rate));
-                setIsEditing(true);
-              }}
-              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-            >
-              {rate}% rate &middot; Edit
-            </button>
-          )}
-        </div>
-      </CardHeader>
-      <CardContent>
-        {rows.length === 0 ? (
-          <div className="flex items-center justify-center h-24 text-sm text-muted-foreground">
-            No revenue data yet
-          </div>
-        ) : (
-          <>
-            <div className="space-y-2">
-              {rows.map((r) => (
-                <div
-                  key={r.month}
-                  className="flex items-center justify-between py-1.5 border-b last:border-0"
-                >
-                  <div>
-                    <p className="text-sm font-medium">{r.month}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {formatCents(r.earned)} earned
-                      {r.hasProjected && (
-                        <span className="text-purple-500">
-                          {" "}+ {formatCents(r.projected)} projected
-                        </span>
-                      )}
-                    </p>
-                  </div>
-                  <p className="text-sm font-semibold text-rose-600 dark:text-rose-400">
-                    {formatCents(r.savings)}
-                  </p>
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-3 pt-3 border-t flex items-center justify-between">
-              <p className="text-sm font-medium">Total to set aside</p>
-              <div className="text-right">
-                <p className="text-base font-bold text-rose-600 dark:text-rose-400">
-                  {formatCents(totalSavings)}
-                </p>
-                {totalSavings !== totalEarnedOnly && (
-                  <p className="text-[11px] text-muted-foreground">
-                    {formatCents(totalEarnedOnly)} from earned only
-                  </p>
-                )}
-              </div>
-            </div>
-
-            <div className="mt-3 flex items-start gap-2 rounded-md bg-muted/50 px-3 py-2">
-              <Info className="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-0.5" />
-              <p className="text-[11px] text-muted-foreground leading-relaxed">
-                This is not financial or tax advice. It&apos;s meant as a helpful guide
-                to track how much you might want to save. Consult a tax professional
-                for advice specific to your situation.
-              </p>
-            </div>
-          </>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
 export function AnalyticsDashboard({
   upcomingCleanings,
   openBalance,
@@ -254,9 +108,33 @@ export function AnalyticsDashboard({
   const router = useRouter();
   const [from, setFrom] = useState(filterFrom || "");
   const [to, setTo] = useState(filterTo || "");
+  const [taxRate, setTaxRate] = useState(25);
+  const [isEditingRate, setIsEditingRate] = useState(false);
+  const [rateInput, setRateInput] = useState("25");
+
+  useEffect(() => {
+    const saved = localStorage.getItem(TAX_RATE_KEY);
+    if (saved) {
+      const parsed = Number(saved);
+      if (!isNaN(parsed) && parsed >= 0 && parsed <= 100) {
+        setTaxRate(parsed);
+        setRateInput(String(parsed));
+      }
+    }
+  }, []);
+
+  function saveRate() {
+    const parsed = Number(rateInput);
+    if (!isNaN(parsed) && parsed >= 0 && parsed <= 100) {
+      setTaxRate(parsed);
+      localStorage.setItem(TAX_RATE_KEY, String(parsed));
+    }
+    setIsEditingRate(false);
+  }
 
   const totalRevenue = byProperty.reduce((sum, p) => sum + p.totalRevenue, 0);
   const totalCleanings = byProperty.reduce((sum, p) => sum + p.cleanings, 0);
+  const estimatedTax = Math.round(totalRevenue * (taxRate / 100));
 
   const chartData = monthlyRevenue.map((m) => ({
     name: formatMonthLabel(m.month),
@@ -400,6 +278,60 @@ export function AnalyticsDashboard({
             </div>
           </CardContent>
         </Card>
+
+        {/* Estimated tax savings tile */}
+        <Card className="col-span-2 border-rose-200 dark:border-rose-900/50">
+          <CardContent className="pt-4 pb-3">
+            <div className="flex items-center gap-3">
+              <div className="rounded-full bg-rose-100 dark:bg-rose-950/30 p-2">
+                <PiggyBank className="h-4 w-4 text-rose-500" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <p className="text-2xl font-bold text-rose-600 dark:text-rose-400">
+                    {formatCents(estimatedTax)}
+                  </p>
+                  {isEditingRate ? (
+                    <div className="flex items-center gap-1 ml-auto">
+                      <Input
+                        type="number"
+                        min={0}
+                        max={100}
+                        value={rateInput}
+                        onChange={(e) => setRateInput(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && saveRate()}
+                        onBlur={saveRate}
+                        className="h-7 w-16 text-xs text-center"
+                        autoFocus
+                      />
+                      <span className="text-xs text-muted-foreground">%</span>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        setRateInput(String(taxRate));
+                        setIsEditingRate(true);
+                      }}
+                      className="ml-auto text-xs text-muted-foreground hover:text-foreground transition-colors whitespace-nowrap"
+                    >
+                      {taxRate}% rate &middot; Edit
+                    </button>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Estimated Tax Savings
+                </p>
+              </div>
+            </div>
+            <div className="mt-2.5 flex items-start gap-1.5">
+              <Info className="h-3 w-3 text-muted-foreground shrink-0 mt-0.5" />
+              <p className="text-[10px] text-muted-foreground leading-relaxed">
+                Not financial or tax advice — just a helpful guide. Consult a tax
+                professional for your situation.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Future revenue banner */}
@@ -474,12 +406,14 @@ export function AnalyticsDashboard({
                   stackId="earned"
                   fill="hsl(217, 91%, 60%)"
                   radius={[0, 0, 0, 0]}
+                  activeBar={false}
                 />
                 <Bar
                   dataKey="Pet Fees"
                   stackId="earned"
                   fill="hsl(45, 93%, 47%)"
                   radius={[4, 4, 0, 0]}
+                  activeBar={false}
                 />
                 <Bar
                   dataKey="Projected Cleaning"
@@ -487,6 +421,7 @@ export function AnalyticsDashboard({
                   fill="hsl(217, 91%, 60%)"
                   fillOpacity={0.35}
                   radius={[0, 0, 0, 0]}
+                  activeBar={false}
                 />
                 <Bar
                   dataKey="Projected Pet Fees"
@@ -494,15 +429,13 @@ export function AnalyticsDashboard({
                   fill="hsl(45, 93%, 47%)"
                   fillOpacity={0.35}
                   radius={[4, 4, 0, 0]}
+                  activeBar={false}
                 />
               </BarChart>
             </ResponsiveContainer>
           )}
         </CardContent>
       </Card>
-
-      {/* Tax Savings Tracker */}
-      <TaxSavingsCard monthlyRevenue={monthlyRevenue} />
 
       {/* Revenue by property */}
       <Card>
