@@ -319,15 +319,16 @@ export function AnalyticsDashboard({
                   )}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Estimated Tax Savings
+                  Set Aside for Tax Payments
                 </p>
               </div>
             </div>
             <div className="mt-2.5 flex items-start gap-1.5">
               <Info className="h-3 w-3 text-muted-foreground shrink-0 mt-0.5" />
               <p className="text-[10px] text-muted-foreground leading-relaxed">
-                Not financial or tax advice — just a helpful guide. Consult a tax
-                professional for your situation.
+                Not financial or tax advice. Based on the date range selected, this
+                is the amount you should set aside for potential tax liabilities.
+                Consult a tax professional for your situation.
               </p>
             </div>
           </CardContent>
