@@ -266,12 +266,12 @@ export async function POST(request: Request) {
       group: "experience",
       label: "Luxury Outdoor Picnic",
       description: reg.num_guests < 6
-        ? "A beautifully styled lakeside picnic experience. Minimum 6 guests required."
+        ? `A beautifully styled lakeside picnic with charcuterie, fresh fruit, wine, blankets, and cushions. Priced for 6-guest minimum ($${(PICNIC_COST_PER_GUEST * 6 / 100).toFixed(0)}).`
         : "A beautifully styled lakeside picnic with charcuterie, fresh fruit, wine, blankets, and cushions. Price based on number of guests.",
       price_cents: PICNIC_COST_PER_GUEST * Math.max(reg.num_guests, 6),
       image: UPSELL_IMAGES.luxury_picnic,
-      available: reg.num_guests >= 6 && !purchased.some((u) => u.type === "luxury_picnic" && u.status === "paid"),
-      unavailable_reason: reg.num_guests < 6 ? "Minimum 6 guests required for this experience" : null,
+      available: !purchased.some((u) => u.type === "luxury_picnic" && u.status === "paid"),
+      unavailable_reason: null,
       meta: {
         dates,
         num_guests: reg.num_guests,
