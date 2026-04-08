@@ -152,7 +152,6 @@ export default async function RecommendationsPage({
   const { data: recommendations } = await supabase
     .from("recommendation")
     .select("*")
-    .eq("property_id", property.id)
     .order("sort_order");
 
   // Group recommendations into guide tabs by mapping DB categories
