@@ -309,7 +309,15 @@ export default function ReservationDetailPage() {
   const lodgifyBookingUrl = reg.lodgify_booking_id
     ? `https://app.lodgify.com/#/reservation/details/${reg.lodgify_booking_id}`
     : null;
-  const guestPortalUrl = property ? `/p/${property.slug}/register` : null;
+  // Build a guest-domain URL that auto-logs in as this guest.
+  // On admin subdomain we need to target the bare/guest domain so the
+  // middleware doesn't rewrite to /admin.
+  const guestPortalUrl = (() => {
+    if (typeof window === "undefined") return null;
+    const host = window.location.host; // e.g. admin.localhost:3000 or admin.summitlakeside.com
+    const guestHost = host.replace(/^admin\./, "");
+    return `${window.location.protocol}//${guestHost}/?reg=${reg.id}`;
+  })();
 
   const displayStatus = (() => {
     if (reg.status === "cancelled") return "cancelled" as const;

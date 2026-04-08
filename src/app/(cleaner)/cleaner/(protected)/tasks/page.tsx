@@ -76,16 +76,12 @@ export default async function CleanerDashboard() {
 
   // Get registrations: current, upcoming, and recently departed
   const today = new Date().toISOString().split("T")[0];
-  const twoDaysAgo = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
-    .toISOString()
-    .split("T")[0];
-
   const { data: registrations } = await supabase
     .from("registration")
     .select("id, property_id, check_in_date, check_out_date, num_guests, status, upsells, guest_list, pets, updated_at")
     .in("property_id", propertyIds)
     .in("status", ["active", "completed"])
-    .gte("check_out_date", twoDaysAgo)
+    .gte("check_out_date", "2026-03-15")
     .order("check_in_date", { ascending: true });
 
   // Deduplicate: for same property with overlapping date ranges, keep the most recently updated

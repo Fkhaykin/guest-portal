@@ -110,7 +110,7 @@ export default async function InvoicesPage() {
   }
 
   let unpaidCleanings: UnpaidCleaning[] = [];
-  const unbilledRegs = (allRegs || []).filter((r) => !billedRegIds.has(r.id) && propMap.has(r.property_id));
+  const unbilledRegs = (allRegs || []).filter((r) => !billedRegIds.has(r.id) && propMap.has(r.property_id) && cleanedAtMap.has(r.id));
 
   if (unbilledRegs.length > 0) {
     unpaidCleanings = unbilledRegs

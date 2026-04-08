@@ -792,6 +792,25 @@ export default function HomePage() {
       return;
     }
 
+    // Admin preview: auto-login as guest from ?reg=REGISTRATION_ID
+    const regId = params.get("reg");
+    if (regId) {
+      // Clean the URL so a refresh doesn't re-fetch
+      window.history.replaceState({}, "", "/");
+      fetch(`/api/guest/preview?reg=${encodeURIComponent(regId)}`)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data) => {
+          if (data) {
+            setGuestName(data.guest_name);
+            setReservation(data.reservation);
+            saveSession(data.guest_name, data.reservation);
+          }
+          setLoaded(true);
+        })
+        .catch(() => setLoaded(true));
+      return;
+    }
+
     const session = loadSession();
     if (session) {
       setGuestName(session.guestName);

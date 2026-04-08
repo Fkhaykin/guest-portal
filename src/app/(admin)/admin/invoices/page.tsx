@@ -144,7 +144,7 @@ export default async function AdminInvoicesPage() {
       }
 
       const unbilledRegs = (allRegs || []).filter(
-        (r) => !billedRegIds.has(r.id) && propMap.has(r.property_id)
+        (r) => !billedRegIds.has(r.id) && propMap.has(r.property_id) && cleanedAtMap.has(r.id)
       );
 
       if (unbilledRegs.length > 0) {
