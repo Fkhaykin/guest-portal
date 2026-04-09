@@ -61,8 +61,6 @@ export function LandingPage({
 }) {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
   const [checkInDate, setCheckInDate] = useState("");
   const [confirmationCode, setConfirmationCode] = useState("");
   const [useCode, setUseCode] = useState(false);
@@ -70,7 +68,6 @@ export function LandingPage({
   const [error, setError] = useState<string | null>(null);
 
   const fullName = [firstName.trim(), lastName.trim()].filter(Boolean).join(" ");
-  const hasIdentifier = fullName || email.trim() || phone.trim();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -93,15 +90,12 @@ export function LandingPage({
           setLoading(false);
           return;
         }
-        if (!hasIdentifier) {
-          setError("Please enter at least your name, email, or phone number.");
+        if (!fullName) {
+          setError("Please enter your name.");
           setLoading(false);
           return;
         }
-        body = { check_in_date: checkInDate, last_name: lastName.trim() };
-        if (fullName) body.full_name = fullName;
-        if (email.trim()) body.email = email.trim();
-        if (phone.trim()) body.phone = phone.trim();
+        body = { check_in_date: checkInDate, last_name: lastName.trim(), full_name: fullName };
       }
 
       const res = await fetch("/api/guest/lookup", {
@@ -191,26 +185,6 @@ export function LandingPage({
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      placeholder="john@example.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="phone">Phone Number</Label>
-                    <Input
-                      id="phone"
-                      type="tel"
-                      placeholder="+1 (555) 000-0000"
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
                     <Label htmlFor="check-in">Check-in Date</Label>
                     <Input
                       id="check-in"
@@ -221,8 +195,8 @@ export function LandingPage({
                     />
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Enter your last name plus email or phone, along with your
-                    check-in date.
+                    Enter your full name and check-in date to find your
+                    reservation.
                   </p>
                 </>
               )}
