@@ -455,10 +455,10 @@ function GuestDashboard({
                 </h3>
                 <p className="text-sm text-muted-foreground leading-relaxed">
                   Penn Estates has <strong>two entrances</strong>, but you{" "}
-                  <strong className="text-foreground">must arrive at the Main Gate (North Entrance)</strong>{" "}
+                  <strong className="text-foreground">must enter via Hallet Road to the Main Gate</strong>{" "}
                   to get your gate pass before proceeding to the home.{" "}
                   <span className="text-red-600 dark:text-red-400 font-medium">
-                    GPS often routes guests to the South entrance
+                    GPS often routes guests to the Cranberry Road entrance instead
                   </span>{" "}
                   — which means driving all the way around the community. Don&apos;t
                   make that mistake!

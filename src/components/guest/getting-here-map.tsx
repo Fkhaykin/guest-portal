@@ -314,7 +314,7 @@ export function GettingHereMap({ propertyAddress }: GettingHereMapProps) {
         {showNorthInfo && (
           <InfoWindow position={NORTH_GATE} onCloseClick={() => setShowNorthInfo(false)}>
             <div className="p-1">
-              <p className="font-bold text-green-700 text-sm">Step 1: Main Gate</p>
+              <p className="font-bold text-green-700 text-sm">Step 1: Main Gate (via Hallet Rd)</p>
               <p className="text-xs">525 Penn Estates Drive</p>
               <p className="text-xs text-gray-500">Show license &amp; get gate pass</p>
             </div>
@@ -369,7 +369,7 @@ export function GettingHereMap({ propertyAddress }: GettingHereMapProps) {
         {showSouthInfo && (
           <InfoWindow position={SOUTH_GATE} onCloseClick={() => setShowSouthInfo(false)}>
             <div className="p-1">
-              <p className="font-bold text-red-600 text-sm">South Gate (Wrong Way)</p>
+              <p className="font-bold text-red-600 text-sm">Cranberry Rd Gate (Wrong Way)</p>
               <p className="text-xs text-gray-500">GPS often routes here — avoid!</p>
             </div>
           </InfoWindow>
@@ -402,7 +402,7 @@ export function GettingHereMap({ propertyAddress }: GettingHereMapProps) {
       <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
         <div className="flex items-center gap-1.5">
           <div className="w-5 h-1 bg-blue-500 rounded" />
-          <span>To gate</span>
+          <span>Hallet Rd → Gate</span>
         </div>
         {homeLocation && (
           <div className="flex items-center gap-1.5">
@@ -424,7 +424,7 @@ export function GettingHereMap({ propertyAddress }: GettingHereMapProps) {
                 "repeating-linear-gradient(90deg, #ef4444 0, #ef4444 3px, transparent 3px, transparent 6px)",
             }}
           />
-          <span>GPS mistake</span>
+          <span>Cranberry Rd (wrong)</span>
         </div>
       </div>
     </div>
