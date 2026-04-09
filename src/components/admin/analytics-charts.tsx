@@ -822,7 +822,7 @@ export function AnalyticsCharts() {
                   <XAxis dataKey="bucket" tickFormatter={(v) => formatBucketLabel(v, groupBy)} className="text-xs" />
                   <YAxis allowDecimals={false} className="text-xs" />
                   <Tooltip
-                    content={<BarTooltip groupBy={groupBy} propertyNames={propNames} formatter={(v) => String(v)} reservationsByBucket={charts.reservationsByBucket} />}
+                    content={<BarTooltip groupBy={groupBy} propertyNames={propNames} formatter={(v) => String(v)} reservationsByBucket={charts.reservationsByBucket} listingUrlsByProperty={raw!.listingUrlsByProperty} />}
                     trigger="click"
                     allowEscapeViewBox={{ x: true, y: true }}
                     wrapperStyle={{ zIndex: 10, pointerEvents: "auto" }}
@@ -940,7 +940,7 @@ export function AnalyticsCharts() {
                   <XAxis dataKey="bucket" tickFormatter={(v) => formatBucketLabel(v, groupBy)} className="text-xs" />
                   <YAxis tickFormatter={formatDollars} className="text-xs" />
                   <Tooltip
-                    content={<BarTooltip groupBy={groupBy} propertyNames={propNames} formatter={formatDollars} reservationsByBucket={charts.cleanFeeReservations} />}
+                    content={<BarTooltip groupBy={groupBy} propertyNames={propNames} formatter={formatDollars} reservationsByBucket={charts.cleanFeeReservations} listingUrlsByProperty={raw!.listingUrlsByProperty} />}
                     trigger="click"
                     allowEscapeViewBox={{ x: true, y: true }}
                     wrapperStyle={{ zIndex: 10, pointerEvents: "auto" }}
@@ -971,7 +971,7 @@ export function AnalyticsCharts() {
                   <XAxis dataKey="bucket" tickFormatter={(v) => formatBucketLabel(v, groupBy)} className="text-xs" />
                   <YAxis tickFormatter={formatDollars} className="text-xs" />
                   <Tooltip
-                    content={<BarTooltip groupBy={groupBy} propertyNames={propNames} formatter={formatDollars} reservationsByBucket={charts.petFeeReservations} />}
+                    content={<BarTooltip groupBy={groupBy} propertyNames={propNames} formatter={formatDollars} reservationsByBucket={charts.petFeeReservations} listingUrlsByProperty={raw!.listingUrlsByProperty} />}
                     trigger="click"
                     allowEscapeViewBox={{ x: true, y: true }}
                     wrapperStyle={{ zIndex: 10, pointerEvents: "auto" }}
@@ -1002,7 +1002,7 @@ export function AnalyticsCharts() {
                   <XAxis dataKey="bucket" tickFormatter={(v) => formatBucketLabel(v, groupBy)} className="text-xs" />
                   <YAxis tickFormatter={formatDollars} className="text-xs" />
                   <Tooltip
-                    content={<BarTooltip groupBy={groupBy} propertyNames={charts.addonTypes} formatter={formatDollars} reservationsByBucket={charts.addonReservations} />}
+                    content={<BarTooltip groupBy={groupBy} propertyNames={charts.addonTypes} formatter={formatDollars} reservationsByBucket={charts.addonReservations} listingUrlsByProperty={raw!.listingUrlsByProperty} />}
                     trigger="click"
                     allowEscapeViewBox={{ x: true, y: true }}
                     wrapperStyle={{ zIndex: 10, pointerEvents: "auto" }}
