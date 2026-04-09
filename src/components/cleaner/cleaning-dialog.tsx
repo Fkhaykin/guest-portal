@@ -112,13 +112,16 @@ export function CleaningDialog({
 }) {
   const areas = photoAreas && photoAreas.length > 0 ? photoAreas : DEFAULT_PHOTO_AREAS;
   const [photos, setPhotos] = useState<PhotoWithPreview[]>([]);
-  const [uploading, setUploading] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [activeRoom, setActiveRoom] = useState<string | null>(null);
   const [fullscreenUrl, setFullscreenUrl] = useState<string | null>(null);
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [uploadError, setUploadError] = useState<string | null>(null);
+  // Track per-area upload progress: { room: { total, completed } }
+  const [uploadProgress, setUploadProgress] = useState<
+    Record<string, { total: number; completed: number }>
+  >({});
 
   const photosPerArea = areas.reduce<Record<string, PhotoWithPreview[]>>((acc, area) => {
     acc[area] = photos.filter((p) => p.room === area);
@@ -128,49 +131,64 @@ export function CleaningDialog({
   const hasAnyPhotos = photos.length > 0;
 
   async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
-    const rawFile = e.target.files?.[0];
-    if (!rawFile || !activeRoom) return;
+    const files = e.target.files;
+    if (!files || files.length === 0 || !activeRoom) return;
     e.target.value = "";
 
-    setUploading(activeRoom);
+    const room = activeRoom;
+    setActiveRoom(null);
+    setUploadError(null);
 
-    const file = await compressImage(rawFile);
-    const previewUrl = URL.createObjectURL(file);
+    const rawFiles = Array.from(files);
+    const total = rawFiles.length;
+    setUploadProgress((prev) => ({ ...prev, [room]: { total, completed: 0 } }));
 
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("registration_id", registrationId);
-    formData.append("room", activeRoom);
+    for (let i = 0; i < rawFiles.length; i++) {
+      const file = await compressImage(rawFiles[i]);
+      const previewUrl = URL.createObjectURL(file);
 
-    try {
-      setUploadError(null);
-      const res = await fetch("/api/cleaner/upload-photo", {
-        method: "POST",
-        body: formData,
-      });
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("registration_id", registrationId);
+      formData.append("room", room);
 
-      if (res.ok) {
-        const data = await res.json();
-        setPhotos((prev) => [...prev, { ...data.photo, previewUrl }]);
-      } else {
-        URL.revokeObjectURL(previewUrl);
-        const text = await res.text();
-        let errorMsg = `Upload failed (${res.status})`;
-        try {
-          const data = JSON.parse(text);
-          if (data?.error) errorMsg = data.error;
-        } catch {
-          // non-JSON response
+      try {
+        const res = await fetch("/api/cleaner/upload-photo", {
+          method: "POST",
+          body: formData,
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          setPhotos((prev) => [...prev, { ...data.photo, previewUrl }]);
+        } else {
+          URL.revokeObjectURL(previewUrl);
+          const text = await res.text();
+          let errorMsg = `Upload failed (${res.status})`;
+          try {
+            const data = JSON.parse(text);
+            if (data?.error) errorMsg = data.error;
+          } catch {
+            // non-JSON response
+          }
+          setUploadError(errorMsg);
         }
-        setUploadError(errorMsg);
+      } catch {
+        URL.revokeObjectURL(previewUrl);
+        setUploadError("Network error — check your connection and try again");
       }
-    } catch {
-      URL.revokeObjectURL(previewUrl);
-      setUploadError("Network error — check your connection and try again");
-    } finally {
-      setUploading(null);
-      setActiveRoom(null);
+
+      setUploadProgress((prev) => ({
+        ...prev,
+        [room]: { total, completed: i + 1 },
+      }));
     }
+
+    setUploadProgress((prev) => {
+      const next = { ...prev };
+      delete next[room];
+      return next;
+    });
   }
 
   function removePhoto(index: number) {
@@ -239,7 +257,8 @@ export function CleaningDialog({
 
           {areas.map((area) => {
             const areaPhotos = photosPerArea[area] || [];
-            const isUploading = uploading === area;
+            const progress = uploadProgress[area];
+            const isUploading = !!progress;
 
             return (
               <div key={area} className="space-y-2">
@@ -287,6 +306,25 @@ export function CleaningDialog({
                   </div>
                 )}
 
+                {/* Upload progress bar */}
+                {isUploading && (
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <span className="flex items-center gap-1.5">
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                        Uploading {progress.completed}/{progress.total}
+                      </span>
+                      <span>{Math.round((progress.completed / progress.total) * 100)}%</span>
+                    </div>
+                    <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-primary transition-all duration-300"
+                        style={{ width: `${(progress.completed / progress.total) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+
                 {/* Upload button */}
                 <button
                   onClick={() => {
@@ -294,18 +332,12 @@ export function CleaningDialog({
                     fileInputRef.current?.click();
                   }}
                   disabled={isUploading}
-                  className="flex items-center gap-2 w-full px-3 py-3 rounded-lg border border-dashed hover:bg-muted/50 transition-colors text-sm text-muted-foreground"
+                  className="flex items-center gap-2 w-full px-3 py-3 rounded-lg border border-dashed hover:bg-muted/50 transition-colors text-sm text-muted-foreground disabled:opacity-50"
                 >
-                  {isUploading ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Camera className="h-4 w-4" />
-                  )}
-                  {isUploading
-                    ? "Uploading..."
-                    : areaPhotos.length > 0
-                      ? "Add another photo"
-                      : "Take or upload photo"}
+                  <Camera className="h-4 w-4" />
+                  {areaPhotos.length > 0
+                    ? "Add more photos"
+                    : "Take or upload photos"}
                 </button>
 
                 {/* Optional note */}
@@ -328,6 +360,7 @@ export function CleaningDialog({
             ref={fileInputRef}
             type="file"
             accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
+            multiple
             className="hidden"
             onChange={handleFileSelect}
           />
