@@ -13,22 +13,13 @@ import {
 /*  Coordinates                                                        */
 /* ------------------------------------------------------------------ */
 
-const NORTH_GATE = { lat: 41.04249, lng: -75.23297 }; // 525 Penn Estates Dr — CORRECT entrance
-const SOUTH_GATE = { lat: 41.02088, lng: -75.25446 }; // South entrance off Cranberry Rd — WRONG way
+const NORTH_GATE = { lat: 41.04249, lng: -75.23297 }; // 525 Penn Estates Dr
+const SOUTH_GATE = { lat: 41.02088, lng: -75.25446 }; // Cranberry Rd gate
+
+const HALLET_START = { lat: 41.03513, lng: -75.2126 }; // Start of Hallet Rd approach
+const CRANBERRY_START = { lat: 41.01724, lng: -75.24766 }; // Down Cranberry Rd
 
 const MAP_CENTER = { lat: 41.032, lng: -75.243 };
-
-// Leg 1: Coming from Hallet Rd → North Gate
-const ROUTE_TO_GATE = [
-  { lat: 41.03513, lng: -75.21260 }, // Start of Hallet Rd approach
-  NORTH_GATE,
-];
-
-// Wrong route: GPS sends you down Cranberry Rd to the south gate
-const WRONG_ROUTE_PATH = [
-  { lat: 41.01724, lng: -75.24766 }, // Coming down Cranberry Rd
-  SOUTH_GATE,
-];
 
 const containerStyle = {
   width: "100%",
@@ -50,11 +41,43 @@ const mapOptions: google.maps.MapOptions = {
 };
 
 /* ------------------------------------------------------------------ */
+/*  Helpers                                                            */
+/* ------------------------------------------------------------------ */
+
+/** Use Directions API to get a road-following route between two points */
+function fetchRoute(
+  service: google.maps.DirectionsService,
+  origin: google.maps.LatLngLiteral,
+  destination: google.maps.LatLngLiteral
+): Promise<google.maps.LatLngLiteral[]> {
+  return new Promise((resolve) => {
+    service.route(
+      {
+        origin,
+        destination,
+        travelMode: google.maps.TravelMode.DRIVING,
+      },
+      (result, status) => {
+        if (status === "OK" && result?.routes[0]) {
+          const points = result.routes[0].overview_path.map((p) => ({
+            lat: p.lat(),
+            lng: p.lng(),
+          }));
+          resolve(points);
+        } else {
+          // Fallback: straight line
+          resolve([origin, destination]);
+        }
+      }
+    );
+  });
+}
+
+/* ------------------------------------------------------------------ */
 /*  Component                                                          */
 /* ------------------------------------------------------------------ */
 
 interface GettingHereMapProps {
-  /** The full property address — used to geocode and show Leg 2 (gate → home) */
   propertyAddress?: string | null;
 }
 
@@ -63,22 +86,30 @@ export function GettingHereMap({ propertyAddress }: GettingHereMapProps) {
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "",
   });
 
+  // Full road-following paths (fetched from Directions API)
+  const leg1Full = useRef<google.maps.LatLngLiteral[]>([]);
+  const leg2Full = useRef<google.maps.LatLngLiteral[]>([]);
+  const wrongFull = useRef<google.maps.LatLngLiteral[]>([]);
+
+  // Animated (progressively revealed) paths
   const [leg1Path, setLeg1Path] = useState<google.maps.LatLngLiteral[]>([]);
   const [leg2Path, setLeg2Path] = useState<google.maps.LatLngLiteral[]>([]);
   const [wrongPath, setWrongPath] = useState<google.maps.LatLngLiteral[]>([]);
+
   const [homeLocation, setHomeLocation] = useState<google.maps.LatLngLiteral | null>(null);
+  const [routesReady, setRoutesReady] = useState(false);
   const [showPulse, setShowPulse] = useState(false);
   const [showLeg2Pulse, setShowLeg2Pulse] = useState(false);
   const [hasAnimated, setHasAnimated] = useState(false);
   const [showNorthInfo, setShowNorthInfo] = useState(false);
   const [showSouthInfo, setShowSouthInfo] = useState(false);
   const [showHomeInfo, setShowHomeInfo] = useState(false);
-  const [currentStep, setCurrentStep] = useState<0 | 1 | 2 | 3>(0); // 0=idle, 1=leg1, 2=leg2, 3=done
+  const [currentStep, setCurrentStep] = useState<0 | 1 | 2 | 3>(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const mapRef = useRef<google.maps.Map | null>(null);
 
-  /* Geocode the property address to get leg 2 destination */
+  /* Geocode property address */
   useEffect(() => {
     if (!isLoaded || !propertyAddress) return;
     const geocoder = new google.maps.Geocoder();
@@ -90,24 +121,35 @@ export function GettingHereMap({ propertyAddress }: GettingHereMapProps) {
     });
   }, [isLoaded, propertyAddress]);
 
-  /* Build leg 2 path: straight interpolated line from gate → home */
-  const buildLeg2 = useCallback((): google.maps.LatLngLiteral[] => {
-    if (!homeLocation) return [];
-    const steps = 10;
-    const path: google.maps.LatLngLiteral[] = [];
-    for (let i = 0; i <= steps; i++) {
-      const t = i / steps;
-      path.push({
-        lat: NORTH_GATE.lat + (homeLocation.lat - NORTH_GATE.lat) * t,
-        lng: NORTH_GATE.lng + (homeLocation.lng - NORTH_GATE.lng) * t,
-      });
-    }
-    return path;
-  }, [homeLocation]);
+  /* Fetch all road-following routes once map + home are ready */
+  useEffect(() => {
+    if (!isLoaded || routesReady) return;
+    // Wait for homeLocation if we have an address, but don't block forever
+    if (propertyAddress && !homeLocation) return;
 
-  /* Animate everything in sequence */
+    const service = new google.maps.DirectionsService();
+
+    const fetchAll = async () => {
+      // Leg 1: Hallet Rd → North Gate
+      leg1Full.current = await fetchRoute(service, HALLET_START, NORTH_GATE);
+
+      // Leg 2: North Gate → Home (if geocoded)
+      if (homeLocation) {
+        leg2Full.current = await fetchRoute(service, NORTH_GATE, homeLocation);
+      }
+
+      // Wrong route: Cranberry Rd → South Gate
+      wrongFull.current = await fetchRoute(service, CRANBERRY_START, SOUTH_GATE);
+
+      setRoutesReady(true);
+    };
+
+    fetchAll();
+  }, [isLoaded, homeLocation, propertyAddress, routesReady]);
+
+  /* Animate routes in sequence */
   const startAnimation = useCallback(() => {
-    if (hasAnimated) return;
+    if (hasAnimated || !routesReady) return;
     setHasAnimated(true);
 
     const delay = (ms: number) =>
@@ -118,42 +160,43 @@ export function GettingHereMap({ propertyAddress }: GettingHereMapProps) {
     const animatePath = async (
       points: google.maps.LatLngLiteral[],
       setter: (p: google.maps.LatLngLiteral[]) => void,
-      intervalMs: number
+      totalDurationMs: number
     ) => {
+      if (points.length === 0) return;
+      const interval = Math.max(totalDurationMs / points.length, 15);
       for (let i = 1; i <= points.length; i++) {
         setter(points.slice(0, i));
-        await delay(intervalMs);
+        await delay(interval);
       }
     };
 
     (async () => {
-      // Leg 1: Highway → North Gate
+      // Leg 1: Hallet Rd → North Gate
       setCurrentStep(1);
-      await delay(400);
-      await animatePath(ROUTE_TO_GATE, setLeg1Path, 120);
+      await delay(300);
+      await animatePath(leg1Full.current, setLeg1Path, 1800);
 
       // Pause at gate
       setShowPulse(true);
-      await delay(1000);
+      await delay(1200);
 
-      // Leg 2: North Gate → Home (if geocoded)
-      const leg2Points = buildLeg2();
-      if (leg2Points.length > 0) {
+      // Leg 2: North Gate → Home
+      if (leg2Full.current.length > 0) {
         setCurrentStep(2);
-        await animatePath(leg2Points, setLeg2Path, 100);
+        await animatePath(leg2Full.current, setLeg2Path, 1500);
         setShowLeg2Pulse(true);
         await delay(800);
       }
 
-      // Show wrong route last (faded red)
+      // Wrong route last (faded red)
       setCurrentStep(3);
-      await animatePath(WRONG_ROUTE_PATH, setWrongPath, 100);
+      await animatePath(wrongFull.current, setWrongPath, 1200);
     })();
-  }, [hasAnimated, buildLeg2]);
+  }, [hasAnimated, routesReady]);
 
   /* Intersection Observer — trigger animation when visible */
   useEffect(() => {
-    if (!isLoaded || hasAnimated) return;
+    if (!routesReady || hasAnimated) return;
     const el = containerRef.current;
     if (!el) return;
 
@@ -164,11 +207,11 @@ export function GettingHereMap({ propertyAddress }: GettingHereMapProps) {
           observer.disconnect();
         }
       },
-      { threshold: 0.4 }
+      { threshold: 0.3 }
     );
     observer.observe(el);
     return () => observer.disconnect();
-  }, [isLoaded, hasAnimated, startAnimation]);
+  }, [routesReady, hasAnimated, startAnimation]);
 
   useEffect(() => {
     return () => {
@@ -220,7 +263,7 @@ export function GettingHereMap({ propertyAddress }: GettingHereMapProps) {
         options={mapOptions}
         onLoad={onMapLoad}
       >
-        {/* Leg 1: Highway → Gate (blue solid) */}
+        {/* Leg 1: Hallet Rd → Gate (blue solid) */}
         {leg1Path.length > 1 && (
           <Polyline
             path={leg1Path}
@@ -228,31 +271,18 @@ export function GettingHereMap({ propertyAddress }: GettingHereMapProps) {
               strokeColor: "#4285F4",
               strokeOpacity: 0.9,
               strokeWeight: 5,
-              geodesic: true,
             }}
           />
         )}
 
-        {/* Leg 2: Gate → Home (green dashed) */}
+        {/* Leg 2: Gate → Home (green) */}
         {leg2Path.length > 1 && (
           <Polyline
             path={leg2Path}
             options={{
               strokeColor: "#16a34a",
-              strokeOpacity: 0.8,
+              strokeOpacity: 0.85,
               strokeWeight: 5,
-              geodesic: true,
-              icons: [
-                {
-                  icon: {
-                    path: "M 0,-1 0,1",
-                    strokeOpacity: 0.9,
-                    scale: 3,
-                  },
-                  offset: "0",
-                  repeat: "12px",
-                },
-              ],
             }}
           />
         )}
@@ -263,14 +293,13 @@ export function GettingHereMap({ propertyAddress }: GettingHereMapProps) {
             path={wrongPath}
             options={{
               strokeColor: "#EF4444",
-              strokeOpacity: 0.4,
+              strokeOpacity: 0.5,
               strokeWeight: 4,
-              geodesic: true,
               icons: [
                 {
                   icon: {
                     path: "M 0,-1 0,1",
-                    strokeOpacity: 0.5,
+                    strokeOpacity: 0.6,
                     scale: 3,
                   },
                   offset: "0",
@@ -392,14 +421,8 @@ export function GettingHereMap({ propertyAddress }: GettingHereMapProps) {
         </div>
         {homeLocation && (
           <div className="flex items-center gap-1.5">
-            <div
-              className="w-5 h-1 rounded"
-              style={{
-                backgroundImage:
-                  "repeating-linear-gradient(90deg, #16a34a 0, #16a34a 3px, transparent 3px, transparent 6px)",
-              }}
-            />
-            <span>Gate to home</span>
+            <div className="w-5 h-1 bg-green-600 rounded" />
+            <span>Gate → Home</span>
           </div>
         )}
         <div className="flex items-center gap-1.5">
