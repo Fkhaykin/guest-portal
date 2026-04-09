@@ -113,7 +113,6 @@ export function CleaningDialog({
   const areas = photoAreas && photoAreas.length > 0 ? photoAreas : DEFAULT_PHOTO_AREAS;
   const [photos, setPhotos] = useState<PhotoWithPreview[]>([]);
   const [submitting, setSubmitting] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const activeRoomRef = useRef<string | null>(null);
   const [fullscreenUrl, setFullscreenUrl] = useState<string | null>(null);
   const [notes, setNotes] = useState<Record<string, string>>({});
@@ -325,20 +324,26 @@ export function CleaningDialog({
                   </div>
                 )}
 
-                {/* Upload button */}
-                <button
-                  onClick={() => {
-                    activeRoomRef.current = area;
-                    fileInputRef.current?.click();
-                  }}
-                  disabled={isUploading}
-                  className="flex items-center gap-2 w-full px-3 py-3 rounded-lg border border-dashed hover:bg-muted/50 transition-colors text-sm text-muted-foreground disabled:opacity-50"
+                {/* Upload button — label wraps a per-area file input so the
+                    tap is a direct user gesture (required on mobile Safari) */}
+                <label
+                  className={`flex items-center gap-2 w-full px-3 py-3 rounded-lg border border-dashed hover:bg-muted/50 transition-colors text-sm text-muted-foreground cursor-pointer ${isUploading ? "opacity-50 pointer-events-none" : ""}`}
                 >
                   <Camera className="h-4 w-4" />
                   {areaPhotos.length > 0
                     ? "Add more photos"
                     : "Take or upload photos"}
-                </button>
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
+                    multiple
+                    className="hidden"
+                    onChange={(e) => {
+                      activeRoomRef.current = area;
+                      handleFileSelect(e);
+                    }}
+                  />
+                </label>
 
                 {/* Optional note */}
                 {areaPhotos.length > 0 && (
@@ -355,15 +360,6 @@ export function CleaningDialog({
               </div>
             );
           })}
-
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
-            multiple
-            className="hidden"
-            onChange={handleFileSelect}
-          />
 
           <Separator />
 
