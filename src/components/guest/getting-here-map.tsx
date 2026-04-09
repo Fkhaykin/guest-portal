@@ -270,11 +270,7 @@ export function GettingHereMap({ propertyAddress, variant = "penn-estates" }: Ge
         bounds.extend(CRANBERRY_START);
         if (homeLocation) bounds.extend(homeLocation);
       }
-      map.fitBounds(bounds, { top: 90, bottom: 50, left: 40, right: 40 });
-      google.maps.event.addListenerOnce(map, "idle", () => {
-        const z = map.getZoom();
-        if (z != null) map.setZoom(z + 1);
-      });
+      map.fitBounds(bounds, { top: 60, bottom: 60, left: 50, right: 50 });
     },
     [homeLocation, isBml]
   );
@@ -409,9 +405,9 @@ export function GettingHereMap({ propertyAddress, variant = "penn-estates" }: Ge
                     pointerEvents: showGateTooltip ? "auto" : "none",
                   }}
                 >
-                  <div className="bg-white dark:bg-gray-900 rounded-lg shadow-lg px-3 py-1.5 border border-green-200 whitespace-nowrap">
-                    <p className="font-bold text-green-700 dark:text-green-400 text-sm">
-                      Gatehouse: 525 Penn Estates Drive
+                  <div className="bg-white dark:bg-gray-900 rounded-lg shadow-lg px-3 py-1.5 border border-green-200 max-w-55">
+                    <p className="font-bold text-green-700 dark:text-green-400 text-sm leading-tight">
+                      Gatehouse: 525 Penn Estates Dr
                     </p>
                   </div>
                 </div>
@@ -464,9 +460,9 @@ export function GettingHereMap({ propertyAddress, variant = "penn-estates" }: Ge
                       pointerEvents: showHomeTooltip ? "auto" : "none",
                     }}
                   >
-                    <div className="bg-white dark:bg-gray-900 rounded-lg shadow-lg px-3 py-1.5 border border-blue-200 whitespace-nowrap">
-                      <p className="font-bold text-blue-700 dark:text-blue-400 text-sm">
-                        Your Home: {propertyAddress?.replace(/,?\s*(PA|Pennsylvania)\s*\d{0,5}\s*$/i, "").trim()}
+                    <div className="bg-white dark:bg-gray-900 rounded-lg shadow-lg px-3 py-1.5 border border-blue-200 max-w-55">
+                      <p className="font-bold text-blue-700 dark:text-blue-400 text-sm leading-tight">
+                        Your Home
                       </p>
                     </div>
                   </div>

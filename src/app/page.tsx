@@ -208,6 +208,9 @@ function GuestDashboard({
       .catch(() => {});
   }, [reservation.id]);
 
+  const hasEarlyCheckin = purchasedUpsells.some((u) => u.type === "early_checkin" && u.status === "paid");
+  const hasLateCheckout = purchasedUpsells.some((u) => u.type === "late_checkout" && u.status === "paid");
+
   const countdownLabel =
     daysUntil === 0
       ? "Today is the day!"
@@ -235,9 +238,9 @@ function GuestDashboard({
               </h2>
               {reservation.property.address && (
                 daysUntil <= 7 ? (
-                  <p className="flex items-center gap-1.5 mt-1 text-sm text-white/80">
-                    <MapPin className="h-3.5 w-3.5" />
-                    {reservation.property.address}
+                  <p className="flex items-start gap-1.5 mt-1 text-sm text-white/80">
+                    <MapPin className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                    <span className="wrap-break-word">{reservation.property.address}</span>
                   </p>
                 ) : (
                   <p className="flex items-center gap-1.5 mt-1 text-sm text-white/50">
@@ -327,7 +330,12 @@ function GuestDashboard({
           <CardContent className="space-y-4">
             {/* Check-in / Check-out row */}
             <div className="grid grid-cols-2 gap-4">
-              <div className="rounded-lg border p-4 space-y-1">
+              <div className={`relative rounded-lg border p-4 space-y-1 overflow-hidden ${hasEarlyCheckin ? "border-blue-300 bg-blue-50/50 dark:border-blue-700 dark:bg-blue-950/30" : ""}`}>
+                {hasEarlyCheckin && (
+                  <div className="absolute top-0 right-0 bg-blue-600 text-white text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-bl-lg">
+                    Early
+                  </div>
+                )}
                 <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">
                   <DoorOpen className="h-3.5 w-3.5" />
                   Check-in
@@ -336,12 +344,17 @@ function GuestDashboard({
                   {formatShortDate(reservation.check_in_date)}
                 </p>
                 {lodgify?.check_in_time && (
-                  <p className="text-sm text-muted-foreground">
+                  <p className={`text-sm ${hasEarlyCheckin ? "text-blue-700 dark:text-blue-400 font-medium" : "text-muted-foreground"}`}>
                     After {formatTime(lodgify.check_in_time)}
                   </p>
                 )}
               </div>
-              <div className="rounded-lg border p-4 space-y-1">
+              <div className={`relative rounded-lg border p-4 space-y-1 overflow-hidden ${hasLateCheckout ? "border-purple-300 bg-purple-50/50 dark:border-purple-700 dark:bg-purple-950/30" : ""}`}>
+                {hasLateCheckout && (
+                  <div className="absolute top-0 right-0 bg-purple-600 text-white text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-bl-lg">
+                    Late
+                  </div>
+                )}
                 <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">
                   <DoorClosed className="h-3.5 w-3.5" />
                   Check-out
@@ -350,7 +363,7 @@ function GuestDashboard({
                   {formatShortDate(reservation.check_out_date)}
                 </p>
                 {lodgify?.check_out_time && (
-                  <p className="text-sm text-muted-foreground">
+                  <p className={`text-sm ${hasLateCheckout ? "text-purple-700 dark:text-purple-400 font-medium" : "text-muted-foreground"}`}>
                     By {formatTime(lodgify.check_out_time)}
                   </p>
                 )}
