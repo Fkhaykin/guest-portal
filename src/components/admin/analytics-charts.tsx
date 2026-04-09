@@ -71,11 +71,39 @@ const SOURCE_RENAME: Record<string, string> = {
   VrboIntegration: "VRBO",
 };
 
-const SOURCE_FAVICON: Record<string, string> = {
-  AirbnbIntegration: "https://a0.muscache.com/airbnb/static/icons/apple-touch-icon-76x76-3b313d93b1b5823571f585c00445525f.png",
-  BookingComIntegration: "https://cf.bstatic.com/static/img/favicon/9ca83ba2a5a3293ff07452cb24949a5843af4592.svg",
-  VrboIntegration: "https://csvcus.homeaway.com/rsrcs/favicon.ico",
-};
+function SourceLogo({ source, className }: { source: string; className?: string }) {
+  const cn = className ?? "h-3.5 w-3.5";
+  switch (source) {
+    case "AirbnbIntegration":
+      return (
+        <svg viewBox="0 0 32 32" className={cn}>
+          <rect width="32" height="32" rx="6" fill="#FF5A5F"/>
+          <path d="M16 8c-1.5 0-2.8.8-3.5 2l-3.2 5.6c-.8 1.4-1.3 2.8-1.3 4.2 0 2.8 2.2 4.2 4.2 4.2 1.2 0 2.4-.5 3.8-2 1.4 1.5 2.6 2 3.8 2 2 0 4.2-1.4 4.2-4.2 0-1.4-.5-2.8-1.3-4.2L19.5 10c-.7-1.2-2-2-3.5-2zm0 2.4c.6 0 1.2.4 1.5 1l3 5.2c.6 1 1 2 1 3 0 1.4-1 2.2-2 2.2-.8 0-1.6-.5-2.8-1.8L16 19.2l-.7.8c-1.2 1.3-2 1.8-2.8 1.8-1 0-2-.8-2-2.2 0-1 .4-2 1-3l3-5.2c.3-.6.9-1 1.5-1z" fill="white"/>
+        </svg>
+      );
+    case "BookingComIntegration":
+      return (
+        <svg viewBox="0 0 32 32" className={cn}>
+          <rect width="32" height="32" rx="6" fill="#003580"/>
+          <text x="16" y="22" textAnchor="middle" fill="white" fontSize="18" fontWeight="bold" fontFamily="Arial">B</text>
+        </svg>
+      );
+    case "VrboIntegration":
+      return (
+        <svg viewBox="0 0 32 32" className={cn}>
+          <rect width="32" height="32" rx="6" fill="#0e2554"/>
+          <text x="16" y="21" textAnchor="middle" fill="white" fontSize="11" fontWeight="bold" fontFamily="Arial">vrbo</text>
+        </svg>
+      );
+    default:
+      return (
+        <svg viewBox="0 0 32 32" className={cn}>
+          <rect width="32" height="32" rx="6" fill="#888"/>
+          <text x="16" y="21" textAnchor="middle" fill="white" fontSize="14" fontWeight="bold" fontFamily="Arial">{cleanSourceName(source).charAt(0)}</text>
+        </svg>
+      );
+  }
+}
 
 type GroupBy = "week" | "month" | "quarter";
 type DatePreset = "30d" | "90d" | "6m" | "1y" | "all" | "custom";
@@ -1035,22 +1063,19 @@ function ReservationList({ reservations, showNights, listingUrls }: { reservatio
   return (
     <div className="ml-4 mt-0.5 mb-1 space-y-px">
       {reservations.map((r, i) => {
-        const favicon = r.source ? SOURCE_FAVICON[r.source] : undefined;
-        const listingUrl = r.source && listingUrls ? listingUrls[r.source] : undefined;
+        const listingUrl = r.source && listingUrls ? (listingUrls[r.source] ?? listingUrls[cleanSourceName(r.source)]) : undefined;
         return (
           <div key={i} className="flex items-center justify-between gap-3 text-[11px] text-muted-foreground">
             <Link href={`/admin/reservations/${r.registrationId}`} className="truncate max-w-[140px] underline hover:text-foreground transition-colors">
               {r.guestName}
             </Link>
             <span className="flex items-center gap-2 shrink-0">
-              {favicon && listingUrl ? (
+              {r.source && listingUrl ? (
                 <a href={listingUrl} target="_blank" rel="noopener noreferrer" className="hover:opacity-70 transition-opacity" onClick={(e) => e.stopPropagation()}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={favicon} alt={cleanSourceName(r.source)} className="h-3.5 w-3.5 rounded-sm" />
+                  <SourceLogo source={r.source} />
                 </a>
-              ) : favicon ? (
-                /* eslint-disable-next-line @next/next/no-img-element */
-                <img src={favicon} alt={cleanSourceName(r.source)} className="h-3.5 w-3.5 rounded-sm opacity-50" />
+              ) : r.source ? (
+                <span className="opacity-50"><SourceLogo source={r.source} /></span>
               ) : null}
               <span>{formatCheckIn(r.checkIn)}</span>
               <span className="font-medium">{showNights ? `${r.nights}n` : formatDollars(r.amount / 100)}</span>
