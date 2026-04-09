@@ -104,6 +104,12 @@ export default function UpdateRegistrationPage() {
       });
 
       if (!res.ok) {
+        if (res.status === 401) {
+          // Token missing or expired — send guest back to re-authenticate
+          sessionStorage.removeItem(SESSION_KEY);
+          window.location.href = `/?redirect=${encodeURIComponent(window.location.pathname)}`;
+          return;
+        }
         setError("Could not find your registration. Please contact support.");
         setLoading(false);
         return;

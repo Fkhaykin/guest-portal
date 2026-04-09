@@ -777,6 +777,12 @@ export default function HomePage() {
             setGuestName(name);
             setReservation(res);
             saveSession(name, res, guestToken);
+            // If redirected here from an auth-required page, go back
+            const redirect = new URLSearchParams(window.location.search).get("redirect");
+            if (redirect) {
+              window.history.replaceState({}, "", "/");
+              window.location.href = redirect;
+            }
           }}
         />
       )}

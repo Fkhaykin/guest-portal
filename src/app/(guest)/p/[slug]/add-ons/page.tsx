@@ -168,15 +168,22 @@ export default function AddOnsPage() {
         headers: { "Content-Type": "application/json", "x-guest-token": getGuestToken() },
         body: JSON.stringify({ registration_id: registrationId }),
       });
-      const data = await res.json();
-      if (res.ok) {
-        const options = data.upsells || [];
-        setUpsellOptions(options);
-        setPurchasedUpsells(data.purchased || []);
-      } else {
+      if (!res.ok) {
+        if (res.status === 401) {
+          // Token missing or expired — send guest back to re-authenticate
+          sessionStorage.removeItem(SESSION_KEY);
+          window.location.href = `/?redirect=${encodeURIComponent(window.location.pathname)}`;
+          return;
+        }
+        const data = await res.json().catch(() => null);
         console.error("Add-ons API error:", data);
         setError(data?.error || "Could not load add-ons. Please try again.");
+        return;
       }
+      const data = await res.json();
+      const options = data.upsells || [];
+      setUpsellOptions(options);
+      setPurchasedUpsells(data.purchased || []);
     } catch (err) {
       console.error("Add-ons fetch error:", err);
       setError("Could not load add-ons. Please try again.");

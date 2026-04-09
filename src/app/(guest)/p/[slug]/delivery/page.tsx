@@ -146,6 +146,11 @@ export default function DeliveryPage() {
       });
 
       if (!res.ok) {
+        if (res.status === 401) {
+          sessionStorage.removeItem("guest-portal-session");
+          window.location.href = `/?redirect=${encodeURIComponent(window.location.pathname)}`;
+          return;
+        }
         const data = await res.json();
         setError(data.error || "Something went wrong");
       } else {
