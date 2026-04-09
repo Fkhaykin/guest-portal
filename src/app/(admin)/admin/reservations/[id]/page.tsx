@@ -419,27 +419,6 @@ export default function ReservationDetailPage() {
 
       {/* Quick Actions */}
       <div className="flex flex-wrap gap-2">
-        {hasSignature && (
-          <>
-            <a href={`/api/pepoa/generate?registration_id=${id}&disposition=inline`} target="_blank" rel="noopener noreferrer">
-              <Button variant="outline" size="sm">
-                <Eye className="h-4 w-4 mr-1" /> View PDF
-              </Button>
-            </a>
-            <a href={`/api/pepoa/generate?registration_id=${id}`} target="_blank" rel="noopener noreferrer">
-              <Button variant="outline" size="sm">
-                <Download className="h-4 w-4 mr-1" /> Download PDF
-              </Button>
-            </a>
-            <Button variant="outline" size="sm" onClick={handleEmail} disabled={emailing}>
-              {emailing ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : emailResult === "success" ? <Mail className="h-4 w-4 mr-1 text-green-600" /> : emailResult === "error" ? <Mail className="h-4 w-4 mr-1 text-red-600" /> : <Mail className="h-4 w-4 mr-1" />}
-              {emailResult === "success" ? "Sent!" : emailResult === "error" ? "Failed" : "Email to HOA"}
-            </Button>
-          </>
-        )}
-        <Button variant="outline" size="sm" onClick={openHistory}>
-          <History className="h-4 w-4 mr-1" /> History
-        </Button>
         {lodgifyBookingUrl && (
           <a href={lodgifyBookingUrl} target="_blank" rel="noopener noreferrer">
             <Button variant="outline" size="sm">
@@ -770,6 +749,29 @@ export default function ReservationDetailPage() {
                           {reg.lodgify_num_pets} pet{reg.lodgify_num_pets !== 1 ? "s" : ""} booked — not yet registered
                         </p>
                       )}
+                    </div>
+                  </>
+                )}
+
+                {/* PDF & HOA actions */}
+                {hasSignature && (
+                  <>
+                    <Separator />
+                    <div className="flex flex-wrap gap-2">
+                      <a href={`/api/pepoa/generate?registration_id=${id}&disposition=inline`} target="_blank" rel="noopener noreferrer">
+                        <Button variant="outline" size="sm">
+                          <Eye className="h-4 w-4 mr-1" /> View PDF
+                        </Button>
+                      </a>
+                      <a href={`/api/pepoa/generate?registration_id=${id}`} target="_blank" rel="noopener noreferrer">
+                        <Button variant="outline" size="sm">
+                          <Download className="h-4 w-4 mr-1" /> Download PDF
+                        </Button>
+                      </a>
+                      <Button variant="outline" size="sm" onClick={handleEmail} disabled={emailing}>
+                        {emailing ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : emailResult === "success" ? <Mail className="h-4 w-4 mr-1 text-green-600" /> : emailResult === "error" ? <Mail className="h-4 w-4 mr-1 text-red-600" /> : <Mail className="h-4 w-4 mr-1" />}
+                        {emailResult === "success" ? "Sent!" : emailResult === "error" ? "Failed" : "Email to HOA"}
+                      </Button>
                     </div>
                   </>
                 )}
