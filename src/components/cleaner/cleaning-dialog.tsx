@@ -114,7 +114,7 @@ export function CleaningDialog({
   const [photos, setPhotos] = useState<PhotoWithPreview[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [activeRoom, setActiveRoom] = useState<string | null>(null);
+  const activeRoomRef = useRef<string | null>(null);
   const [fullscreenUrl, setFullscreenUrl] = useState<string | null>(null);
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -132,11 +132,11 @@ export function CleaningDialog({
 
   async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const files = e.target.files;
-    if (!files || files.length === 0 || !activeRoom) return;
+    const room = activeRoomRef.current;
+    if (!files || files.length === 0 || !room) return;
     e.target.value = "";
 
-    const room = activeRoom;
-    setActiveRoom(null);
+    activeRoomRef.current = null;
     setUploadError(null);
 
     const rawFiles = Array.from(files);
@@ -328,7 +328,7 @@ export function CleaningDialog({
                 {/* Upload button */}
                 <button
                   onClick={() => {
-                    setActiveRoom(area);
+                    activeRoomRef.current = area;
                     fileInputRef.current?.click();
                   }}
                   disabled={isUploading}
