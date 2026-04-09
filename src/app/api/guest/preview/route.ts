@@ -2,27 +2,36 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { getBookingById } from "@/lib/lodgify/client";
-import { signGuestToken } from "@/lib/guest-token";
+import { signGuestToken, verifyGuestToken } from "@/lib/guest-token";
 
 /**
- * GET /api/guest/preview?reg=REGISTRATION_ID
+ * GET /api/guest/preview?reg=REGISTRATION_ID[&token=GUEST_TOKEN]
  * Returns session-compatible reservation data so the admin can preview
  * the guest portal as if logged in as that guest.
- * Requires an authenticated admin session.
+ * Auth: either an admin session cookie OR a valid guest token.
  */
 export async function GET(request: Request) {
-  // Verify the caller is an authenticated admin (host)
-  const authClient = await createClient();
-  const { data: { user } } = await authClient.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
   const { searchParams } = new URL(request.url);
   const regId = searchParams.get("reg");
+  const token = searchParams.get("token");
 
   if (!regId) {
     return NextResponse.json({ error: "reg is required" }, { status: 400 });
+  }
+
+  // Allow token-based auth (for cross-subdomain admin preview links)
+  let authorized = false;
+  if (token && verifyGuestToken(regId, token)) {
+    authorized = true;
+  }
+
+  // Fall back to admin session auth
+  if (!authorized) {
+    const authClient = await createClient();
+    const { data: { user } } = await authClient.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
   }
 
   const supabase = createAdminClient();

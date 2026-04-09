@@ -879,12 +879,13 @@ export default function HomePage() {
       return;
     }
 
-    // Admin preview: auto-login as guest from ?reg=REGISTRATION_ID
+    // Admin preview: auto-login as guest from ?reg=REGISTRATION_ID&token=TOKEN
     const regId = params.get("reg");
-    if (regId) {
+    const previewToken = params.get("token");
+    if (regId && previewToken) {
       // Clean the URL so a refresh doesn't re-fetch
       window.history.replaceState({}, "", "/");
-      fetch(`/api/guest/preview?reg=${encodeURIComponent(regId)}`)
+      fetch(`/api/guest/preview?reg=${encodeURIComponent(regId)}&token=${encodeURIComponent(previewToken)}`)
         .then((r) => (r.ok ? r.json() : null))
         .then((data) => {
           if (data) {

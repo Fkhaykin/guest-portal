@@ -316,15 +316,17 @@ export default function ReservationDetailPage() {
   const lodgifyBookingUrl = reg.lodgify_booking_id
     ? `https://app.lodgify.com/#/reservation/details/${reg.lodgify_booking_id}`
     : null;
-  // Build a guest-domain URL that auto-logs in as this guest.
-  // On admin subdomain we need to target the bare/guest domain so the
-  // middleware doesn't rewrite to /admin.
-  const guestPortalUrl = (() => {
-    if (typeof window === "undefined") return null;
-    const host = window.location.host; // e.g. admin.localhost:3000 or admin.summitlakeside.com
+  // Open the guest portal as this guest. Fetches a signed token from the
+  // admin API so the cross-subdomain preview endpoint can authenticate.
+  const openGuestPortal = useCallback(async () => {
+    const res = await fetch(`/api/admin/preview-link?reg=${reg.id}`);
+    if (!res.ok) return;
+    const { token } = await res.json();
+    const host = window.location.host;
     const guestHost = host.replace(/^admin\./, "guest.");
-    return `${window.location.protocol}//${guestHost}/?reg=${reg.id}`;
-  })();
+    const url = `${window.location.protocol}//${guestHost}/?reg=${reg.id}&token=${token}`;
+    window.open(url, "_blank");
+  }, [reg.id]);
 
   const displayStatus = (() => {
     if (reg.status === "cancelled") return "cancelled" as const;
@@ -406,13 +408,9 @@ export default function ReservationDetailPage() {
             </Button>
           </a>
         )}
-        {guestPortalUrl && (
-          <a href={guestPortalUrl} target="_blank" rel="noopener noreferrer">
-            <Button variant="outline" size="sm">
-              <ExternalLink className="h-4 w-4 mr-1" /> Guest Portal
-            </Button>
-          </a>
-        )}
+        <Button variant="outline" size="sm" onClick={openGuestPortal}>
+          <ExternalLink className="h-4 w-4 mr-1" /> Guest Portal
+        </Button>
         {property?.listing_urls && Object.entries(property.listing_urls).map(([source, url]) => (
           <a key={source} href={url} target="_blank" rel="noopener noreferrer">
             <Button variant="outline" size="sm">
