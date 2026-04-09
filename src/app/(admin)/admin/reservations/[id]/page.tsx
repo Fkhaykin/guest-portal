@@ -320,7 +320,7 @@ export default function ReservationDetailPage() {
   const property = reg.property;
   const guestList = reg.guest_list ?? [];
   const pets = reg.pets ?? [];
-  const upsells = reg.upsells ?? [];
+  const upsells = (reg.upsells ?? []).filter((u) => u.status === "paid");
   const adults = guestList.filter((g) => g.age_group === "over_21").length;
   const children = guestList.filter((g) => g.age_group === "under_21").length;
   const infants = guestList.filter((g) => g.age_group === "infant").length;
@@ -684,22 +684,22 @@ export default function ReservationDetailPage() {
                         })}
                       </div>
                       {/* Unmatched vehicles (no matching guest) */}
-                      {unmatchedVehicles.length > 0 && (
-                        <div className="space-y-1 pt-1">
-                          <p className="text-xs text-muted-foreground">Other vehicles:</p>
-                          {unmatchedVehicles.map((v) => (
-                            <div key={v.id} className="bg-muted rounded-md px-3 py-2 text-xs space-y-0.5">
-                              <p className="font-medium">
-                                {[v.year, v.color, v.make, v.model].filter(Boolean).join(" ") || "Unknown vehicle"}
-                              </p>
-                              <p className="text-muted-foreground">
-                                {v.license_plate}{v.state_or_region ? ` (${v.state_or_region})` : ""}
-                                {v.driver_name && ` · ${v.driver_name}`}
-                              </p>
-                            </div>
-                          ))}
+                      {unmatchedVehicles.map((v) => (
+                        <div key={v.id} className="rounded-md border">
+                          <div className="flex items-center gap-2 px-3 py-2 text-sm">
+                            <Car className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                            <span className="flex-1">
+                              {[v.year, v.color, v.make, v.model].filter(Boolean).join(" ") || "Unknown vehicle"}
+                            </span>
+                          </div>
+                          <div className="border-t bg-muted/30 px-3 py-2 ml-6 text-xs">
+                            <p className="text-muted-foreground">
+                              {v.license_plate}{v.state_or_region ? ` · ${v.state_or_region}` : ""}
+                              {v.driver_name && ` · ${v.driver_name}`}
+                            </p>
+                          </div>
                         </div>
-                      )}
+                      ))}
                     </div>
                   </>
                 )}
