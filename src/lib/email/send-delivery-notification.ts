@@ -23,9 +23,11 @@ export async function sendDeliveryNotification({
   ownerPhone: string;
   ownerEmail: string;
 }) {
-  const fromEmail = process.env.RESEND_FROM_EMAIL;
-  if (!fromEmail) {
-    throw new Error("RESEND_FROM_EMAIL environment variable is not set");
+  const fromEmail = "contact@summitlakeside.com";
+
+  const cc: string[] = [];
+  if (ownerEmail && ownerEmail.toLowerCase() !== fromEmail.toLowerCase()) {
+    cc.push(ownerEmail);
   }
 
   const typeLabel = category === "rideshare" ? "car service" : "delivery";
@@ -34,7 +36,7 @@ export async function sendDeliveryNotification({
     { weekday: "long", year: "numeric", month: "long", day: "numeric" }
   );
 
-  const subject = `Registering ${typeLabel} for ${lotSection} on ${formattedDate}`;
+  const subject = `${provider} ${typeLabel[0].toUpperCase() + typeLabel.slice(1)} — Lot/Section ${lotSection} — ${formattedDate}`;
 
   const contactLines: string[] = [];
   if (ownerPhone) contactLines.push(`  Phone: ${ownerPhone}`);
@@ -56,6 +58,7 @@ export async function sendDeliveryNotification({
   const { error } = await resend.emails.send({
     from: fromEmail,
     to,
+    ...(cc.length > 0 ? { cc } : {}),
     subject,
     text: bodyLines.join("\n"),
   });

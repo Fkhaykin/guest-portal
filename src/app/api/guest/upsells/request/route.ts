@@ -69,10 +69,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Host email not found" }, { status: 500 });
     }
 
-    const fromEmail = process.env.RESEND_FROM_EMAIL;
-    if (!fromEmail) {
-      return NextResponse.json({ error: "Email not configured" }, { status: 500 });
-    }
+    const fromEmail = "contact@summitlakeside.com";
 
     const propertyName = property.nickname || property.name;
     const isEarly = type === "early_checkin";
@@ -85,7 +82,7 @@ export async function POST(request: Request) {
     });
 
     const label = isEarly ? "Early Check-In (1:00 PM)" : "Late Check-Out (2:00 PM)";
-    const subject = `${label} Request — ${propertyName} — ${formattedDate}`;
+    const subject = `${label} Request — Lot/Section ${property.lot_section || "N/A"} — ${formattedDate}`;
 
     const bodyLines = [
       `Hi ${host.full_name.split(" ")[0]},`,
