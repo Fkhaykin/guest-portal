@@ -16,6 +16,7 @@ import {
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
@@ -96,11 +97,14 @@ export function AdminSidebar({
         </nav>
 
         <div className="p-3 border-t space-y-3">
-          <div className="px-3">
-            <p className="text-sm font-medium truncate">{hostName}</p>
-            <p className="text-xs text-muted-foreground truncate">
-              {hostEmail}
-            </p>
+          <div className="flex items-center justify-between px-3">
+            <div className="min-w-0">
+              <p className="text-sm font-medium truncate">{hostName}</p>
+              <p className="text-xs text-muted-foreground truncate">
+                {hostEmail}
+              </p>
+            </div>
+            <ThemeToggle />
           </div>
           <Button
             variant="ghost"
