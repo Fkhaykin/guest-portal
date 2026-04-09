@@ -51,7 +51,7 @@ export async function POST(request: Request) {
 
   const { data: property } = await supabase
     .from("property")
-    .select("lot_section, hoa_submission_email, owner_phone, owner_email")
+    .select("lot_section, hoa_submission_email, owner_phone, owner_email, hoa_type")
     .eq("id", reg.property_id)
     .single();
 
@@ -93,6 +93,7 @@ export async function POST(request: Request) {
       arrivalDate: arrival_date,
       ownerPhone: property.owner_phone || "",
       ownerEmail: property.owner_email || "",
+      hoaType: property.hoa_type || "pepoa",
     }).catch(() => {});
   }
 

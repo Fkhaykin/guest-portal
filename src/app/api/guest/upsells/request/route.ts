@@ -51,7 +51,7 @@ export async function POST(request: Request) {
     // Get property details + host email
     const { data: property } = await supabase
       .from("property")
-      .select("name, nickname, host_id, lot_section")
+      .select("name, nickname, host_id, lot_section, hoa_type")
       .eq("id", reg.property_id)
       .single();
 
@@ -81,13 +81,15 @@ export async function POST(request: Request) {
       day: "numeric",
     });
 
+    const isBML = (property.hoa_type || "pepoa") === "bmlc";
     const label = isEarly ? "Early Check-In (1:00 PM)" : "Late Check-Out (2:00 PM)";
-    const subject = `${label} Request — Lot/Section ${property.lot_section || "N/A"} — ${formattedDate}`;
+    const lotPart = isBML ? "" : ` — Lot/Section ${property.lot_section || "N/A"}`;
+    const subject = `${label} Request${lotPart} — ${formattedDate}`;
 
     const bodyLines = [
       `Hi ${host.full_name.split(" ")[0]},`,
       "",
-      `${guestName} has requested a ${label.toLowerCase()} at ${propertyName}${property.lot_section ? ` (Lot ${property.lot_section})` : ""}.`,
+      `${guestName} has requested a ${label.toLowerCase()} at ${propertyName}${!isBML && property.lot_section ? ` (Lot ${property.lot_section})` : ""}.`,
       "",
       `Date: ${formattedDate}`,
       `Check-in: ${reg.check_in_date}`,

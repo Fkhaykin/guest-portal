@@ -13,6 +13,7 @@ export async function sendPEPOAPDF({
   ownerPhone,
   ownerEmail,
   registrationId,
+  hoaType,
   isUpdate,
   changeSummary,
 }: {
@@ -24,10 +25,13 @@ export async function sendPEPOAPDF({
   ownerPhone: string;
   ownerEmail: string;
   registrationId: string;
+  hoaType?: string;
   isUpdate?: boolean;
   changeSummary?: string;
 }) {
-  const subject = `Short-Term Tenant Registration — Lot/Section ${lotSection} — Check-in ${checkInDate}`;
+  const isBML = hoaType === "bmlc";
+  const lotPart = isBML ? "" : ` — Lot/Section ${lotSection}`;
+  const subject = `Short-Term Tenant Registration${lotPart} — Check-in ${checkInDate}`;
 
   const fromEmail = "contact@summitlakeside.com";
   const originalMessageId = `<pepoa-${registrationId}@summitlakeside.com>`;
@@ -48,7 +52,7 @@ export async function sendPEPOAPDF({
 
   const bodyLines = isUpdate
     ? [
-        `An updated tenant registration form has been submitted for Lot/Section ${lotSection}.`,
+        `An updated tenant registration form has been submitted${isBML ? "" : ` for Lot/Section ${lotSection}`}.`,
         "",
         `Registered Guest: ${guestName}`,
         `Check-in Date: ${checkInDate}`,
@@ -58,7 +62,7 @@ export async function sendPEPOAPDF({
         ...contactLines,
       ]
     : [
-        `A new tenant registration form has been submitted for Lot/Section ${lotSection}.`,
+        `A new tenant registration form has been submitted${isBML ? "" : ` for Lot/Section ${lotSection}`}.`,
         "",
         `Registered Guest: ${guestName}`,
         `Check-in Date: ${checkInDate}`,

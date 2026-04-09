@@ -13,6 +13,7 @@ export async function sendDeliveryNotification({
   arrivalDate,
   ownerPhone,
   ownerEmail,
+  hoaType,
 }: {
   to: string | string[];
   lotSection: string;
@@ -22,6 +23,7 @@ export async function sendDeliveryNotification({
   arrivalDate: string;
   ownerPhone: string;
   ownerEmail: string;
+  hoaType?: string;
 }) {
   const fromEmail = "contact@summitlakeside.com";
 
@@ -36,7 +38,9 @@ export async function sendDeliveryNotification({
     { weekday: "long", year: "numeric", month: "long", day: "numeric" }
   );
 
-  const subject = `${provider} ${typeLabel[0].toUpperCase() + typeLabel.slice(1)} — Lot/Section ${lotSection} — ${formattedDate}`;
+  const isBML = hoaType === "bmlc";
+  const lotPart = isBML ? "" : ` — Lot/Section ${lotSection}`;
+  const subject = `${provider} ${typeLabel[0].toUpperCase() + typeLabel.slice(1)}${lotPart} — ${formattedDate}`;
 
   const contactLines: string[] = [];
   if (ownerPhone) contactLines.push(`  Phone: ${ownerPhone}`);

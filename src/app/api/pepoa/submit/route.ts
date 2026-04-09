@@ -53,6 +53,7 @@ export async function POST(request: Request) {
         ownerPhone: (data.property.owner_phone as string) || "",
         ownerEmail: (data.property.owner_email as string) || (data.host.email as string) || "",
         registrationId: registration_id,
+        hoaType: (data.property.hoa_type as string) || "pepoa",
         isUpdate: is_update,
         changeSummary: change_summary,
       });
