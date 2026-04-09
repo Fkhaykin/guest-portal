@@ -143,15 +143,20 @@ export function CleaningDialog({
     setUploadProgress((prev) => ({ ...prev, [room]: { total, completed: 0 } }));
 
     for (let i = 0; i < rawFiles.length; i++) {
-      const file = await compressImage(rawFiles[i]);
-      const previewUrl = URL.createObjectURL(file);
-
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("registration_id", registrationId);
-      formData.append("room", room);
-
       try {
+        let file: File;
+        try {
+          file = await compressImage(rawFiles[i]);
+        } catch {
+          file = rawFiles[i]; // compression failed — upload original
+        }
+        const previewUrl = URL.createObjectURL(file);
+
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("registration_id", registrationId);
+        formData.append("room", room);
+
         const res = await fetch("/api/cleaner/upload-photo", {
           method: "POST",
           body: formData,
@@ -173,7 +178,6 @@ export function CleaningDialog({
           setUploadError(errorMsg);
         }
       } catch {
-        URL.revokeObjectURL(previewUrl);
         setUploadError("Network error — check your connection and try again");
       }
 
@@ -337,7 +341,7 @@ export function CleaningDialog({
                     type="file"
                     accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
                     multiple
-                    className="hidden"
+                    className="sr-only"
                     onChange={(e) => {
                       activeRoomRef.current = area;
                       handleFileSelect(e);
