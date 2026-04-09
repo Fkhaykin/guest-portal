@@ -234,7 +234,7 @@ export function GettingHereMap({ propertyAddress }: GettingHereMapProps) {
       bounds.extend(HALLET_START);
       bounds.extend(CRANBERRY_START);
       if (homeLocation) bounds.extend(homeLocation);
-      map.fitBounds(bounds, { top: 40, bottom: 40, left: 20, right: 20 });
+      map.fitBounds(bounds, { top: 60, bottom: 60, left: 40, right: 40 });
     },
     [homeLocation]
   );
