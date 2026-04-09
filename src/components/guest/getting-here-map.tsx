@@ -79,11 +79,18 @@ function fetchRoute(
 /*  Component                                                          */
 /* ------------------------------------------------------------------ */
 
+/** BML route: simple A → B, no gates or wrong-way warning */
+const BML_START = { lat: 41.01863342718482, lng: -75.18267911083335 };
+const BML_HOME  = { lat: 41.04463402349529, lng: -75.19353370046814 };
+
 interface GettingHereMapProps {
   propertyAddress?: string | null;
+  /** "bml" = simple start-to-home route; default = Penn Estates gate route */
+  variant?: "penn-estates" | "bml";
 }
 
-export function GettingHereMap({ propertyAddress }: GettingHereMapProps) {
+export function GettingHereMap({ propertyAddress, variant = "penn-estates" }: GettingHereMapProps) {
+  const isBml = variant === "bml";
   const { isLoaded } = useJsApiLoader({
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "",
   });
@@ -135,22 +142,26 @@ export function GettingHereMap({ propertyAddress }: GettingHereMapProps) {
     const service = new google.maps.DirectionsService();
 
     const fetchAll = async () => {
-      // Leg 1: Hallet Rd → North Gate
-      leg1Full.current = await fetchRoute(service, HALLET_START, NORTH_GATE);
+      if (isBml) {
+        // BML: single route from start to home
+        const dest = homeLocation || BML_HOME;
+        leg1Full.current = await fetchRoute(service, BML_START, dest);
+      } else {
+        // Penn Estates: gate route + wrong route
+        leg1Full.current = await fetchRoute(service, HALLET_START, NORTH_GATE);
 
-      // Leg 2: North Gate → Home (if geocoded)
-      if (homeLocation) {
-        leg2Full.current = await fetchRoute(service, NORTH_GATE, homeLocation);
+        if (homeLocation) {
+          leg2Full.current = await fetchRoute(service, NORTH_GATE, homeLocation);
+        }
+
+        wrongFull.current = await fetchRoute(service, CRANBERRY_START, SOUTH_GATE);
       }
-
-      // Wrong route: Cranberry Rd → South Gate
-      wrongFull.current = await fetchRoute(service, CRANBERRY_START, SOUTH_GATE);
 
       setRoutesReady(true);
     };
 
     fetchAll();
-  }, [isLoaded, homeLocation, propertyAddress, routesReady]);
+  }, [isLoaded, homeLocation, propertyAddress, routesReady, isBml]);
 
   /* Animate routes in sequence */
   const startAnimation = useCallback(() => {
@@ -176,38 +187,49 @@ export function GettingHereMap({ propertyAddress }: GettingHereMapProps) {
     };
 
     (async () => {
-      // Leg 1: Hallet Rd → North Gate
-      setCurrentStep(1);
-      await delay(300);
-      await animatePath(leg1Full.current, setLeg1Path, 1800);
-
-      // Pause at gate — show gatehouse tooltip
-      setShowPulse(true);
-      setShowGateTooltip(true);
-      await delay(1400);
-      setShowGateTooltip(false);
-      await delay(300); // brief gap for fade out
-
-      // Leg 2: North Gate → Home
-      if (leg2Full.current.length > 0) {
-        setCurrentStep(2);
-        await animatePath(leg2Full.current, setLeg2Path, 1500);
+      if (isBml) {
+        // BML: single animated route, then show home tooltip
+        setCurrentStep(1);
+        await delay(300);
+        await animatePath(leg1Full.current, setLeg1Path, 2200);
         setShowLeg2Pulse(true);
         setShowHomeTooltip(true);
         await delay(1400);
         setShowHomeTooltip(false);
+      } else {
+        // Penn Estates: gate route + wrong route
+        setCurrentStep(1);
         await delay(300);
+        await animatePath(leg1Full.current, setLeg1Path, 1800);
+
+        // Pause at gate — show gatehouse tooltip
+        setShowPulse(true);
+        setShowGateTooltip(true);
+        await delay(1400);
+        setShowGateTooltip(false);
+        await delay(300);
+
+        // Leg 2: North Gate → Home
+        if (leg2Full.current.length > 0) {
+          setCurrentStep(2);
+          await animatePath(leg2Full.current, setLeg2Path, 1500);
+          setShowLeg2Pulse(true);
+          setShowHomeTooltip(true);
+          await delay(1400);
+          setShowHomeTooltip(false);
+          await delay(300);
+        }
+
+        // Wrong route last (faded red)
+        setCurrentStep(3);
+        await animatePath(wrongFull.current, setWrongPath, 1200);
+
+        // Show "DON'T GO HERE" tooltip on the wrong gate
+        await delay(300);
+        setShowDontGoHere(true);
       }
-
-      // Wrong route last (faded red)
-      setCurrentStep(3);
-      await animatePath(wrongFull.current, setWrongPath, 1200);
-
-      // Show "DON'T GO HERE" tooltip on the wrong gate
-      await delay(300);
-      setShowDontGoHere(true);
     })();
-  }, [hasAnimated, routesReady]);
+  }, [hasAnimated, routesReady, isBml]);
 
   /* Intersection Observer — trigger animation when visible */
   useEffect(() => {
@@ -237,21 +259,24 @@ export function GettingHereMap({ propertyAddress }: GettingHereMapProps) {
   const onMapLoad = useCallback(
     (map: google.maps.Map) => {
       mapRef.current = map;
-      // Fit bounds to show all key points
       const bounds = new google.maps.LatLngBounds();
-      bounds.extend(NORTH_GATE);
-      bounds.extend(SOUTH_GATE);
-      bounds.extend(HALLET_START);
-      bounds.extend(CRANBERRY_START);
-      if (homeLocation) bounds.extend(homeLocation);
+      if (isBml) {
+        bounds.extend(BML_START);
+        bounds.extend(homeLocation || BML_HOME);
+      } else {
+        bounds.extend(NORTH_GATE);
+        bounds.extend(SOUTH_GATE);
+        bounds.extend(HALLET_START);
+        bounds.extend(CRANBERRY_START);
+        if (homeLocation) bounds.extend(homeLocation);
+      }
       map.fitBounds(bounds, { top: 90, bottom: 50, left: 40, right: 40 });
-      // Bump zoom by 1 after fitBounds settles
       google.maps.event.addListenerOnce(map, "idle", () => {
         const z = map.getZoom();
         if (z != null) map.setZoom(z + 1);
       });
     },
-    [homeLocation]
+    [homeLocation, isBml]
   );
 
   if (!isLoaded) {
@@ -265,49 +290,51 @@ export function GettingHereMap({ propertyAddress }: GettingHereMapProps) {
   return (
     <div ref={containerRef} className="relative space-y-2">
       {/* Step indicator */}
-      <div className="flex items-center gap-2 text-xs font-medium">
-        <div
-          className={`flex items-center gap-1 px-2.5 py-1 rounded-full transition-colors ${
-            currentStep >= 1
-              ? "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300"
-              : "bg-muted text-muted-foreground"
-          }`}
-        >
-          <span className="font-bold">1</span> Gate Pass
+      {!isBml && (
+        <div className="flex items-center gap-2 text-xs font-medium">
+          <div
+            className={`flex items-center gap-1 px-2.5 py-1 rounded-full transition-colors ${
+              currentStep >= 1
+                ? "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300"
+                : "bg-muted text-muted-foreground"
+            }`}
+          >
+            <span className="font-bold">1</span> Gate Pass
+          </div>
+          <div className="w-4 h-px bg-muted-foreground/30" />
+          <div
+            className={`flex items-center gap-1 px-2.5 py-1 rounded-full transition-colors ${
+              currentStep >= 2
+                ? "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300"
+                : "bg-muted text-muted-foreground"
+            }`}
+          >
+            <span className="font-bold">2</span> Your Home
+          </div>
         </div>
-        <div className="w-4 h-px bg-muted-foreground/30" />
-        <div
-          className={`flex items-center gap-1 px-2.5 py-1 rounded-full transition-colors ${
-            currentStep >= 2
-              ? "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300"
-              : "bg-muted text-muted-foreground"
-          }`}
-        >
-          <span className="font-bold">2</span> Your Home
-        </div>
-      </div>
+      )}
 
       <GoogleMap
         mapContainerStyle={containerStyle}
-        center={MAP_CENTER}
+        center={isBml ? { lat: (BML_START.lat + BML_HOME.lat) / 2, lng: (BML_START.lng + BML_HOME.lng) / 2 } : MAP_CENTER}
         zoom={14}
         options={mapOptions}
         onLoad={onMapLoad}
       >
-        {/* Leg 1: Hallet Rd → Gate (green to match gate marker) */}
+        {/* Leg 1: route to gate (Penn Estates) or route to home (BML) */}
         {leg1Path.length > 1 && (
           <Polyline
             path={leg1Path}
             options={{
-              strokeColor: "#16a34a",
+              strokeColor: isBml ? "#4285F4" : "#16a34a",
               strokeOpacity: 0.9,
               strokeWeight: 5,
             }}
           />
         )}
 
-        {/* Leg 2: Gate → Home (blue to match home marker) */}
-        {leg2Path.length > 1 && (
+        {/* Leg 2: Gate → Home (blue, Penn Estates only) */}
+        {!isBml && leg2Path.length > 1 && (
           <Polyline
             path={leg2Path}
             options={{
@@ -318,8 +345,8 @@ export function GettingHereMap({ propertyAddress }: GettingHereMapProps) {
           />
         )}
 
-        {/* Wrong route — faded red dashed */}
-        {wrongPath.length > 1 && (
+        {/* Wrong route — faded red dashed (Penn Estates only) */}
+        {!isBml && wrongPath.length > 1 && (
           <Polyline
             path={wrongPath}
             options={{
@@ -341,97 +368,50 @@ export function GettingHereMap({ propertyAddress }: GettingHereMapProps) {
           />
         )}
 
-        {/* North Gate marker — Step 1 (green) */}
-        <Marker
-          position={NORTH_GATE}
-          icon={{
-            url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(
-              `<svg xmlns="http://www.w3.org/2000/svg" width="44" height="52" viewBox="0 0 44 52">
-                <path d="M22 0C10 0 0 10 0 22c0 16 22 30 22 30s22-14 22-30C44 10 34 0 22 0z" fill="#16a34a"/>
-                <circle cx="22" cy="20" r="11" fill="white"/>
-                <text x="22" y="25" text-anchor="middle" font-size="16" font-weight="bold" fill="#16a34a">1</text>
-              </svg>`
-            )}`,
-            scaledSize: new google.maps.Size(44, 52),
-            anchor: new google.maps.Point(22, 52),
-          }}
-          onClick={() => setShowNorthInfo(!showNorthInfo)}
-        />
-        {showNorthInfo && (
-          <InfoWindow position={NORTH_GATE} onCloseClick={() => setShowNorthInfo(false)}>
-            <div className="p-1">
-              <p className="font-bold text-green-700 text-sm">Step 1: Main Gate (via Hallet Rd)</p>
-              <p className="text-xs">525 Penn Estates Drive</p>
-              <p className="text-xs text-gray-500">Show license &amp; get gate pass</p>
-            </div>
-          </InfoWindow>
-        )}
-        {/* Auto-show gatehouse tooltip — offset down-left so it's inside the frame */}
-        {!showNorthInfo && (
-          <OverlayViewF
-            position={NORTH_GATE}
-            mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
-          >
-            <div
-              className="transition-all duration-300 ease-in-out"
-              style={{
-                transform: "translate(-50%, 8px)",
-                opacity: showGateTooltip ? 1 : 0,
-                pointerEvents: showGateTooltip ? "auto" : "none",
-              }}
-            >
-              <div className="bg-white dark:bg-gray-900 rounded-lg shadow-lg px-3 py-1.5 border border-green-200 whitespace-nowrap">
-                <p className="font-bold text-green-700 dark:text-green-400 text-sm">
-                  Gatehouse: 525 Penn Estates Drive
-                </p>
-              </div>
-            </div>
-          </OverlayViewF>
-        )}
-
-        {/* Home marker — Step 2 (blue) */}
-        {homeLocation && currentStep >= 2 && (
+        {/* North Gate marker — Step 1 (green, Penn Estates only) */}
+        {!isBml && (
           <>
             <Marker
-              position={homeLocation}
+              position={NORTH_GATE}
               icon={{
                 url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(
                   `<svg xmlns="http://www.w3.org/2000/svg" width="44" height="52" viewBox="0 0 44 52">
-                    <path d="M22 0C10 0 0 10 0 22c0 16 22 30 22 30s22-14 22-30C44 10 34 0 22 0z" fill="#4285F4"/>
+                    <path d="M22 0C10 0 0 10 0 22c0 16 22 30 22 30s22-14 22-30C44 10 34 0 22 0z" fill="#16a34a"/>
                     <circle cx="22" cy="20" r="11" fill="white"/>
-                    <text x="22" y="25" text-anchor="middle" font-size="16" font-weight="bold" fill="#4285F4">2</text>
+                    <text x="22" y="25" text-anchor="middle" font-size="16" font-weight="bold" fill="#16a34a">1</text>
                   </svg>`
                 )}`,
                 scaledSize: new google.maps.Size(44, 52),
                 anchor: new google.maps.Point(22, 52),
               }}
-              onClick={() => setShowHomeInfo(!showHomeInfo)}
+              onClick={() => setShowNorthInfo(!showNorthInfo)}
             />
-            {showHomeInfo && (
-              <InfoWindow position={homeLocation} onCloseClick={() => setShowHomeInfo(false)}>
+            {showNorthInfo && (
+              <InfoWindow position={NORTH_GATE} onCloseClick={() => setShowNorthInfo(false)}>
                 <div className="p-1">
-                  <p className="font-bold text-blue-700 text-sm">Step 2: Your Home</p>
-                  <p className="text-xs text-gray-500">Proceed here after gate pass</p>
+                  <p className="font-bold text-green-700 text-sm">Step 1: Main Gate (via Hallet Rd)</p>
+                  <p className="text-xs">525 Penn Estates Drive</p>
+                  <p className="text-xs text-gray-500">Show license &amp; get gate pass</p>
                 </div>
               </InfoWindow>
             )}
-            {/* Auto-show home tooltip */}
-            {!showHomeInfo && (
+            {/* Auto-show gatehouse tooltip */}
+            {!showNorthInfo && (
               <OverlayViewF
-                position={homeLocation}
+                position={NORTH_GATE}
                 mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
               >
                 <div
                   className="transition-all duration-300 ease-in-out"
                   style={{
                     transform: "translate(-50%, 8px)",
-                    opacity: showHomeTooltip ? 1 : 0,
-                    pointerEvents: showHomeTooltip ? "auto" : "none",
+                    opacity: showGateTooltip ? 1 : 0,
+                    pointerEvents: showGateTooltip ? "auto" : "none",
                   }}
                 >
-                  <div className="bg-white dark:bg-gray-900 rounded-lg shadow-lg px-3 py-1.5 border border-blue-200 whitespace-nowrap">
-                    <p className="font-bold text-blue-700 dark:text-blue-400 text-sm">
-                      Your Home: {propertyAddress?.replace(/,?\s*(PA|Pennsylvania)\s*\d{0,5}\s*$/i, "").trim()}
+                  <div className="bg-white dark:bg-gray-900 rounded-lg shadow-lg px-3 py-1.5 border border-green-200 whitespace-nowrap">
+                    <p className="font-bold text-green-700 dark:text-green-400 text-sm">
+                      Gatehouse: 525 Penn Estates Drive
                     </p>
                   </div>
                 </div>
@@ -440,48 +420,108 @@ export function GettingHereMap({ propertyAddress }: GettingHereMapProps) {
           </>
         )}
 
-        {/* South Gate marker — wrong entrance (red X) */}
-        <Marker
-          position={SOUTH_GATE}
-          icon={{
-            url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(
-              `<svg xmlns="http://www.w3.org/2000/svg" width="36" height="44" viewBox="0 0 36 44">
-                <path d="M18 0C8 0 0 8 0 18c0 14 18 26 18 26s18-12 18-26C36 8 28 0 18 0z" fill="#ef4444"/>
-                <circle cx="18" cy="16" r="9" fill="white"/>
-                <text x="18" y="21" text-anchor="middle" font-size="14" font-weight="bold" fill="#ef4444">✗</text>
-              </svg>`
-            )}`,
-            scaledSize: new google.maps.Size(36, 44),
-            anchor: new google.maps.Point(18, 44),
-          }}
-          onClick={() => setShowSouthInfo(!showSouthInfo)}
-        />
-        {showSouthInfo && (
-          <InfoWindow position={SOUTH_GATE} onCloseClick={() => setShowSouthInfo(false)}>
-            <div className="p-1">
-              <p className="font-bold text-red-600 text-sm">Cranberry Rd Gate (Wrong Way)</p>
-              <p className="text-xs text-gray-500">GPS often routes here — avoid!</p>
-            </div>
-          </InfoWindow>
-        )}
-        {showDontGoHere && !showSouthInfo && (
-          <InfoWindow
-            position={SOUTH_GATE}
-            onCloseClick={() => setShowDontGoHere(false)}
-            options={{ disableAutoPan: true }}
-          >
-            <div className="px-1 py-0.5">
-              <p className="font-black text-red-600 text-sm tracking-wide">
-                DON&apos;T GO HERE
-              </p>
-            </div>
-          </InfoWindow>
+        {/* Home marker (blue) */}
+        {(() => {
+          const homePos = homeLocation || (isBml ? BML_HOME : null);
+          const showHome = isBml ? homePos && currentStep >= 1 : homePos && currentStep >= 2;
+          if (!showHome || !homePos) return null;
+          return (
+            <>
+              <Marker
+                position={homePos}
+                icon={{
+                  url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(
+                    `<svg xmlns="http://www.w3.org/2000/svg" width="44" height="52" viewBox="0 0 44 52">
+                      <path d="M22 0C10 0 0 10 0 22c0 16 22 30 22 30s22-14 22-30C44 10 34 0 22 0z" fill="#4285F4"/>
+                      <circle cx="22" cy="20" r="11" fill="white"/>
+                      <text x="22" y="25" text-anchor="middle" font-size="16" font-weight="bold" fill="#4285F4">${isBml ? "⌂" : "2"}</text>
+                    </svg>`
+                  )}`,
+                  scaledSize: new google.maps.Size(44, 52),
+                  anchor: new google.maps.Point(22, 52),
+                }}
+                onClick={() => setShowHomeInfo(!showHomeInfo)}
+              />
+              {showHomeInfo && (
+                <InfoWindow position={homePos} onCloseClick={() => setShowHomeInfo(false)}>
+                  <div className="p-1">
+                    <p className="font-bold text-blue-700 text-sm">Your Home</p>
+                    {!isBml && <p className="text-xs text-gray-500">Proceed here after gate pass</p>}
+                  </div>
+                </InfoWindow>
+              )}
+              {/* Auto-show home tooltip */}
+              {!showHomeInfo && (
+                <OverlayViewF
+                  position={homePos}
+                  mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
+                >
+                  <div
+                    className="transition-all duration-300 ease-in-out"
+                    style={{
+                      transform: "translate(-50%, 8px)",
+                      opacity: showHomeTooltip ? 1 : 0,
+                      pointerEvents: showHomeTooltip ? "auto" : "none",
+                    }}
+                  >
+                    <div className="bg-white dark:bg-gray-900 rounded-lg shadow-lg px-3 py-1.5 border border-blue-200 whitespace-nowrap">
+                      <p className="font-bold text-blue-700 dark:text-blue-400 text-sm">
+                        Your Home: {propertyAddress?.replace(/,?\s*(PA|Pennsylvania)\s*\d{0,5}\s*$/i, "").trim()}
+                      </p>
+                    </div>
+                  </div>
+                </OverlayViewF>
+              )}
+            </>
+          );
+        })()}
+
+        {/* South Gate marker — wrong entrance (Penn Estates only) */}
+        {!isBml && (
+          <>
+            <Marker
+              position={SOUTH_GATE}
+              icon={{
+                url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(
+                  `<svg xmlns="http://www.w3.org/2000/svg" width="36" height="44" viewBox="0 0 36 44">
+                    <path d="M18 0C8 0 0 8 0 18c0 14 18 26 18 26s18-12 18-26C36 8 28 0 18 0z" fill="#ef4444"/>
+                    <circle cx="18" cy="16" r="9" fill="white"/>
+                    <text x="18" y="21" text-anchor="middle" font-size="14" font-weight="bold" fill="#ef4444">✗</text>
+                  </svg>`
+                )}`,
+                scaledSize: new google.maps.Size(36, 44),
+                anchor: new google.maps.Point(18, 44),
+              }}
+              onClick={() => setShowSouthInfo(!showSouthInfo)}
+            />
+            {showSouthInfo && (
+              <InfoWindow position={SOUTH_GATE} onCloseClick={() => setShowSouthInfo(false)}>
+                <div className="p-1">
+                  <p className="font-bold text-red-600 text-sm">Cranberry Rd Gate (Wrong Way)</p>
+                  <p className="text-xs text-gray-500">GPS often routes here — avoid!</p>
+                </div>
+              </InfoWindow>
+            )}
+            {showDontGoHere && !showSouthInfo && (
+              <InfoWindow
+                position={SOUTH_GATE}
+                onCloseClick={() => setShowDontGoHere(false)}
+                options={{ disableAutoPan: true }}
+              >
+                <div className="px-1 py-0.5">
+                  <p className="font-black text-red-600 text-sm tracking-wide">
+                    DON&apos;T GO HERE
+                  </p>
+                </div>
+              </InfoWindow>
+            )}
+          </>
         )}
       </GoogleMap>
 
       {/* Floating status badges */}
       <div className="absolute top-12 right-3 flex flex-col gap-2">
-        {showPulse && (
+        {!isBml && showPulse && (
           <div className="flex items-center gap-2 bg-white/90 dark:bg-black/80 rounded-full px-3 py-1.5 shadow-md">
             <span className="relative flex h-2.5 w-2.5">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
@@ -503,26 +543,35 @@ export function GettingHereMap({ propertyAddress }: GettingHereMapProps) {
 
       {/* Legend */}
       <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-        <div className="flex items-center gap-1.5">
-          <div className="w-5 h-1 bg-green-600 rounded" />
-          <span>Hallet Rd → Gate</span>
-        </div>
-        {homeLocation && (
+        {isBml ? (
           <div className="flex items-center gap-1.5">
             <div className="w-5 h-1 bg-blue-500 rounded" />
-            <span>Gate → Home</span>
+            <span>Route to Home</span>
           </div>
+        ) : (
+          <>
+            <div className="flex items-center gap-1.5">
+              <div className="w-5 h-1 bg-green-600 rounded" />
+              <span>Hallet Rd → Gate</span>
+            </div>
+            {homeLocation && (
+              <div className="flex items-center gap-1.5">
+                <div className="w-5 h-1 bg-blue-500 rounded" />
+                <span>Gate → Home</span>
+              </div>
+            )}
+            <div className="flex items-center gap-1.5">
+              <div
+                className="w-5 h-1 rounded"
+                style={{
+                  backgroundImage:
+                    "repeating-linear-gradient(90deg, #ef4444 0, #ef4444 3px, transparent 3px, transparent 6px)",
+                }}
+              />
+              <span>Cranberry Rd (wrong)</span>
+            </div>
+          </>
         )}
-        <div className="flex items-center gap-1.5">
-          <div
-            className="w-5 h-1 rounded"
-            style={{
-              backgroundImage:
-                "repeating-linear-gradient(90deg, #ef4444 0, #ef4444 3px, transparent 3px, transparent 6px)",
-            }}
-          />
-          <span>Cranberry Rd (wrong)</span>
-        </div>
       </div>
     </div>
   );
