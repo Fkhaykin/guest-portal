@@ -38,7 +38,22 @@ import {
   Car,
   ShoppingBag,
   Package,
+  AlertCircle,
 } from "lucide-react";
+import dynamic from "next/dynamic";
+
+const GettingHereMap = dynamic(
+  () =>
+    import("@/components/guest/getting-here-map").then(
+      (mod) => mod.GettingHereMap
+    ),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="w-full h-75 rounded-xl bg-muted animate-pulse" />
+    ),
+  }
+);
 import { PropertyHeader } from "@/components/guest/guest-header";
 import { GuestNav } from "@/components/guest/guest-nav";
 import { LandingPage } from "@/components/guest/landing-page";
@@ -423,6 +438,45 @@ function GuestDashboard({
             )}
           </CardContent>
         </Card>
+
+        {/* Important Information — shown when address is unlocked */}
+        {daysUntil <= 7 && reservation.property.address && (
+          <Card className="border-amber-200 bg-amber-50/50 dark:border-amber-800 dark:bg-amber-950/30">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-xl flex items-center gap-2">
+                <AlertCircle className="h-5 w-5 text-amber-600" />
+                Important Information
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-3">
+                <h3 className="font-semibold text-lg flex items-center gap-2">
+                  <Car className="h-5 w-5" /> Getting Here
+                </h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  Penn Estates has <strong>two entrances</strong>, but you{" "}
+                  <strong className="text-foreground">must arrive at the Main Gate (North Entrance)</strong>{" "}
+                  to get your gate pass before proceeding to the home.{" "}
+                  <span className="text-red-600 dark:text-red-400 font-medium">
+                    GPS often routes guests to the South entrance
+                  </span>{" "}
+                  — which means driving all the way around the community. Don&apos;t
+                  make that mistake!
+                </p>
+                <GettingHereMap propertyAddress={reservation.property.address} />
+                <div className="rounded-lg bg-white/80 dark:bg-black/20 border p-3 text-sm space-y-1.5">
+                  <p className="font-semibold flex items-center gap-1.5">
+                    <MapPin className="h-4 w-4 text-green-600" /> Main Gate Address
+                  </p>
+                  <p className="font-medium">525 Penn Estates Drive, East Stroudsburg, PA</p>
+                  <p className="text-muted-foreground text-xs">
+                    Present your driver&apos;s license at the gate to receive a printed gate pass, then proceed to your home.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Location */}
         {reservation.property.address && (
