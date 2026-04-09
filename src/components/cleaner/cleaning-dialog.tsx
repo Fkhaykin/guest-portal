@@ -133,12 +133,13 @@ export function CleaningDialog({
     const files = e.target.files;
     const room = activeRoomRef.current;
     if (!files || files.length === 0 || !room) return;
+
+    // Copy files BEFORE clearing input — mobile Safari invalidates the FileList on reset
+    const rawFiles = Array.from(files);
     e.target.value = "";
 
     activeRoomRef.current = null;
     setUploadError(null);
-
-    const rawFiles = Array.from(files);
     const total = rawFiles.length;
     setUploadProgress((prev) => ({ ...prev, [room]: { total, completed: 0 } }));
 
