@@ -105,6 +105,8 @@ export function GettingHereMap({ propertyAddress }: GettingHereMapProps) {
   const [showSouthInfo, setShowSouthInfo] = useState(false);
   const [showHomeInfo, setShowHomeInfo] = useState(false);
   const [showDontGoHere, setShowDontGoHere] = useState(false);
+  const [showGateTooltip, setShowGateTooltip] = useState(false);
+  const [showHomeTooltip, setShowHomeTooltip] = useState(false);
   const [currentStep, setCurrentStep] = useState<0 | 1 | 2 | 3>(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -177,16 +179,20 @@ export function GettingHereMap({ propertyAddress }: GettingHereMapProps) {
       await delay(300);
       await animatePath(leg1Full.current, setLeg1Path, 1800);
 
-      // Pause at gate
+      // Pause at gate — show gatehouse tooltip
       setShowPulse(true);
-      await delay(1200);
+      setShowGateTooltip(true);
+      await delay(2000);
 
       // Leg 2: North Gate → Home
       if (leg2Full.current.length > 0) {
+        setShowGateTooltip(false);
         setCurrentStep(2);
         await animatePath(leg2Full.current, setLeg2Path, 1500);
         setShowLeg2Pulse(true);
-        await delay(800);
+        setShowHomeTooltip(true);
+        await delay(2000);
+        setShowHomeTooltip(false);
       }
 
       // Wrong route last (faded red)
@@ -234,7 +240,7 @@ export function GettingHereMap({ propertyAddress }: GettingHereMapProps) {
       bounds.extend(HALLET_START);
       bounds.extend(CRANBERRY_START);
       if (homeLocation) bounds.extend(homeLocation);
-      map.fitBounds(bounds, { top: 60, bottom: 60, left: 40, right: 40 });
+      map.fitBounds(bounds, { top: 90, bottom: 50, left: 40, right: 40 });
       // Bump zoom by 1 after fitBounds settles
       google.maps.event.addListenerOnce(map, "idle", () => {
         const z = map.getZoom();
@@ -356,6 +362,17 @@ export function GettingHereMap({ propertyAddress }: GettingHereMapProps) {
             </div>
           </InfoWindow>
         )}
+        {showGateTooltip && !showNorthInfo && (
+          <InfoWindow
+            position={NORTH_GATE}
+            onCloseClick={() => setShowGateTooltip(false)}
+            options={{ disableAutoPan: true }}
+          >
+            <div className="px-1 py-0.5">
+              <p className="font-bold text-green-700 text-sm">Gatehouse: 525 Penn Estates Drive</p>
+            </div>
+          </InfoWindow>
+        )}
 
         {/* Home marker — Step 2 (blue) */}
         {homeLocation && currentStep >= 2 && (
@@ -380,6 +397,19 @@ export function GettingHereMap({ propertyAddress }: GettingHereMapProps) {
                 <div className="p-1">
                   <p className="font-bold text-blue-700 text-sm">Step 2: Your Home</p>
                   <p className="text-xs text-gray-500">Proceed here after gate pass</p>
+                </div>
+              </InfoWindow>
+            )}
+            {showHomeTooltip && !showHomeInfo && (
+              <InfoWindow
+                position={homeLocation}
+                onCloseClick={() => setShowHomeTooltip(false)}
+                options={{ disableAutoPan: true }}
+              >
+                <div className="px-1 py-0.5">
+                  <p className="font-bold text-blue-700 text-sm">
+                    Your Home: {propertyAddress?.replace(/,?\s*(PA|Pennsylvania)\s*\d{0,5}\s*$/i, "").trim()}
+                  </p>
                 </div>
               </InfoWindow>
             )}
