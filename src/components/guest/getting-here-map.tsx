@@ -13,35 +13,34 @@ import {
 /*  Coordinates                                                        */
 /* ------------------------------------------------------------------ */
 
-const NORTH_GATE = { lat: 41.0545, lng: -75.1785 }; // 525 Penn Estates Dr — CORRECT entrance
-const SOUTH_GATE = { lat: 41.031, lng: -75.183 }; // South entrance — WRONG way
+const NORTH_GATE = { lat: 41.0425, lng: -75.2330 }; // 525 Penn Estates Dr — CORRECT entrance
+const SOUTH_GATE = { lat: 41.013, lng: -75.244 }; // South entrance off Cranberry Rd — WRONG way
 
-const MAP_CENTER = { lat: 41.043, lng: -75.181 };
+const MAP_CENTER = { lat: 41.028, lng: -75.238 };
 
-// Leg 1: Highway approach → North Gate (main entrance for gate pass)
+// Leg 1: Approaching from east via Hallet Road → North Gate
 const ROUTE_TO_GATE = [
-  { lat: 41.062, lng: -75.158 }, // Approaching from US-209 / Marshalls Creek
-  { lat: 41.061, lng: -75.161 },
-  { lat: 41.06, lng: -75.164 },
-  { lat: 41.0595, lng: -75.167 },
-  { lat: 41.059, lng: -75.17 },
-  { lat: 41.0585, lng: -75.172 },
-  { lat: 41.058, lng: -75.174 },
-  { lat: 41.0575, lng: -75.176 },
-  { lat: 41.057, lng: -75.177 },
-  { lat: 41.0565, lng: -75.178 },
-  { lat: 41.056, lng: -75.1785 },
-  { lat: 41.0555, lng: -75.179 },
-  { lat: 41.0548, lng: -75.1787 },
+  { lat: 41.042, lng: -75.215 },  // Approaching from the east
+  { lat: 41.0415, lng: -75.218 },
+  { lat: 41.041, lng: -75.220 },
+  { lat: 41.0408, lng: -75.222 },
+  { lat: 41.0405, lng: -75.2245 },
+  { lat: 41.0405, lng: -75.2265 }, // Hallet Road
+  { lat: 41.0408, lng: -75.228 },
+  { lat: 41.0412, lng: -75.229 },
+  { lat: 41.0418, lng: -75.2305 },
+  { lat: 41.042, lng: -75.2315 },
+  { lat: 41.0423, lng: -75.2325 },
   NORTH_GATE,
 ];
 
-// Wrong route: GPS sends you to the south gate
+// Wrong route: GPS sends you south to Cranberry Road gate
 const WRONG_ROUTE_PATH = [
-  { lat: 41.025, lng: -75.175 },
-  { lat: 41.027, lng: -75.178 },
-  { lat: 41.029, lng: -75.181 },
-  { lat: 41.03, lng: -75.182 },
+  { lat: 41.005, lng: -75.235 },  // Approaching from the south
+  { lat: 41.007, lng: -75.238 },
+  { lat: 41.009, lng: -75.240 },
+  { lat: 41.011, lng: -75.242 },
+  { lat: 41.012, lng: -75.243 },
   SOUTH_GATE,
 ];
 
