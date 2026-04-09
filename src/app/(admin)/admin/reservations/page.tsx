@@ -42,6 +42,7 @@ type Registration = {
   guest_list: GuestListEntry[] | null;
   pets: PetEntry[] | null;
   created_at: string;
+  updated_at: string;
   booked_at: string | null;
   guest: { full_name: string; email: string | null; phone: string | null } | null;
   property: { name: string; nickname: string | null } | null;
@@ -77,7 +78,7 @@ export default function AdminReservationsPage() {
     setLoading(true);
     const { data } = await supabase
       .from("registration")
-      .select("id, property_id, check_in_date, check_out_date, num_guests, lodgify_adults, lodgify_children, lodgify_infants, lodgify_num_pets, status, booking_source, signature_url, total_amount_cents, guest_list, pets, created_at, booked_at, guest:guest_id(full_name, email, phone), property:property_id(name, nickname)")
+      .select("id, property_id, check_in_date, check_out_date, num_guests, lodgify_adults, lodgify_children, lodgify_infants, lodgify_num_pets, status, booking_source, signature_url, total_amount_cents, guest_list, pets, created_at, updated_at, booked_at, guest:guest_id(full_name, email, phone), property:property_id(name, nickname)")
       .order("check_in_date", { ascending: false });
     if (data) setRegistrations(data as unknown as Registration[]);
     setLoading(false);
@@ -161,6 +162,7 @@ export default function AdminReservationsPage() {
       case "check_out_date": return reg.check_out_date ?? "";
       case "booked": return reg.booked_at || reg.created_at || "";
       case "revenue": return String(reg.total_amount_cents ?? 0).padStart(12, "0");
+      case "registered": return reg.signature_url ? reg.updated_at : "";
       case "source": return reg.booking_source ?? "";
       case "status": return getDisplayStatus(reg);
       default: return "";
@@ -294,6 +296,7 @@ export default function AdminReservationsPage() {
                 <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("check_in_date")}>Check-in <SortIcon column="check_in_date" /></TableHead>
                 <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("check_out_date")}>Check-out <SortIcon column="check_out_date" /></TableHead>
                 <TableHead>Guests</TableHead>
+                <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("registered")}>Registered <SortIcon column="registered" /></TableHead>
                 <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("revenue")}>Revenue <SortIcon column="revenue" /></TableHead>
                 <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("source")}>Source <SortIcon column="source" /></TableHead>
                 <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("status")}>Status <SortIcon column="status" /></TableHead>
@@ -326,19 +329,23 @@ export default function AdminReservationsPage() {
                     <TableCell className="text-sm">{reg.check_in_date}</TableCell>
                     <TableCell className="text-sm">{reg.check_out_date}</TableCell>
                     <TableCell>
-                      <div className="text-xs space-y-0.5">
-                        {breakdown.booked && (
-                          <div className="flex flex-wrap gap-x-2 gap-y-0.5 text-muted-foreground">
-                            <span className="font-medium text-muted-foreground/70 w-full">Booked</span>
+                      <div className="text-xs">
+                        {breakdown.booked ? (
+                          <div className="flex flex-wrap gap-x-2 gap-y-0.5">
                             {breakdown.booked.adults > 0 && <span>{breakdown.booked.adults}A</span>}
                             {breakdown.booked.children > 0 && <span>{breakdown.booked.children}C</span>}
                             {breakdown.booked.infants > 0 && <span>{breakdown.booked.infants}I</span>}
                             {breakdown.booked.pets > 0 && <span>{breakdown.booked.pets}P</span>}
                           </div>
+                        ) : (
+                          <span className="text-muted-foreground">{reg.num_guests} guest{reg.num_guests !== 1 ? "s" : ""}</span>
                         )}
-                        {breakdown.registered ? (
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {breakdown.registered ? (
+                        <div className="text-xs space-y-0.5">
                           <div className="flex flex-wrap gap-x-2 gap-y-0.5">
-                            {breakdown.booked && <span className="font-medium text-muted-foreground/70 w-full">Registered</span>}
                             {breakdown.registered.adults > 0 && <span>{breakdown.registered.adults}A</span>}
                             {breakdown.registered.children > 0 && <span>{breakdown.registered.children}C</span>}
                             {breakdown.registered.infants > 0 && <span>{breakdown.registered.infants}I</span>}
@@ -348,10 +355,15 @@ export default function AdminReservationsPage() {
                               </span>
                             )}
                           </div>
-                        ) : !breakdown.booked && (
-                          <span className="text-muted-foreground">{reg.num_guests} guest{reg.num_guests !== 1 ? "s" : ""}</span>
-                        )}
-                      </div>
+                          {reg.signature_url && (
+                            <p className="text-muted-foreground">
+                              {new Date(reg.updated_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                            </p>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
                     </TableCell>
                     <TableCell className="text-sm font-medium">
                       {formatCents(reg.total_amount_cents)}
