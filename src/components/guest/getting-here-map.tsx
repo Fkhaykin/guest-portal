@@ -254,7 +254,7 @@ export function GettingHereMap({ propertyAddress }: GettingHereMapProps) {
         <div
           className={`flex items-center gap-1 px-2.5 py-1 rounded-full transition-colors ${
             currentStep >= 1
-              ? "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300"
+              ? "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300"
               : "bg-muted text-muted-foreground"
           }`}
         >
@@ -264,7 +264,7 @@ export function GettingHereMap({ propertyAddress }: GettingHereMapProps) {
         <div
           className={`flex items-center gap-1 px-2.5 py-1 rounded-full transition-colors ${
             currentStep >= 2
-              ? "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300"
+              ? "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300"
               : "bg-muted text-muted-foreground"
           }`}
         >
@@ -279,24 +279,24 @@ export function GettingHereMap({ propertyAddress }: GettingHereMapProps) {
         options={mapOptions}
         onLoad={onMapLoad}
       >
-        {/* Leg 1: Hallet Rd → Gate (blue solid) */}
+        {/* Leg 1: Hallet Rd → Gate (green to match gate marker) */}
         {leg1Path.length > 1 && (
           <Polyline
             path={leg1Path}
             options={{
-              strokeColor: "#4285F4",
+              strokeColor: "#16a34a",
               strokeOpacity: 0.9,
               strokeWeight: 5,
             }}
           />
         )}
 
-        {/* Leg 2: Gate → Home (green) */}
+        {/* Leg 2: Gate → Home (blue to match home marker) */}
         {leg2Path.length > 1 && (
           <Polyline
             path={leg2Path}
             options={{
-              strokeColor: "#16a34a",
+              strokeColor: "#4285F4",
               strokeOpacity: 0.85,
               strokeWeight: 5,
             }}
@@ -445,12 +445,12 @@ export function GettingHereMap({ propertyAddress }: GettingHereMapProps) {
       {/* Legend */}
       <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
         <div className="flex items-center gap-1.5">
-          <div className="w-5 h-1 bg-blue-500 rounded" />
+          <div className="w-5 h-1 bg-green-600 rounded" />
           <span>Hallet Rd → Gate</span>
         </div>
         {homeLocation && (
           <div className="flex items-center gap-1.5">
-            <div className="w-5 h-1 bg-green-600 rounded" />
+            <div className="w-5 h-1 bg-blue-500 rounded" />
             <span>Gate → Home</span>
           </div>
         )}
