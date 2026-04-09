@@ -2,13 +2,15 @@ import { NextResponse } from "next/server";
 import { syncBookingById } from "@/lib/lodgify/sync";
 
 export async function POST(request: Request) {
-  // Verify webhook secret if configured
+  // Verify webhook secret
   const secret = process.env.LODGIFY_WEBHOOK_SECRET;
-  if (secret) {
-    const authHeader = request.headers.get("authorization");
-    if (authHeader !== `Bearer ${secret}`) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+  if (!secret) {
+    console.error("[lodgify-webhook] LODGIFY_WEBHOOK_SECRET is not configured");
+    return NextResponse.json({ error: "Webhook not configured" }, { status: 500 });
+  }
+  const authHeader = request.headers.get("authorization");
+  if (authHeader !== `Bearer ${secret}`) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   let body: { event?: string; booking_id?: number };

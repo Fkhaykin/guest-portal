@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { verifyGuestToken } from "@/lib/guest-token";
 
 export async function POST(request: Request) {
   let body: {
@@ -59,6 +60,11 @@ export async function POST(request: Request) {
       { error: "registration_id, full_name, and email are required" },
       { status: 400 }
     );
+  }
+
+  const token = request.headers.get("x-guest-token") || "";
+  if (!verifyGuestToken(registration_id, token)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const supabase = createAdminClient();
@@ -221,7 +227,10 @@ export async function POST(request: Request) {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
   fetch(`${appUrl}/api/pepoa/submit`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+    },
     body: JSON.stringify({ registration_id: reg.id }),
   }).catch(() => {});
 

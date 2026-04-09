@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useProperty } from "@/hooks/use-property";
+import { getGuestToken } from "@/lib/guest-session";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -130,7 +131,7 @@ export default function DeliveryPage() {
     try {
       const res = await fetch("/api/guest/delivery-rideshare", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "x-guest-token": getGuestToken() },
         body: JSON.stringify({
           registration_id: reservation.id,
           category,

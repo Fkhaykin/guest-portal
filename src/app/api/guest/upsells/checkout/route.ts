@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { stripe } from "@/lib/stripe/client";
+import { verifyGuestToken } from "@/lib/guest-token";
 
 export async function POST(request: Request) {
   let body: {
@@ -25,6 +26,11 @@ export async function POST(request: Request) {
 
   if (!registration_id || !items || items.length === 0) {
     return NextResponse.json({ error: "registration_id and items are required" }, { status: 400 });
+  }
+
+  const token = request.headers.get("x-guest-token") || "";
+  if (!verifyGuestToken(registration_id, token)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const supabase = createAdminClient();

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { Resend } from "resend";
+import { verifyGuestToken } from "@/lib/guest-token";
 
 function getResend() {
   return new Resend(process.env.RESEND_API_KEY);
@@ -17,6 +18,11 @@ export async function POST(request: Request) {
   const { registration_id, type } = body;
   if (!registration_id || !["early_checkin", "late_checkout"].includes(type)) {
     return NextResponse.json({ error: "registration_id and valid type required" }, { status: 400 });
+  }
+
+  const token = request.headers.get("x-guest-token") || "";
+  if (!verifyGuestToken(registration_id, token)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   try {

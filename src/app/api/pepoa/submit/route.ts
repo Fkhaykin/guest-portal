@@ -1,10 +1,24 @@
 import { NextResponse } from "next/server";
 import { fetchRegistrationData, generateRegistrationPDF } from "@/lib/pdf/generate-for-registration";
 import { sendPEPOAPDF } from "@/lib/email/send-pepoa-pdf";
+import { createClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
+  // Allow internal server-to-server calls (service role) or authenticated admin sessions
+  const authHeader = request.headers.get("authorization");
+  const isInternalCall =
+    authHeader === `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`;
+
+  if (!isInternalCall) {
+    const authClient = await createClient();
+    const { data: { user } } = await authClient.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+  }
+
   let body: { registration_id: string; is_update?: boolean; change_summary?: string };
 
   try {

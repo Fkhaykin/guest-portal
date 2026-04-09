@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback, type PointerEvent as ReactPointerEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useProperty } from "@/hooks/use-property";
+import { getGuestToken } from "@/lib/guest-session";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -130,6 +131,12 @@ function loadSession(): SessionData | null {
         localStorage.removeItem(STRIPE_BACKUP_SESSION);
         raw = backup;
       }
+      // Restore token backup too
+      const tokenBackup = localStorage.getItem(STRIPE_BACKUP_TOKEN);
+      if (tokenBackup) {
+        sessionStorage.setItem(TOKEN_KEY, tokenBackup);
+        localStorage.removeItem(STRIPE_BACKUP_TOKEN);
+      }
     }
     if (!raw) return null;
     return JSON.parse(raw);
@@ -179,12 +186,17 @@ function loadRegistrationProgress() {
 }
 
 /** Save session + registration data to localStorage before Stripe redirect */
+const TOKEN_KEY = "guest-portal-token";
+const STRIPE_BACKUP_TOKEN = "guest-portal-stripe-token";
+
 function backupForStripeRedirect() {
   try {
     const session = sessionStorage.getItem(SESSION_KEY);
     if (session) localStorage.setItem(STRIPE_BACKUP_SESSION, session);
     const reg = sessionStorage.getItem(REG_KEY);
     if (reg) localStorage.setItem(STRIPE_BACKUP_REG, reg);
+    const token = sessionStorage.getItem(TOKEN_KEY);
+    if (token) localStorage.setItem(STRIPE_BACKUP_TOKEN, token);
   } catch {
     // Ignore
   }
@@ -288,7 +300,7 @@ export default function RegisterPage() {
     // Fetch pet fee info
     fetch("/api/guest/registration-details", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "x-guest-token": getGuestToken() },
       body: JSON.stringify({ registration_id: s.reservation.id }),
     })
       .then((res) => res.json())
@@ -314,7 +326,7 @@ export default function RegisterPage() {
     try {
       const res = await fetch("/api/guest/upsells", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "x-guest-token": getGuestToken() },
         body: JSON.stringify({
           registration_id: session.reservation.id,
         }),
@@ -337,7 +349,7 @@ export default function RegisterPage() {
     try {
       const res = await fetch("/api/guest/upsells/request", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "x-guest-token": getGuestToken() },
         body: JSON.stringify({ registration_id: session.reservation.id, type }),
       });
       if (res.ok) {
@@ -361,7 +373,7 @@ export default function RegisterPage() {
       // Confirm the payment
       fetch("/api/guest/upsells/confirm", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "x-guest-token": getGuestToken() },
         body: JSON.stringify({ session_id: sessionId, registration_id: session.reservation.id }),
       }).then((res) => {
         if (res.ok) {
@@ -408,7 +420,7 @@ export default function RegisterPage() {
     try {
       const res = await fetch("/api/guest/upsells/checkout", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "x-guest-token": getGuestToken() },
         body: JSON.stringify({
           registration_id: session.reservation.id,
           items: [{
@@ -449,7 +461,7 @@ export default function RegisterPage() {
     try {
       const res = await fetch("/api/guest/upsells/checkout", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "x-guest-token": getGuestToken() },
         body: JSON.stringify({
           registration_id: session.reservation.id,
           items: cart,
@@ -499,6 +511,7 @@ export default function RegisterPage() {
     try {
       const res = await fetch("/api/guest/upload-pet-doc", {
         method: "POST",
+        headers: { "x-guest-token": getGuestToken() },
         body: formData,
       });
 
@@ -539,6 +552,7 @@ export default function RegisterPage() {
     try {
       const res = await fetch("/api/guest/upload-id", {
         method: "POST",
+        headers: { "x-guest-token": getGuestToken() },
         body: formData,
       });
 
@@ -584,7 +598,7 @@ export default function RegisterPage() {
     try {
       const res = await fetch("/api/guest/register", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "x-guest-token": getGuestToken() },
         body: JSON.stringify({
           registration_id: session.reservation.id,
           full_name: fullName.trim(),

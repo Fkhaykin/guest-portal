@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { verifyGuestToken } from "@/lib/guest-token";
 
 export async function POST(request: Request) {
   const formData = await request.formData();
@@ -13,6 +14,11 @@ export async function POST(request: Request) {
       { error: "file, registration_id, pet_index, and doc_type are required" },
       { status: 400 }
     );
+  }
+
+  const token = request.headers.get("x-guest-token") || "";
+  if (!verifyGuestToken(registrationId, token)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const allowedTypes = ["application/pdf", "image/jpeg", "image/png", "image/webp"];

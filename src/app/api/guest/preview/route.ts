@@ -1,13 +1,23 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 import { getBookingById } from "@/lib/lodgify/client";
+import { signGuestToken } from "@/lib/guest-token";
 
 /**
  * GET /api/guest/preview?reg=REGISTRATION_ID
  * Returns session-compatible reservation data so the admin can preview
  * the guest portal as if logged in as that guest.
+ * Requires an authenticated admin session.
  */
 export async function GET(request: Request) {
+  // Verify the caller is an authenticated admin (host)
+  const authClient = await createClient();
+  const { data: { user } } = await authClient.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const { searchParams } = new URL(request.url);
   const regId = searchParams.get("reg");
 
@@ -99,6 +109,7 @@ export async function GET(request: Request) {
 
   return NextResponse.json({
     guest_name: guest?.full_name ?? "Guest",
+    guest_token: signGuestToken(reg.id),
     reservation: {
       id: reg.id,
       check_in_date: reg.check_in_date,

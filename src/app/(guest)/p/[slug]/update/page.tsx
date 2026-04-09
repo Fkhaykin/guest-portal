@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useProperty } from "@/hooks/use-property";
 import { createClient } from "@/lib/supabase/client";
 import { useSearchParams } from "next/navigation";
+import { getGuestToken } from "@/lib/guest-session";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -98,7 +99,7 @@ export default function UpdateRegistrationPage() {
 
       const res = await fetch("/api/guest/registration-details", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "x-guest-token": getGuestToken() },
         body: JSON.stringify({ registration_id: session.reservation.id }),
       });
 
@@ -151,7 +152,7 @@ export default function UpdateRegistrationPage() {
       // Confirm Stripe payment
       const confirmRes = await fetch("/api/guest/upsells/confirm", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "x-guest-token": getGuestToken() },
         body: JSON.stringify({ session_id: sessionId, registration_id: pending.registration_id }),
       });
 
@@ -174,7 +175,7 @@ export default function UpdateRegistrationPage() {
       // Save pet to registration
       const updateRes = await fetch("/api/guest/update", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "x-guest-token": getGuestToken() },
         body: JSON.stringify({
           registration_id: pending.registration_id,
           section: "pets",
@@ -201,7 +202,7 @@ export default function UpdateRegistrationPage() {
 
     const res = await fetch("/api/guest/update", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "x-guest-token": getGuestToken() },
       body: JSON.stringify({
         registration_id: registrationId,
         section: "guest_list",
@@ -226,7 +227,7 @@ export default function UpdateRegistrationPage() {
 
     const res = await fetch("/api/guest/update", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "x-guest-token": getGuestToken() },
       body: JSON.stringify({
         registration_id: registrationId,
         section: "vehicles",
@@ -258,7 +259,7 @@ export default function UpdateRegistrationPage() {
       fd.append("registration_id", regId);
       fd.append("pet_index", String(petIndex));
       fd.append("doc_type", "rabies");
-      const res = await fetch("/api/guest/upload-pet-doc", { method: "POST", body: fd });
+      const res = await fetch("/api/guest/upload-pet-doc", { method: "POST", headers: { "x-guest-token": getGuestToken() }, body: fd });
       if (res.ok) {
         const data = await res.json();
         rabiesPath = data.path;
@@ -271,7 +272,7 @@ export default function UpdateRegistrationPage() {
       fd.append("registration_id", regId);
       fd.append("pet_index", String(petIndex));
       fd.append("doc_type", "vaccination");
-      const res = await fetch("/api/guest/upload-pet-doc", { method: "POST", body: fd });
+      const res = await fetch("/api/guest/upload-pet-doc", { method: "POST", headers: { "x-guest-token": getGuestToken() }, body: fd });
       if (res.ok) {
         const data = await res.json();
         vaccinationPath = data.path;
@@ -306,7 +307,7 @@ export default function UpdateRegistrationPage() {
 
       const checkoutRes = await fetch("/api/guest/upsells/checkout", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "x-guest-token": getGuestToken() },
         body: JSON.stringify({
           registration_id: registrationId,
           items: [{
@@ -333,7 +334,7 @@ export default function UpdateRegistrationPage() {
     const updatedPets = [...existingPets, petEntry];
     const res = await fetch("/api/guest/update", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "x-guest-token": getGuestToken() },
       body: JSON.stringify({
         registration_id: registrationId,
         section: "pets",

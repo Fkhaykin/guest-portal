@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendDeliveryNotification } from "@/lib/email/send-delivery-notification";
+import { verifyGuestToken } from "@/lib/guest-token";
 
 export async function POST(request: Request) {
   let body: {
@@ -28,6 +29,11 @@ export async function POST(request: Request) {
       { error: "registration_id, category, and arrival_date are required" },
       { status: 400 }
     );
+  }
+
+  const token = request.headers.get("x-guest-token") || "";
+  if (!verifyGuestToken(registration_id, token)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const supabase = createAdminClient();
@@ -99,6 +105,11 @@ export async function GET(request: Request) {
 
   if (!registrationId) {
     return NextResponse.json({ error: "registration_id is required" }, { status: 400 });
+  }
+
+  const token = request.headers.get("x-guest-token") || "";
+  if (!verifyGuestToken(registrationId, token)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const supabase = createAdminClient();

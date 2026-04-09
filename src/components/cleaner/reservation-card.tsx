@@ -216,7 +216,7 @@ export function ReservationCard({
         }`}
       >
         <CardContent className="py-3 px-4">
-          {/* Main row: thumbnail + info + dates + action */}
+          {/* Header row: thumbnail + property name/badge + action */}
           <div className="flex items-center gap-3">
             {/* Thumbnail */}
             <div className="h-10 w-10 rounded-lg overflow-hidden shrink-0">
@@ -233,7 +233,7 @@ export function ReservationCard({
               </div>
             </div>
 
-            {/* Property info + meta */}
+            {/* Property name + badge */}
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
                 <h3 className="font-semibold text-sm truncate">{propertyNickname || propertyName}</h3>
@@ -245,13 +245,6 @@ export function ReservationCard({
                     {timingBadge.text}
                   </span>
                 )}
-              </div>
-              <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
-                <span>{ciDow} {ciMonth} {ciDay}, {checkInTime}</span>
-                <span>&rarr;</span>
-                <span>{coDow} {coMonth} {coDay}, {checkOutTime}</span>
-                <span className="text-muted-foreground/40">|</span>
-                <GuestBreakdownInline numGuests={numGuests} guestList={guestList} pets={pets} />
               </div>
             </div>
 
@@ -301,6 +294,15 @@ export function ReservationCard({
                 </>
               )}
             </div>
+          </div>
+
+          {/* Date & guest row */}
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground mt-1.5 ml-13">
+            <span className="whitespace-nowrap">{ciDow} {ciMonth} {ciDay}, {checkInTime}</span>
+            <span>&rarr;</span>
+            <span className="whitespace-nowrap">{coDow} {coMonth} {coDay}, {checkOutTime}</span>
+            <span className="text-muted-foreground/40">|</span>
+            <GuestBreakdownInline numGuests={numGuests} guestList={guestList} pets={pets} />
           </div>
 
           {/* Secondary row: early/late callouts + infant needs + tips + upsells (only if present) */}

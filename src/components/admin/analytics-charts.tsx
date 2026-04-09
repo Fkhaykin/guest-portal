@@ -536,7 +536,7 @@ export function AnalyticsCharts() {
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {Array.from({ length: 7 }).map((_, i) => (
-            <Card key={i} className={i === 0 ? "lg:col-span-2" : ""}>
+            <Card key={i}>
               <CardHeader>
                 <div className="h-4 w-40 bg-muted animate-pulse rounded" />
               </CardHeader>
@@ -681,7 +681,7 @@ export function AnalyticsCharts() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
         {/* 1. Revenue Over Time — line chart with checkboxes */}
-        <Card className="lg:col-span-2 overflow-visible">
+        <Card className="overflow-visible">
           <CardHeader>
             <CardTitle>Revenue Over Time</CardTitle>
             <CardDescription>{groupLabel} booking revenue by property</CardDescription>
@@ -733,7 +733,7 @@ export function AnalyticsCharts() {
         </Card>
 
         {/* 2. Occupancy Rate — grouped bar over time */}
-        <Card className="lg:col-span-2 overflow-visible">
+        <Card className="overflow-visible">
           <CardHeader>
             <CardTitle>Occupancy Rate</CardTitle>
             <CardDescription>{groupLabel} occupancy % by property</CardDescription>
@@ -764,7 +764,7 @@ export function AnalyticsCharts() {
         </Card>
 
         {/* 3. Revenue by Property — grouped bar over time */}
-        <Card className="lg:col-span-2 overflow-visible">
+        <Card className="overflow-visible">
           <CardHeader>
             <CardTitle>Revenue by Property</CardTitle>
             <CardDescription>{groupLabel} revenue per property</CardDescription>
@@ -795,7 +795,7 @@ export function AnalyticsCharts() {
         </Card>
 
         {/* 4. Bookings Per Period — grouped bar by property */}
-        <Card className="lg:col-span-2 overflow-visible">
+        <Card className="overflow-visible">
           <CardHeader>
             <CardTitle>Bookings Per {periodLabel}</CardTitle>
             <CardDescription>{groupLabel} bookings by property</CardDescription>
@@ -913,7 +913,7 @@ export function AnalyticsCharts() {
         </Card>
 
         {/* 8. Cleaning Fee Revenue */}
-        <Card className="lg:col-span-2 overflow-visible">
+        <Card className="overflow-visible">
           <CardHeader>
             <CardTitle>Cleaning Fee Revenue</CardTitle>
             <CardDescription>{groupLabel} cleaning fees by property</CardDescription>
@@ -944,7 +944,7 @@ export function AnalyticsCharts() {
         </Card>
 
         {/* 9. Pet Fee Revenue */}
-        <Card className="lg:col-span-2 overflow-visible">
+        <Card className="overflow-visible">
           <CardHeader>
             <CardTitle>Pet Fee Revenue</CardTitle>
             <CardDescription>{groupLabel} pet fees by property (fee × number of pets)</CardDescription>
@@ -975,7 +975,7 @@ export function AnalyticsCharts() {
         </Card>
 
         {/* 10. Add-ons Revenue */}
-        <Card className="lg:col-span-2 overflow-visible">
+        <Card className="overflow-visible">
           <CardHeader>
             <CardTitle>Add-ons Revenue</CardTitle>
             <CardDescription>{groupLabel} upsell revenue by type</CardDescription>

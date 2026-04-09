@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getBookingById } from "@/lib/lodgify/client";
+import { signGuestToken } from "@/lib/guest-token";
 
 export async function POST(request: Request) {
   let body: { email?: string; phone?: string; full_name?: string; check_in_date?: string };
@@ -157,6 +158,7 @@ export async function POST(request: Request) {
 
   return NextResponse.json({
     guest_name: guestName,
+    guest_token: signGuestToken(reg.id),
     reservation: {
       ...reg,
       property: {

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useProperty } from "@/hooks/use-property";
+import { getGuestToken } from "@/lib/guest-session";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -143,7 +144,7 @@ export default function AddOnsPage() {
     if (success && sessionId) {
       fetch("/api/guest/upsells/confirm", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "x-guest-token": getGuestToken() },
         body: JSON.stringify({ session_id: sessionId, registration_id: s.reservation.id }),
       }).then((res) => {
         if (res.ok) {
@@ -164,7 +165,7 @@ export default function AddOnsPage() {
     try {
       const res = await fetch("/api/guest/upsells", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "x-guest-token": getGuestToken() },
         body: JSON.stringify({ registration_id: registrationId }),
       });
       const data = await res.json();
@@ -190,7 +191,7 @@ export default function AddOnsPage() {
     try {
       const res = await fetch("/api/guest/upsells/request", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "x-guest-token": getGuestToken() },
         body: JSON.stringify({ registration_id: session.reservation.id, type }),
       });
       if (res.ok) {
@@ -218,7 +219,7 @@ export default function AddOnsPage() {
     try {
       const res = await fetch("/api/guest/upsells/checkout", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "x-guest-token": getGuestToken() },
         body: JSON.stringify({
           registration_id: session.reservation.id,
           items: cart,

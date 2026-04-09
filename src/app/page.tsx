@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { getGuestToken, setGuestToken, clearGuestToken } from "@/lib/guest-session";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -168,7 +169,9 @@ function GuestDashboard({
   const [deliveries, setDeliveries] = useState<DeliveryEntry[]>([]);
 
   useEffect(() => {
-    fetch(`/api/guest/delivery-rideshare?registration_id=${reservation.id}`)
+    fetch(`/api/guest/delivery-rideshare?registration_id=${reservation.id}`, {
+      headers: { "x-guest-token": getGuestToken() },
+    })
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (data?.entries) setDeliveries(data.entries);
@@ -179,7 +182,7 @@ function GuestDashboard({
   useEffect(() => {
     fetch("/api/guest/upsells", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "x-guest-token": getGuestToken() },
       body: JSON.stringify({ registration_id: reservation.id }),
     })
       .then((res) => res.ok ? res.json() : null)
@@ -603,7 +606,7 @@ async function refreshReservation(stale: Reservation): Promise<Reservation | nul
   try {
     const res = await fetch("/api/guest/refresh", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "x-guest-token": getGuestToken() },
       body: JSON.stringify({ registration_id: stale.id }),
     });
     if (!res.ok) return null;
@@ -616,10 +619,12 @@ async function refreshReservation(stale: Reservation): Promise<Reservation | nul
 
 // --- Session persistence ---
 const SESSION_KEY = "guest-portal-session";
-
-function saveSession(guestName: string, reservation: Reservation) {
+function saveSession(guestName: string, reservation: Reservation, guestToken?: string) {
   try {
     sessionStorage.setItem(SESSION_KEY, JSON.stringify({ guestName, reservation }));
+    if (guestToken) {
+      setGuestToken(guestToken);
+    }
   } catch {
     // Storage full or unavailable
   }
@@ -638,6 +643,7 @@ function loadSession(): { guestName: string; reservation: Reservation } | null {
 function clearSession() {
   try {
     sessionStorage.removeItem(SESSION_KEY);
+    clearGuestToken();
   } catch {
     // Ignore
   }
@@ -669,7 +675,7 @@ export default function HomePage() {
           if (data) {
             setGuestName(data.guest_name);
             setReservation(data.reservation);
-            saveSession(data.guest_name, data.reservation);
+            saveSession(data.guest_name, data.reservation, data.guest_token);
           }
           setLoaded(true);
         })
@@ -713,10 +719,10 @@ export default function HomePage() {
         </>
       ) : (
         <LandingPage
-          onFound={({ guestName: name, reservation: res }) => {
+          onFound={({ guestName: name, reservation: res, guestToken }) => {
             setGuestName(name);
             setReservation(res);
-            saveSession(name, res);
+            saveSession(name, res, guestToken);
           }}
         />
       )}

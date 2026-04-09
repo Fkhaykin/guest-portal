@@ -411,7 +411,7 @@ type Reservation = {
 function BookingSearchSection({
   onFound,
 }: {
-  onFound: (data: { guestName: string; reservation: Reservation }) => void;
+  onFound: (data: { guestName: string; reservation: Reservation; guestToken?: string }) => void;
 }) {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -448,7 +448,7 @@ function BookingSearchSection({
       if (!res.ok) {
         setError(data.error || "Something went wrong. Please try again.");
       } else {
-        onFound({ guestName: data.guest_name, reservation: data.reservation });
+        onFound({ guestName: data.guest_name, reservation: data.reservation, guestToken: data.guest_token });
       }
     } catch {
       setError("Unable to connect. Please try again.");
@@ -599,7 +599,7 @@ function BookDirectSection() {
 export function LandingPage({
   onFound,
 }: {
-  onFound: (data: { guestName: string; reservation: Reservation }) => void;
+  onFound: (data: { guestName: string; reservation: Reservation; guestToken?: string }) => void;
 }) {
   return (
     <div className="min-h-screen">

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { stripe } from "@/lib/stripe/client";
+import { verifyGuestToken } from "@/lib/guest-token";
 
 export async function POST(request: Request) {
   let body: { session_id: string; registration_id: string };
@@ -15,10 +16,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "session_id and registration_id are required" }, { status: 400 });
   }
 
-  // Verify the Stripe session is paid
+  const token = request.headers.get("x-guest-token") || "";
+  if (!verifyGuestToken(registration_id, token)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Verify the Stripe session is paid and belongs to this registration
   const session = await stripe.checkout.sessions.retrieve(session_id);
   if (session.payment_status !== "paid") {
     return NextResponse.json({ error: "Payment not completed" }, { status: 400 });
+  }
+  if (session.metadata?.registration_id !== registration_id) {
+    return NextResponse.json({ error: "Session does not match registration" }, { status: 403 });
   }
 
   const supabase = createAdminClient();
