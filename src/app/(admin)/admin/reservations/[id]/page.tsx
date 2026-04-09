@@ -285,6 +285,18 @@ export default function ReservationDetailPage() {
     }
   }
 
+  // Open the guest portal as this guest. Fetches a signed token from the
+  // admin API so the cross-subdomain preview endpoint can authenticate.
+  const openGuestPortal = useCallback(async () => {
+    const res = await fetch(`/api/admin/preview-link?reg=${id}`);
+    if (!res.ok) return;
+    const { token } = await res.json();
+    const host = window.location.host;
+    const guestHost = host.replace(/^admin\./, "guest.");
+    const url = `${window.location.protocol}//${guestHost}/?reg=${id}&token=${token}`;
+    window.open(url, "_blank");
+  }, [id]);
+
   if (loading) {
     return (
       <div className="flex items-center gap-2 text-muted-foreground py-12">
@@ -354,17 +366,6 @@ export default function ReservationDetailPage() {
   const lodgifyBookingUrl = reg.lodgify_booking_id
     ? `https://app.lodgify.com/#/reservation/details/${reg.lodgify_booking_id}`
     : null;
-  // Open the guest portal as this guest. Fetches a signed token from the
-  // admin API so the cross-subdomain preview endpoint can authenticate.
-  const openGuestPortal = useCallback(async () => {
-    const res = await fetch(`/api/admin/preview-link?reg=${reg.id}`);
-    if (!res.ok) return;
-    const { token } = await res.json();
-    const host = window.location.host;
-    const guestHost = host.replace(/^admin\./, "guest.");
-    const url = `${window.location.protocol}//${guestHost}/?reg=${reg.id}&token=${token}`;
-    window.open(url, "_blank");
-  }, [reg.id]);
 
   const displayStatus = (() => {
     if (reg.status === "cancelled") return "cancelled" as const;
