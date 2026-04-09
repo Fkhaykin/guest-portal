@@ -50,7 +50,7 @@ const GettingHereMap = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="w-full h-75 rounded-xl bg-muted animate-pulse" />
+      <div className="w-full h-112.5 rounded-xl bg-muted animate-pulse" />
     ),
   }
 );

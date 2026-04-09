@@ -23,7 +23,7 @@ const MAP_CENTER = { lat: 41.032, lng: -75.243 };
 
 const containerStyle = {
   width: "100%",
-  height: "300px",
+  height: "450px",
   borderRadius: "0.75rem",
 };
 
@@ -104,6 +104,7 @@ export function GettingHereMap({ propertyAddress }: GettingHereMapProps) {
   const [showNorthInfo, setShowNorthInfo] = useState(false);
   const [showSouthInfo, setShowSouthInfo] = useState(false);
   const [showHomeInfo, setShowHomeInfo] = useState(false);
+  const [showDontGoHere, setShowDontGoHere] = useState(false);
   const [currentStep, setCurrentStep] = useState<0 | 1 | 2 | 3>(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -191,6 +192,10 @@ export function GettingHereMap({ propertyAddress }: GettingHereMapProps) {
       // Wrong route last (faded red)
       setCurrentStep(3);
       await animatePath(wrongFull.current, setWrongPath, 1200);
+
+      // Show "DON'T GO HERE" tooltip on the wrong gate
+      await delay(300);
+      setShowDontGoHere(true);
     })();
   }, [hasAnimated, routesReady]);
 
@@ -219,13 +224,24 @@ export function GettingHereMap({ propertyAddress }: GettingHereMapProps) {
     };
   }, []);
 
-  const onMapLoad = useCallback((map: google.maps.Map) => {
-    mapRef.current = map;
-  }, []);
+  const onMapLoad = useCallback(
+    (map: google.maps.Map) => {
+      mapRef.current = map;
+      // Fit bounds to show all key points
+      const bounds = new google.maps.LatLngBounds();
+      bounds.extend(NORTH_GATE);
+      bounds.extend(SOUTH_GATE);
+      bounds.extend(HALLET_START);
+      bounds.extend(CRANBERRY_START);
+      if (homeLocation) bounds.extend(homeLocation);
+      map.fitBounds(bounds, { top: 40, bottom: 40, left: 20, right: 20 });
+    },
+    [homeLocation]
+  );
 
   if (!isLoaded) {
     return (
-      <div className="w-full h-75 rounded-xl bg-muted animate-pulse flex items-center justify-center">
+      <div className="w-full h-112.5 rounded-xl bg-muted animate-pulse flex items-center justify-center">
         <p className="text-sm text-muted-foreground">Loading map...</p>
       </div>
     );
@@ -386,6 +402,19 @@ export function GettingHereMap({ propertyAddress }: GettingHereMapProps) {
             <div className="p-1">
               <p className="font-bold text-red-600 text-sm">Cranberry Rd Gate (Wrong Way)</p>
               <p className="text-xs text-gray-500">GPS often routes here — avoid!</p>
+            </div>
+          </InfoWindow>
+        )}
+        {showDontGoHere && !showSouthInfo && (
+          <InfoWindow
+            position={SOUTH_GATE}
+            onCloseClick={() => setShowDontGoHere(false)}
+            options={{ disableAutoPan: true }}
+          >
+            <div className="px-1 py-0.5">
+              <p className="font-black text-red-600 text-sm tracking-wide">
+                DON&apos;T GO HERE
+              </p>
             </div>
           </InfoWindow>
         )}
