@@ -117,8 +117,15 @@ export function CleaningDialog({
         setPhotos((prev) => [...prev, { ...data.photo, previewUrl }]);
       } else {
         URL.revokeObjectURL(previewUrl);
-        const data = await res.json().catch(() => null);
-        setUploadError(data?.error || "Upload failed — please try again");
+        const text = await res.text();
+        let errorMsg = `Upload failed (${res.status})`;
+        try {
+          const data = JSON.parse(text);
+          if (data?.error) errorMsg = data.error;
+        } catch {
+          // non-JSON response
+        }
+        setUploadError(errorMsg);
       }
     } catch {
       URL.revokeObjectURL(previewUrl);
