@@ -13,6 +13,7 @@ import {
   SprayCan,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 const navItems = [
   { label: "Dashboard", href: "/cleaner", icon: BarChart3 },
@@ -87,7 +88,11 @@ export function CleanerSidebar({
           })}
         </nav>
 
-        <div className="p-3 border-t">
+        <div className="p-3 border-t space-y-1">
+          <div className="flex items-center justify-between px-3">
+            <p className="text-xs text-muted-foreground truncate">{cleanerName}</p>
+            <ThemeToggle />
+          </div>
           <Button
             variant="ghost"
             size="sm"
@@ -119,9 +124,12 @@ export function CleanerSidebar({
               </p>
             </div>
           </div>
-          <Button variant="ghost" size="sm" onClick={handleLogout}>
-            <LogOut className="h-4 w-4" />
-          </Button>
+          <div className="flex items-center gap-1">
+            <ThemeToggle />
+            <Button variant="ghost" size="sm" onClick={handleLogout}>
+              <LogOut className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </header>
 
