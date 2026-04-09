@@ -12,7 +12,7 @@ export async function GET() {
 
   const { data: properties } = await supabase
     .from("property")
-    .select("id, name, nickname, cleaning_fee_cents, pet_fee_cents")
+    .select("id, name, nickname, cleaning_fee_cents, pet_fee_cents, listing_urls")
     .eq("host_id", hostId);
 
   if (!properties || properties.length === 0) {
@@ -74,6 +74,14 @@ export async function GET() {
     };
   }
 
+  // Merge listing_urls per display name (deduped properties share URLs)
+  const listingUrlsByProperty: Record<string, Record<string, string>> = {};
+  for (const p of properties) {
+    const name = displayNames[p.id];
+    const urls = (p.listing_urls ?? {}) as Record<string, string>;
+    listingUrlsByProperty[name] = { ...listingUrlsByProperty[name], ...urls };
+  }
+
   return NextResponse.json({
     properties: uniqueProperties,
     registrations: (registrations ?? []).map((r) => {
@@ -103,5 +111,6 @@ export async function GET() {
       };
     }),
     qrScans,
+    listingUrlsByProperty,
   });
 }

@@ -1,4 +1,5 @@
 import PDFDocument from "pdfkit";
+import sharp from "sharp";
 import { createAdminClient } from "@/lib/supabase/admin";
 import fs from "fs";
 import path from "path";
@@ -165,7 +166,7 @@ function drawTable(
   return ry;
 }
 
-/** Embed a signature image with a white background to prevent transparent PNG black rectangle */
+/** Embed a signature image, flattening transparency onto a white background */
 async function embedSignature(
   doc: PDFKit.PDFDocument,
   bucket: string,
@@ -178,10 +179,8 @@ async function embedSignature(
   const sigBuf = await fetchStorageFile(bucket, sigPath);
   if (!sigBuf) return false;
   try {
-    doc.save();
-    doc.rect(x, y, width, height).fill("#ffffff");
-    doc.restore();
-    doc.image(sigBuf, x, y, { width, height, fit: [width, height] });
+    const flattened = await sharp(sigBuf).flatten({ background: { r: 255, g: 255, b: 255 } }).png().toBuffer();
+    doc.image(flattened, x, y, { width, height, fit: [width, height] });
     return true;
   } catch {
     return false;

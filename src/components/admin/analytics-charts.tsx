@@ -71,6 +71,12 @@ const SOURCE_RENAME: Record<string, string> = {
   VrboIntegration: "VRBO",
 };
 
+const SOURCE_FAVICON: Record<string, string> = {
+  AirbnbIntegration: "https://a0.muscache.com/airbnb/static/icons/apple-touch-icon-76x76-3b313d93b1b5823571f585c00445525f.png",
+  BookingComIntegration: "https://cf.bstatic.com/static/img/favicon/9ca83ba2a5a3293ff07452cb24949a5843af4592.svg",
+  VrboIntegration: "https://csvcus.homeaway.com/rsrcs/favicon.ico",
+};
+
 type GroupBy = "week" | "month" | "quarter";
 type DatePreset = "30d" | "90d" | "6m" | "1y" | "all" | "custom";
 
@@ -115,12 +121,14 @@ type BucketReservation = {
   amount: number;
   nights: number;
   registrationId: string;
+  source: string | null;
 };
 
 type ApiData = {
   properties: { id: string; name: string }[];
   registrations: Registration[];
   qrScans: number;
+  listingUrlsByProperty: Record<string, Record<string, string>>;
 };
 
 // ─── Helpers ─────────────────────────────────────────────────
@@ -402,6 +410,7 @@ export function AnalyticsCharts() {
         amount: r.amount,
         nights,
         registrationId: r.id,
+        source: r.source,
       });
     }
 
@@ -421,6 +430,7 @@ export function AnalyticsCharts() {
         amount: r.petFeeCents,
         nights: 0,
         registrationId: r.id,
+        source: r.source,
       });
     }
     const petFeeKeys = Object.keys(petFeeBuckets).sort();
@@ -446,6 +456,7 @@ export function AnalyticsCharts() {
         amount: r.cleaningFeeCents,
         nights: 0,
         registrationId: r.id,
+        source: r.source,
       });
     }
     const cleanFeeKeys = Object.keys(cleanFeeBuckets).sort();
@@ -475,6 +486,7 @@ export function AnalyticsCharts() {
           amount: u.priceCents,
           nights: 0,
           registrationId: r.id,
+          source: r.source,
         });
       }
     }
@@ -712,7 +724,7 @@ export function AnalyticsCharts() {
                     <XAxis dataKey="bucket" tickFormatter={(v) => formatBucketLabel(v, groupBy)} className="text-xs" />
                     <YAxis tickFormatter={formatDollars} className="text-xs" />
                     <Tooltip
-                      content={<RevenueTooltip groupBy={groupBy} propertyNames={propNames} hiddenSeries={hiddenSeries} reservationsByBucket={charts.reservationsByBucket} />}
+                      content={<RevenueTooltip groupBy={groupBy} propertyNames={propNames} hiddenSeries={hiddenSeries} reservationsByBucket={charts.reservationsByBucket} listingUrlsByProperty={raw!.listingUrlsByProperty} />}
                       trigger="click"
                       allowEscapeViewBox={{ x: true, y: true }}
                       wrapperStyle={{ zIndex: 10, pointerEvents: "auto" }}
@@ -748,7 +760,7 @@ export function AnalyticsCharts() {
                   <XAxis dataKey="bucket" tickFormatter={(v) => formatBucketLabel(v, groupBy)} className="text-xs" />
                   <YAxis tickFormatter={(v) => `${v}%`} domain={[0, 100]} className="text-xs" />
                   <Tooltip
-                    content={<BarTooltip groupBy={groupBy} propertyNames={propNames} formatter={(v) => `${v}%`} reservationsByBucket={charts.reservationsByBucket} showNights />}
+                    content={<BarTooltip groupBy={groupBy} propertyNames={propNames} formatter={(v) => `${v}%`} reservationsByBucket={charts.reservationsByBucket} showNights listingUrlsByProperty={raw!.listingUrlsByProperty} />}
                     trigger="click"
                     allowEscapeViewBox={{ x: true, y: true }}
                     wrapperStyle={{ zIndex: 10, pointerEvents: "auto" }}
@@ -779,7 +791,7 @@ export function AnalyticsCharts() {
                   <XAxis dataKey="bucket" tickFormatter={(v) => formatBucketLabel(v, groupBy)} className="text-xs" />
                   <YAxis tickFormatter={formatDollars} className="text-xs" />
                   <Tooltip
-                    content={<BarTooltip groupBy={groupBy} propertyNames={propNames} formatter={formatDollars} reservationsByBucket={charts.reservationsByBucket} />}
+                    content={<BarTooltip groupBy={groupBy} propertyNames={propNames} formatter={formatDollars} reservationsByBucket={charts.reservationsByBucket} listingUrlsByProperty={raw!.listingUrlsByProperty} />}
                     trigger="click"
                     allowEscapeViewBox={{ x: true, y: true }}
                     wrapperStyle={{ zIndex: 10, pointerEvents: "auto" }}
@@ -1018,19 +1030,34 @@ function formatCheckIn(dateStr: string): string {
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-function ReservationList({ reservations, showNights }: { reservations: BucketReservation[]; showNights?: boolean }) {
+function ReservationList({ reservations, showNights, listingUrls }: { reservations: BucketReservation[]; showNights?: boolean; listingUrls?: Record<string, string> }) {
   if (!reservations?.length) return null;
   return (
     <div className="ml-4 mt-0.5 mb-1 space-y-px">
-      {reservations.map((r, i) => (
-        <Link key={i} href={`/admin/reservations/${r.registrationId}`} className="flex items-center justify-between gap-3 text-[11px] text-muted-foreground hover:text-foreground transition-colors">
-          <span className="truncate max-w-[140px] underline">{r.guestName}</span>
-          <span className="flex items-center gap-2 shrink-0">
-            <span>{formatCheckIn(r.checkIn)}</span>
-            <span className="font-medium">{showNights ? `${r.nights}n` : formatDollars(r.amount / 100)}</span>
-          </span>
-        </Link>
-      ))}
+      {reservations.map((r, i) => {
+        const favicon = r.source ? SOURCE_FAVICON[r.source] : undefined;
+        const listingUrl = r.source && listingUrls ? listingUrls[r.source] : undefined;
+        return (
+          <div key={i} className="flex items-center justify-between gap-3 text-[11px] text-muted-foreground">
+            <Link href={`/admin/reservations/${r.registrationId}`} className="truncate max-w-[140px] underline hover:text-foreground transition-colors">
+              {r.guestName}
+            </Link>
+            <span className="flex items-center gap-2 shrink-0">
+              {favicon && listingUrl ? (
+                <a href={listingUrl} target="_blank" rel="noopener noreferrer" className="hover:opacity-70 transition-opacity" onClick={(e) => e.stopPropagation()}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={favicon} alt={cleanSourceName(r.source)} className="h-3.5 w-3.5 rounded-sm" />
+                </a>
+              ) : favicon ? (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img src={favicon} alt={cleanSourceName(r.source)} className="h-3.5 w-3.5 rounded-sm opacity-50" />
+              ) : null}
+              <span>{formatCheckIn(r.checkIn)}</span>
+              <span className="font-medium">{showNights ? `${r.nights}n` : formatDollars(r.amount / 100)}</span>
+            </span>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -1043,6 +1070,7 @@ function RevenueTooltip({
   propertyNames: names,
   hiddenSeries,
   reservationsByBucket,
+  listingUrlsByProperty,
 }: {
   active?: boolean;
   payload?: Array<{ dataKey: string; value: number; color: string }>;
@@ -1051,6 +1079,7 @@ function RevenueTooltip({
   propertyNames: string[];
   hiddenSeries: Set<string>;
   reservationsByBucket: Record<string, Record<string, BucketReservation[]>>;
+  listingUrlsByProperty: Record<string, Record<string, string>>;
 }) {
   const [, forceUpdate] = useState(0);
   if (!active || !payload?.length) return null;
@@ -1097,7 +1126,7 @@ function RevenueTooltip({
                 )}
               </span>
             </div>
-            {isExpanded && resList && <ReservationList reservations={resList} />}
+            {isExpanded && resList && <ReservationList reservations={resList} listingUrls={listingUrlsByProperty[entry.dataKey]} />}
           </div>
         );
       })}
@@ -1114,6 +1143,7 @@ function BarTooltip({
   formatter: fmt,
   reservationsByBucket,
   showNights,
+  listingUrlsByProperty,
 }: {
   active?: boolean;
   payload?: Array<{ dataKey: string; value: number; color: string }>;
@@ -1123,6 +1153,7 @@ function BarTooltip({
   formatter: (v: number) => string;
   reservationsByBucket: Record<string, Record<string, BucketReservation[]>>;
   showNights?: boolean;
+  listingUrlsByProperty: Record<string, Record<string, string>>;
 }) {
   const [, forceUpdate] = useState(0);
   if (!active || !payload?.length) return null;
@@ -1165,7 +1196,7 @@ function BarTooltip({
                 )}
               </span>
             </div>
-            {isExpanded && resList && <ReservationList reservations={resList} showNights={showNights} />}
+            {isExpanded && resList && <ReservationList reservations={resList} showNights={showNights} listingUrls={listingUrlsByProperty[entry.dataKey]} />}
           </div>
         );
       })}
