@@ -20,6 +20,41 @@ import type { CleaningPhoto } from "@/types/database";
 
 type PhotoWithPreview = CleaningPhoto & { previewUrl: string };
 
+/** Compress an image file to JPEG, resizing if needed to stay under maxBytes. */
+async function compressImage(
+  file: File,
+  maxWidth = 2048,
+  maxBytes = 3 * 1024 * 1024 // 3MB — safely under Vercel's 4.5MB body limit
+): Promise<File> {
+  // HEIC/HEIF can't be drawn to canvas — skip compression, rely on server validation
+  if (file.type === "image/heic" || file.type === "image/heif") return file;
+  if (file.size <= maxBytes) return file;
+
+  const bitmap = await createImageBitmap(file);
+  let { width, height } = bitmap;
+
+  if (width > maxWidth) {
+    height = Math.round((height * maxWidth) / width);
+    width = maxWidth;
+  }
+
+  const canvas = new OffscreenCanvas(width, height);
+  const ctx = canvas.getContext("2d")!;
+  ctx.drawImage(bitmap, 0, 0, width, height);
+  bitmap.close();
+
+  // Try decreasing quality until under maxBytes
+  let quality = 0.85;
+  let blob = await canvas.convertToBlob({ type: "image/jpeg", quality });
+  while (blob.size > maxBytes && quality > 0.4) {
+    quality -= 0.1;
+    blob = await canvas.convertToBlob({ type: "image/jpeg", quality });
+  }
+
+  const name = file.name.replace(/\.[^.]+$/, ".jpg");
+  return new File([blob], name, { type: "image/jpeg" });
+}
+
 function UploadError({ message, onDismiss }: { message: string; onDismiss: () => void }) {
   return (
     <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
@@ -93,12 +128,14 @@ export function CleaningDialog({
   const hasAnyPhotos = photos.length > 0;
 
   async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file || !activeRoom) return;
+    const rawFile = e.target.files?.[0];
+    if (!rawFile || !activeRoom) return;
     e.target.value = "";
 
-    const previewUrl = URL.createObjectURL(file);
     setUploading(activeRoom);
+
+    const file = await compressImage(rawFile);
+    const previewUrl = URL.createObjectURL(file);
 
     const formData = new FormData();
     formData.append("file", file);
