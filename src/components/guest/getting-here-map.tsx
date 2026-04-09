@@ -7,6 +7,8 @@ import {
   Marker,
   Polyline,
   InfoWindow,
+  OverlayView,
+  OverlayViewF,
 } from "@react-google-maps/api";
 
 /* ------------------------------------------------------------------ */
@@ -182,17 +184,19 @@ export function GettingHereMap({ propertyAddress }: GettingHereMapProps) {
       // Pause at gate — show gatehouse tooltip
       setShowPulse(true);
       setShowGateTooltip(true);
-      await delay(2000);
+      await delay(1400);
+      setShowGateTooltip(false);
+      await delay(300); // brief gap for fade out
 
       // Leg 2: North Gate → Home
       if (leg2Full.current.length > 0) {
-        setShowGateTooltip(false);
         setCurrentStep(2);
         await animatePath(leg2Full.current, setLeg2Path, 1500);
         setShowLeg2Pulse(true);
         setShowHomeTooltip(true);
-        await delay(2000);
+        await delay(1400);
         setShowHomeTooltip(false);
+        await delay(300);
       }
 
       // Wrong route last (faded red)
@@ -362,16 +366,27 @@ export function GettingHereMap({ propertyAddress }: GettingHereMapProps) {
             </div>
           </InfoWindow>
         )}
-        {showGateTooltip && !showNorthInfo && (
-          <InfoWindow
+        {/* Auto-show gatehouse tooltip — offset down-left so it's inside the frame */}
+        {!showNorthInfo && (
+          <OverlayViewF
             position={NORTH_GATE}
-            onCloseClick={() => setShowGateTooltip(false)}
-            options={{ disableAutoPan: true }}
+            mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
           >
-            <div className="px-1 py-0.5">
-              <p className="font-bold text-green-700 text-sm">Gatehouse: 525 Penn Estates Drive</p>
+            <div
+              className="transition-all duration-300 ease-in-out"
+              style={{
+                transform: "translate(-50%, 8px)",
+                opacity: showGateTooltip ? 1 : 0,
+                pointerEvents: showGateTooltip ? "auto" : "none",
+              }}
+            >
+              <div className="bg-white dark:bg-gray-900 rounded-lg shadow-lg px-3 py-1.5 border border-green-200 whitespace-nowrap">
+                <p className="font-bold text-green-700 dark:text-green-400 text-sm">
+                  Gatehouse: 525 Penn Estates Drive
+                </p>
+              </div>
             </div>
-          </InfoWindow>
+          </OverlayViewF>
         )}
 
         {/* Home marker — Step 2 (blue) */}
@@ -400,18 +415,27 @@ export function GettingHereMap({ propertyAddress }: GettingHereMapProps) {
                 </div>
               </InfoWindow>
             )}
-            {showHomeTooltip && !showHomeInfo && (
-              <InfoWindow
+            {/* Auto-show home tooltip */}
+            {!showHomeInfo && (
+              <OverlayViewF
                 position={homeLocation}
-                onCloseClick={() => setShowHomeTooltip(false)}
-                options={{ disableAutoPan: true }}
+                mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
               >
-                <div className="px-1 py-0.5">
-                  <p className="font-bold text-blue-700 text-sm">
-                    Your Home: {propertyAddress?.replace(/,?\s*(PA|Pennsylvania)\s*\d{0,5}\s*$/i, "").trim()}
-                  </p>
+                <div
+                  className="transition-all duration-300 ease-in-out"
+                  style={{
+                    transform: "translate(-50%, 8px)",
+                    opacity: showHomeTooltip ? 1 : 0,
+                    pointerEvents: showHomeTooltip ? "auto" : "none",
+                  }}
+                >
+                  <div className="bg-white dark:bg-gray-900 rounded-lg shadow-lg px-3 py-1.5 border border-blue-200 whitespace-nowrap">
+                    <p className="font-bold text-blue-700 dark:text-blue-400 text-sm">
+                      Your Home: {propertyAddress?.replace(/,?\s*(PA|Pennsylvania)\s*\d{0,5}\s*$/i, "").trim()}
+                    </p>
+                  </div>
                 </div>
-              </InfoWindow>
+              </OverlayViewF>
             )}
           </>
         )}
