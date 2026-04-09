@@ -206,6 +206,18 @@ export default function AdminReservationsPage() {
               <ChevronDown className="h-4 w-4 opacity-50" />
           </PopoverTrigger>
           <PopoverContent className="w-56 p-2" align="start">
+            <button
+              className="w-full text-xs text-muted-foreground hover:text-foreground pb-1 mb-1 border-b text-left px-2"
+              onClick={() =>
+                setSelectedProperties((prev) =>
+                  prev.size === properties.length
+                    ? new Set()
+                    : new Set(properties.map((p) => p.id))
+                )
+              }
+            >
+              {selectedProperties.size === properties.length ? "Deselect all" : "Select all"}
+            </button>
             {properties.map((p) => (
               <div
                 key={p.id}

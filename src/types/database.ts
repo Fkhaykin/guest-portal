@@ -31,7 +31,7 @@ export type CleaningChecklistItem = {
 
 export type InvoiceLineItem = {
   description: string;
-  type: "cleaning" | "pet_fee" | "extra" | "reimbursement";
+  type: "cleaning" | "pet_fee" | "extra" | "reimbursement" | "monthly_fee";
   property_name?: string;
   registration_id?: string;
   amount: number; // cents
@@ -642,6 +642,7 @@ export type Database = {
           phone: string | null;
           password_hash: string;
           is_active: boolean;
+          monthly_fee_cents: number;
           created_at: string;
           updated_at: string;
         };
@@ -652,6 +653,7 @@ export type Database = {
           phone?: string | null;
           password_hash: string;
           is_active?: boolean;
+          monthly_fee_cents?: number;
           created_at?: string;
           updated_at?: string;
         };
@@ -662,6 +664,7 @@ export type Database = {
           phone?: string | null;
           password_hash?: string;
           is_active?: boolean;
+          monthly_fee_cents?: number;
           created_at?: string;
           updated_at?: string;
         };

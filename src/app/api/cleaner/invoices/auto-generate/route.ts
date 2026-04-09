@@ -155,6 +155,81 @@ export async function POST(request: Request) {
     if (!error) invoicesCreated++;
   }
 
+  // --- Monthly fee invoices (1st of the month) ---
+  const today = new Date();
+  if (today.getUTCDate() === 1) {
+    for (const cleaner of cleaners) {
+      const { data: cleanerRow } = await supabase
+        .from("cleaner")
+        .select("monthly_fee_cents")
+        .eq("id", cleaner.id)
+        .single();
+
+      const monthlyFee = cleanerRow?.monthly_fee_cents ?? 0;
+      if (monthlyFee <= 0) continue;
+
+      // Period is the current month
+      const year = today.getUTCFullYear();
+      const month = today.getUTCMonth(); // 0-indexed
+      const periodStart = `${year}-${String(month + 1).padStart(2, "0")}-01`;
+      const lastDay = new Date(year, month + 1, 0).getDate();
+      const periodEnd = `${year}-${String(month + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+
+      const monthName = today.toLocaleString("en-US", { month: "long", year: "numeric" });
+
+      // Check if a monthly fee invoice already exists for this period
+      const { data: existing } = await supabase
+        .from("cleaner_invoice")
+        .select("id")
+        .eq("cleaner_id", cleaner.id)
+        .eq("period_start", periodStart)
+        .eq("period_end", periodEnd)
+        .limit(1);
+
+      // Only check line_items for monthly_fee type if an invoice exists for this period
+      if (existing && existing.length > 0) {
+        const { data: monthlyInvoices } = await supabase
+          .from("cleaner_invoice")
+          .select("line_items")
+          .eq("cleaner_id", cleaner.id)
+          .eq("period_start", periodStart)
+          .eq("period_end", periodEnd);
+
+        const alreadyHasMonthlyFee = (monthlyInvoices || []).some((inv) => {
+          const items = inv.line_items as InvoiceLineItem[];
+          return items.some((item) => item.type === "monthly_fee");
+        });
+
+        if (alreadyHasMonthlyFee) continue;
+      }
+
+      const lineItems: InvoiceLineItem[] = [
+        {
+          description: `Monthly fee — ${monthName}`,
+          type: "monthly_fee",
+          amount: monthlyFee,
+        },
+      ];
+
+      const { error } = await supabase.from("cleaner_invoice").insert({
+        cleaner_id: cleaner.id,
+        host_id: cleaner.host_id,
+        status: "submitted",
+        period_start: periodStart,
+        period_end: periodEnd,
+        line_items: lineItems,
+        adjustments: [],
+        attachments: [],
+        subtotal: monthlyFee,
+        total: monthlyFee,
+        notes: `Monthly fee for ${monthName}`,
+        submitted_at: new Date().toISOString(),
+      });
+
+      if (!error) invoicesCreated++;
+    }
+  }
+
   return NextResponse.json({
     message: `Generated ${invoicesCreated} invoice(s)`,
     invoices_created: invoicesCreated,
