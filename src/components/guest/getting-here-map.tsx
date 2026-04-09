@@ -234,7 +234,12 @@ export function GettingHereMap({ propertyAddress }: GettingHereMapProps) {
       bounds.extend(HALLET_START);
       bounds.extend(CRANBERRY_START);
       if (homeLocation) bounds.extend(homeLocation);
-      map.fitBounds(bounds, { top: 80, bottom: 80, left: 60, right: 60 });
+      map.fitBounds(bounds, { top: 60, bottom: 60, left: 40, right: 40 });
+      // Bump zoom by 1 after fitBounds settles
+      google.maps.event.addListenerOnce(map, "idle", () => {
+        const z = map.getZoom();
+        if (z != null) map.setZoom(z + 1);
+      });
     },
     [homeLocation]
   );
