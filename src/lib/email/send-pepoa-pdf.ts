@@ -29,13 +29,13 @@ export async function sendPEPOAPDF({
 }) {
   const subject = `Short-Term Tenant Registration — Lot/Section ${lotSection} — Check-in ${checkInDate}`;
 
-  const fromEmail = process.env.RESEND_FROM_EMAIL;
-  if (!fromEmail) {
-    throw new Error("RESEND_FROM_EMAIL environment variable is not set");
-  }
+  const fromEmail = "contact@summitlakeside.com";
+  const originalMessageId = `<pepoa-${registrationId}@summitlakeside.com>`;
 
-  const fromDomain = fromEmail.split("@")[1] || "summitlakeside.com";
-  const originalMessageId = `<pepoa-${registrationId}@${fromDomain}>`;
+  const cc: string[] = [];
+  if (ownerEmail && ownerEmail.toLowerCase() !== fromEmail.toLowerCase()) {
+    cc.push(ownerEmail);
+  }
 
   const contactLines = [
     "",
@@ -79,6 +79,7 @@ export async function sendPEPOAPDF({
   const { error } = await resend.emails.send({
     from: fromEmail,
     to,
+    ...(cc.length > 0 ? { cc } : {}),
     subject,
     headers,
     text: bodyLines.join("\n"),
