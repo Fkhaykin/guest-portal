@@ -76,7 +76,7 @@ export async function POST(request: Request) {
   // Upload photo
   const ext = fileExt || "jpg";
   const path = `${registrationId}/${room}-${Date.now()}.${ext}`;
-  const buffer = await file.arrayBuffer();
+  const buffer = Buffer.from(await file.arrayBuffer());
 
   const { error: uploadError } = await supabase.storage
     .from("cleaning-photos")
