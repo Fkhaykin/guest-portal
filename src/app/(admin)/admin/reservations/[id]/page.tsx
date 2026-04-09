@@ -322,7 +322,7 @@ export default function ReservationDetailPage() {
   const guestPortalUrl = (() => {
     if (typeof window === "undefined") return null;
     const host = window.location.host; // e.g. admin.localhost:3000 or admin.summitlakeside.com
-    const guestHost = host.replace(/^admin\./, "");
+    const guestHost = host.replace(/^admin\./, "guest.");
     return `${window.location.protocol}//${guestHost}/?reg=${reg.id}`;
   })();
 
@@ -378,9 +378,6 @@ export default function ReservationDetailPage() {
 
       {/* Quick Actions */}
       <div className="flex flex-wrap gap-2">
-        <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
-          <Pencil className="h-4 w-4 mr-1" /> Edit
-        </Button>
         {hasSignature && (
           <>
             <a href={`/api/pepoa/generate?registration_id=${id}&disposition=inline`} target="_blank" rel="noopener noreferrer">
@@ -560,18 +557,38 @@ export default function ReservationDetailPage() {
             {/* Registration Status */}
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <ClipboardCheck className="h-4 w-4" /> Registration
-                </CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <ClipboardCheck className="h-4 w-4" /> Registration
+                  </CardTitle>
+                  <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
+                    <Pencil className="h-4 w-4 mr-1" /> Edit
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent className="space-y-2 text-sm">
                 <Row label="Status" value={hasSignature ? "Completed" : "Incomplete"} />
+                {hasSignature && (
+                  <Row label="Registered" value={new Date(reg.created_at).toLocaleString()} />
+                )}
+                {reg.updated_at !== reg.created_at && (
+                  <Row label="Last updated" value={new Date(reg.updated_at).toLocaleString()} />
+                )}
                 {reg.notes && <Row label="Notes" value={reg.notes} />}
                 {hasSignature && (
                   <div className="pt-1">
                     <p className="text-xs text-muted-foreground">Signature on file</p>
                   </div>
                 )}
+                <Separator />
+                <button
+                  type="button"
+                  className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer pt-1"
+                  onClick={openHistory}
+                >
+                  <History className="h-3.5 w-3.5" />
+                  View update history
+                </button>
               </CardContent>
             </Card>
           </div>
