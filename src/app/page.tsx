@@ -25,7 +25,6 @@ import {
   User,
   ClipboardCheck,
   ChevronRight,
-  ChevronDown,
   Check,
   Flame,
   BedDouble,
@@ -58,7 +57,6 @@ const GettingHereMap = dynamic(
 import { PropertyHeader } from "@/components/guest/guest-header";
 import { GuestNav } from "@/components/guest/guest-nav";
 import { LandingPage } from "@/components/guest/landing-page";
-import type { GuestListEntry, PetEntry } from "@/types/database";
 
 type GuestBreakdown = {
   adults: number;
@@ -158,22 +156,6 @@ type PurchasedUpsell = {
   status: string;
 };
 
-type VehicleEntry = {
-  make: string;
-  model: string;
-  color: string;
-  license_plate: string;
-  state_or_region: string;
-  year: string;
-  driver_name: string;
-};
-
-type RegistrationDetails = {
-  guest_list: GuestListEntry[];
-  pets: PetEntry[];
-  vehicles: VehicleEntry[];
-};
-
 type DeliveryEntry = {
   id: string;
   category: "rideshare" | "food_grocery" | "other";
@@ -201,8 +183,6 @@ function GuestDashboard({
   const breakdown = lodgify?.guest_breakdown;
   const [purchasedUpsells, setPurchasedUpsells] = useState<PurchasedUpsell[]>([]);
   const [deliveries, setDeliveries] = useState<DeliveryEntry[]>([]);
-  const [regDetails, setRegDetails] = useState<RegistrationDetails | null>(null);
-  const [expandedDrivers, setExpandedDrivers] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     fetch(`/api/guest/delivery-rideshare?registration_id=${reservation.id}`, {
@@ -211,25 +191,6 @@ function GuestDashboard({
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (data?.entries) setDeliveries(data.entries);
-      })
-      .catch(() => {});
-  }, [reservation.id]);
-
-  useEffect(() => {
-    fetch("/api/guest/registration-details", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-guest-token": getGuestToken() },
-      body: JSON.stringify({ registration_id: reservation.id }),
-    })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (data) {
-          setRegDetails({
-            guest_list: data.guest_list || [],
-            pets: data.pets || [],
-            vehicles: data.vehicles || [],
-          });
-        }
       })
       .catch(() => {});
   }, [reservation.id]);
@@ -246,30 +207,6 @@ function GuestDashboard({
       })
       .catch(() => {});
   }, [reservation.id]);
-
-  const guestVehicleMap = new Map<number, VehicleEntry[]>();
-  if (regDetails) {
-    regDetails.vehicles.forEach((v) => {
-      const driverLower = v.driver_name.toLowerCase().trim();
-      const idx = regDetails.guest_list.findIndex(
-        (g) => `${g.first_name} ${g.last_name}`.toLowerCase().trim() === driverLower
-      );
-      if (idx >= 0) {
-        const existing = guestVehicleMap.get(idx) || [];
-        existing.push(v);
-        guestVehicleMap.set(idx, existing);
-      }
-    });
-  }
-
-  const toggleDriver = (idx: number) => {
-    setExpandedDrivers((prev) => {
-      const next = new Set(prev);
-      if (next.has(idx)) next.delete(idx);
-      else next.add(idx);
-      return next;
-    });
-  };
 
   const countdownLabel =
     daysUntil === 0
@@ -313,41 +250,6 @@ function GuestDashboard({
           </div>
         )}
 
-        {/* Add-Ons callout — top of page */}
-        {purchasedUpsells.length > 0 && (
-          <div className="rounded-xl border-2 border-amber-400 bg-amber-50 dark:border-amber-500 dark:bg-amber-950/40 p-5 space-y-3 ring-2 ring-amber-300/50 shadow-lg shadow-amber-100 dark:shadow-amber-900/20">
-            <div className="flex items-center gap-2">
-              <div className="rounded-full bg-amber-400 dark:bg-amber-500 p-2 shrink-0">
-                <Sparkles className="h-5 w-5 text-white" />
-              </div>
-              <h3 className="font-bold text-lg text-amber-900 dark:text-amber-100">
-                Your Add-Ons ({purchasedUpsells.length})
-              </h3>
-            </div>
-            <div className="space-y-2">
-              {purchasedUpsells.map((u, i) => (
-                <div key={i} className="flex items-center gap-3 rounded-lg bg-white/80 dark:bg-black/20 border border-amber-200 dark:border-amber-700 p-3">
-                  <div className="shrink-0">
-                    {upsellIcons[u.type] || <Sparkles className="h-5 w-5 text-amber-600" />}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium">{u.label}</p>
-                    {u.price_cents > 0 && (
-                      <p className="text-xs text-muted-foreground">${(u.price_cents / 100).toFixed(2)}</p>
-                    )}
-                  </div>
-                  <Check className="h-4 w-4 text-green-600 shrink-0" />
-                </div>
-              ))}
-            </div>
-            <Link href={`/p/${reservation.property.slug}/add-ons`}>
-              <Button variant="outline" size="sm" className="w-full border-amber-300 dark:border-amber-600 hover:bg-amber-100 dark:hover:bg-amber-900/40">
-                Browse More Add-Ons
-              </Button>
-            </Link>
-          </div>
-        )}
-
         {/* Welcome + countdown */}
         <div className="text-center space-y-2">
           <h1 className="text-3xl sm:text-4xl font-bold tracking-tight">
@@ -369,131 +271,53 @@ function GuestDashboard({
           )}
         </div>
 
-        {/* Registration tile — includes guest list, pets, vehicles */}
-        <Card>
-          <CardHeader className="pb-3">
+        {/* Registration banner */}
+        {reservation.signature_url ? (
+          <div className="rounded-xl border p-5 space-y-3">
             <div className="flex items-start gap-3">
-              <div className={`rounded-full p-2 shrink-0 mt-0.5 ${reservation.signature_url ? "bg-muted" : "bg-primary"}`}>
-                <ClipboardCheck className={`h-5 w-5 ${reservation.signature_url ? "" : "text-primary-foreground"}`} />
+              <div className="rounded-full bg-muted p-2 shrink-0 mt-0.5">
+                <ClipboardCheck className="h-5 w-5" />
               </div>
-              <div className="space-y-1 flex-1">
-                <CardTitle className="text-base">
-                  {reservation.signature_url
-                    ? "Registration complete"
-                    : "Action required: Complete your guest registration"}
-                </CardTitle>
-                <CardDescription>
-                  {reservation.signature_url
-                    ? "Your guest registration has been submitted. Need to make changes? You can update your details anytime before check-in."
-                    : "Before you arrive, we need a few details from you — guest info, vehicle registration, and any special requests."}
-                </CardDescription>
+              <div className="space-y-1">
+                <h3 className="font-semibold text-base">
+                  Registration complete
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  Your guest registration has been submitted. Need to make
+                  changes? You can update your details anytime before check-in.
+                </p>
               </div>
             </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Guest list with driver indicators */}
-            {regDetails && regDetails.guest_list.length > 0 && (
-              <div className="space-y-2">
-                <p className="text-sm font-medium flex items-center gap-1.5">
-                  <Users className="h-4 w-4" />
-                  Registered Guests ({regDetails.guest_list.length})
-                </p>
-                <div className="space-y-1">
-                  {regDetails.guest_list.map((g, i) => {
-                    const vehicles = guestVehicleMap.get(i);
-                    const isDriver = !!vehicles && vehicles.length > 0;
-                    const isExpanded = expandedDrivers.has(i);
-
-                    return (
-                      <div key={i} className="rounded-lg border">
-                        <button
-                          type="button"
-                          className={`flex items-center gap-3 w-full p-3 text-left ${isDriver ? "cursor-pointer hover:bg-accent/50 transition-colors" : "cursor-default"}`}
-                          onClick={() => isDriver && toggleDriver(i)}
-                          disabled={!isDriver}
-                        >
-                          <User className="h-4 w-4 text-muted-foreground shrink-0" />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium">
-                              {g.first_name} {g.last_name}
-                            </p>
-                            <p className="text-xs text-muted-foreground capitalize">
-                              {g.age_group === "over_21" ? "Adult (21+)" : g.age_group === "under_21" ? "Under 21" : "Infant"}
-                            </p>
-                          </div>
-                          {isDriver && (
-                            <div className="flex items-center gap-1.5">
-                              <Badge variant="secondary" className="text-xs">
-                                <Car className="h-3 w-3 mr-1" />
-                                Driver
-                              </Badge>
-                              <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${isExpanded ? "rotate-180" : ""}`} />
-                            </div>
-                          )}
-                        </button>
-                        {isDriver && isExpanded && vehicles.map((v, vi) => (
-                          <div key={vi} className="border-t bg-muted/30 px-3 py-2 ml-7">
-                            <div className="flex items-center gap-2 text-sm">
-                              <Car className="h-3.5 w-3.5 text-muted-foreground" />
-                              <span className="font-medium">
-                                {[v.year, v.color, v.make, v.model].filter(Boolean).join(" ")}
-                              </span>
-                            </div>
-                            <p className="text-xs text-muted-foreground mt-0.5 ml-5.5">
-                              {v.license_plate}{v.state_or_region ? ` · ${v.state_or_region}` : ""}
-                            </p>
-                          </div>
-                        ))}
-                      </div>
-                    );
-                  })}
-                </div>
+            <Link href={`/p/${reservation.property.slug}/update`}>
+              <Button variant="outline" size="lg" className="w-full">
+                Edit Registration
+              </Button>
+            </Link>
+          </div>
+        ) : (
+          <div className="rounded-xl border-2 border-primary bg-primary/5 p-5 space-y-3">
+            <div className="flex items-start gap-3">
+              <div className="rounded-full bg-primary p-2 shrink-0 mt-0.5">
+                <ClipboardCheck className="h-5 w-5 text-primary-foreground" />
               </div>
-            )}
-
-            {/* Pets */}
-            {regDetails && regDetails.pets.length > 0 && (
-              <div className="space-y-2">
-                <p className="text-sm font-medium flex items-center gap-1.5">
-                  <PawPrint className="h-4 w-4" />
-                  Pets ({regDetails.pets.length})
+              <div className="space-y-1">
+                <h3 className="font-semibold text-base">
+                  Action required: Complete your guest registration
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  Before you arrive, we need a few details from you &mdash;
+                  guest info, vehicle registration, and any special requests.
+                  This helps us prepare for your stay and ensures a smooth check-in.
                 </p>
-                <div className="space-y-1">
-                  {regDetails.pets.map((p, i) => (
-                    <div key={i} className="flex items-center gap-3 rounded-lg border p-3">
-                      <PawPrint className="h-4 w-4 text-muted-foreground shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium">{p.name}</p>
-                        <p className="text-xs text-muted-foreground capitalize">{p.kind}</p>
-                      </div>
-                      {(p.rabies_doc_path || p.vaccination_doc_path) && (
-                        <Badge variant="secondary" className="text-xs">
-                          <Check className="h-3 w-3 mr-1" />
-                          Docs
-                        </Badge>
-                      )}
-                    </div>
-                  ))}
-                </div>
               </div>
-            )}
-
-            {/* CTA button */}
-            {reservation.signature_url ? (
-              <Link href={`/p/${reservation.property.slug}/update`}>
-                <Button variant="outline" size="lg" className="w-full">
-                  Edit Registration
-                </Button>
-              </Link>
-            ) : (
-              <Link href={`/p/${reservation.property.slug}/register`}>
-                <Button size="lg" className="w-full">
-                  Complete Guest Registration
-                </Button>
-              </Link>
-            )}
-          </CardContent>
-        </Card>
+            </div>
+            <Link href={`/p/${reservation.property.slug}/register`}>
+              <Button size="lg" className="w-full">
+                Complete Guest Registration
+              </Button>
+            </Link>
+          </div>
+        )}
 
         {/* Booking details grid */}
         <Card>
@@ -722,7 +546,37 @@ function GuestDashboard({
           </Card>
         )}
 
-        {/* Add-ons moved to top of page */}
+        {/* Purchased add-ons */}
+        {purchasedUpsells.length > 0 && (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Sparkles className="h-5 w-5" /> Your Add-Ons
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {purchasedUpsells.map((u, i) => (
+                <div key={i} className="flex items-center gap-3 rounded-lg border p-3">
+                  <div className="shrink-0">
+                    {upsellIcons[u.type] || <Sparkles className="h-5 w-5 text-muted-foreground" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium">{u.label}</p>
+                    {u.price_cents > 0 && (
+                      <p className="text-xs text-muted-foreground">${(u.price_cents / 100).toFixed(2)}</p>
+                    )}
+                  </div>
+                  <Check className="h-4 w-4 text-green-600 shrink-0" />
+                </div>
+              ))}
+              <Link href={`/p/${reservation.property.slug}/add-ons`}>
+                <Button variant="outline" size="sm" className="w-full mt-2">
+                  Browse More Add-Ons
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Deliveries & Rideshares */}
         <Card>
@@ -879,13 +733,12 @@ export default function HomePage() {
       return;
     }
 
-    // Admin preview: auto-login as guest from ?reg=REGISTRATION_ID&token=TOKEN
+    // Admin preview: auto-login as guest from ?reg=REGISTRATION_ID
     const regId = params.get("reg");
-    const previewToken = params.get("token");
-    if (regId && previewToken) {
+    if (regId) {
       // Clean the URL so a refresh doesn't re-fetch
       window.history.replaceState({}, "", "/");
-      fetch(`/api/guest/preview?reg=${encodeURIComponent(regId)}&token=${encodeURIComponent(previewToken)}`)
+      fetch(`/api/guest/preview?reg=${encodeURIComponent(regId)}`)
         .then((r) => (r.ok ? r.json() : null))
         .then((data) => {
           if (data) {

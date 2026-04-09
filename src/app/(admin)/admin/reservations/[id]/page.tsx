@@ -36,6 +36,10 @@ import {
   Camera,
   Clock,
   Baby,
+  ChevronDown,
+  User,
+  Sparkles,
+  Check,
 } from "lucide-react";
 import { EditRegistrationDialog } from "@/components/admin/edit-registration-dialog";
 import type { GuestListEntry, PetEntry, UpsellEntry, CleaningPhoto, CleaningChecklistItem, InvoiceLineItem, InvoiceStatus } from "@/types/database";
@@ -151,6 +155,7 @@ export default function ReservationDetailPage() {
   const [charges, setCharges] = useState<IncurredCharge[]>([]);
   const [emailing, setEmailing] = useState(false);
   const [emailResult, setEmailResult] = useState<"success" | "error" | null>(null);
+  const [expandedDrivers, setExpandedDrivers] = useState<Set<number>>(new Set());
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -313,6 +318,39 @@ export default function ReservationDetailPage() {
   const checkInTime = hasEarlyCheckin ? "1:00 PM" : "4:00 PM";
   const checkOutTime = hasLateCheckout ? "2:00 PM" : "11:00 AM";
   const hasSignature = !!reg.signature_url;
+
+  // Map vehicles to guest list entries by driver name
+  const guestVehicleMap = new Map<number, Vehicle[]>();
+  vehicles.forEach((v) => {
+    if (!v.driver_name) return;
+    const driverLower = v.driver_name.toLowerCase().trim();
+    const idx = guestList.findIndex(
+      (g) => `${g.first_name} ${g.last_name}`.toLowerCase().trim() === driverLower
+    );
+    if (idx >= 0) {
+      const existing = guestVehicleMap.get(idx) || [];
+      existing.push(v);
+      guestVehicleMap.set(idx, existing);
+    }
+  });
+  // Vehicles not matched to any guest
+  const unmatchedVehicles = vehicles.filter((v) => {
+    if (!v.driver_name) return true;
+    const driverLower = v.driver_name.toLowerCase().trim();
+    return !guestList.some(
+      (g) => `${g.first_name} ${g.last_name}`.toLowerCase().trim() === driverLower
+    );
+  });
+
+  const toggleDriver = (idx: number) => {
+    setExpandedDrivers((prev) => {
+      const next = new Set(prev);
+      if (next.has(idx)) next.delete(idx);
+      else next.add(idx);
+      return next;
+    });
+  };
+
   const lodgifyBookingUrl = reg.lodgify_booking_id
     ? `https://app.lodgify.com/#/reservation/details/${reg.lodgify_booking_id}`
     : null;
@@ -428,6 +466,33 @@ export default function ReservationDetailPage() {
 
         {/* Details Tab */}
         <TabsContent value="details" className="space-y-6 mt-4">
+          {/* Upsells / Add-Ons — loud callout at top */}
+          {upsells.length > 0 && (
+            <div className="rounded-xl border-2 border-amber-400 bg-amber-50 dark:border-amber-500 dark:bg-amber-950/40 p-5 space-y-3 ring-2 ring-amber-300/50 shadow-lg shadow-amber-100 dark:shadow-amber-900/20">
+              <div className="flex items-center gap-2">
+                <div className="rounded-full bg-amber-400 dark:bg-amber-500 p-2 shrink-0">
+                  <Sparkles className="h-5 w-5 text-white" />
+                </div>
+                <h3 className="font-bold text-lg text-amber-900 dark:text-amber-100">
+                  Add-Ons ({upsells.length})
+                </h3>
+              </div>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {upsells.map((u, i) => (
+                  <div key={i} className="flex items-center justify-between rounded-lg bg-white/80 dark:bg-black/20 border border-amber-200 dark:border-amber-700 px-3 py-2 text-sm">
+                    <span className="font-medium">{u.label}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">${(u.price_cents / 100).toFixed(0)}</span>
+                      <Badge variant={u.status === "paid" ? "default" : "outline"} className="text-xs capitalize">
+                        {u.status}
+                      </Badge>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="grid gap-6 md:grid-cols-2">
             {/* Booking Info */}
             <Card>
@@ -552,7 +617,7 @@ export default function ReservationDetailPage() {
               </CardContent>
             </Card>
 
-            {/* Registration Status */}
+            {/* Registration — includes guest list, pets, vehicles */}
             <Card>
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
@@ -564,7 +629,7 @@ export default function ReservationDetailPage() {
                   </Button>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-2 text-sm">
+              <CardContent className="space-y-4 text-sm">
                 <Row label="Status" value={hasSignature ? "Completed" : "Incomplete"} />
                 {hasSignature && (
                   <Row label="Registered" value={new Date(reg.created_at).toLocaleString()} />
@@ -574,10 +639,140 @@ export default function ReservationDetailPage() {
                 )}
                 {reg.notes && <Row label="Notes" value={reg.notes} />}
                 {hasSignature && (
-                  <div className="pt-1">
-                    <p className="text-xs text-muted-foreground">Signature on file</p>
-                  </div>
+                  <p className="text-xs text-muted-foreground">Signature on file</p>
                 )}
+
+                {/* Guest list with driver indicators */}
+                {guestList.length > 0 && (
+                  <>
+                    <Separator />
+                    <div className="space-y-2">
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+                        <Users className="h-3.5 w-3.5" />
+                        Guests ({guestList.length})
+                        {(!!reg.tips?.needs_highchair || !!reg.tips?.needs_pack_n_play) && (
+                          <span className="ml-auto normal-case tracking-normal font-normal flex gap-1.5">
+                            {!!reg.tips?.needs_highchair && <Badge variant="secondary" className="text-xs">Highchair</Badge>}
+                            {!!reg.tips?.needs_pack_n_play && <Badge variant="secondary" className="text-xs">Pack &apos;n Play</Badge>}
+                          </span>
+                        )}
+                      </p>
+                      <div className="space-y-1">
+                        {guestList.map((g, i) => {
+                          const gVehicles = guestVehicleMap.get(i);
+                          const isDriver = !!gVehicles && gVehicles.length > 0;
+                          const isExpanded = expandedDrivers.has(i);
+
+                          return (
+                            <div key={i} className="rounded-md border">
+                              <button
+                                type="button"
+                                className={`flex items-center gap-2 w-full px-3 py-2 text-left text-sm ${isDriver ? "cursor-pointer hover:bg-accent/50 transition-colors" : "cursor-default"}`}
+                                onClick={() => isDriver && toggleDriver(i)}
+                                disabled={!isDriver}
+                              >
+                                <User className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                                <span className="flex-1">{g.first_name} {g.last_name}</span>
+                                <Badge variant="outline" className="text-xs capitalize">
+                                  {g.age_group === "over_21" ? "Adult" : g.age_group === "under_21" ? "Child" : "Infant"}
+                                </Badge>
+                                {isDriver && (
+                                  <>
+                                    <Badge variant="secondary" className="text-xs">
+                                      <Car className="h-3 w-3 mr-1" />
+                                      Driver
+                                    </Badge>
+                                    <ChevronDown className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+                                  </>
+                                )}
+                              </button>
+                              {isDriver && isExpanded && gVehicles.map((v) => (
+                                <div key={v.id} className="border-t bg-muted/30 px-3 py-2 ml-6 text-xs">
+                                  <div className="flex items-center gap-1.5">
+                                    <Car className="h-3 w-3 text-muted-foreground" />
+                                    <span className="font-medium">
+                                      {[v.year, v.color, v.make, v.model].filter(Boolean).join(" ")}
+                                    </span>
+                                  </div>
+                                  <p className="text-muted-foreground mt-0.5 ml-4.5">
+                                    {v.license_plate}{v.state_or_region ? ` · ${v.state_or_region}` : ""}
+                                  </p>
+                                </div>
+                              ))}
+                            </div>
+                          );
+                        })}
+                      </div>
+                      {/* Unmatched vehicles (no matching guest) */}
+                      {unmatchedVehicles.length > 0 && (
+                        <div className="space-y-1 pt-1">
+                          <p className="text-xs text-muted-foreground">Other vehicles:</p>
+                          {unmatchedVehicles.map((v) => (
+                            <div key={v.id} className="bg-muted rounded-md px-3 py-2 text-xs space-y-0.5">
+                              <p className="font-medium">
+                                {[v.year, v.color, v.make, v.model].filter(Boolean).join(" ") || "Unknown vehicle"}
+                              </p>
+                              <p className="text-muted-foreground">
+                                {v.license_plate}{v.state_or_region ? ` (${v.state_or_region})` : ""}
+                                {v.driver_name && ` · ${v.driver_name}`}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+
+                {/* Pets */}
+                {(pets.length > 0 || reg.lodgify_num_pets > 0) && (
+                  <>
+                    <Separator />
+                    <div className="space-y-2">
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+                        <PawPrint className="h-3.5 w-3.5" />
+                        Pets
+                        <span className="normal-case tracking-normal font-normal">
+                          {reg.lodgify_num_pets > 0
+                            ? `${pets.length} registered / ${reg.lodgify_num_pets} booked`
+                            : `(${pets.length})`}
+                        </span>
+                        {pets.length > reg.lodgify_num_pets && reg.lodgify_num_pets > 0 && (
+                          <Badge variant="outline" className="text-xs text-amber-600 border-amber-300 ml-auto normal-case tracking-normal">
+                            +{pets.length - reg.lodgify_num_pets} extra
+                          </Badge>
+                        )}
+                      </p>
+                      {pets.length > 0 ? (
+                        <div className="space-y-1">
+                          {pets.map((p, i) => (
+                            <div key={i} className="bg-muted rounded-md px-3 py-2 text-sm">
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium">{p.name}</span>
+                                <span className="text-muted-foreground">({p.kind})</span>
+                                {reg.lodgify_num_pets > 0 && i < reg.lodgify_num_pets && (
+                                  <Badge variant="outline" className="text-xs text-green-700 border-green-300">Pre-paid</Badge>
+                                )}
+                                {reg.lodgify_num_pets > 0 && i >= reg.lodgify_num_pets && (
+                                  <Badge variant="outline" className="text-xs text-amber-600 border-amber-300">Add-on</Badge>
+                                )}
+                              </div>
+                              <div className="flex gap-2 mt-1">
+                                {p.rabies_doc_path && <Badge variant="outline" className="text-xs">Rabies doc</Badge>}
+                                {p.vaccination_doc_path && <Badge variant="outline" className="text-xs">Vaccination doc</Badge>}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">
+                          {reg.lodgify_num_pets} pet{reg.lodgify_num_pets !== 1 ? "s" : ""} booked — not yet registered
+                        </p>
+                      )}
+                    </div>
+                  </>
+                )}
+
                 <Separator />
                 <button
                   type="button"
@@ -590,152 +785,6 @@ export default function ReservationDetailPage() {
               </CardContent>
             </Card>
           </div>
-
-          {/* Guest List */}
-          {guestList.length > 0 && (
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Users className="h-4 w-4" /> Guest List ({guestList.length})
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                  {guestList.map((g, i) => (
-                    <div key={i} className="flex items-center justify-between bg-muted rounded-md px-3 py-2 text-sm">
-                      <span>{g.first_name} {g.last_name}</span>
-                      <Badge variant="outline" className="text-xs capitalize">
-                        {g.age_group === "over_21" ? "Adult" : g.age_group === "under_21" ? "Child" : "Infant"}
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Infant Needs */}
-          {(!!reg.tips?.needs_highchair || !!reg.tips?.needs_pack_n_play) && (
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Baby className="h-4 w-4" /> Infant Needs
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-wrap gap-2">
-                  {!!reg.tips?.needs_highchair && (
-                    <Badge variant="secondary">Highchair</Badge>
-                  )}
-                  {!!reg.tips?.needs_pack_n_play && (
-                    <Badge variant="secondary">Pack &apos;n Play</Badge>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Pets */}
-          {(pets.length > 0 || reg.lodgify_num_pets > 0) && (
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <PawPrint className="h-4 w-4" /> Pets
-                  <span className="text-sm font-normal text-muted-foreground">
-                    {reg.lodgify_num_pets > 0
-                      ? `${pets.length} registered / ${reg.lodgify_num_pets} booked`
-                      : `(${pets.length})`}
-                  </span>
-                  {pets.length > reg.lodgify_num_pets && reg.lodgify_num_pets > 0 && (
-                    <Badge variant="outline" className="text-xs text-amber-600 border-amber-300">
-                      +{pets.length - reg.lodgify_num_pets} extra
-                    </Badge>
-                  )}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {pets.length > 0 ? (
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    {pets.map((p, i) => (
-                      <div key={i} className="bg-muted rounded-md px-3 py-2 text-sm">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium">{p.name}</span>
-                          <span className="text-muted-foreground">({p.kind})</span>
-                          {reg.lodgify_num_pets > 0 && i < reg.lodgify_num_pets && (
-                            <Badge variant="outline" className="text-xs text-green-700 border-green-300">Pre-paid</Badge>
-                          )}
-                          {reg.lodgify_num_pets > 0 && i >= reg.lodgify_num_pets && (
-                            <Badge variant="outline" className="text-xs text-amber-600 border-amber-300">Add-on</Badge>
-                          )}
-                        </div>
-                        <div className="flex gap-2 mt-1">
-                          {p.rabies_doc_path && <Badge variant="outline" className="text-xs">Rabies doc</Badge>}
-                          {p.vaccination_doc_path && <Badge variant="outline" className="text-xs">Vaccination doc</Badge>}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">
-                    {reg.lodgify_num_pets} pet{reg.lodgify_num_pets !== 1 ? "s" : ""} booked — not yet registered
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Vehicles */}
-          {vehicles.length > 0 && (
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Car className="h-4 w-4" /> Vehicles ({vehicles.length})
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {vehicles.map((v) => (
-                    <div key={v.id} className="bg-muted rounded-md px-3 py-2 text-sm space-y-0.5">
-                      <p className="font-medium">
-                        {[v.year, v.make, v.model].filter(Boolean).join(" ") || "Unknown vehicle"}
-                      </p>
-                      <p className="text-muted-foreground text-xs">
-                        {v.color && <span>{v.color} &middot; </span>}
-                        {v.license_plate} {v.state_or_region && `(${v.state_or_region})`}
-                      </p>
-                      {v.driver_name && <p className="text-xs text-muted-foreground">Driver: {v.driver_name}</p>}
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Upsells */}
-          {upsells.length > 0 && (
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <DollarSign className="h-4 w-4" /> Upsells ({upsells.length})
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {upsells.map((u, i) => (
-                    <div key={i} className="flex items-center justify-between bg-muted rounded-md px-3 py-2 text-sm">
-                      <span>{u.label}</span>
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium">${(u.price_cents / 100).toFixed(0)}</span>
-                        <Badge variant={u.status === "paid" ? "default" : "outline"} className="text-xs capitalize">
-                          {u.status}
-                        </Badge>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
           {/* Charges Incurred */}
           {charges.length > 0 && (
             <Card>
