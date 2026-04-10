@@ -220,8 +220,22 @@ export function GettingHereMap({ propertyAddress, variant = "penn-estates" }: Ge
           await delay(300);
         }
 
-        // Wrong route last (faded red)
+        // Pan SW to reveal the wrong route area
         setCurrentStep(3);
+        if (mapRef.current) {
+          const fullBounds = new google.maps.LatLngBounds();
+          fullBounds.extend(NORTH_GATE);
+          fullBounds.extend(SOUTH_GATE);
+          fullBounds.extend(HALLET_START);
+          fullBounds.extend(CRANBERRY_START);
+          if (homeLocation) fullBounds.extend(homeLocation);
+          mapRef.current.panToBounds(fullBounds, { top: 60, bottom: 60, left: 50, right: 50 });
+          // Also adjust zoom to fit everything
+          mapRef.current.fitBounds(fullBounds, { top: 60, bottom: 60, left: 50, right: 50 });
+        }
+        await delay(800);
+
+        // Wrong route (faded red)
         await animatePath(wrongFull.current, setWrongPath, 1200);
 
         // Show "DON'T GO HERE" tooltip on the wrong gate
@@ -263,14 +277,15 @@ export function GettingHereMap({ propertyAddress, variant = "penn-estates" }: Ge
       if (isBml) {
         bounds.extend(BML_START);
         bounds.extend(homeLocation || BML_HOME);
+        map.fitBounds(bounds, { top: 60, bottom: 60, left: 50, right: 50 });
       } else {
-        bounds.extend(NORTH_GATE);
-        bounds.extend(SOUTH_GATE);
-        bounds.extend(HALLET_START);
-        bounds.extend(CRANBERRY_START);
-        if (homeLocation) bounds.extend(homeLocation);
+        // Start zoomed in on the NE corner (routes 1 & 2)
+        const neBounds = new google.maps.LatLngBounds();
+        neBounds.extend(HALLET_START);
+        neBounds.extend(NORTH_GATE);
+        if (homeLocation) neBounds.extend(homeLocation);
+        map.fitBounds(neBounds, { top: 60, bottom: 60, left: 50, right: 50 });
       }
-      map.fitBounds(bounds, { top: 60, bottom: 60, left: 50, right: 50 });
     },
     [homeLocation, isBml]
   );
