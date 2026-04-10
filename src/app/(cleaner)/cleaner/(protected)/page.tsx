@@ -39,8 +39,10 @@ export default async function CleanerHomePage({
 
   const { data: properties } = await supabase
     .from("property")
-    .select("id, name, nickname, cleaning_fee_cents, pet_fee_cents")
+    .select("id, name, nickname, cleaning_fee_cents")
     .in("id", propertyIds);
+
+  const cleanerPetFee = cleaner.pet_fee_cents ?? 0;
 
   const propMap = new Map(
     (properties || []).map((p) => [
@@ -48,7 +50,7 @@ export default async function CleanerHomePage({
       {
         name: p.nickname || p.name,
         cleaningFee: p.cleaning_fee_cents ?? 0,
-        petFee: p.pet_fee_cents ?? 0,
+        petFee: cleanerPetFee,
       },
     ])
   );

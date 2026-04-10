@@ -94,8 +94,17 @@ export default async function AdminInvoicesPage() {
       // Get properties with fees
       const { data: properties } = await admin
         .from("property")
-        .select("id, name, cover_image_url, cleaning_fee_cents, pet_fee_cents")
+        .select("id, name, cover_image_url, cleaning_fee_cents")
         .in("id", allPropertyIds);
+
+      // Get cleaner pet fees
+      const { data: cleanerRows } = await admin
+        .from("cleaner")
+        .select("id, pet_fee_cents")
+        .in("id", cleanerIds);
+      const cleanerPetFeeMap = new Map(
+        (cleanerRows || []).map((c) => [c.id, c.pet_fee_cents ?? 0])
+      );
 
       const propMap = new Map(
         (properties || []).map((p) => [p.id, p])
@@ -154,11 +163,11 @@ export default async function AdminInvoicesPage() {
             const pets = r.pets as Array<{ name?: string }> | null;
             const hasPets = (pets || []).some((p) => p.name?.trim());
             const cleaningFee = prop.cleaning_fee_cents ?? 0;
-            const petFee = hasPets ? (prop.pet_fee_cents ?? 0) : 0;
+            const cleanerId = propertyCleanerMap.get(r.property_id) || "";
+            const petFee = hasPets ? (cleanerPetFeeMap.get(cleanerId) ?? 0) : 0;
             const guest = r.guest as unknown as {
               full_name: string;
             } | null;
-            const cleanerId = propertyCleanerMap.get(r.property_id) || "";
             return {
               registrationId: r.id,
               propertyName: prop.name,

@@ -51,7 +51,7 @@ export async function validateCleanerSession(token: string) {
 
   const { data: cleaner } = await supabase
     .from("cleaner")
-    .select("id, name, host_id, is_active")
+    .select("id, name, host_id, is_active, pet_fee_cents")
     .eq("id", session.cleaner_id)
     .single();
 

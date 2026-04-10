@@ -20,7 +20,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Pencil, Trash2, Eye, EyeOff, Phone, DollarSign } from "lucide-react";
+import { Plus, Pencil, Trash2, Eye, EyeOff, Phone, DollarSign, PawPrint } from "lucide-react";
 import type { Tables } from "@/types/database";
 
 type CleanerWithCount = Tables<"cleaner"> & { property_count: number };
@@ -77,12 +77,16 @@ export default function AdminCleanersPage() {
     const monthly_fee_cents = monthlyFeeStr
       ? Math.round(parseFloat(monthlyFeeStr) * 100)
       : 0;
+    const petFeeStr = formData.get("pet_fee") as string;
+    const pet_fee_cents = petFeeStr
+      ? Math.round(parseFloat(petFeeStr) * 100)
+      : 0;
 
     if (editing) {
-      // Update name, phone, and monthly fee
+      // Update name, phone, and fees
       await supabase
         .from("cleaner")
-        .update({ name, phone, monthly_fee_cents })
+        .update({ name, phone, monthly_fee_cents, pet_fee_cents })
         .eq("id", editing.id);
 
       // Update password if provided
@@ -142,6 +146,7 @@ export default function AdminCleanersPage() {
         phone,
         password_hash: hash,
         monthly_fee_cents,
+        pet_fee_cents,
       });
     }
 
@@ -231,6 +236,25 @@ export default function AdminCleanersPage() {
                 </p>
               </div>
               <div className="space-y-2">
+                <Label htmlFor="pet_fee">Pet Fee ($)</Label>
+                <Input
+                  id="pet_fee"
+                  name="pet_fee"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  defaultValue={
+                    editing
+                      ? (editing.pet_fee_cents / 100).toFixed(2)
+                      : ""
+                  }
+                  placeholder="0.00"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Amount paid to cleaner per pet cleaning (guests are charged $100)
+                </p>
+              </div>
+              <div className="space-y-2">
                 <Label htmlFor="password">
                   Password{editing ? " (leave blank to keep current)" : ""}
                 </Label>
@@ -288,6 +312,12 @@ export default function AdminCleanersPage() {
                       <span className="inline-flex items-center gap-1 ml-2">
                         <DollarSign className="h-3 w-3" />
                         ${(cleaner.monthly_fee_cents / 100).toFixed(2)}/mo
+                      </span>
+                    )}
+                    {cleaner.pet_fee_cents > 0 && (
+                      <span className="inline-flex items-center gap-1 ml-2">
+                        <PawPrint className="h-3 w-3" />
+                        ${(cleaner.pet_fee_cents / 100).toFixed(2)}/pet
                       </span>
                     )}
                   </p>

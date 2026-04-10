@@ -122,7 +122,7 @@ export default async function CalendarPage() {
     const petsArr = r.pets as unknown as PetEntry[] | null;
     const hasPets = (petsArr?.length ?? 0) > 0;
     const cleaningFeeCents = property?.cleaning_fee_cents ?? 0;
-    const petFeeCents = hasPets ? (property?.pet_fee_cents ?? 0) : 0;
+    const petFeeCents = hasPets ? (cleaner.pet_fee_cents ?? 0) : 0;
     const cleanerRevenueCents = cleaningFeeCents + petFeeCents;
     return {
       id: r.id,

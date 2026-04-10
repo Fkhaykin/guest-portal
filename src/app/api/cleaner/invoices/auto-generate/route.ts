@@ -20,7 +20,7 @@ export async function POST(request: Request) {
   // Get all active cleaners
   const { data: cleaners } = await supabase
     .from("cleaner")
-    .select("id, host_id")
+    .select("id, host_id, pet_fee_cents")
     .eq("is_active", true);
 
   if (!cleaners || cleaners.length === 0) {
@@ -84,7 +84,7 @@ export async function POST(request: Request) {
 
     const { data: properties } = await supabase
       .from("property")
-      .select("id, name, cleaning_fee_cents, pet_fee_cents")
+      .select("id, name, cleaning_fee_cents")
       .in("id", propertyIds);
 
     const propMap = new Map((properties || []).map((p) => [p.id, p]));
@@ -109,10 +109,10 @@ export async function POST(request: Request) {
         });
       }
 
-      // Pet fee
+      // Pet fee (use cleaner's rate, not property's guest-facing rate)
       const pets = reg.pets as Array<{ name?: string }> | null;
       const hasPets = (pets || []).some((p) => p.name?.trim());
-      const petFee = prop.pet_fee_cents ?? 0;
+      const petFee = cleaner.pet_fee_cents ?? 0;
       if (hasPets && petFee > 0) {
         lineItems.push({
           description: `Pet fee — ${prop.name} (checkout ${reg.check_out_date})`,

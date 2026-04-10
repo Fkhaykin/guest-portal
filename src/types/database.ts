@@ -643,6 +643,7 @@ export type Database = {
           password_hash: string;
           is_active: boolean;
           monthly_fee_cents: number;
+          pet_fee_cents: number;
           created_at: string;
           updated_at: string;
         };
@@ -654,6 +655,7 @@ export type Database = {
           password_hash: string;
           is_active?: boolean;
           monthly_fee_cents?: number;
+          pet_fee_cents?: number;
           created_at?: string;
           updated_at?: string;
         };
@@ -665,6 +667,7 @@ export type Database = {
           password_hash?: string;
           is_active?: boolean;
           monthly_fee_cents?: number;
+          pet_fee_cents?: number;
           created_at?: string;
           updated_at?: string;
         };

@@ -36,10 +36,18 @@ export default async function AdminInvoiceEditPage({
 
   if (!invoice) notFound();
 
+  // Get cleaner's pet fee rate
+  const { data: invoiceCleaner } = await admin
+    .from("cleaner")
+    .select("pet_fee_cents")
+    .eq("id", invoice.cleaner_id)
+    .single();
+  const cleanerPetFee = invoiceCleaner?.pet_fee_cents ?? 0;
+
   // Load properties for the form (needed for cleaning line property selectors)
   const { data: properties } = await admin
     .from("property")
-    .select("id, name, cleaning_fee_cents, pet_fee_cents")
+    .select("id, name, cleaning_fee_cents")
     .eq("host_id", host.id)
     .order("name");
 
@@ -47,7 +55,7 @@ export default async function AdminInvoiceEditPage({
     id: p.id,
     name: p.name,
     cleaningFeeCents: p.cleaning_fee_cents || 0,
-    petFeeCents: p.pet_fee_cents || 0,
+    petFeeCents: cleanerPetFee,
   }));
 
   return (

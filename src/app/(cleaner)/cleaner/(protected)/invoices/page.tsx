@@ -66,7 +66,7 @@ export default async function InvoicesPage() {
 
   const { data: properties } = await supabase
     .from("property")
-    .select("id, name, cover_image_url, cleaning_fee_cents, pet_fee_cents")
+    .select("id, name, cover_image_url, cleaning_fee_cents")
     .in("id", propertyIds.length > 0 ? propertyIds : ["_none_"]);
 
   const propMap = new Map(
@@ -119,7 +119,7 @@ export default async function InvoicesPage() {
         const pets = r.pets as Array<{ name?: string }> | null;
         const hasPets = (pets || []).some((p) => p.name?.trim());
         const cleaningFee = prop.cleaning_fee_cents ?? 0;
-        const petFee = hasPets ? (prop.pet_fee_cents ?? 0) : 0;
+        const petFee = hasPets ? (cleaner.pet_fee_cents ?? 0) : 0;
         const guest = r.guest as unknown as { full_name: string } | null;
         const guestName = guest?.full_name || null;
         return {
