@@ -170,9 +170,9 @@ function UnpaidTab({
       </Card>
 
       {/* Cleaning list */}
-      <div className="space-y-6">
+      <div className="flex flex-col gap-4">
         {cleanings.map((c) => (
-          <Link key={c.registrationId} href={`/admin/reservations/${c.registrationId}`}>
+          <Link key={c.registrationId} href={`/admin/reservations/${c.registrationId}`} className="block">
             <Card className="hover:bg-accent/50 transition-colors cursor-pointer">
               <CardContent className="py-3">
                 <div className="flex items-center gap-3">
@@ -286,9 +286,9 @@ function HistoryTab({ invoices }: { invoices: AdminInvoiceRow[] }) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-4">
       {invoices.map((inv) => (
-        <Link key={inv.id} href={`/admin/invoices/${inv.id}`}>
+        <Link key={inv.id} href={`/admin/invoices/${inv.id}`} className="block">
           <Card className="hover:bg-accent/50 transition-colors cursor-pointer">
             <CardContent className="py-4 flex items-center justify-between">
               <div className="space-y-1">
