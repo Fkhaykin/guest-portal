@@ -1268,24 +1268,28 @@ function BarTooltip({
 
 function ViewportClamp({ children }: { children: React.ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
+  const offsetRef = useRef({ x: 0, y: 0 });
   const [offset, setOffset] = useState({ x: 0, y: 0 });
 
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
+    // Temporarily remove transform to measure natural position
+    el.style.transform = "";
     const rect = el.getBoundingClientRect();
-    // Undo current transform to get the natural position
-    const naturalRight = rect.right - offset.x;
-    const naturalLeft = rect.left - offset.x;
-    const naturalBottom = rect.bottom - offset.y;
-    const naturalTop = rect.top - offset.y;
     let dx = 0;
     let dy = 0;
-    if (naturalRight > window.innerWidth - 8) dx = window.innerWidth - 8 - naturalRight;
-    if (naturalLeft < 8) dx = 8 - naturalLeft;
-    if (naturalBottom > window.innerHeight - 8) dy = window.innerHeight - 8 - naturalBottom;
-    if (naturalTop < 8) dy = 8 - naturalTop;
-    if (dx !== offset.x || dy !== offset.y) setOffset({ x: dx, y: dy });
+    if (rect.right > window.innerWidth - 8) dx = window.innerWidth - 8 - rect.right;
+    if (rect.left < 8) dx = 8 - rect.left;
+    if (rect.bottom > window.innerHeight - 8) dy = window.innerHeight - 8 - rect.bottom;
+    if (rect.top < 8) dy = 8 - rect.top;
+    dx = Math.round(dx);
+    dy = Math.round(dy);
+    el.style.transform = `translate(${dx}px, ${dy}px)`;
+    if (dx !== offsetRef.current.x || dy !== offsetRef.current.y) {
+      offsetRef.current = { x: dx, y: dy };
+      setOffset({ x: dx, y: dy });
+    }
   }); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
