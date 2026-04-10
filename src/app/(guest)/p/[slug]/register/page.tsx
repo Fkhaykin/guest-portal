@@ -146,6 +146,7 @@ function loadSession(): SessionData | null {
 }
 
 function saveRegistrationProgress(data: {
+  registrationId: string;
   step: number;
   fullName: string;
   email: string;
@@ -276,9 +277,9 @@ export default function RegisterPage() {
     }
     setSession(s);
 
-    // Restore progress if any
+    // Restore progress if it belongs to the current registration
     const progress = loadRegistrationProgress();
-    if (progress) {
+    if (progress && progress.registrationId === s.reservation.id) {
       setStep(Math.min(progress.step || 1, 7));
       setFullName(progress.fullName || s.guestName);
       setEmail(progress.email || "");
@@ -292,6 +293,8 @@ export default function RegisterPage() {
       setNeedsHighchair(progress.needsHighchair || false);
       setNeedsPackNPlay(progress.needsPackNPlay || false);
     } else {
+      // Clear stale progress from a different registration
+      if (progress) sessionStorage.removeItem(REG_KEY);
       setFullName(s.guestName);
       // Pre-populate guest list with the primary guest
       setGuests([splitName(s.guestName)]);
@@ -315,9 +318,9 @@ export default function RegisterPage() {
 
   // Persist progress on changes
   useEffect(() => {
-    if (!loaded) return;
-    saveRegistrationProgress({ step, fullName, email, phone, address, guests, hasPets, pets, notes, vehicles, needsHighchair, needsPackNPlay });
-  }, [step, fullName, email, phone, address, guests, hasPets, pets, notes, vehicles, needsHighchair, needsPackNPlay, loaded]);
+    if (!loaded || !session) return;
+    saveRegistrationProgress({ registrationId: session.reservation.id, step, fullName, email, phone, address, guests, hasPets, pets, notes, vehicles, needsHighchair, needsPackNPlay });
+  }, [session, step, fullName, email, phone, address, guests, hasPets, pets, notes, vehicles, needsHighchair, needsPackNPlay, loaded]);
 
   // Load upsells when entering step 6
   async function loadUpsells() {
@@ -414,7 +417,7 @@ export default function RegisterPage() {
     // Need to pay for the extra pet(s)
     setPetFeeLoading(true);
     // Save current state before redirect
-    saveRegistrationProgress({ step: 4, fullName, email, phone, address, guests, hasPets: true, pets: petsList, notes, vehicles });
+    saveRegistrationProgress({ registrationId: session.reservation.id, step: 4, fullName, email, phone, address, guests, hasPets: true, pets: petsList, notes, vehicles });
     backupForStripeRedirect();
 
     try {
@@ -470,7 +473,7 @@ export default function RegisterPage() {
       if (res.ok) {
         const data = await res.json();
         if (data.url) {
-          saveRegistrationProgress({ step: 6, fullName, email, phone, address, guests, hasPets, pets, notes, vehicles, needsHighchair, needsPackNPlay });
+          saveRegistrationProgress({ registrationId: session!.reservation.id, step: 6, fullName, email, phone, address, guests, hasPets, pets, notes, vehicles, needsHighchair, needsPackNPlay });
           backupForStripeRedirect();
           window.location.href = data.url;
         }
