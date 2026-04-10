@@ -11,7 +11,6 @@ import {
   Tag,
   MapPin,
   HelpCircle,
-  Video,
   Gift,
 } from "lucide-react";
 
@@ -44,7 +43,6 @@ export function GuestNav({ slug: slugProp }: { slug?: string } = {}) {
     { label: "Promotions", href: "/promotions", icon: Tag },
     { label: "Explore", href: "/recommendations", icon: MapPin },
     { label: "FAQ", href: "/faq", icon: HelpCircle },
-    { label: "Videos", href: "/videos", icon: Video },
   ];
 
   return (
