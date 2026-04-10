@@ -716,7 +716,7 @@ export default function UpdateRegistrationPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               <div className="space-y-1">
                 <Label>License Plate</Label>
                 <Input value={newDriver.license_plate} onChange={(e) => setNewDriver({ ...newDriver, license_plate: e.target.value })} placeholder="ABC-1234" />
@@ -891,7 +891,7 @@ export default function UpdateRegistrationPage() {
         )}
 
         {deliveryStep === 2 && deliveryCategory === "food_grocery" && (
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             {FOOD_PROVIDERS.map((p) => (
               <Card
                 key={p.id}
@@ -1058,7 +1058,7 @@ export default function UpdateRegistrationPage() {
 
   // --- Menu screen ---
   return (
-    <div className="space-y-6 max-w-lg mx-auto">
+    <div className="space-y-6 max-w-2xl mx-auto">
       <div className="text-center space-y-2">
         <h1 className="text-2xl font-bold tracking-tight">Manage Your Stay</h1>
         <p className="text-muted-foreground text-sm">
@@ -1072,7 +1072,7 @@ export default function UpdateRegistrationPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-3 gap-3">
         <Card className="cursor-pointer hover:bg-accent transition-colors" onClick={() => setView("add-guest")}>
           <CardContent className="flex flex-col items-center text-center gap-3 p-5">
             <div className="rounded-full bg-primary/10 p-3">
