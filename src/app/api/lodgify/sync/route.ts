@@ -5,7 +5,7 @@ export const maxDuration = 300;
 
 export async function POST(request: Request) {
   // Protect with CRON_SECRET so only admins/cron can trigger
-  const secret = process.env.CRON_SECRET;
+  const secret = process.env.CRON_SECRET?.trim();
   if (secret) {
     const authHeader = request.headers.get("authorization");
     if (authHeader !== `Bearer ${secret}`) {

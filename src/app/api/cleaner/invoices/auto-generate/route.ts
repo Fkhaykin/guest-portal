@@ -7,7 +7,7 @@ import type { InvoiceLineItem } from "@/types/database";
 // Called by a cron job (every Monday) or manually by the host.
 // Requires CRON_SECRET header for security.
 export async function POST(request: Request) {
-  const secret = process.env.CRON_SECRET;
+  const secret = process.env.CRON_SECRET?.trim();
   if (secret) {
     const authHeader = request.headers.get("authorization");
     if (authHeader !== `Bearer ${secret}`) {

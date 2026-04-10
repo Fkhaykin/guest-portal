@@ -6,7 +6,7 @@ export const maxDuration = 300;
 // GET /api/lodgify/cron-sync
 // Called by Vercel cron to sync all Lodgify bookings.
 export async function GET(request: Request) {
-  const secret = process.env.CRON_SECRET;
+  const secret = process.env.CRON_SECRET?.trim();
   if (secret) {
     const authHeader = request.headers.get("authorization");
     if (authHeader !== `Bearer ${secret}`) {
