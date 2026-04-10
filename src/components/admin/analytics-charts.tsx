@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, useCallback } from "react";
 import Link from "next/link";
 import {
   Card,
@@ -1133,42 +1133,44 @@ function RevenueTooltip({
   });
 
   return (
-    <div className="rounded-lg border bg-card px-3 py-2 text-sm shadow-md max-h-80 overflow-y-auto" style={{ minWidth: 220, maxWidth: 360 }}>
-      <p className="mb-1.5 font-medium">{formatBucketLabel(bucketKey, gb)}</p>
-      {sorted.map((entry) => {
-        const resList = entry.dataKey !== "Total" ? bucketReservations[entry.dataKey] : undefined;
-        const expandKey = `${bucketKey}:${entry.dataKey}`;
-        const isExpanded = expandedSet.has(expandKey);
-        const hasReservations = resList && resList.length > 0;
-        return (
-          <div key={entry.dataKey}>
-            <div
-              className={`flex items-center justify-between gap-4 ${
-                entry.dataKey === "Total" ? "mt-1.5 border-t pt-1.5 font-semibold" : ""
-              } ${hasReservations ? "cursor-pointer hover:bg-muted/50 -mx-1 px-1 rounded" : ""}`}
-              onClick={hasReservations ? (e: React.MouseEvent) => {
-                e.stopPropagation();
-                if (expandedSet.has(expandKey)) expandedSet.delete(expandKey);
-                else expandedSet.add(expandKey);
-                forceUpdate((n) => n + 1);
-              } : undefined}
-            >
-              <span className="flex items-center gap-1.5">
-                <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: entry.color }} />
-                {entry.dataKey}
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span>{formatDollars(entry.value)}</span>
-                {hasReservations && (
-                  <span className="text-[10px] text-muted-foreground w-3">{isExpanded ? "▾" : "▸"}</span>
-                )}
-              </span>
+    <ViewportClamp>
+      <div className="rounded-lg border bg-card px-3 py-2 text-sm shadow-md max-h-80 overflow-y-auto" style={{ minWidth: 220, maxWidth: 360 }}>
+        <p className="mb-1.5 font-medium">{formatBucketLabel(bucketKey, gb)}</p>
+        {sorted.map((entry) => {
+          const resList = entry.dataKey !== "Total" ? bucketReservations[entry.dataKey] : undefined;
+          const expandKey = `${bucketKey}:${entry.dataKey}`;
+          const isExpanded = expandedSet.has(expandKey);
+          const hasReservations = resList && resList.length > 0;
+          return (
+            <div key={entry.dataKey}>
+              <div
+                className={`flex items-center justify-between gap-4 ${
+                  entry.dataKey === "Total" ? "mt-1.5 border-t pt-1.5 font-semibold" : ""
+                } ${hasReservations ? "cursor-pointer hover:bg-muted/50 -mx-1 px-1 rounded" : ""}`}
+                onClick={hasReservations ? (e: React.MouseEvent) => {
+                  e.stopPropagation();
+                  if (expandedSet.has(expandKey)) expandedSet.delete(expandKey);
+                  else expandedSet.add(expandKey);
+                  forceUpdate((n) => n + 1);
+                } : undefined}
+              >
+                <span className="flex items-center gap-1.5">
+                  <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: entry.color }} />
+                  {entry.dataKey}
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span>{formatDollars(entry.value)}</span>
+                  {hasReservations && (
+                    <span className="text-[10px] text-muted-foreground w-3">{isExpanded ? "▾" : "▸"}</span>
+                  )}
+                </span>
+              </div>
+              {isExpanded && resList && <ReservationList reservations={resList} />}
             </div>
-            {isExpanded && resList && <ReservationList reservations={resList} />}
-          </div>
-        );
-      })}
-    </div>
+          );
+        })}
+      </div>
+    </ViewportClamp>
   );
 }
 
@@ -1207,40 +1209,66 @@ function BarTooltip({
   );
 
   return (
-    <div className="rounded-lg border bg-card px-3 py-2 text-sm shadow-md max-h-80 overflow-y-auto" style={{ minWidth: 220, maxWidth: 360 }}>
-      <p className="mb-1.5 font-medium">{formatBucketLabel(bucketKey, gb)}</p>
-      {sorted.map((entry) => {
-        const resList = bucketReservations[entry.dataKey];
-        const expandKey = `${bucketKey}:${entry.dataKey}`;
-        const isExpanded = expandedSet.has(expandKey);
-        const hasReservations = resList && resList.length > 0;
-        return (
-          <div key={entry.dataKey}>
-            <div
-              className={`flex items-center justify-between gap-4 ${hasReservations ? "cursor-pointer hover:bg-muted/50 -mx-1 px-1 rounded" : ""}`}
-              onClick={hasReservations ? (e: React.MouseEvent) => {
-                e.stopPropagation();
-                if (expandedSet.has(expandKey)) expandedSet.delete(expandKey);
-                else expandedSet.add(expandKey);
-                forceUpdate((n) => n + 1);
-              } : undefined}
-            >
-              <span className="flex items-center gap-1.5">
-                <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: entry.color }} />
-                {entry.dataKey}
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span>{fmt(entry.value)}</span>
-                {showNights && resList && <span className="text-muted-foreground">({resList.reduce((s, r) => s + r.nights, 0)}n)</span>}
-                {hasReservations && (
-                  <span className="text-[10px] text-muted-foreground w-3">{isExpanded ? "▾" : "▸"}</span>
-                )}
-              </span>
+    <ViewportClamp>
+      <div className="rounded-lg border bg-card px-3 py-2 text-sm shadow-md max-h-80 overflow-y-auto" style={{ minWidth: 220, maxWidth: 360 }}>
+        <p className="mb-1.5 font-medium">{formatBucketLabel(bucketKey, gb)}</p>
+        {sorted.map((entry) => {
+          const resList = bucketReservations[entry.dataKey];
+          const expandKey = `${bucketKey}:${entry.dataKey}`;
+          const isExpanded = expandedSet.has(expandKey);
+          const hasReservations = resList && resList.length > 0;
+          return (
+            <div key={entry.dataKey}>
+              <div
+                className={`flex items-center justify-between gap-4 ${hasReservations ? "cursor-pointer hover:bg-muted/50 -mx-1 px-1 rounded" : ""}`}
+                onClick={hasReservations ? (e: React.MouseEvent) => {
+                  e.stopPropagation();
+                  if (expandedSet.has(expandKey)) expandedSet.delete(expandKey);
+                  else expandedSet.add(expandKey);
+                  forceUpdate((n) => n + 1);
+                } : undefined}
+              >
+                <span className="flex items-center gap-1.5">
+                  <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: entry.color }} />
+                  {entry.dataKey}
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span>{fmt(entry.value)}</span>
+                  {showNights && resList && <span className="text-muted-foreground">({resList.reduce((s, r) => s + r.nights, 0)}n)</span>}
+                  {hasReservations && (
+                    <span className="text-[10px] text-muted-foreground w-3">{isExpanded ? "▾" : "▸"}</span>
+                  )}
+                </span>
+              </div>
+              {isExpanded && resList && <ReservationList reservations={resList} showNights={showNights} />}
             </div>
-            {isExpanded && resList && <ReservationList reservations={resList} showNights={showNights} />}
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
+    </ViewportClamp>
+  );
+}
+
+function ViewportClamp({ children }: { children: React.ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    let dx = 0;
+    let dy = 0;
+    if (rect.right > window.innerWidth - 8) dx = window.innerWidth - 8 - rect.right;
+    if (rect.left < 8) dx = 8 - rect.left;
+    if (rect.bottom > window.innerHeight - 8) dy = window.innerHeight - 8 - rect.bottom;
+    if (rect.top < 8) dy = 8 - rect.top;
+    if (dx !== offset.x || dy !== offset.y) setOffset({ x: dx, y: dy });
+  });
+
+  return (
+    <div ref={ref} style={{ transform: `translate(${offset.x}px, ${offset.y}px)` }}>
+      {children}
     </div>
   );
 }
