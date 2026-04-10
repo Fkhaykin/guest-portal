@@ -106,12 +106,13 @@ function SourceLogo({ source, className }: { source: string; className?: string 
 }
 
 type GroupBy = "week" | "month" | "quarter";
-type DatePreset = "30d" | "90d" | "6m" | "1y" | "all" | "custom";
+type DatePreset = "30d" | "90d" | "6m" | "ytd" | "1y" | "all" | "custom";
 
 const PRESETS: { value: DatePreset; label: string }[] = [
   { value: "30d", label: "30 days" },
   { value: "90d", label: "90 days" },
   { value: "6m", label: "6 months" },
+  { value: "ytd", label: "Year to date" },
   { value: "1y", label: "1 year" },
   { value: "all", label: "All time" },
   { value: "custom", label: "Custom" },
@@ -183,6 +184,7 @@ function getPresetRange(preset: DatePreset): [Date | null, Date | null] {
   if (preset === "30d") from.setDate(from.getDate() - 30);
   else if (preset === "90d") from.setDate(from.getDate() - 90);
   else if (preset === "6m") from.setMonth(from.getMonth() - 6);
+  else if (preset === "ytd") { from.setMonth(0); from.setDate(1); }
   else if (preset === "1y") from.setFullYear(from.getFullYear() - 1);
   return [from, now];
 }
