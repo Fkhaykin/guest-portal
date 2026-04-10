@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 const SESSION_KEY = "guest-portal-session";
 
@@ -120,13 +121,16 @@ export function PropertyHeader({
             {propertyName}
           </h1>
         </div>
-        {mounted && hasSession && (
-          <Link href="/">
-            <Button variant="outline" size="sm" className="shrink-0">
-              My Booking
-            </Button>
-          </Link>
-        )}
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+          {mounted && hasSession && (
+            <Link href="/">
+              <Button variant="outline" size="sm" className="shrink-0">
+                My Booking
+              </Button>
+            </Link>
+          )}
+        </div>
       </div>
     </header>
   );

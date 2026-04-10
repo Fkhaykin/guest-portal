@@ -220,29 +220,31 @@ function GuestDashboard({
           : "In progress";
 
   return (
-    <main className="flex-1 flex flex-col items-center p-4 sm:p-6">
-      <div className="max-w-2xl w-full space-y-6">
-        {/* Hero image */}
-        {reservation.property.cover_image_url && (
-          <div className="relative rounded-xl overflow-hidden aspect-video">
+    <main className="flex-1 flex flex-col items-center">
+      {/* Hero image — full width, fades into background */}
+      {reservation.property.cover_image_url && (
+        <div className="relative w-full">
+          <div className="relative w-full aspect-16/10 sm:aspect-video">
             <img
               src={reservation.property.cover_image_url}
               alt={reservation.property.name}
               className="w-full h-full object-cover"
             />
-            <div className="absolute inset-0 bg-linear-to-t from-black/60 via-transparent to-transparent" />
-            <div className="absolute bottom-0 left-0 right-0 p-6 text-white">
+            <div className="absolute inset-0 bg-linear-to-t from-background via-background/20 to-transparent" />
+          </div>
+          <div className="absolute bottom-4 left-0 right-0 px-6 sm:px-8">
+            <div className="max-w-2xl mx-auto">
               <h2 className="text-2xl sm:text-3xl font-bold leading-tight">
                 {reservation.property.name}
               </h2>
               {reservation.property.address && (
                 daysUntil <= 7 ? (
-                  <p className="flex items-start gap-1.5 mt-1 text-sm text-white/80">
+                  <p className="flex items-start gap-1.5 mt-1 text-sm text-muted-foreground">
                     <MapPin className="h-3.5 w-3.5 shrink-0 mt-0.5" />
                     <span className="wrap-break-word">{reservation.property.address}</span>
                   </p>
                 ) : (
-                  <p className="flex items-center gap-1.5 mt-1 text-sm text-white/50">
+                  <p className="flex items-center gap-1.5 mt-1 text-sm text-muted-foreground/60">
                     <Lock className="h-3.5 w-3.5" />
                     Address available 7 days before check-in
                   </p>
@@ -250,8 +252,10 @@ function GuestDashboard({
               )}
             </div>
           </div>
-        )}
+        </div>
+      )}
 
+      <div className="max-w-2xl w-full space-y-6 p-4 sm:p-6">
         {/* Welcome + countdown */}
         <div className="text-center space-y-2">
           <h1 className="text-3xl sm:text-4xl font-bold tracking-tight">

@@ -13,7 +13,6 @@ import {
   Video,
   Gift,
 } from "lucide-react";
-import { ThemeToggle } from "@/components/theme-toggle";
 
 const SESSION_KEY = "guest-portal-session";
 
@@ -59,7 +58,6 @@ export function GuestNav({ slug: slugProp }: { slug?: string } = {}) {
             <span className="text-xs">{item.label}</span>
           </Link>
         ))}
-        <ThemeToggle />
       </div>
     </nav>
   );
