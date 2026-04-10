@@ -12,7 +12,6 @@ import {
   HelpCircle,
   Video,
   Gift,
-  Truck,
 } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 
@@ -38,10 +37,9 @@ export function GuestNav({ slug: slugProp }: { slug?: string } = {}) {
   const navItems = [
     { label: "Home", href: "/", icon: Home, absolute: true },
     isRegistered
-      ? { label: "Update", href: "/update", icon: PenLine }
+      ? { label: "Manage Stay", href: "/update", icon: PenLine }
       : { label: "Register", href: "/register", icon: ClipboardList },
     { label: "Add-Ons", href: "/add-ons", icon: Gift },
-    { label: "Delivery", href: "/delivery", icon: Truck },
     { label: "Promotions", href: "/promotions", icon: Tag },
     { label: "Explore", href: "/recommendations", icon: MapPin },
     { label: "FAQ", href: "/faq", icon: HelpCircle },

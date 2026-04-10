@@ -3,12 +3,13 @@
 import { useState, useEffect } from "react";
 import { useProperty } from "@/hooks/use-property";
 import { createClient } from "@/lib/supabase/client";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { getGuestToken } from "@/lib/guest-session";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Card,
   CardContent,
@@ -23,7 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Users, Car, Gift, PawPrint, Plus, Loader2, Check, ChevronLeft, Upload } from "lucide-react";
+import { Users, Car, Gift, PawPrint, Plus, Minus, Loader2, Check, ChevronLeft, Upload, Truck, ShoppingBag, Package, Sparkles } from "lucide-react";
 
 type AgeGroup = "over_21" | "under_21" | "infant";
 type GuestEntry = { first_name: string; last_name: string; age_group: AgeGroup };
@@ -54,16 +55,81 @@ function loadSession(): SessionData | null {
   }
 }
 
-type View = "menu" | "add-guest" | "add-driver" | "add-pet";
+type View = "menu" | "add-guest" | "add-driver" | "add-pet" | "delivery";
+
+type DeliveryCategory = "rideshare" | "food_grocery" | "other";
+
+const RIDESHARE_PROVIDERS = [
+  { id: "uber", name: "Uber", logo: true },
+  { id: "lyft", name: "Lyft", logo: true },
+  { id: "taxi", name: "Taxi", logo: false },
+] as const;
+
+const FOOD_PROVIDERS = [
+  { id: "doordash", name: "DoorDash" },
+  { id: "ubereats", name: "Uber Eats" },
+  { id: "grubhub", name: "GrubHub" },
+  { id: "seamless", name: "Seamless" },
+  { id: "walmart", name: "Walmart" },
+  { id: "bjs", name: "BJ's" },
+  { id: "weiss", name: "Weis" },
+  { id: "giant", name: "Giant" },
+] as const;
+
+const BRAND_LOGOS: Record<string, string> = {
+  uber: "/logos/uber.png",
+  lyft: "/logos/lyft.png",
+  doordash: "/logos/doordash.png",
+  ubereats: "/logos/ubereats.png",
+  grubhub: "/logos/grubhub.png",
+  seamless: "/logos/seamless.png",
+  walmart: "/logos/walmart.png",
+  bjs: "/logos/bjs.png",
+  weiss: "/logos/weis.png",
+  giant: "/logos/giant.png",
+};
+
+function formatDate(dateStr: string) {
+  return new Date(dateStr + "T00:00:00").toLocaleDateString("en-US", {
+    weekday: "short",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+}
+
+function FoodProviderIcon({ id, name }: { id: string; name: string }) {
+  const logo = BRAND_LOGOS[id];
+  if (logo) {
+    return <img src={logo} alt={name} className="w-10 h-10 object-contain" />;
+  }
+  return <Package className="h-6 w-6 text-muted-foreground" />;
+}
 
 export default function UpdateRegistrationPage() {
   const property = useProperty();
+  const router = useRouter();
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [registrationId, setRegistrationId] = useState<string | null>(null);
   const [maxGuests, setMaxGuests] = useState(16);
   const [view, setView] = useState<View>("menu");
+
+  // Delivery state
+  const [deliveryStep, setDeliveryStep] = useState(1);
+  const [deliveryCategory, setDeliveryCategory] = useState<DeliveryCategory | null>(null);
+  const [deliveryProvider, setDeliveryProvider] = useState<string | null>(null);
+  const [numCars, setNumCars] = useState(1);
+  const [arrivalDate, setArrivalDate] = useState("");
+  const [hasReturn, setHasReturn] = useState(false);
+  const [returnCars, setReturnCars] = useState(1);
+  const [returnDate, setReturnDate] = useState("");
+  const [deliveryNotes, setDeliveryNotes] = useState("");
+  const [submittingDelivery, setSubmittingDelivery] = useState(false);
+  const [deliverySubmitted, setDeliverySubmitted] = useState(false);
+  const [deliveryError, setDeliveryError] = useState<string | null>(null);
+  const [reservation, setReservation] = useState<{ id: string; check_in_date: string; check_out_date: string } | null>(null);
 
   // Add guest form
   const [newGuest, setNewGuest] = useState<GuestEntry>({ first_name: "", last_name: "", age_group: "over_21" });
@@ -125,6 +191,11 @@ export default function UpdateRegistrationPage() {
       setPetFeeCents(data.pet_fee_cents ?? 0);
       setLodgifyNumPets(data.lodgify_num_pets ?? 0);
       setExistingVehicles(data.vehicles);
+      setReservation({
+        id: session.reservation.id,
+        check_in_date: session.reservation.check_in_date,
+        check_out_date: session.reservation.check_out_date,
+      });
       setLoading(false);
     }
 
@@ -357,6 +428,69 @@ export default function UpdateRegistrationPage() {
       setTimeout(() => setPetSaved(false), 3000);
     }
     setSavingPet(false);
+  }
+
+  // --- Delivery helpers ---
+  function getProviderLabel() {
+    if (!deliveryProvider) return "Other";
+    const ride = RIDESHARE_PROVIDERS.find((p) => p.id === deliveryProvider);
+    if (ride) return ride.name;
+    const food = FOOD_PROVIDERS.find((p) => p.id === deliveryProvider);
+    if (food) return food.name;
+    return deliveryProvider;
+  }
+
+  async function handleDeliverySubmit() {
+    if (!reservation) return;
+    setSubmittingDelivery(true);
+    setDeliveryError(null);
+    try {
+      const res = await fetch("/api/guest/delivery-rideshare", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-guest-token": getGuestToken() },
+        body: JSON.stringify({
+          registration_id: reservation.id,
+          category: deliveryCategory,
+          provider: getProviderLabel(),
+          num_cars: deliveryCategory === "rideshare" ? numCars : 1,
+          arrival_date: arrivalDate,
+          has_return: deliveryCategory === "rideshare" ? hasReturn : false,
+          return_cars: hasReturn ? returnCars : null,
+          return_date: hasReturn ? returnDate : null,
+          notes: deliveryNotes || null,
+        }),
+      });
+
+      if (!res.ok) {
+        if (res.status === 401) {
+          sessionStorage.removeItem(SESSION_KEY);
+          window.location.href = `/?redirect=${encodeURIComponent(window.location.pathname)}`;
+          return;
+        }
+        const data = await res.json();
+        setDeliveryError(data.error || "Something went wrong");
+      } else {
+        setDeliverySubmitted(true);
+      }
+    } catch {
+      setDeliveryError("Unable to connect. Please try again.");
+    } finally {
+      setSubmittingDelivery(false);
+    }
+  }
+
+  function resetDeliveryForm() {
+    setDeliveryStep(1);
+    setDeliveryCategory(null);
+    setDeliveryProvider(null);
+    setNumCars(1);
+    setArrivalDate("");
+    setHasReturn(false);
+    setReturnCars(1);
+    setReturnDate("");
+    setDeliveryNotes("");
+    setDeliverySubmitted(false);
+    setDeliveryError(null);
   }
 
   if (loading) {
@@ -644,13 +778,291 @@ export default function UpdateRegistrationPage() {
     );
   }
 
+  // --- Delivery view ---
+  if (view === "delivery") {
+    // Success screen
+    if (deliverySubmitted) {
+      return (
+        <div className="space-y-6 max-w-md mx-auto">
+          <div className="text-center space-y-6 py-8">
+            <div className="mx-auto w-16 h-16 rounded-full bg-green-100 flex items-center justify-center">
+              <Check className="h-8 w-8 text-green-600" />
+            </div>
+            <div className="space-y-2">
+              <h2 className="text-2xl font-bold">Registration Submitted</h2>
+              <p className="text-muted-foreground">
+                Your {deliveryCategory === "rideshare" ? "rideshare" : "delivery"} from{" "}
+                <span className="font-medium">{getProviderLabel()}</span> on{" "}
+                <span className="font-medium">{formatDate(arrivalDate)}</span> has
+                been registered with the community.
+              </p>
+            </div>
+            <div className="space-y-3">
+              <Button onClick={resetDeliveryForm} variant="outline" className="w-full">
+                Register Another
+              </Button>
+              <Button onClick={() => { resetDeliveryForm(); setView("menu"); }} className="w-full">
+                Back to Manage Stay
+              </Button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-6 max-w-md mx-auto">
+        {deliveryStep === 1 ? (
+          <Button type="button" variant="ghost" size="sm" onClick={() => { resetDeliveryForm(); setView("menu"); }}>
+            <ChevronLeft className="h-4 w-4 mr-1" /> Back
+          </Button>
+        ) : (
+          <Button type="button" variant="ghost" size="sm" onClick={() => setDeliveryStep(deliveryStep - 1)}>
+            <ChevronLeft className="h-4 w-4 mr-1" /> Back
+          </Button>
+        )}
+
+        <div className="space-y-1">
+          <h1 className="text-2xl font-bold tracking-tight">
+            {deliveryStep === 1 && "What type of registration?"}
+            {deliveryStep === 2 && (deliveryCategory === "rideshare" ? "Select ride service" : deliveryCategory === "food_grocery" ? "Select delivery service" : "Other details")}
+            {deliveryStep === 3 && "Details"}
+            {deliveryStep === 4 && "Confirm & Submit"}
+          </h1>
+          <div className="flex gap-1">
+            {[1, 2, 3, 4].map((s) => (
+              <div
+                key={s}
+                className={`h-1 flex-1 rounded-full ${s <= deliveryStep ? "bg-primary" : "bg-muted"}`}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* Step 1: Category selection */}
+        {deliveryStep === 1 && (
+          <div className="grid gap-4">
+            {[
+              { id: "rideshare" as DeliveryCategory, label: "Ride Share", description: "Uber, Lyft, Taxi", icon: Car },
+              { id: "food_grocery" as DeliveryCategory, label: "Food / Grocery Delivery", description: "DoorDash, Walmart, and more", icon: ShoppingBag },
+              { id: "other" as DeliveryCategory, label: "Other", description: "Any other delivery or service", icon: Package },
+            ].map((item) => (
+              <Card
+                key={item.id}
+                className={`cursor-pointer transition-all hover:border-primary ${deliveryCategory === item.id ? "border-primary ring-2 ring-primary/20" : ""}`}
+                onClick={() => { setDeliveryCategory(item.id); setDeliveryProvider(null); setDeliveryStep(2); }}
+              >
+                <CardContent className="flex items-center gap-4 p-6">
+                  <div className="rounded-xl bg-primary/10 p-4">
+                    <item.icon className="h-8 w-8 text-primary" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-lg">{item.label}</p>
+                    <p className="text-sm text-muted-foreground">{item.description}</p>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+
+        {/* Step 2: Provider selection */}
+        {deliveryStep === 2 && deliveryCategory === "rideshare" && (
+          <div className="grid gap-4">
+            {RIDESHARE_PROVIDERS.map((p) => (
+              <Card
+                key={p.id}
+                className={`cursor-pointer transition-all hover:border-primary ${deliveryProvider === p.id ? "border-primary ring-2 ring-primary/20" : ""}`}
+                onClick={() => { setDeliveryProvider(p.id); setDeliveryStep(3); }}
+              >
+                <CardContent className="flex items-center gap-4 p-6">
+                  <div className="rounded-xl bg-muted p-2 w-16 h-16 flex items-center justify-center overflow-hidden">
+                    {BRAND_LOGOS[p.id] ? (
+                      <img src={BRAND_LOGOS[p.id]} alt={p.name} className="w-12 h-12 object-contain" />
+                    ) : (
+                      <Car className="h-8 w-8 text-yellow-500" />
+                    )}
+                  </div>
+                  <p className="font-semibold text-lg">{p.name}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+
+        {deliveryStep === 2 && deliveryCategory === "food_grocery" && (
+          <div className="grid grid-cols-2 gap-3">
+            {FOOD_PROVIDERS.map((p) => (
+              <Card
+                key={p.id}
+                className={`cursor-pointer transition-all hover:border-primary ${deliveryProvider === p.id ? "border-primary ring-2 ring-primary/20" : ""}`}
+                onClick={() => { setDeliveryProvider(p.id); setDeliveryStep(3); }}
+              >
+                <CardContent className="flex flex-col items-center justify-center p-6 gap-3">
+                  <div className="rounded-xl bg-muted p-2 w-14 h-14 flex items-center justify-center overflow-hidden">
+                    <FoodProviderIcon id={p.id} name={p.name} />
+                  </div>
+                  <p className="font-medium text-sm text-center">{p.name}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+
+        {deliveryStep === 2 && deliveryCategory === "other" && (
+          <Card>
+            <CardContent className="p-6 space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="other-provider">Service name</Label>
+                <Input id="other-provider" placeholder="e.g. Amazon, FedEx..." value={deliveryProvider || ""} onChange={(e) => setDeliveryProvider(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="other-notes">Notes (optional)</Label>
+                <Textarea id="other-notes" placeholder="Any details about the delivery..." value={deliveryNotes} onChange={(e) => setDeliveryNotes(e.target.value)} />
+              </div>
+              <Button className="w-full" disabled={!deliveryProvider?.trim()} onClick={() => setDeliveryStep(3)}>
+                Continue
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Step 3: Details */}
+        {deliveryStep === 3 && deliveryCategory === "rideshare" && reservation && (
+          <Card>
+            <CardContent className="p-6 space-y-6">
+              <div className="space-y-2">
+                <Label>How many cars?</Label>
+                <div className="flex items-center gap-4">
+                  <Button variant="outline" size="icon" onClick={() => setNumCars(Math.max(1, numCars - 1))} disabled={numCars <= 1}>
+                    <Minus className="h-4 w-4" />
+                  </Button>
+                  <span className="text-2xl font-bold w-8 text-center">{numCars}</span>
+                  <Button variant="outline" size="icon" onClick={() => setNumCars(numCars + 1)}>
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="pickup-date">Pickup date</Label>
+                <Input id="pickup-date" type="date" value={arrivalDate} min={reservation.check_in_date} max={reservation.check_out_date} onChange={(e) => setArrivalDate(e.target.value)} />
+              </div>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <Label>Will they also drop off?</Label>
+                  <Button variant={hasReturn ? "default" : "outline"} size="sm" onClick={() => setHasReturn(!hasReturn)}>
+                    {hasReturn ? "Yes" : "No"}
+                  </Button>
+                </div>
+                {hasReturn && (
+                  <>
+                    <div className="space-y-2">
+                      <Label>How many cars for drop-off?</Label>
+                      <div className="flex items-center gap-4">
+                        <Button variant="outline" size="icon" onClick={() => setReturnCars(Math.max(1, returnCars - 1))} disabled={returnCars <= 1}>
+                          <Minus className="h-4 w-4" />
+                        </Button>
+                        <span className="text-2xl font-bold w-8 text-center">{returnCars}</span>
+                        <Button variant="outline" size="icon" onClick={() => setReturnCars(returnCars + 1)}>
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="return-date">Drop-off date</Label>
+                      <Input id="return-date" type="date" value={returnDate} min={arrivalDate || reservation.check_in_date} max={reservation.check_out_date} onChange={(e) => setReturnDate(e.target.value)} />
+                    </div>
+                  </>
+                )}
+              </div>
+              <Button className="w-full" disabled={!arrivalDate || (hasReturn && !returnDate)} onClick={() => setDeliveryStep(4)}>
+                Review & Submit
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {deliveryStep === 3 && (deliveryCategory === "food_grocery" || deliveryCategory === "other") && reservation && (
+          <Card>
+            <CardContent className="p-6 space-y-6">
+              <div className="space-y-2">
+                <Label htmlFor="delivery-date">Expected delivery date</Label>
+                <Input id="delivery-date" type="date" value={arrivalDate} min={reservation.check_in_date} max={reservation.check_out_date} onChange={(e) => setArrivalDate(e.target.value)} />
+              </div>
+              {deliveryCategory === "food_grocery" && (
+                <div className="space-y-2">
+                  <Label htmlFor="food-notes">Notes (optional)</Label>
+                  <Textarea id="food-notes" placeholder="Any special instructions..." value={deliveryNotes} onChange={(e) => setDeliveryNotes(e.target.value)} />
+                </div>
+              )}
+              <Button className="w-full" disabled={!arrivalDate} onClick={() => setDeliveryStep(4)}>
+                Review & Submit
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Step 4: Confirmation */}
+        {deliveryStep === 4 && (
+          <div className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Registration Summary</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Type</span>
+                  <span className="font-medium">
+                    {deliveryCategory === "rideshare" ? "Ride Share" : deliveryCategory === "food_grocery" ? "Food / Grocery Delivery" : "Other"}
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Service</span>
+                  <span className="font-medium">{getProviderLabel()}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">{deliveryCategory === "rideshare" ? "Pickup date" : "Delivery date"}</span>
+                  <span className="font-medium">{formatDate(arrivalDate)}</span>
+                </div>
+                {deliveryCategory === "rideshare" && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Cars</span>
+                    <span className="font-medium">{numCars}</span>
+                  </div>
+                )}
+                {hasReturn && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Drop-off</span>
+                    <span className="font-medium">{returnCars} car{returnCars !== 1 ? "s" : ""} on {formatDate(returnDate)}</span>
+                  </div>
+                )}
+                {deliveryNotes && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Notes</span>
+                    <span className="font-medium">{deliveryNotes}</span>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {deliveryError && <p className="text-sm text-destructive text-center">{deliveryError}</p>}
+
+            <Button className="w-full" size="lg" disabled={submittingDelivery} onClick={handleDeliverySubmit}>
+              {submittingDelivery ? "Submitting..." : "Submit Registration"}
+            </Button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   // --- Menu screen ---
   return (
-    <div className="space-y-6 max-w-md mx-auto">
+    <div className="space-y-6 max-w-lg mx-auto">
       <div className="text-center space-y-2">
-        <h1 className="text-2xl font-bold tracking-tight">Update Your Registration</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Manage Your Stay</h1>
         <p className="text-muted-foreground text-sm">
-          What would you like to add?
+          What would you like to do?
         </p>
       </div>
 
@@ -660,54 +1072,66 @@ export default function UpdateRegistrationPage() {
         </div>
       )}
 
-      <div className="grid gap-3">
+      <div className="grid grid-cols-2 gap-3">
         <Card className="cursor-pointer hover:bg-accent transition-colors" onClick={() => setView("add-guest")}>
-          <CardHeader className="flex flex-row items-center gap-4 p-5">
+          <CardContent className="flex flex-col items-center text-center gap-3 p-5">
             <div className="rounded-full bg-primary/10 p-3">
               <Users className="h-6 w-6 text-primary" />
             </div>
-            <div className="flex-1">
-              <CardTitle className="text-base">Add a Guest</CardTitle>
-              <CardDescription className="text-sm">Register a new guest for your stay</CardDescription>
+            <div>
+              <CardTitle className="text-sm font-semibold">Add a Guest</CardTitle>
+              <CardDescription className="text-xs mt-1">Register a new guest</CardDescription>
             </div>
-          </CardHeader>
+          </CardContent>
         </Card>
 
         <Card className="cursor-pointer hover:bg-accent transition-colors" onClick={() => setView("add-driver")}>
-          <CardHeader className="flex flex-row items-center gap-4 p-5">
+          <CardContent className="flex flex-col items-center text-center gap-3 p-5">
             <div className="rounded-full bg-primary/10 p-3">
               <Car className="h-6 w-6 text-primary" />
             </div>
-            <div className="flex-1">
-              <CardTitle className="text-base">Add a Driver</CardTitle>
-              <CardDescription className="text-sm">Register a vehicle and driver</CardDescription>
+            <div>
+              <CardTitle className="text-sm font-semibold">Add a Driver</CardTitle>
+              <CardDescription className="text-xs mt-1">Register a vehicle</CardDescription>
             </div>
-          </CardHeader>
+          </CardContent>
         </Card>
 
         <Card className="cursor-pointer hover:bg-accent transition-colors" onClick={() => setView("add-pet")}>
-          <CardHeader className="flex flex-row items-center gap-4 p-5">
+          <CardContent className="flex flex-col items-center text-center gap-3 p-5">
             <div className="rounded-full bg-primary/10 p-3">
               <PawPrint className="h-6 w-6 text-primary" />
             </div>
-            <div className="flex-1">
-              <CardTitle className="text-base">Add a Pet</CardTitle>
-              <CardDescription className="text-sm">{petFeeCents > 0 && existingPets.length >= lodgifyNumPets ? `Register a pet ($${(petFeeCents / 100).toFixed(petFeeCents % 100 === 0 ? 0 : 2)} fee)` : "Register another pet for your stay"}</CardDescription>
+            <div>
+              <CardTitle className="text-sm font-semibold">Add a Pet</CardTitle>
+              <CardDescription className="text-xs mt-1">{petFeeCents > 0 && existingPets.length >= lodgifyNumPets ? `$${(petFeeCents / 100).toFixed(petFeeCents % 100 === 0 ? 0 : 2)} fee` : "Register a pet"}</CardDescription>
             </div>
-          </CardHeader>
+          </CardContent>
         </Card>
 
-        <Link href={`/p/${property.slug}/add-ons`}>
+        <Card className="cursor-pointer hover:bg-accent transition-colors" onClick={() => { resetDeliveryForm(); setView("delivery"); }}>
+          <CardContent className="flex flex-col items-center text-center gap-3 p-5">
+            <div className="rounded-full bg-primary/10 p-3">
+              <Truck className="h-6 w-6 text-primary" />
+            </div>
+            <div>
+              <CardTitle className="text-sm font-semibold">Delivery / Rideshare</CardTitle>
+              <CardDescription className="text-xs mt-1">Register an arrival</CardDescription>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Link href={`/p/${property.slug}/add-ons`} className="col-span-2">
           <Card className="cursor-pointer hover:bg-accent transition-colors">
-            <CardHeader className="flex flex-row items-center gap-4 p-5">
+            <CardContent className="flex flex-col items-center text-center gap-3 p-5">
               <div className="rounded-full bg-primary/10 p-3">
-                <Gift className="h-6 w-6 text-primary" />
+                <Sparkles className="h-6 w-6 text-primary" />
               </div>
-              <div className="flex-1">
-                <CardTitle className="text-base">Add an Add-On</CardTitle>
-                <CardDescription className="text-sm">Extras and experiences for your stay</CardDescription>
+              <div>
+                <CardTitle className="text-sm font-semibold">Browse Upgrades</CardTitle>
+                <CardDescription className="text-xs mt-1">Extras and experiences for your stay</CardDescription>
               </div>
-            </CardHeader>
+            </CardContent>
           </Card>
         </Link>
       </div>
