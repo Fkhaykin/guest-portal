@@ -1,283 +1,227 @@
 "use client";
 
 import { useState } from "react";
-import {
-  Percent,
-  Moon,
-  SparklesIcon,
-  Cake,
-  ShoppingBag,
-  Copy,
-  Check,
-  ExternalLink,
-  Clock,
-  Info,
-  Gift,
-} from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Copy, Check, ArrowUpRight } from "lucide-react";
 import type { Database } from "@/types/database";
 
 type Promotion = Database["public"]["Tables"]["promotion"]["Row"];
 
 const BOOKING_URL = "https://summitlakeside.com";
 
-// Visual config per promo code for rich, distinct card styles
-const promoConfig: Record<
-  string,
-  {
-    icon: React.ReactNode;
-    gradient: string;
-    iconBg: string;
-    accentColor: string;
-    tagLine: string;
-    details: string[];
-    ctaText: string;
-  }
-> = {
+type PromoStyle = {
+  label: string;
+  highlight: string;
+  terms: string[];
+};
+
+const promoStyles: Record<string, PromoStyle> = {
   COMEBACK10: {
-    icon: <Percent className="h-6 w-6" />,
-    gradient:
-      "from-emerald-500/10 via-emerald-500/5 to-transparent dark:from-emerald-500/20 dark:via-emerald-500/10",
-    iconBg:
-      "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-400",
-    accentColor: "text-emerald-600 dark:text-emerald-400",
-    tagLine: "Your loyalty deserves a reward",
-    details: [
-      "Valid on any future reservation",
-      "No minimum nights required",
-      "Book direct at summitlakeside.com",
-      "Cannot be combined with other offers",
+    label: "Returning Guest",
+    highlight: "10% Off",
+    terms: [
+      "Any future reservation",
+      "No minimum stay",
+      "Direct bookings only",
     ],
-    ctaText: "Book Your Next Stay",
   },
   WEEKNIGHT3: {
-    icon: <Moon className="h-6 w-6" />,
-    gradient:
-      "from-violet-500/10 via-violet-500/5 to-transparent dark:from-violet-500/20 dark:via-violet-500/10",
-    iconBg:
-      "bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-400",
-    accentColor: "text-violet-600 dark:text-violet-400",
-    tagLine: "Midweek escapes just got better",
-    details: [
-      "Stay any Sunday through Thursday",
-      "3rd weeknight is completely free",
-      "Excludes holiday weeks",
-      "Book direct at summitlakeside.com",
+    label: "Midweek Escape",
+    highlight: "3rd Night Free",
+    terms: [
+      "Sunday – Thursday stays",
+      "Holiday weeks excluded",
+      "Direct bookings only",
     ],
-    ctaText: "Plan a Weeknight Getaway",
   },
   LONGSTAY: {
-    icon: <SparklesIcon className="h-6 w-6" />,
-    gradient:
-      "from-amber-500/10 via-amber-500/5 to-transparent dark:from-amber-500/20 dark:via-amber-500/10",
-    iconBg:
-      "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-400",
-    accentColor: "text-amber-600 dark:text-amber-400",
-    tagLine: "Stay longer, save more",
-    details: [
-      "Book 6 or more consecutive nights",
-      "Cleaning fee fully waived",
-      "Applies to any property",
-      "Book direct at summitlakeside.com",
+    label: "Extended Stay",
+    highlight: "No Cleaning Fee",
+    terms: [
+      "6+ consecutive nights",
+      "Any property, any season",
+      "Direct bookings only",
     ],
-    ctaText: "Book an Extended Stay",
   },
   BIRTHDAY: {
-    icon: <Cake className="h-6 w-6" />,
-    gradient:
-      "from-pink-500/10 via-pink-500/5 to-transparent dark:from-pink-500/20 dark:via-pink-500/10",
-    iconBg:
-      "bg-pink-100 text-pink-700 dark:bg-pink-900/50 dark:text-pink-400",
-    accentColor: "text-pink-600 dark:text-pink-400",
-    tagLine: "Celebrate your special day with us",
-    details: [
-      "One free night on your birthday stay",
+    label: "Birthday",
+    highlight: "Free Night",
+    terms: [
       "Weekdays only (Sun–Thu)",
-      "Must book at least 2 nights",
-      "Mention the birthday guest's name when booking",
+      "Minimum 2-night stay",
+      "Mention birthday guest when booking",
     ],
-    ctaText: "Book a Birthday Getaway",
   },
 };
 
-// Default config for promos without a specific code
-const defaultConfig = {
-  icon: <Gift className="h-6 w-6" />,
-  gradient:
-    "from-sky-500/10 via-sky-500/5 to-transparent dark:from-sky-500/20 dark:via-sky-500/10",
-  iconBg: "bg-sky-100 text-sky-700 dark:bg-sky-900/50 dark:text-sky-400",
-  accentColor: "text-sky-600 dark:text-sky-400",
-  tagLine: "An exclusive perk for our guests",
-  details: [],
-  ctaText: "Learn More",
-};
-
-// Special config for the Archie's Corner promo (no code)
-const archiesConfig = {
-  icon: <ShoppingBag className="h-6 w-6" />,
-  gradient:
-    "from-orange-500/10 via-orange-500/5 to-transparent dark:from-orange-500/20 dark:via-orange-500/10",
-  iconBg:
-    "bg-orange-100 text-orange-700 dark:bg-orange-900/50 dark:text-orange-400",
-  accentColor: "text-orange-600 dark:text-orange-400",
-  tagLine: "Your neighborhood convenience store",
-  details: [
-    "Show your booking confirmation at checkout",
-    "Snacks, drinks, ice, firewood, charcoal & more",
-    "Located near the main clubhouse in Penn Estates",
-    "No promo code needed — just show your reservation",
+const archiesStyle: PromoStyle = {
+  label: "Community Perk",
+  highlight: "20% Off",
+  terms: [
+    "Show booking confirmation at checkout",
+    "Snacks, firewood, ice & essentials",
+    "Near the main clubhouse",
   ],
-  ctaText: "",
 };
 
-function getConfig(promo: Promotion) {
-  if (promo.promo_code && promoConfig[promo.promo_code]) {
-    return promoConfig[promo.promo_code];
-  }
-  if (promo.title.toLowerCase().includes("archie")) {
-    return archiesConfig;
-  }
-  return defaultConfig;
+function getStyle(promo: Promotion): PromoStyle {
+  if (promo.promo_code && promoStyles[promo.promo_code])
+    return promoStyles[promo.promo_code];
+  if (promo.title.toLowerCase().includes("archie")) return archiesStyle;
+  return { label: "Exclusive", highlight: "", terms: [] };
 }
 
-function CopyCodeButton({ code }: { code: string }) {
+function PromoCode({ code }: { code: string }) {
   const [copied, setCopied] = useState(false);
-
-  const handleCopy = async () => {
-    await navigator.clipboard.writeText(code);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
 
   return (
     <button
-      onClick={handleCopy}
-      className="group/copy inline-flex items-center gap-2 rounded-lg border border-dashed border-foreground/20 bg-muted/50 px-4 py-2.5 font-mono text-base font-bold tracking-widest transition-all hover:border-foreground/40 hover:bg-muted active:scale-[0.98]"
+      onClick={async () => {
+        await navigator.clipboard.writeText(code);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }}
+      className="group/code relative inline-flex items-center gap-3 border-b border-foreground/10 pb-1 transition-colors hover:border-foreground/30"
     >
-      <span>{code}</span>
+      <span className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
+        Code
+      </span>
+      <span className="font-mono text-sm font-semibold tracking-[0.15em]">
+        {code}
+      </span>
       {copied ? (
-        <Check className="h-4 w-4 text-emerald-500" />
+        <Check className="h-3 w-3 text-foreground/60" />
       ) : (
-        <Copy className="h-4 w-4 text-muted-foreground transition-colors group-hover/copy:text-foreground" />
+        <Copy className="h-3 w-3 text-foreground/20 transition-colors group-hover/code:text-foreground/60" />
       )}
     </button>
   );
 }
 
-function PromotionCard({ promo }: { promo: Promotion }) {
-  const config = getConfig(promo);
-  const [expanded, setExpanded] = useState(false);
+function PromotionCard({
+  promo,
+  index,
+}: {
+  promo: Promotion;
+  index: number;
+}) {
+  const style = getStyle(promo);
 
   return (
-    <div className="group relative overflow-hidden rounded-2xl border bg-card transition-all hover:shadow-lg">
-      {/* Gradient accent background */}
-      <div
-        className={`absolute inset-0 bg-gradient-to-br ${config.gradient} pointer-events-none`}
-      />
+    <article className="group relative">
+      {/* Top rule */}
+      <div className="h-px w-full bg-foreground/6" />
 
-      <div className="relative p-5 sm:p-6">
-        {/* Header row */}
-        <div className="flex items-start gap-4">
-          <div
-            className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${config.iconBg} transition-transform group-hover:scale-110`}
+      <div className="grid gap-6 py-8 sm:grid-cols-[1fr_auto] sm:gap-10">
+        {/* Left: content */}
+        <div className="space-y-4">
+          {/* Label + number */}
+          <div className="flex items-center gap-3">
+            <span className="text-[10px] font-medium uppercase tracking-[0.3em] text-muted-foreground">
+              {String(index + 1).padStart(2, "0")}
+            </span>
+            <span className="h-px w-4 bg-foreground/20" />
+            <span className="text-[10px] font-medium uppercase tracking-[0.3em] text-muted-foreground">
+              {style.label}
+            </span>
+          </div>
+
+          {/* Title */}
+          <h3
+            className="text-2xl font-normal tracking-tight sm:text-3xl"
+            style={{ fontFamily: "var(--font-playfair), serif" }}
           >
-            {config.icon}
-          </div>
-          <div className="min-w-0 flex-1">
-            <h3 className="text-lg font-bold leading-tight">{promo.title}</h3>
-            <p className={`mt-0.5 text-sm font-medium ${config.accentColor}`}>
-              {config.tagLine}
+            {promo.title}
+          </h3>
+
+          {/* Description */}
+          {promo.description && (
+            <p className="max-w-xl text-[0.9rem] leading-relaxed text-muted-foreground">
+              {promo.description}
             </p>
+          )}
+
+          {/* Terms */}
+          {style.terms.length > 0 && (
+            <div className="flex flex-wrap gap-x-4 gap-y-1 pt-1">
+              {style.terms.map((term, i) => (
+                <span
+                  key={i}
+                  className="text-xs text-muted-foreground/70"
+                >
+                  {i > 0 && (
+                    <span className="mr-4 text-foreground/10">·</span>
+                  )}
+                  {term}
+                </span>
+              ))}
+            </div>
+          )}
+
+          {/* Code + Book link */}
+          <div className="flex flex-wrap items-center gap-6 pt-2">
+            {promo.promo_code && <PromoCode code={promo.promo_code} />}
+
+            {promo.promo_code && (
+              <a
+                href={BOOKING_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-xs font-medium uppercase tracking-[0.15em] text-foreground/50 transition-colors hover:text-foreground"
+              >
+                Book Now
+                <ArrowUpRight className="h-3 w-3" />
+              </a>
+            )}
           </div>
+
+          {/* Validity */}
+          {(promo.valid_from || promo.valid_until) && (
+            <p className="pt-1 text-[11px] tracking-wide text-muted-foreground/50">
+              {promo.valid_from &&
+                `From ${new Date(promo.valid_from).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}`}
+              {promo.valid_from && promo.valid_until && " — "}
+              {promo.valid_until &&
+                `Until ${new Date(promo.valid_until).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}`}
+            </p>
+          )}
         </div>
 
-        {/* Description */}
-        {promo.description && (
-          <p className="mt-4 text-[0.925rem] leading-relaxed text-muted-foreground">
-            {promo.description}
-          </p>
-        )}
-
-        {/* Promo code + CTA row */}
-        {(promo.promo_code || config.ctaText) && (
-          <div className="mt-5 flex flex-wrap items-center gap-3">
-            {promo.promo_code && <CopyCodeButton code={promo.promo_code} />}
-            {config.ctaText && (
-              <Button variant="default" size="sm" render={<a href={BOOKING_URL} target="_blank" rel="noopener noreferrer" />}>
-                {config.ctaText}
-                <ExternalLink data-icon="inline-end" className="h-3.5 w-3.5" />
-              </Button>
-            )}
-          </div>
-        )}
-
-        {/* Expandable details */}
-        {config.details.length > 0 && (
-          <div className="mt-4">
-            <button
-              onClick={() => setExpanded(!expanded)}
-              className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-            >
-              <Info className="h-3.5 w-3.5" />
-              {expanded ? "Hide details" : "How it works"}
-            </button>
-            {expanded && (
-              <ul className="mt-3 space-y-2">
-                {config.details.map((detail, i) => (
-                  <li
-                    key={i}
-                    className="flex items-start gap-2.5 text-sm text-muted-foreground"
-                  >
-                    <Check
-                      className={`mt-0.5 h-4 w-4 shrink-0 ${config.accentColor}`}
-                    />
-                    <span>{detail}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        )}
-
-        {/* Validity badges */}
-        {(promo.valid_from || promo.valid_until) && (
-          <div className="mt-4 flex flex-wrap gap-2">
-            {promo.valid_from && (
-              <Badge variant="outline" className="gap-1">
-                <Clock className="h-3 w-3" />
-                Starts{" "}
-                {new Date(promo.valid_from).toLocaleDateString("en-US", {
-                  month: "short",
-                  day: "numeric",
-                  year: "numeric",
-                })}
-              </Badge>
-            )}
-            {promo.valid_until && (
-              <Badge variant="outline" className="gap-1">
-                <Clock className="h-3 w-3" />
-                Expires{" "}
-                {new Date(promo.valid_until).toLocaleDateString("en-US", {
-                  month: "short",
-                  day: "numeric",
-                  year: "numeric",
-                })}
-              </Badge>
-            )}
+        {/* Right: highlight callout */}
+        {style.highlight && (
+          <div className="flex items-start sm:items-center sm:justify-end">
+            <div className="inline-flex flex-col items-center rounded-none border border-foreground/8 px-6 py-4 text-center sm:px-8 sm:py-6">
+              <span className="text-[10px] font-medium uppercase tracking-[0.3em] text-muted-foreground">
+                {promo.promo_code ? "You Save" : "Discount"}
+              </span>
+              <span
+                className="mt-1 text-2xl font-normal tracking-tight sm:text-3xl"
+                style={{ fontFamily: "var(--font-playfair), serif" }}
+              >
+                {style.highlight}
+              </span>
+            </div>
           </div>
         )}
       </div>
-    </div>
+    </article>
   );
 }
 
 export function PromotionCards({ promotions }: { promotions: Promotion[] }) {
   return (
-    <div className="grid gap-4">
-      {promotions.map((promo) => (
-        <PromotionCard key={promo.id} promo={promo} />
+    <div>
+      {promotions.map((promo, i) => (
+        <PromotionCard key={promo.id} promo={promo} index={i} />
       ))}
+      {/* Bottom rule */}
+      <div className="h-px w-full bg-foreground/6" />
+
+      {/* Footer note */}
+      <p className="mt-8 text-center text-xs leading-relaxed text-muted-foreground/50">
+        All offers are exclusive to direct bookings at summitlakeside.com
+        <br />
+        Cannot be combined with other promotions unless stated otherwise.
+      </p>
     </div>
   );
 }
