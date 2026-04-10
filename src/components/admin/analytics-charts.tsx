@@ -1089,7 +1089,7 @@ function ReservationList({ reservations, showNights }: { reservations: BucketRes
     <div className="ml-4 mt-0.5 mb-1 space-y-px">
       {reservations.map((r, i) => {
         const lodgifyUrl = r.lodgifyBookingId
-          ? `https://app.lodgify.com/#/reservation/details/${r.lodgifyBookingId}`
+          ? `https://app.lodgify.com/reservations/inbox/${r.lodgifyBookingId}`
           : undefined;
         return (
           <div key={i} className="flex items-center justify-between gap-3 text-[11px] text-muted-foreground">
