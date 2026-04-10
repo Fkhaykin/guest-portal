@@ -119,6 +119,10 @@ export default async function AdminRegistrationsPage({
                     {reg.booking_source ? (() => {
                       const listingUrls = (property.listing_urls ?? {}) as Record<string, string>;
                       const listingUrl = listingUrls[reg.booking_source!];
+                      const sourceDisplayNames: Record<string, string> = {
+                        AirbnbIntegration: "Airbnb",
+                      };
+                      const displayName = sourceDisplayNames[reg.booking_source!] ?? reg.booking_source;
                       return listingUrl ? (
                         <a
                           href={listingUrl}
@@ -126,11 +130,11 @@ export default async function AdminRegistrationsPage({
                           rel="noopener noreferrer"
                           className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
                         >
-                          {reg.booking_source}
+                          {displayName}
                           <ExternalLink className="h-3 w-3" />
                         </a>
                       ) : (
-                        <span className="text-sm text-muted-foreground">{reg.booking_source}</span>
+                        <span className="text-sm text-muted-foreground">{displayName}</span>
                       );
                     })() : (
                       <span className="text-sm text-muted-foreground">—</span>
