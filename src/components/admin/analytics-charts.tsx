@@ -876,15 +876,15 @@ export function AnalyticsCharts() {
               <EmptyState />
             ) : (
               <ResponsiveContainer width="100%" height={280}>
-                <BarChart data={charts.avgStayByProperty} layout="vertical">
+                <BarChart data={charts.avgStayByProperty}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                  <XAxis type="number" className="text-xs" />
-                  <YAxis dataKey="property" type="category" width={120} className="text-xs" />
+                  <XAxis dataKey="property" className="text-xs" />
+                  <YAxis className="text-xs" />
                   <Tooltip
                     formatter={((v: ValueType) => `${v} nights`) as never}
                     contentStyle={TOOLTIP_STYLE}
                   />
-                  <Bar dataKey="avgNights" radius={[0, 6, 6, 0]}>
+                  <Bar dataKey="avgNights" radius={[6, 6, 0, 0]}>
                     {charts.avgStayByProperty.map((_, i) => (
                       <Cell key={i} fill={COLORS[i % COLORS.length]} />
                     ))}
