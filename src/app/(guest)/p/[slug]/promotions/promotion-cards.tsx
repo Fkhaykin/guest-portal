@@ -11,13 +11,27 @@ const BOOKING_URL = "https://summitlakeside.com";
 type PromoStyle = {
   label: string;
   highlight: string;
+  highlightSub: string;
+  accent: string;
+  accentMuted: string;
+  accentBorder: string;
+  accentBg: string;
+  darkAccentBg: string;
+  emoji: string;
   terms: string[];
 };
 
 const promoStyles: Record<string, PromoStyle> = {
   COMEBACK10: {
     label: "Returning Guest",
-    highlight: "10% Off",
+    highlight: "10%",
+    highlightSub: "off your next stay",
+    accent: "text-emerald-700 dark:text-emerald-400",
+    accentMuted: "text-emerald-600/70 dark:text-emerald-400/70",
+    accentBorder: "border-emerald-200 dark:border-emerald-800/50",
+    accentBg: "bg-emerald-50 dark:bg-emerald-950/30",
+    darkAccentBg: "bg-emerald-100 dark:bg-emerald-900/40",
+    emoji: "🌿",
     terms: [
       "Any future reservation",
       "No minimum stay",
@@ -26,7 +40,14 @@ const promoStyles: Record<string, PromoStyle> = {
   },
   WEEKNIGHT3: {
     label: "Midweek Escape",
-    highlight: "3rd Night Free",
+    highlight: "3rd Night",
+    highlightSub: "completely free",
+    accent: "text-indigo-700 dark:text-indigo-400",
+    accentMuted: "text-indigo-600/70 dark:text-indigo-400/70",
+    accentBorder: "border-indigo-200 dark:border-indigo-800/50",
+    accentBg: "bg-indigo-50 dark:bg-indigo-950/30",
+    darkAccentBg: "bg-indigo-100 dark:bg-indigo-900/40",
+    emoji: "🌙",
     terms: [
       "Sunday – Thursday stays",
       "Holiday weeks excluded",
@@ -35,7 +56,14 @@ const promoStyles: Record<string, PromoStyle> = {
   },
   LONGSTAY: {
     label: "Extended Stay",
-    highlight: "No Cleaning Fee",
+    highlight: "$0",
+    highlightSub: "cleaning fee",
+    accent: "text-amber-700 dark:text-amber-400",
+    accentMuted: "text-amber-600/70 dark:text-amber-400/70",
+    accentBorder: "border-amber-200 dark:border-amber-800/50",
+    accentBg: "bg-amber-50 dark:bg-amber-950/30",
+    darkAccentBg: "bg-amber-100 dark:bg-amber-900/40",
+    emoji: "✨",
     terms: [
       "6+ consecutive nights",
       "Any property, any season",
@@ -43,8 +71,15 @@ const promoStyles: Record<string, PromoStyle> = {
     ],
   },
   BIRTHDAY: {
-    label: "Birthday",
+    label: "Birthday Celebration",
     highlight: "Free Night",
+    highlightSub: "on your special day",
+    accent: "text-rose-700 dark:text-rose-400",
+    accentMuted: "text-rose-600/70 dark:text-rose-400/70",
+    accentBorder: "border-rose-200 dark:border-rose-800/50",
+    accentBg: "bg-rose-50 dark:bg-rose-950/30",
+    darkAccentBg: "bg-rose-100 dark:bg-rose-900/40",
+    emoji: "🎂",
     terms: [
       "Weekdays only (Sun–Thu)",
       "Minimum 2-night stay",
@@ -56,6 +91,13 @@ const promoStyles: Record<string, PromoStyle> = {
 const archiesStyle: PromoStyle = {
   label: "Community Perk",
   highlight: "20% Off",
+  highlightSub: "everything in store",
+  accent: "text-orange-700 dark:text-orange-400",
+  accentMuted: "text-orange-600/70 dark:text-orange-400/70",
+  accentBorder: "border-orange-200 dark:border-orange-800/50",
+  accentBg: "bg-orange-50 dark:bg-orange-950/30",
+  darkAccentBg: "bg-orange-100 dark:bg-orange-900/40",
+  emoji: "🛒",
   terms: [
     "Show booking confirmation at checkout",
     "Snacks, firewood, ice & essentials",
@@ -67,10 +109,16 @@ function getStyle(promo: Promotion): PromoStyle {
   if (promo.promo_code && promoStyles[promo.promo_code])
     return promoStyles[promo.promo_code];
   if (promo.title.toLowerCase().includes("archie")) return archiesStyle;
-  return { label: "Exclusive", highlight: "", terms: [] };
+  return {
+    ...archiesStyle,
+    label: "Exclusive",
+    highlight: "",
+    highlightSub: "",
+    emoji: "🎁",
+  };
 }
 
-function PromoCode({ code }: { code: string }) {
+function PromoCode({ code, accent }: { code: string; accent: string }) {
   const [copied, setCopied] = useState(false);
 
   return (
@@ -80,18 +128,18 @@ function PromoCode({ code }: { code: string }) {
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
       }}
-      className="group/code relative inline-flex items-center gap-3 border-b border-foreground/10 pb-1 transition-colors hover:border-foreground/30"
+      className={`group/code inline-flex items-center gap-2.5 rounded-full border border-dashed px-4 py-2 transition-all hover:scale-[1.02] active:scale-[0.98] ${accent}`}
     >
-      <span className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
-        Code
+      <span className="text-[10px] font-semibold uppercase tracking-[0.2em] opacity-50">
+        Use code
       </span>
-      <span className="font-mono text-sm font-semibold tracking-[0.15em]">
+      <span className="font-mono text-sm font-bold tracking-[0.12em]">
         {code}
       </span>
       {copied ? (
-        <Check className="h-3 w-3 text-foreground/60" />
+        <Check className="h-3.5 w-3.5 opacity-60" />
       ) : (
-        <Copy className="h-3 w-3 text-foreground/20 transition-colors group-hover/code:text-foreground/60" />
+        <Copy className="h-3.5 w-3.5 opacity-30 transition-opacity group-hover/code:opacity-60" />
       )}
     </button>
   );
@@ -107,100 +155,111 @@ function PromotionCard({
   const style = getStyle(promo);
 
   return (
-    <article className="group relative">
-      {/* Top rule */}
-      <div className="h-px w-full bg-foreground/6" />
-
-      <div className="grid gap-6 py-8 sm:grid-cols-[1fr_auto] sm:gap-10">
-        {/* Left: content */}
-        <div className="space-y-4">
-          {/* Label + number */}
-          <div className="flex items-center gap-3">
-            <span className="text-[10px] font-medium uppercase tracking-[0.3em] text-muted-foreground">
-              {String(index + 1).padStart(2, "0")}
-            </span>
-            <span className="h-px w-4 bg-foreground/20" />
-            <span className="text-[10px] font-medium uppercase tracking-[0.3em] text-muted-foreground">
+    <article
+      className={`group relative overflow-hidden rounded-2xl border ${style.accentBorder} ${style.accentBg} transition-all duration-300 hover:shadow-md`}
+    >
+      <div className="relative p-6 sm:p-8">
+        {/* Top: label row */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <span className="text-lg">{style.emoji}</span>
+            <span
+              className={`text-[10px] font-bold uppercase tracking-[0.25em] ${style.accentMuted}`}
+            >
               {style.label}
             </span>
           </div>
+          <span className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground/40">
+            {String(index + 1).padStart(2, "0")} / 05
+          </span>
+        </div>
 
-          {/* Title */}
-          <h3
-            className="text-2xl font-normal tracking-tight sm:text-3xl"
-            style={{ fontFamily: "var(--font-playfair), serif" }}
-          >
-            {promo.title}
-          </h3>
+        {/* Main content grid */}
+        <div className="mt-6 grid gap-6 sm:grid-cols-[1fr_auto] sm:gap-8">
+          {/* Left: text content */}
+          <div className="space-y-3">
+            <h3
+              className="text-[1.65rem] font-normal leading-tight tracking-tight sm:text-3xl"
+              style={{ fontFamily: "var(--font-playfair), serif" }}
+            >
+              {promo.title}
+            </h3>
 
-          {/* Description */}
-          {promo.description && (
-            <p className="max-w-xl text-[0.9rem] leading-relaxed text-muted-foreground">
-              {promo.description}
-            </p>
-          )}
+            {promo.description && (
+              <p className="max-w-lg text-[0.875rem] leading-relaxed text-muted-foreground">
+                {promo.description}
+              </p>
+            )}
 
-          {/* Terms */}
-          {style.terms.length > 0 && (
-            <div className="flex flex-wrap gap-x-4 gap-y-1 pt-1">
+            {/* Terms as inline pills */}
+            <div className="flex flex-wrap gap-2 pt-2">
               {style.terms.map((term, i) => (
                 <span
                   key={i}
-                  className="text-xs text-muted-foreground/70"
+                  className={`inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-medium ${style.darkAccentBg} ${style.accentMuted}`}
                 >
-                  {i > 0 && (
-                    <span className="mr-4 text-foreground/10">·</span>
-                  )}
                   {term}
                 </span>
               ))}
             </div>
-          )}
-
-          {/* Code + Book link */}
-          <div className="flex flex-wrap items-center gap-6 pt-2">
-            {promo.promo_code && <PromoCode code={promo.promo_code} />}
-
-            {promo.promo_code && (
-              <a
-                href={BOOKING_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 text-xs font-medium uppercase tracking-[0.15em] text-foreground/50 transition-colors hover:text-foreground"
-              >
-                Book Now
-                <ArrowUpRight className="h-3 w-3" />
-              </a>
-            )}
           </div>
 
-          {/* Validity */}
-          {(promo.valid_from || promo.valid_until) && (
-            <p className="pt-1 text-[11px] tracking-wide text-muted-foreground/50">
-              {promo.valid_from &&
-                `From ${new Date(promo.valid_from).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}`}
-              {promo.valid_from && promo.valid_until && " — "}
-              {promo.valid_until &&
-                `Until ${new Date(promo.valid_until).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}`}
-            </p>
+          {/* Right: highlight badge */}
+          {style.highlight && (
+            <div className="flex items-center">
+              <div
+                className={`flex flex-col items-center rounded-xl border border-dashed px-5 py-4 text-center sm:px-7 sm:py-5 ${style.accentBorder}`}
+              >
+                <span
+                  className={`text-3xl font-normal tracking-tight sm:text-4xl ${style.accent}`}
+                  style={{ fontFamily: "var(--font-playfair), serif" }}
+                >
+                  {style.highlight}
+                </span>
+                <span
+                  className={`mt-0.5 text-[11px] font-medium uppercase tracking-[0.15em] ${style.accentMuted}`}
+                >
+                  {style.highlightSub}
+                </span>
+              </div>
+            </div>
           )}
         </div>
 
-        {/* Right: highlight callout */}
-        {style.highlight && (
-          <div className="flex items-start sm:items-center sm:justify-end">
-            <div className="inline-flex flex-col items-center rounded-none border border-foreground/8 px-6 py-4 text-center sm:px-8 sm:py-6">
-              <span className="text-[10px] font-medium uppercase tracking-[0.3em] text-muted-foreground">
-                {promo.promo_code ? "You Save" : "Discount"}
-              </span>
-              <span
-                className="mt-1 text-2xl font-normal tracking-tight sm:text-3xl"
-                style={{ fontFamily: "var(--font-playfair), serif" }}
-              >
-                {style.highlight}
-              </span>
-            </div>
-          </div>
+        {/* Bottom: code + CTA */}
+        <div className="mt-6 flex flex-wrap items-center gap-4 border-t border-foreground/5 pt-5">
+          {promo.promo_code && (
+            <PromoCode code={promo.promo_code} accent={style.accentBorder} />
+          )}
+
+          {promo.promo_code ? (
+            <a
+              href={BOOKING_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.2em] transition-opacity hover:opacity-70 ${style.accent}`}
+            >
+              Book Direct
+              <ArrowUpRight className="h-3 w-3" />
+            </a>
+          ) : (
+            <span
+              className={`text-[11px] font-bold uppercase tracking-[0.2em] ${style.accentMuted}`}
+            >
+              No code needed — just show your reservation
+            </span>
+          )}
+        </div>
+
+        {/* Validity */}
+        {(promo.valid_from || promo.valid_until) && (
+          <p className="mt-3 text-[11px] tracking-wide text-muted-foreground/40">
+            {promo.valid_from &&
+              `From ${new Date(promo.valid_from).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}`}
+            {promo.valid_from && promo.valid_until && " — "}
+            {promo.valid_until &&
+              `Until ${new Date(promo.valid_until).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}`}
+          </p>
         )}
       </div>
     </article>
@@ -209,18 +268,15 @@ function PromotionCard({
 
 export function PromotionCards({ promotions }: { promotions: Promotion[] }) {
   return (
-    <div>
+    <div className="space-y-4">
       {promotions.map((promo, i) => (
         <PromotionCard key={promo.id} promo={promo} index={i} />
       ))}
-      {/* Bottom rule */}
-      <div className="h-px w-full bg-foreground/6" />
 
-      {/* Footer note */}
-      <p className="mt-8 text-center text-xs leading-relaxed text-muted-foreground/50">
-        All offers are exclusive to direct bookings at summitlakeside.com
-        <br />
-        Cannot be combined with other promotions unless stated otherwise.
+      <p className="pt-4 text-center text-[11px] leading-relaxed tracking-wide text-muted-foreground/40">
+        All offers exclusive to direct bookings at summitlakeside.com
+        <span className="mx-2 text-foreground/10">·</span>
+        Cannot be combined with other promotions
       </p>
     </div>
   );
