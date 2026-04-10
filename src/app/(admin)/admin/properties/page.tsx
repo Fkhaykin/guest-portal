@@ -1,15 +1,13 @@
 import { createClient } from "@/lib/supabase/server";
+import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
   CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
-import { Plus } from "lucide-react";
+import { Plus, Home } from "lucide-react";
 
 export default async function PropertiesListPage() {
   const supabase = await createClient();
@@ -41,31 +39,40 @@ export default async function PropertiesListPage() {
       </div>
 
       {properties && properties.length > 0 ? (
-        <div className="grid gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {properties.map((property) => (
             <Link
               key={property.id}
               href={`/admin/properties/${property.id}`}
             >
-              <Card className="hover:bg-accent/50 transition-colors cursor-pointer">
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle>{property.name}</CardTitle>
-                    <Badge variant={property.is_active ? "default" : "secondary"}>
-                      {property.is_active ? "Active" : "Inactive"}
-                    </Badge>
-                  </div>
-                  <CardDescription>
+              <Card className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer group h-full">
+                <div className="relative aspect-4/3 bg-muted">
+                  {property.cover_image_url ? (
+                    <Image
+                      src={property.cover_image_url}
+                      alt={property.name}
+                      fill
+                      className="object-cover group-hover:scale-105 transition-transform duration-300"
+                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                    />
+                  ) : (
+                    <div className="flex items-center justify-center h-full">
+                      <Home className="h-12 w-12 text-muted-foreground/40" />
+                    </div>
+                  )}
+                  <Badge
+                    variant={property.is_active ? "default" : "secondary"}
+                    className="absolute top-3 right-3"
+                  >
+                    {property.is_active ? "Active" : "Inactive"}
+                  </Badge>
+                </div>
+                <CardContent className="p-4">
+                  <h3 className="font-semibold line-clamp-1">{property.name}</h3>
+                  <p className="text-sm text-muted-foreground line-clamp-1 mt-1">
                     {property.address || `/${property.slug}`}
-                  </CardDescription>
-                </CardHeader>
-                {property.description && (
-                  <CardContent>
-                    <p className="text-sm text-muted-foreground">
-                      {property.description}
-                    </p>
-                  </CardContent>
-                )}
+                  </p>
+                </CardContent>
               </Card>
             </Link>
           ))}
