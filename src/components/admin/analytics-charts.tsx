@@ -134,6 +134,7 @@ type Registration = {
   guests: number;
   status: string;
   source: string | null;
+  lodgifyBookingId: number | null;
   amount: number;
   createdAt: string;
   guestName: string;
@@ -150,13 +151,13 @@ type BucketReservation = {
   nights: number;
   registrationId: string;
   source: string | null;
+  lodgifyBookingId: number | null;
 };
 
 type ApiData = {
   properties: { id: string; name: string }[];
   registrations: Registration[];
   qrScans: number;
-  listingUrlsByProperty: Record<string, Record<string, string>>;
 };
 
 // ─── Helpers ─────────────────────────────────────────────────
@@ -233,6 +234,9 @@ export function AnalyticsCharts() {
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
   const [groupBy, setGroupBy] = useState<GroupBy>("month");
+
+  // Only one chart tooltip open at a time
+  const [activeChartId, setActiveChartId] = useState<string | null>(null);
 
   // Revenue line visibility toggles
   const [hiddenSeries, setHiddenSeries] = useState<Set<string>>(new Set());
@@ -439,6 +443,7 @@ export function AnalyticsCharts() {
         nights,
         registrationId: r.id,
         source: r.source,
+        lodgifyBookingId: r.lodgifyBookingId,
       });
     }
 
@@ -459,6 +464,7 @@ export function AnalyticsCharts() {
         nights: 0,
         registrationId: r.id,
         source: r.source,
+        lodgifyBookingId: r.lodgifyBookingId,
       });
     }
     const petFeeKeys = Object.keys(petFeeBuckets).sort();
@@ -485,6 +491,7 @@ export function AnalyticsCharts() {
         nights: 0,
         registrationId: r.id,
         source: r.source,
+        lodgifyBookingId: r.lodgifyBookingId,
       });
     }
     const cleanFeeKeys = Object.keys(cleanFeeBuckets).sort();
@@ -515,6 +522,7 @@ export function AnalyticsCharts() {
           nights: 0,
           registrationId: r.id,
           source: r.source,
+          lodgifyBookingId: r.lodgifyBookingId,
         });
       }
     }
@@ -721,7 +729,7 @@ export function AnalyticsCharts() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
         {/* 1. Revenue Over Time — line chart with checkboxes */}
-        <Card className="overflow-visible">
+        <Card className="overflow-visible" onClickCapture={() => setActiveChartId("revenue")}>
           <CardHeader>
             <CardTitle>Revenue Over Time</CardTitle>
             <CardDescription>{groupLabel} booking revenue by property</CardDescription>
@@ -752,7 +760,7 @@ export function AnalyticsCharts() {
                     <XAxis dataKey="bucket" tickFormatter={(v) => formatBucketLabel(v, groupBy)} className="text-xs" />
                     <YAxis tickFormatter={formatDollars} className="text-xs" />
                     <Tooltip
-                      content={<RevenueTooltip groupBy={groupBy} propertyNames={propNames} hiddenSeries={hiddenSeries} reservationsByBucket={charts.reservationsByBucket} listingUrlsByProperty={raw!.listingUrlsByProperty} />}
+                      content={<RevenueTooltip groupBy={groupBy} propertyNames={propNames} hiddenSeries={hiddenSeries} reservationsByBucket={charts.reservationsByBucket} chartId="revenue" activeChartId={activeChartId} />}
                       trigger="click"
                       allowEscapeViewBox={{ x: true, y: true }}
                       wrapperStyle={{ zIndex: 10, pointerEvents: "auto" }}
@@ -773,7 +781,7 @@ export function AnalyticsCharts() {
         </Card>
 
         {/* 2. Occupancy Rate — grouped bar over time */}
-        <Card className="overflow-visible">
+        <Card className="overflow-visible" onClickCapture={() => setActiveChartId("occupancy")}>
           <CardHeader>
             <CardTitle>Occupancy Rate</CardTitle>
             <CardDescription>{groupLabel} occupancy % by property</CardDescription>
@@ -788,7 +796,7 @@ export function AnalyticsCharts() {
                   <XAxis dataKey="bucket" tickFormatter={(v) => formatBucketLabel(v, groupBy)} className="text-xs" />
                   <YAxis tickFormatter={(v) => `${v}%`} domain={[0, 100]} className="text-xs" />
                   <Tooltip
-                    content={<BarTooltip groupBy={groupBy} propertyNames={propNames} formatter={(v) => `${v}%`} reservationsByBucket={charts.reservationsByBucket} showNights listingUrlsByProperty={raw!.listingUrlsByProperty} />}
+                    content={<BarTooltip groupBy={groupBy} propertyNames={propNames} formatter={(v) => `${v}%`} reservationsByBucket={charts.reservationsByBucket} showNights chartId="occupancy" activeChartId={activeChartId} />}
                     trigger="click"
                     allowEscapeViewBox={{ x: true, y: true }}
                     wrapperStyle={{ zIndex: 10, pointerEvents: "auto" }}
@@ -804,7 +812,7 @@ export function AnalyticsCharts() {
         </Card>
 
         {/* 3. Revenue by Property — grouped bar over time */}
-        <Card className="overflow-visible">
+        <Card className="overflow-visible" onClickCapture={() => setActiveChartId("revByProp")}>
           <CardHeader>
             <CardTitle>Revenue by Property</CardTitle>
             <CardDescription>{groupLabel} revenue per property</CardDescription>
@@ -819,7 +827,7 @@ export function AnalyticsCharts() {
                   <XAxis dataKey="bucket" tickFormatter={(v) => formatBucketLabel(v, groupBy)} className="text-xs" />
                   <YAxis tickFormatter={formatDollars} className="text-xs" />
                   <Tooltip
-                    content={<BarTooltip groupBy={groupBy} propertyNames={propNames} formatter={formatDollars} reservationsByBucket={charts.reservationsByBucket} listingUrlsByProperty={raw!.listingUrlsByProperty} />}
+                    content={<BarTooltip groupBy={groupBy} propertyNames={propNames} formatter={formatDollars} reservationsByBucket={charts.reservationsByBucket} chartId="revByProp" activeChartId={activeChartId} />}
                     trigger="click"
                     allowEscapeViewBox={{ x: true, y: true }}
                     wrapperStyle={{ zIndex: 10, pointerEvents: "auto" }}
@@ -835,7 +843,7 @@ export function AnalyticsCharts() {
         </Card>
 
         {/* 4. Bookings Per Period — grouped bar by property */}
-        <Card className="overflow-visible">
+        <Card className="overflow-visible" onClickCapture={() => setActiveChartId("bookings")}>
           <CardHeader>
             <CardTitle>Bookings Per {periodLabel}</CardTitle>
             <CardDescription>{groupLabel} bookings by property</CardDescription>
@@ -850,7 +858,7 @@ export function AnalyticsCharts() {
                   <XAxis dataKey="bucket" tickFormatter={(v) => formatBucketLabel(v, groupBy)} className="text-xs" />
                   <YAxis allowDecimals={false} className="text-xs" />
                   <Tooltip
-                    content={<BarTooltip groupBy={groupBy} propertyNames={propNames} formatter={(v) => String(v)} reservationsByBucket={charts.reservationsByBucket} listingUrlsByProperty={raw!.listingUrlsByProperty} />}
+                    content={<BarTooltip groupBy={groupBy} propertyNames={propNames} formatter={(v) => String(v)} reservationsByBucket={charts.reservationsByBucket} chartId="bookings" activeChartId={activeChartId} />}
                     trigger="click"
                     allowEscapeViewBox={{ x: true, y: true }}
                     wrapperStyle={{ zIndex: 10, pointerEvents: "auto" }}
@@ -953,7 +961,7 @@ export function AnalyticsCharts() {
         </Card>
 
         {/* 8. Cleaning Fee Revenue */}
-        <Card className="overflow-visible">
+        <Card className="overflow-visible" onClickCapture={() => setActiveChartId("cleanFees")}>
           <CardHeader>
             <CardTitle>Cleaning Fee Revenue</CardTitle>
             <CardDescription>{groupLabel} cleaning fees by property</CardDescription>
@@ -968,7 +976,7 @@ export function AnalyticsCharts() {
                   <XAxis dataKey="bucket" tickFormatter={(v) => formatBucketLabel(v, groupBy)} className="text-xs" />
                   <YAxis tickFormatter={formatDollars} className="text-xs" />
                   <Tooltip
-                    content={<BarTooltip groupBy={groupBy} propertyNames={propNames} formatter={formatDollars} reservationsByBucket={charts.cleanFeeReservations} listingUrlsByProperty={raw!.listingUrlsByProperty} />}
+                    content={<BarTooltip groupBy={groupBy} propertyNames={propNames} formatter={formatDollars} reservationsByBucket={charts.cleanFeeReservations} chartId="cleanFees" activeChartId={activeChartId} />}
                     trigger="click"
                     allowEscapeViewBox={{ x: true, y: true }}
                     wrapperStyle={{ zIndex: 10, pointerEvents: "auto" }}
@@ -984,7 +992,7 @@ export function AnalyticsCharts() {
         </Card>
 
         {/* 9. Pet Fee Revenue */}
-        <Card className="overflow-visible">
+        <Card className="overflow-visible" onClickCapture={() => setActiveChartId("petFees")}>
           <CardHeader>
             <CardTitle>Pet Fee Revenue</CardTitle>
             <CardDescription>{groupLabel} pet fees by property (fee × number of pets)</CardDescription>
@@ -999,7 +1007,7 @@ export function AnalyticsCharts() {
                   <XAxis dataKey="bucket" tickFormatter={(v) => formatBucketLabel(v, groupBy)} className="text-xs" />
                   <YAxis tickFormatter={formatDollars} className="text-xs" />
                   <Tooltip
-                    content={<BarTooltip groupBy={groupBy} propertyNames={propNames} formatter={formatDollars} reservationsByBucket={charts.petFeeReservations} listingUrlsByProperty={raw!.listingUrlsByProperty} />}
+                    content={<BarTooltip groupBy={groupBy} propertyNames={propNames} formatter={formatDollars} reservationsByBucket={charts.petFeeReservations} chartId="petFees" activeChartId={activeChartId} />}
                     trigger="click"
                     allowEscapeViewBox={{ x: true, y: true }}
                     wrapperStyle={{ zIndex: 10, pointerEvents: "auto" }}
@@ -1015,7 +1023,7 @@ export function AnalyticsCharts() {
         </Card>
 
         {/* 10. Add-ons Revenue */}
-        <Card className="overflow-visible">
+        <Card className="overflow-visible" onClickCapture={() => setActiveChartId("addons")}>
           <CardHeader>
             <CardTitle>Add-ons Revenue</CardTitle>
             <CardDescription>{groupLabel} upsell revenue by type</CardDescription>
@@ -1030,7 +1038,7 @@ export function AnalyticsCharts() {
                   <XAxis dataKey="bucket" tickFormatter={(v) => formatBucketLabel(v, groupBy)} className="text-xs" />
                   <YAxis tickFormatter={formatDollars} className="text-xs" />
                   <Tooltip
-                    content={<BarTooltip groupBy={groupBy} propertyNames={charts.addonTypes} formatter={formatDollars} reservationsByBucket={charts.addonReservations} listingUrlsByProperty={raw!.listingUrlsByProperty} />}
+                    content={<BarTooltip groupBy={groupBy} propertyNames={charts.addonTypes} formatter={formatDollars} reservationsByBucket={charts.addonReservations} chartId="addons" activeChartId={activeChartId} />}
                     trigger="click"
                     allowEscapeViewBox={{ x: true, y: true }}
                     wrapperStyle={{ zIndex: 10, pointerEvents: "auto" }}
@@ -1058,20 +1066,22 @@ function formatCheckIn(dateStr: string): string {
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-function ReservationList({ reservations, showNights, listingUrls }: { reservations: BucketReservation[]; showNights?: boolean; listingUrls?: Record<string, string> }) {
+function ReservationList({ reservations, showNights }: { reservations: BucketReservation[]; showNights?: boolean }) {
   if (!reservations?.length) return null;
   return (
     <div className="ml-4 mt-0.5 mb-1 space-y-px">
       {reservations.map((r, i) => {
-        const listingUrl = r.source && listingUrls ? (listingUrls[r.source] ?? listingUrls[cleanSourceName(r.source)]) : undefined;
+        const lodgifyUrl = r.lodgifyBookingId
+          ? `https://app.lodgify.com/#/reservation/details/${r.lodgifyBookingId}`
+          : undefined;
         return (
           <div key={i} className="flex items-center justify-between gap-3 text-[11px] text-muted-foreground">
             <Link href={`/admin/reservations/${r.registrationId}`} className="truncate max-w-[140px] underline hover:text-foreground transition-colors">
               {r.guestName}
             </Link>
             <span className="flex items-center gap-2 shrink-0">
-              {r.source && listingUrl ? (
-                <a href={listingUrl} target="_blank" rel="noopener noreferrer" className="hover:opacity-70 transition-opacity" onClick={(e) => e.stopPropagation()}>
+              {r.source && lodgifyUrl ? (
+                <a href={lodgifyUrl} target="_blank" rel="noopener noreferrer" className="hover:opacity-70 transition-opacity" onClick={(e) => e.stopPropagation()}>
                   <SourceLogo source={r.source} />
                 </a>
               ) : r.source ? (
@@ -1095,7 +1105,8 @@ function RevenueTooltip({
   propertyNames: names,
   hiddenSeries,
   reservationsByBucket,
-  listingUrlsByProperty,
+  chartId,
+  activeChartId,
 }: {
   active?: boolean;
   payload?: Array<{ dataKey: string; value: number; color: string }>;
@@ -1104,10 +1115,12 @@ function RevenueTooltip({
   propertyNames: string[];
   hiddenSeries: Set<string>;
   reservationsByBucket: Record<string, Record<string, BucketReservation[]>>;
-  listingUrlsByProperty: Record<string, Record<string, string>>;
+  chartId?: string;
+  activeChartId?: string | null;
 }) {
   const [, forceUpdate] = useState(0);
   if (!active || !payload?.length) return null;
+  if (chartId && activeChartId && chartId !== activeChartId) return null;
 
   const bucketKey = (payload?.[0] as unknown as { payload?: Record<string, unknown> })?.payload?.bucket as string ?? String(label);
   const bucketReservations = reservationsByBucket[bucketKey] ?? {};
@@ -1151,7 +1164,7 @@ function RevenueTooltip({
                 )}
               </span>
             </div>
-            {isExpanded && resList && <ReservationList reservations={resList} listingUrls={listingUrlsByProperty[entry.dataKey]} />}
+            {isExpanded && resList && <ReservationList reservations={resList} />}
           </div>
         );
       })}
@@ -1168,7 +1181,8 @@ function BarTooltip({
   formatter: fmt,
   reservationsByBucket,
   showNights,
-  listingUrlsByProperty,
+  chartId,
+  activeChartId,
 }: {
   active?: boolean;
   payload?: Array<{ dataKey: string; value: number; color: string }>;
@@ -1178,10 +1192,12 @@ function BarTooltip({
   formatter: (v: number) => string;
   reservationsByBucket: Record<string, Record<string, BucketReservation[]>>;
   showNights?: boolean;
-  listingUrlsByProperty: Record<string, Record<string, string>>;
+  chartId?: string;
+  activeChartId?: string | null;
 }) {
   const [, forceUpdate] = useState(0);
   if (!active || !payload?.length) return null;
+  if (chartId && activeChartId && chartId !== activeChartId) return null;
 
   const bucketKey = (payload?.[0] as unknown as { payload?: Record<string, unknown> })?.payload?.bucket as string ?? String(label);
   const bucketReservations = reservationsByBucket[bucketKey] ?? {};
@@ -1221,7 +1237,7 @@ function BarTooltip({
                 )}
               </span>
             </div>
-            {isExpanded && resList && <ReservationList reservations={resList} showNights={showNights} listingUrls={listingUrlsByProperty[entry.dataKey]} />}
+            {isExpanded && resList && <ReservationList reservations={resList} showNights={showNights} />}
           </div>
         );
       })}

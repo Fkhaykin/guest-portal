@@ -12,7 +12,7 @@ export async function GET() {
 
   const { data: properties } = await supabase
     .from("property")
-    .select("id, name, nickname, cleaning_fee_cents, pet_fee_cents, listing_urls")
+    .select("id, name, nickname, cleaning_fee_cents, pet_fee_cents")
     .eq("host_id", hostId);
 
   if (!properties || properties.length === 0) {
@@ -54,7 +54,7 @@ export async function GET() {
   const { data: registrations } = await supabase
     .from("registration")
     .select(
-      "id, property_id, check_in_date, check_out_date, num_guests, status, booking_source, total_amount_cents, created_at, lodgify_num_pets, pets, upsells, guest:guest_id(full_name)"
+      "id, property_id, check_in_date, check_out_date, num_guests, status, booking_source, total_amount_cents, created_at, lodgify_num_pets, pets, upsells, lodgify_booking_id, guest:guest_id(full_name)"
     )
     .in("property_id", propertyIds);
 
@@ -74,14 +74,6 @@ export async function GET() {
     };
   }
 
-  // Merge listing_urls per display name (deduped properties share URLs)
-  const listingUrlsByProperty: Record<string, Record<string, string>> = {};
-  for (const p of properties) {
-    const name = displayNames[p.id];
-    const urls = (p.listing_urls ?? {}) as Record<string, string>;
-    listingUrlsByProperty[name] = { ...listingUrlsByProperty[name], ...urls };
-  }
-
   return NextResponse.json({
     properties: uniqueProperties,
     registrations: (registrations ?? []).map((r) => {
@@ -99,6 +91,7 @@ export async function GET() {
         guests: r.num_guests,
         status: r.status,
         source: r.booking_source,
+        lodgifyBookingId: r.lodgify_booking_id as number | null,
         amount: r.total_amount_cents ?? 0,
         createdAt: r.created_at,
         guestName: (r.guest as unknown as { full_name: string } | null)?.full_name ?? "Unknown",
@@ -111,6 +104,5 @@ export async function GET() {
       };
     }),
     qrScans,
-    listingUrlsByProperty,
   });
 }
