@@ -499,17 +499,27 @@ export function GettingHereMap({ propertyAddress, variant = "penn-estates" }: Ge
               </InfoWindow>
             )}
             {showDontGoHere && !showSouthInfo && (
-              <InfoWindow
+              <OverlayViewF
                 position={SOUTH_GATE}
-                onCloseClick={() => setShowDontGoHere(false)}
-                options={{ disableAutoPan: true }}
+                mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
               >
-                <div className="px-1 py-0.5">
-                  <p className="font-black text-red-600 text-sm tracking-wide">
-                    DON&apos;T GO HERE
-                  </p>
+                <div
+                  className="transition-all duration-300 ease-in-out"
+                  style={{ transform: "translate(-50%, 8px)" }}
+                >
+                  <div className="relative bg-white dark:bg-gray-900 rounded-lg shadow-lg px-3 py-1.5 border border-red-200">
+                    <button
+                      onClick={() => setShowDontGoHere(false)}
+                      className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-gray-500 hover:text-gray-700 text-xs leading-none"
+                    >
+                      ✕
+                    </button>
+                    <p className="font-black text-red-600 text-sm tracking-wide">
+                      DON&apos;T GO HERE
+                    </p>
+                  </div>
                 </div>
-              </InfoWindow>
+              </OverlayViewF>
             )}
           </>
         )}
