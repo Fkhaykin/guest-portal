@@ -170,7 +170,7 @@ function UnpaidTab({
       </Card>
 
       {/* Cleaning list */}
-      <div className="space-y-4">
+      <div className="space-y-6">
         {cleanings.map((c) => (
           <Link key={c.registrationId} href={`/admin/reservations/${c.registrationId}`}>
             <Card className="hover:bg-accent/50 transition-colors cursor-pointer">
@@ -286,7 +286,7 @@ function HistoryTab({ invoices }: { invoices: AdminInvoiceRow[] }) {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {invoices.map((inv) => (
         <Link key={inv.id} href={`/admin/invoices/${inv.id}`}>
           <Card className="hover:bg-accent/50 transition-colors cursor-pointer">

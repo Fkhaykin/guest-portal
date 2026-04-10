@@ -206,7 +206,7 @@ function UnpaidTab({
       </Card>
 
       {/* Cleaning list */}
-      <div className="space-y-4">
+      <div className="space-y-6">
         {cleanings.map((c) => (
           <Card key={c.registrationId}>
             <CardContent className="py-3">
