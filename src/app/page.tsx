@@ -343,11 +343,9 @@ function GuestDashboard({
                 <p className="font-semibold">
                   {formatShortDate(reservation.check_in_date)}
                 </p>
-                {lodgify?.check_in_time && (
-                  <p className={`text-sm ${hasEarlyCheckin ? "text-blue-700 dark:text-blue-400 font-medium" : "text-muted-foreground"}`}>
-                    After {formatTime(lodgify.check_in_time)}
-                  </p>
-                )}
+                <p className={`text-sm ${hasEarlyCheckin ? "text-blue-700 dark:text-blue-400 font-medium" : "text-muted-foreground"}`}>
+                  After {hasEarlyCheckin ? "1:00 PM" : lodgify?.check_in_time ? formatTime(lodgify.check_in_time) : "4:00 PM"}
+                </p>
               </div>
               <div className={`relative rounded-lg border p-4 space-y-1 overflow-hidden ${hasLateCheckout ? "border-purple-300 bg-purple-50/50 dark:border-purple-700 dark:bg-purple-950/30" : ""}`}>
                 {hasLateCheckout && (
@@ -362,11 +360,9 @@ function GuestDashboard({
                 <p className="font-semibold">
                   {formatShortDate(reservation.check_out_date)}
                 </p>
-                {lodgify?.check_out_time && (
-                  <p className={`text-sm ${hasLateCheckout ? "text-purple-700 dark:text-purple-400 font-medium" : "text-muted-foreground"}`}>
-                    By {formatTime(lodgify.check_out_time)}
-                  </p>
-                )}
+                <p className={`text-sm ${hasLateCheckout ? "text-purple-700 dark:text-purple-400 font-medium" : "text-muted-foreground"}`}>
+                  By {hasLateCheckout ? "2:00 PM" : lodgify?.check_out_time ? formatTime(lodgify.check_out_time) : "11:00 AM"}
+                </p>
               </div>
             </div>
 
