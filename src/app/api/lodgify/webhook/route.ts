@@ -1,21 +1,38 @@
 import { NextResponse } from "next/server";
+import { createHmac, timingSafeEqual } from "crypto";
 import { syncBookingById } from "@/lib/lodgify/sync";
 
-export async function POST(request: Request) {
-  // Verify webhook secret
-  const secret = process.env.LODGIFY_WEBHOOK_SECRET;
-  if (!secret) {
-    console.error("[lodgify-webhook] LODGIFY_WEBHOOK_SECRET is not configured");
-    return NextResponse.json({ error: "Webhook not configured" }, { status: 500 });
+function verifySignature(rawBody: string, signature: string, secrets: string[]): boolean {
+  // signature format: "sha256=<hex>"
+  for (const secret of secrets) {
+    const computed = "sha256=" + createHmac("sha256", secret).update(rawBody).digest("hex");
+    try {
+      if (timingSafeEqual(Buffer.from(computed), Buffer.from(signature))) {
+        return true;
+      }
+    } catch {
+      // length mismatch — skip
+    }
   }
-  const authHeader = request.headers.get("authorization");
-  if (authHeader !== `Bearer ${secret}`) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  return false;
+}
+
+export async function POST(request: Request) {
+  const rawBody = await request.text();
+
+  // Verify ms-signature from Lodgify
+  const signingSecrets = process.env.LODGIFY_WEBHOOK_SIGNING_SECRETS;
+  if (signingSecrets) {
+    const signature = request.headers.get("ms-signature") ?? "";
+    const secrets = signingSecrets.split(",").map((s) => s.trim());
+    if (!verifySignature(rawBody, signature, secrets)) {
+      return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
+    }
   }
 
   let body: { event?: string; booking_id?: number };
   try {
-    body = await request.json();
+    body = JSON.parse(rawBody);
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }

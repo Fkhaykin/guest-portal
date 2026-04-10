@@ -3,6 +3,10 @@
     {
       "path": "/api/cleaner/invoices/auto-generate",
       "schedule": "0 6 * * 1"
+    },
+    {
+      "path": "/api/lodgify/cron-sync",
+      "schedule": "0 */2 * * *"
     }
   ]
 }
