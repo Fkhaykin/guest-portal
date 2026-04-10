@@ -22,6 +22,7 @@ import {
 import type { InvoiceLineItem, InvoiceStatus } from "@/types/database";
 
 const STATUS_STYLES: Record<string, string> = {
+  open: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200",
   draft: "bg-muted text-muted-foreground",
   submitted: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
   approved: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
@@ -33,6 +34,7 @@ const TYPE_ICONS: Record<string, typeof Home> = {
   pet_fee: PawPrint,
   extra: Wrench,
   reimbursement: ReceiptText,
+  monthly_fee: DollarSign,
 };
 
 const TYPE_LABELS: Record<string, string> = {
@@ -40,6 +42,7 @@ const TYPE_LABELS: Record<string, string> = {
   pet_fee: "Pet Fee",
   extra: "Extra",
   reimbursement: "Reimbursement",
+  monthly_fee: "Monthly Fee",
 };
 
 function formatCents(cents: number) {
@@ -107,6 +110,7 @@ export function AdminInvoiceDetail({
   }
 
   const grouped = {
+    monthly_fee: invoice.line_items.filter((l) => l.type === "monthly_fee"),
     cleaning: invoice.line_items.filter((l) => l.type === "cleaning"),
     pet_fee: invoice.line_items.filter((l) => l.type === "pet_fee"),
     extra: invoice.line_items.filter((l) => l.type === "extra"),
@@ -150,7 +154,7 @@ export function AdminInvoiceDetail({
       {/* Line items */}
       <Card>
         <CardContent className="pt-4 space-y-4">
-          {(["cleaning", "pet_fee", "extra", "reimbursement"] as const).map((type) => {
+          {(["monthly_fee", "cleaning", "pet_fee", "extra", "reimbursement"] as const).map((type) => {
             const items = grouped[type];
             if (items.length === 0) return null;
             const Icon = TYPE_ICONS[type];
@@ -276,6 +280,17 @@ export function AdminInvoiceDetail({
       </Card>
 
       {/* Actions */}
+      {status === "open" && (
+        <Button
+          onClick={() => updateStatus("paid")}
+          disabled={saving}
+          className="w-full"
+        >
+          <DollarSign className="h-4 w-4 mr-1" />
+          Mark as Paid
+        </Button>
+      )}
+
       {status === "submitted" && (
         <div className="flex gap-3">
           <Button

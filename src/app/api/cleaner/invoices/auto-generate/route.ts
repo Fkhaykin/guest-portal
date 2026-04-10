@@ -214,7 +214,7 @@ export async function POST(request: Request) {
       const { error } = await supabase.from("cleaner_invoice").insert({
         cleaner_id: cleaner.id,
         host_id: cleaner.host_id,
-        status: "submitted",
+        status: "open",
         period_start: periodStart,
         period_end: periodEnd,
         line_items: lineItems,

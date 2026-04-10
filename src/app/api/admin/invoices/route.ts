@@ -22,7 +22,7 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  let body: { invoice_id: string; status: "approved" | "paid" };
+  let body: { invoice_id: string; status: "approved" | "paid"; };
   try {
     body = await request.json();
   } catch {

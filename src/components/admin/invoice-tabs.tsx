@@ -20,6 +20,7 @@ import type {
 } from "@/app/(admin)/admin/invoices/page";
 
 const STATUS_STYLES: Record<string, string> = {
+  open: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200",
   draft: "bg-muted text-muted-foreground",
   submitted: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
   approved:

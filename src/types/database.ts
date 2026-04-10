@@ -49,7 +49,7 @@ export type InvoiceAttachment = {
   uploaded_at: string;
 };
 
-export type InvoiceStatus = "draft" | "submitted" | "approved" | "paid";
+export type InvoiceStatus = "open" | "draft" | "submitted" | "approved" | "paid";
 
 export type UpsellEntry = {
   type: string;
