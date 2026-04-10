@@ -18,7 +18,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 const navItems = [
   { label: "Dashboard", href: "/cleaner", icon: BarChart3 },
   { label: "Tasks", href: "/cleaner/tasks", icon: ClipboardList },
-  { label: "Calendar", href: "/cleaner/calendar", icon: Calendar },
+  { label: "Reservations", href: "/cleaner/calendar", icon: Calendar },
   { label: "Invoices", href: "/cleaner/invoices", icon: Receipt },
 ];
 

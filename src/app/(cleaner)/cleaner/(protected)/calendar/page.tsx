@@ -121,7 +121,9 @@ export default async function CalendarPage() {
     const nights = Math.round((coDate.getTime() - ciDate.getTime()) / (1000 * 60 * 60 * 24));
     const petsArr = r.pets as unknown as PetEntry[] | null;
     const hasPets = (petsArr?.length ?? 0) > 0;
-    const cleanerRevenueCents = (property?.cleaning_fee_cents ?? 0) + (hasPets ? (property?.pet_fee_cents ?? 0) : 0);
+    const cleaningFeeCents = property?.cleaning_fee_cents ?? 0;
+    const petFeeCents = hasPets ? (property?.pet_fee_cents ?? 0) : 0;
+    const cleanerRevenueCents = cleaningFeeCents + petFeeCents;
     return {
       id: r.id,
       propertyName: property?.name || "Unknown",
@@ -142,6 +144,8 @@ export default async function CalendarPage() {
       nights,
       hasEarlyCheckin: paid.some((u) => u.type === "early_checkin"),
       hasLateCheckout: paid.some((u) => u.type === "late_checkout"),
+      cleaningFeeCents,
+      petFeeCents,
       cleanerRevenueCents,
     };
   });

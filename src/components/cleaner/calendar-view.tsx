@@ -26,6 +26,8 @@ import {
   CalendarPlus,
   CheckCircle2,
   XCircle,
+  List,
+  CalendarRange,
 } from "lucide-react";
 import type { GuestListEntry, PetEntry } from "@/types/database";
 
@@ -49,6 +51,8 @@ export type CalendarReservation = {
   nights: number;
   hasEarlyCheckin: boolean;
   hasLateCheckout: boolean;
+  cleaningFeeCents: number;
+  petFeeCents: number;
   cleanerRevenueCents: number;
 };
 
@@ -132,6 +136,7 @@ export function CalendarView({
   const startOfWeek = new Date(today);
   startOfWeek.setDate(today.getDate() - today.getDay());
 
+  const [viewMode, setViewMode] = useState<"calendar" | "list">("calendar");
   const [startDate, setStartDate] = useState(startOfWeek);
   const [selected, setSelected] = useState<CalendarReservation | null>(null);
   const [failedImages, setFailedImages] = useState<Set<string>>(new Set());
@@ -223,8 +228,243 @@ export function CalendarView({
     return { startIdx, endIdx, isClampedStart, isClampedEnd };
   }
 
+  // Sort reservations for list view: upcoming first, then by check-in date
+  const sortedReservations = [...reservations].sort((a, b) => a.checkIn.localeCompare(b.checkIn));
+  const todayStr2 = toDateStr(today);
+  const upcomingReservations = sortedReservations.filter((r) => r.checkOut >= todayStr2);
+  const pastReservations = sortedReservations.filter((r) => r.checkOut < todayStr2).reverse();
+
   return (
     <>
+      {/* View toggle */}
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-lg font-semibold">Reservations</h2>
+        <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
+          <Button
+            variant={viewMode === "calendar" ? "default" : "ghost"}
+            size="sm"
+            className="h-7 px-2.5 gap-1.5 text-xs"
+            onClick={() => setViewMode("calendar")}
+          >
+            <CalendarRange className="h-3.5 w-3.5" />
+            Calendar
+          </Button>
+          <Button
+            variant={viewMode === "list" ? "default" : "ghost"}
+            size="sm"
+            className="h-7 px-2.5 gap-1.5 text-xs"
+            onClick={() => setViewMode("list")}
+          >
+            <List className="h-3.5 w-3.5" />
+            List
+          </Button>
+        </div>
+      </div>
+
+      {viewMode === "list" ? (
+        <Card className="overflow-hidden">
+          {/* Desktop table */}
+          <div className="hidden md:block overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b bg-muted/50">
+                  <th className="text-left p-3 font-medium text-muted-foreground">Property</th>
+                  <th className="text-left p-3 font-medium text-muted-foreground">Guest</th>
+                  <th className="text-left p-3 font-medium text-muted-foreground">Check-in</th>
+                  <th className="text-left p-3 font-medium text-muted-foreground">Check-out</th>
+                  <th className="text-center p-3 font-medium text-muted-foreground">Nights</th>
+                  <th className="text-center p-3 font-medium text-muted-foreground">Guests</th>
+                  <th className="text-center p-3 font-medium text-muted-foreground">Pets</th>
+                  <th className="text-right p-3 font-medium text-muted-foreground">Cleaning Fee</th>
+                  <th className="text-right p-3 font-medium text-muted-foreground">Pet Fee</th>
+                  <th className="text-right p-3 font-medium text-muted-foreground">Total Earnings</th>
+                  <th className="text-center p-3 font-medium text-muted-foreground">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {upcomingReservations.length > 0 && (
+                  <>
+                    <tr>
+                      <td colSpan={11} className="px-3 pt-3 pb-1">
+                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Upcoming & Current</p>
+                      </td>
+                    </tr>
+                    {upcomingReservations.map((r) => {
+                      const petCount = r.pets?.filter((p) => p.name?.trim()).length ?? 0;
+                      return (
+                        <tr
+                          key={r.id}
+                          className="border-b last:border-b-0 hover:bg-muted/30 cursor-pointer transition-colors"
+                          onClick={() => setSelected(r)}
+                        >
+                          <td className="p-3">
+                            <div className="flex items-center gap-2">
+                              <div className="h-7 w-7 rounded-md overflow-hidden shrink-0 border border-border/50">
+                                {r.propertyCoverImage && !failedImages.has(r.propertyCoverImage) ? (
+                                  <img
+                                    src={r.propertyCoverImage}
+                                    alt={r.propertyName}
+                                    className="w-full h-full object-cover"
+                                    onError={() => setFailedImages((prev) => new Set(prev).add(r.propertyCoverImage!))}
+                                  />
+                                ) : (
+                                  <div className="w-full h-full bg-muted flex items-center justify-center">
+                                    <Home className="h-3 w-3 text-muted-foreground" />
+                                  </div>
+                                )}
+                              </div>
+                              <span className="font-medium truncate">{r.propertyNickname || r.propertyName}</span>
+                            </div>
+                          </td>
+                          <td className="p-3 text-foreground">{r.guestName || <span className="text-muted-foreground">Blocked</span>}</td>
+                          <td className="p-3 whitespace-nowrap">{formatDateLong(r.checkIn)}</td>
+                          <td className="p-3 whitespace-nowrap">{formatDateLong(r.checkOut)}</td>
+                          <td className="p-3 text-center">{r.nights}</td>
+                          <td className="p-3 text-center">{r.numGuests}</td>
+                          <td className="p-3 text-center">
+                            {petCount > 0 ? (
+                              <span className="text-amber-600 font-medium">{petCount}</span>
+                            ) : (
+                              <span className="text-muted-foreground">—</span>
+                            )}
+                          </td>
+                          <td className="p-3 text-right">${Math.round(r.cleaningFeeCents / 100)}</td>
+                          <td className="p-3 text-right">
+                            {r.petFeeCents > 0 ? (
+                              <span className="text-amber-600">${Math.round(r.petFeeCents / 100)}</span>
+                            ) : (
+                              <span className="text-muted-foreground">—</span>
+                            )}
+                          </td>
+                          <td className="p-3 text-right font-semibold">${Math.round(r.cleanerRevenueCents / 100)}</td>
+                          <td className="p-3 text-center">
+                            <Badge
+                              variant={r.isCleaned ? "default" : "outline"}
+                              className={`text-[10px] ${r.isCleaned ? "bg-green-600" : ""}`}
+                            >
+                              {r.isCleaned ? "Cleaned" : "Pending"}
+                            </Badge>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </>
+                )}
+                {pastReservations.length > 0 && (
+                  <>
+                    <tr>
+                      <td colSpan={11} className="px-3 pt-4 pb-1">
+                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Past</p>
+                      </td>
+                    </tr>
+                    {pastReservations.map((r) => {
+                      const petCount = r.pets?.filter((p) => p.name?.trim()).length ?? 0;
+                      return (
+                        <tr
+                          key={r.id}
+                          className="border-b last:border-b-0 hover:bg-muted/30 cursor-pointer transition-colors opacity-60"
+                          onClick={() => setSelected(r)}
+                        >
+                          <td className="p-3">
+                            <div className="flex items-center gap-2">
+                              <div className="h-7 w-7 rounded-md overflow-hidden shrink-0 border border-border/50">
+                                {r.propertyCoverImage && !failedImages.has(r.propertyCoverImage) ? (
+                                  <img
+                                    src={r.propertyCoverImage}
+                                    alt={r.propertyName}
+                                    className="w-full h-full object-cover"
+                                    onError={() => setFailedImages((prev) => new Set(prev).add(r.propertyCoverImage!))}
+                                  />
+                                ) : (
+                                  <div className="w-full h-full bg-muted flex items-center justify-center">
+                                    <Home className="h-3 w-3 text-muted-foreground" />
+                                  </div>
+                                )}
+                              </div>
+                              <span className="font-medium truncate">{r.propertyNickname || r.propertyName}</span>
+                            </div>
+                          </td>
+                          <td className="p-3 text-foreground">{r.guestName || <span className="text-muted-foreground">Blocked</span>}</td>
+                          <td className="p-3 whitespace-nowrap">{formatDateLong(r.checkIn)}</td>
+                          <td className="p-3 whitespace-nowrap">{formatDateLong(r.checkOut)}</td>
+                          <td className="p-3 text-center">{r.nights}</td>
+                          <td className="p-3 text-center">{r.numGuests}</td>
+                          <td className="p-3 text-center">
+                            {petCount > 0 ? (
+                              <span className="text-amber-600 font-medium">{petCount}</span>
+                            ) : (
+                              <span className="text-muted-foreground">—</span>
+                            )}
+                          </td>
+                          <td className="p-3 text-right">${Math.round(r.cleaningFeeCents / 100)}</td>
+                          <td className="p-3 text-right">
+                            {r.petFeeCents > 0 ? (
+                              <span className="text-amber-600">${Math.round(r.petFeeCents / 100)}</span>
+                            ) : (
+                              <span className="text-muted-foreground">—</span>
+                            )}
+                          </td>
+                          <td className="p-3 text-right font-semibold">${Math.round(r.cleanerRevenueCents / 100)}</td>
+                          <td className="p-3 text-center">
+                            <Badge
+                              variant={r.isCleaned ? "default" : "outline"}
+                              className={`text-[10px] ${r.isCleaned ? "bg-green-600" : ""}`}
+                            >
+                              {r.isCleaned ? "Cleaned" : "Pending"}
+                            </Badge>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile card list */}
+          <div className="md:hidden divide-y">
+            {[...upcomingReservations, ...pastReservations].map((r) => {
+              const petCount = r.pets?.filter((p) => p.name?.trim()).length ?? 0;
+              const isPast = r.checkOut < todayStr2;
+              return (
+                <button
+                  key={r.id}
+                  className={`w-full text-left p-4 hover:bg-muted/30 transition-colors ${isPast ? "opacity-60" : ""}`}
+                  onClick={() => setSelected(r)}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-sm truncate">{r.propertyNickname || r.propertyName}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {r.guestName || "Blocked"} · {r.numGuests} guest{r.numGuests !== 1 ? "s" : ""}
+                        {petCount > 0 && <span className="text-amber-600"> · {petCount} pet{petCount !== 1 ? "s" : ""}</span>}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {formatDateLong(r.checkIn)} → {formatDateLong(r.checkOut)} · {r.nights}n
+                      </p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="font-semibold text-sm">${Math.round(r.cleanerRevenueCents / 100)}</p>
+                      <div className="flex flex-col items-end gap-0.5 mt-1">
+                        {r.petFeeCents > 0 && (
+                          <span className="text-[10px] text-amber-600">+${Math.round(r.petFeeCents / 100)} pet</span>
+                        )}
+                        <Badge
+                          variant={r.isCleaned ? "default" : "outline"}
+                          className={`text-[10px] ${r.isCleaned ? "bg-green-600" : ""}`}
+                        >
+                          {r.isCleaned ? "Cleaned" : "Pending"}
+                        </Badge>
+                      </div>
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </Card>
+      ) : (
       <Card className="p-4 overflow-x-auto [--label-w:200px] max-sm:[--label-w:60px]">
         {/* Navigation */}
         <div className="flex items-center justify-between mb-4">
@@ -354,6 +594,7 @@ export function CalendarView({
             })}
         </div>
       </Card>
+      )}
 
       {/* Detail modal */}
       <Dialog open={!!selected} onOpenChange={(open) => !open && setSelected(null)}>
