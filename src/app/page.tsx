@@ -15,7 +15,6 @@ import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import {
   MapPin,
-  Calendar,
   Users,
   Clock,
   DoorOpen,
@@ -413,25 +412,6 @@ function GuestDashboard({
                     {reservation.num_guests} guest{reservation.num_guests !== 1 ? "s" : ""}
                   </div>
                 )}
-              </div>
-            </div>
-
-            {/* Dates full display */}
-            <Separator />
-            <div className="space-y-1">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground flex items-center gap-1.5">
-                  <Calendar className="h-4 w-4" />
-                  Arrival
-                </span>
-                <span>{formatDate(reservation.check_in_date)}</span>
-              </div>
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground flex items-center gap-1.5">
-                  <Calendar className="h-4 w-4" />
-                  Departure
-                </span>
-                <span>{formatDate(reservation.check_out_date)}</span>
               </div>
             </div>
 
