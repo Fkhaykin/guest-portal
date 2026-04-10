@@ -14,6 +14,7 @@ import {
   Home,
   PawPrint,
   Pencil,
+  Trash2,
   Wrench,
   ReceiptText,
   User,
@@ -91,6 +92,7 @@ export function AdminInvoiceDetail({
 }) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [status, setStatus] = useState(invoice.status);
 
   async function updateStatus(newStatus: "approved" | "paid") {
@@ -107,6 +109,23 @@ export function AdminInvoiceDetail({
       router.refresh();
     }
     setSaving(false);
+  }
+
+  async function deleteInvoice() {
+    if (!confirm(`Delete invoice ${invoice.invoice_number}? This cannot be undone.`)) return;
+    setDeleting(true);
+
+    const res = await fetch("/api/admin/invoices", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ invoice_id: invoice.id }),
+    });
+
+    if (res.ok) {
+      router.push("/admin/invoices");
+      router.refresh();
+    }
+    setDeleting(false);
   }
 
   const grouped = {
@@ -147,6 +166,16 @@ export function AdminInvoiceDetail({
               Edit
             </Button>
           </Link>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={deleteInvoice}
+            disabled={deleting}
+            className="text-destructive hover:text-destructive"
+          >
+            <Trash2 className="h-3.5 w-3.5 mr-1" />
+            {deleting ? "Deleting…" : "Delete"}
+          </Button>
           <Badge className={STATUS_STYLES[status]}>{status}</Badge>
         </div>
       </div>

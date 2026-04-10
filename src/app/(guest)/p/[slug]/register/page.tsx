@@ -966,6 +966,7 @@ export default function RegisterPage() {
                 </CardDescription>
               </div>
               <Button type="button" variant="outline" size="sm"
+                disabled={guests.length >= property.max_guests}
                 onClick={() => { setGuests([...guests, { first_name: "", last_name: "", age_group: "over_21" as AgeGroup }]); setShowGuestCountWarning(false); }}>
                 <Plus className="h-4 w-4 mr-1" /> Add
               </Button>
@@ -1039,8 +1040,13 @@ export default function RegisterPage() {
                 <p className="text-sm text-muted-foreground text-center py-4">Add at least one guest.</p>
               )}
               <p className="text-xs text-muted-foreground pt-2">
-                {guests.length} guest{guests.length !== 1 ? "s" : ""} listed
+                {guests.length} of {property.max_guests} max guest{property.max_guests !== 1 ? "s" : ""} listed
               </p>
+              {guests.length >= property.max_guests && (
+                <p className="text-xs text-amber-600 font-medium">
+                  This property has a maximum occupancy of {property.max_guests} guests.
+                </p>
+              )}
 
               {/* Infant equipment needs — shown when any guest is an infant */}
               {guests.some((g) => g.age_group === "infant") && (

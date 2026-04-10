@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   SprayCan,
   Receipt,
@@ -13,6 +15,7 @@ import {
   PawPrint,
   User,
   CheckCircle2,
+  Trash2,
 } from "lucide-react";
 import type {
   AdminInvoiceRow,
@@ -167,7 +170,7 @@ function UnpaidTab({
       </Card>
 
       {/* Cleaning list */}
-      <div className="space-y-2">
+      <div className="space-y-3">
         {cleanings.map((c) => (
           <Link key={c.registrationId} href={`/admin/reservations/${c.registrationId}`}>
             <Card className="hover:bg-accent/50 transition-colors cursor-pointer">
@@ -249,6 +252,27 @@ function UnpaidTab({
 // --- Invoice History Tab ---
 
 function HistoryTab({ invoices }: { invoices: AdminInvoiceRow[] }) {
+  const router = useRouter();
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  async function deleteInvoice(e: React.MouseEvent, inv: AdminInvoiceRow) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!confirm(`Delete invoice ${inv.invoice_number}? This cannot be undone.`)) return;
+    setDeletingId(inv.id);
+
+    const res = await fetch("/api/admin/invoices", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ invoice_id: inv.id }),
+    });
+
+    if (res.ok) {
+      router.refresh();
+    }
+    setDeletingId(null);
+  }
+
   if (invoices.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center space-y-3">
@@ -280,7 +304,18 @@ function HistoryTab({ invoices }: { invoices: AdminInvoiceRow[] }) {
                   {formatDateFull(inv.period_end)}
                 </p>
               </div>
-              <p className="text-sm font-semibold">{formatCents(inv.total)}</p>
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-semibold">{formatCents(inv.total)}</p>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                  onClick={(e) => deleteInvoice(e, inv)}
+                  disabled={deletingId === inv.id}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </Link>

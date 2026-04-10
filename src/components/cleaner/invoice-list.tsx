@@ -8,6 +8,7 @@ import { Plus, Receipt } from "lucide-react";
 import type { InvoiceRow } from "@/app/(cleaner)/cleaner/(protected)/invoices/page";
 
 const STATUS_STYLES: Record<string, string> = {
+  open: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200",
   draft: "bg-muted text-muted-foreground",
   submitted: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
   approved: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",

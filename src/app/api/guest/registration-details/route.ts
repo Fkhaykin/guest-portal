@@ -55,7 +55,7 @@ export async function POST(request: Request) {
     lodgify_num_pets: lodgifyNumPets,
     pet_fee_cents: property?.pet_fee_cents ?? 0,
     has_pets_from_booking: lodgifyNumPets > 0 || currentPets.length > 0,
-    max_guests: property?.max_guests ?? 16,
+    max_guests: property?.max_guests ?? 12,
     vehicles: (vehicles || []).map((v) => ({
       make: v.make || "",
       model: v.model || "",

@@ -66,7 +66,7 @@ export async function POST(request: Request) {
       .eq("id", reg.property_id)
       .single();
 
-    const maxGuests = property?.max_guests ?? 16;
+    const maxGuests = property?.max_guests ?? 12;
     if (validGuests.length > maxGuests) {
       return NextResponse.json(
         { error: `Guest list exceeds property capacity of ${maxGuests}` },

@@ -113,7 +113,7 @@ export default function UpdateRegistrationPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [registrationId, setRegistrationId] = useState<string | null>(null);
-  const [maxGuests, setMaxGuests] = useState(16);
+  const [maxGuests, setMaxGuests] = useState(12);
   const [view, setView] = useState<View>("menu");
 
   // Delivery state
@@ -184,7 +184,7 @@ export default function UpdateRegistrationPage() {
       const data = await res.json();
 
       setRegistrationId(data.id);
-      setMaxGuests(data.max_guests ?? 16);
+      setMaxGuests(data.max_guests ?? 12);
       setExistingGuests((data.guest_list as GuestEntry[]) || []);
       setExistingPets((data.pets as PetEntry[]) || []);
       setHadPetsOnRegistration(data.has_pets_from_booking);

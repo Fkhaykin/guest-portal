@@ -141,8 +141,24 @@ export async function POST(request: Request) {
     }
   }
 
+  // Check occupancy limit
+  const { data: property } = await supabase
+    .from("property")
+    .select("max_guests")
+    .eq("id", reg.property_id)
+    .single();
+
+  const maxGuests = property?.max_guests ?? 12;
+
   // Update registration details with guest list
   const validGuests = (guestList || []).filter((g) => g.first_name.trim() && g.last_name.trim());
+
+  if (validGuests.length > maxGuests) {
+    return NextResponse.json(
+      { error: `Guest list exceeds the maximum occupancy of ${maxGuests} for this property` },
+      { status: 400 }
+    );
+  }
 
   const registrationUpdate: Record<string, unknown> = {
     num_guests: validGuests.length || 1,

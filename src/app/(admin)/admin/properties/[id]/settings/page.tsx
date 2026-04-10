@@ -26,6 +26,7 @@ export default function PropertySettingsPage({
   const [description, setDescription] = useState("");
   const [cleaningFee, setCleaningFee] = useState("");
   const [petFee, setPetFee] = useState("");
+  const [maxOccupancy, setMaxOccupancy] = useState("12");
   const [photoAreas, setPhotoAreas] = useState<string[]>([]);
   const [newArea, setNewArea] = useState("");
 
@@ -35,7 +36,7 @@ export default function PropertySettingsPage({
     async function load() {
       const { data } = await supabase
         .from("property")
-        .select("name, nickname, address, description, cleaning_fee_cents, pet_fee_cents, cleaning_photo_areas")
+        .select("name, nickname, address, description, cleaning_fee_cents, pet_fee_cents, max_guests, cleaning_photo_areas")
         .eq("id", id)
         .single();
 
@@ -46,6 +47,7 @@ export default function PropertySettingsPage({
         setDescription(data.description || "");
         setCleaningFee(data.cleaning_fee_cents ? (data.cleaning_fee_cents / 100).toFixed(2) : "");
         setPetFee(data.pet_fee_cents ? (data.pet_fee_cents / 100).toFixed(2) : "");
+        setMaxOccupancy(String(data.max_guests ?? 12));
         setPhotoAreas(data.cleaning_photo_areas || []);
       }
       setLoading(false);
@@ -68,6 +70,7 @@ export default function PropertySettingsPage({
         description: description.trim() || null,
         cleaning_fee_cents: cleaningFee ? Math.round(parseFloat(cleaningFee) * 100) : 0,
         pet_fee_cents: petFee ? Math.round(parseFloat(petFee) * 100) : 0,
+        max_guests: parseInt(maxOccupancy) || 12,
         cleaning_photo_areas: photoAreas,
       })
       .eq("id", id);
@@ -147,6 +150,19 @@ export default function PropertySettingsPage({
                 placeholder="A brief description of the property"
                 rows={3}
               />
+            </div>
+            <div className="space-y-1">
+              <Label>Max Occupancy</Label>
+              <Input
+                type="number"
+                min="1"
+                value={maxOccupancy}
+                onChange={(e) => setMaxOccupancy(e.target.value)}
+                placeholder="12"
+              />
+              <p className="text-xs text-muted-foreground">
+                Maximum number of guests allowed during registration.
+              </p>
             </div>
           </CardContent>
         </Card>
