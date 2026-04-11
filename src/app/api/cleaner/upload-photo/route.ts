@@ -77,7 +77,7 @@ export async function POST(request: Request) {
 
     const { data: reg } = await supabase
       .from("registration")
-      .select("id, property_id, check_out")
+      .select("id, property_id, check_out_date")
       .eq("id", registrationId)
       .in("property_id", propertyIds)
       .single();
@@ -137,14 +137,14 @@ export async function POST(request: Request) {
     }
 
     // Reject photos taken before the checkout date
-    if (exif?.taken_at && reg.check_out) {
+    if (exif?.taken_at && reg.check_out_date) {
       const photoDate = new Date(exif.taken_at);
-      const checkOutDate = new Date(reg.check_out + "T00:00:00");
+      const checkOutDate = new Date(reg.check_out_date + "T00:00:00");
       if (photoDate < checkOutDate) {
         const photoDateStr = photoDate.toLocaleDateString("en-US", {
           month: "short", day: "numeric", year: "numeric",
         });
-        const checkOutStr = new Date(reg.check_out + "T00:00:00").toLocaleDateString("en-US", {
+        const checkOutStr = new Date(reg.check_out_date + "T00:00:00").toLocaleDateString("en-US", {
           month: "short", day: "numeric", year: "numeric",
         });
         return NextResponse.json(
