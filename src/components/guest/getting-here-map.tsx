@@ -284,7 +284,7 @@ export function GettingHereMap({ propertyAddress, variant = "penn-estates" }: Ge
         neBounds.extend(HALLET_START);
         neBounds.extend(NORTH_GATE);
         if (homeLocation) neBounds.extend(homeLocation);
-        map.fitBounds(neBounds, { top: 60, bottom: 60, left: 50, right: 50 });
+        map.fitBounds(neBounds, { top: 80, bottom: 120, left: 80, right: 80 });
       }
     },
     [homeLocation, isBml]
