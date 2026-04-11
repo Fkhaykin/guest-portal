@@ -224,7 +224,7 @@ function GuestDashboard({
       {/* Hero image — full width, fades into background */}
       {reservation.property.cover_image_url && (
         <div className="relative w-full">
-          <div className="relative w-full aspect-16/10 sm:aspect-video">
+          <div className="relative w-full h-48 sm:h-56">
             <img
               src={reservation.property.cover_image_url}
               alt={reservation.property.name}
