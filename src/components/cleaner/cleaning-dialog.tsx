@@ -15,10 +15,106 @@ import {
   Camera,
   X,
   Loader2,
+  MapPin,
+  ArrowLeft,
 } from "lucide-react";
-import type { CleaningPhoto } from "@/types/database";
+import type { CleaningPhoto, CleaningPhotoExif } from "@/types/database";
 
 type PhotoWithPreview = CleaningPhoto & { previewUrl: string };
+
+function formatExifSummary(exif: CleaningPhotoExif): string {
+  const ownerOrCamera = exif.camera || "Unknown device";
+  const time = exif.taken_at
+    ? new Date(exif.taken_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
+    : null;
+  const date = exif.taken_at
+    ? new Date(exif.taken_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+    : null;
+
+  let summary = `Shot with ${ownerOrCamera}`;
+  if (time) summary += ` at ${time}`;
+  if (date) summary += ` on ${date}`;
+  return summary;
+}
+
+function ExifDetailScreen({
+  photo,
+  onBack,
+}: {
+  photo: PhotoWithPreview;
+  onBack: () => void;
+}) {
+  const exif = photo.exif!;
+  return (
+    <div className="fixed inset-0 z-100 bg-background flex flex-col">
+      <div className="flex items-center gap-2 px-4 py-3 border-b">
+        <button onClick={onBack} className="p-1 -ml-1 rounded-md hover:bg-muted">
+          <ArrowLeft className="h-5 w-5" />
+        </button>
+        <h2 className="font-semibold text-sm">Photo Details</h2>
+      </div>
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        <div className="rounded-lg overflow-hidden border bg-muted">
+          <img
+            src={photo.previewUrl}
+            alt={photo.room}
+            className="w-full max-h-48 object-cover"
+          />
+        </div>
+
+        {/* Map */}
+        {exif.latitude != null && exif.longitude != null && (
+          <div className="rounded-lg overflow-hidden border h-48">
+            <iframe
+              title="Photo location"
+              width="100%"
+              height="100%"
+              style={{ border: 0 }}
+              loading="lazy"
+              referrerPolicy="no-referrer-when-downgrade"
+              src={`https://www.openstreetmap.org/export/embed.html?bbox=${exif.longitude! - 0.003},${exif.latitude! - 0.002},${exif.longitude! + 0.003},${exif.latitude! + 0.002}&layer=mapnik&marker=${exif.latitude},${exif.longitude}`}
+            />
+          </div>
+        )}
+
+        {/* EXIF breakdown */}
+        <div className="rounded-lg border divide-y text-sm">
+          {exif.taken_at && (
+            <div className="flex justify-between px-3 py-2.5">
+              <span className="text-muted-foreground">Date & Time</span>
+              <span className="font-medium">
+                {new Date(exif.taken_at).toLocaleString("en-US", {
+                  month: "short", day: "numeric", year: "numeric",
+                  hour: "numeric", minute: "2-digit",
+                })}
+              </span>
+            </div>
+          )}
+          {exif.camera && (
+            <div className="flex justify-between px-3 py-2.5">
+              <span className="text-muted-foreground">Device</span>
+              <span className="font-medium">{exif.camera}</span>
+            </div>
+          )}
+          {exif.latitude != null && exif.longitude != null && (
+            <div className="flex justify-between px-3 py-2.5">
+              <span className="text-muted-foreground">Location</span>
+              <span className="font-medium font-mono text-xs">
+                {exif.latitude.toFixed(6)}, {exif.longitude.toFixed(6)}
+              </span>
+            </div>
+          )}
+          {exif.width && exif.height && (
+            <div className="flex justify-between px-3 py-2.5">
+              <span className="text-muted-foreground">Resolution</span>
+              <span className="font-medium">{exif.width} × {exif.height}</span>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 /** Compress an image file to JPEG, resizing if needed to stay under maxBytes. */
 async function compressImage(
@@ -115,6 +211,7 @@ export function CleaningDialog({
   const [submitting, setSubmitting] = useState(false);
   const activeRoomRef = useRef<string | null>(null);
   const [fullscreenUrl, setFullscreenUrl] = useState<string | null>(null);
+  const [exifDetailPhoto, setExifDetailPhoto] = useState<PhotoWithPreview | null>(null);
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [uploadError, setUploadError] = useState<string | null>(null);
   // Track per-area upload progress: { room: { total, completed } }
@@ -280,30 +377,64 @@ export function CleaningDialog({
                   )}
                 </div>
 
-                {/* Uploaded photo thumbnails */}
+                {/* Uploaded photo rows with EXIF details */}
                 {areaPhotos.length > 0 && (
-                  <div className="flex gap-3 flex-wrap pt-1 pr-1">
+                  <div className="space-y-2 pt-1">
                     {areaPhotos.map((photo, i) => {
                       const globalIdx = photos.indexOf(photo);
                       return (
-                        <div key={i} className="relative">
-                          <button
-                            type="button"
-                            onClick={() => setFullscreenUrl(photo.previewUrl)}
-                            className="w-16 h-16 rounded-lg overflow-hidden border bg-muted block"
-                          >
-                            <img
-                              src={photo.previewUrl}
-                              alt={photo.room}
-                              className="w-full h-full object-cover"
-                            />
-                          </button>
-                          <button
-                            onClick={() => removePhoto(globalIdx)}
-                            className="absolute -top-1.5 -right-1.5 bg-black/70 text-white rounded-full p-0.5"
-                          >
-                            <X className="h-3.5 w-3.5" />
-                          </button>
+                        <div key={i} className="flex items-start gap-3 rounded-lg border p-2 bg-muted/30">
+                          <div className="relative shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => setFullscreenUrl(photo.previewUrl)}
+                              className="w-16 h-16 rounded-lg overflow-hidden border bg-muted block"
+                            >
+                              <img
+                                src={photo.previewUrl}
+                                alt={photo.room}
+                                className="w-full h-full object-cover"
+                              />
+                            </button>
+                            <button
+                              onClick={() => removePhoto(globalIdx)}
+                              className="absolute -top-1.5 -right-1.5 bg-black/70 text-white rounded-full p-0.5"
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                          <div className="flex-1 min-w-0 py-0.5">
+                            {photo.exif ? (
+                              <>
+                                <p className="text-xs text-foreground leading-relaxed">
+                                  {formatExifSummary(photo.exif)}
+                                </p>
+                                {photo.exif.latitude != null && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setExifDetailPhoto(photo)}
+                                    className="mt-1.5 flex items-center gap-1 text-xs text-primary hover:underline"
+                                  >
+                                    <MapPin className="h-3 w-3" />
+                                    View details & map
+                                  </button>
+                                )}
+                                {!photo.exif.latitude && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setExifDetailPhoto(photo)}
+                                    className="mt-1.5 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                                  >
+                                    View details
+                                  </button>
+                                )}
+                              </>
+                            ) : (
+                              <p className="text-xs text-muted-foreground">
+                                No metadata available
+                              </p>
+                            )}
+                          </div>
                         </div>
                       );
                     })}
@@ -407,6 +538,14 @@ export function CleaningDialog({
             onClick={(e) => e.stopPropagation()}
           />
         </div>
+      )}
+
+      {/* EXIF detail screen */}
+      {exifDetailPhoto && (
+        <ExifDetailScreen
+          photo={exifDetailPhoto}
+          onBack={() => setExifDetailPhoto(null)}
+        />
       )}
     </Dialog>
   );

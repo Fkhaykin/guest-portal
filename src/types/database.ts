@@ -16,11 +16,21 @@ export type PetEntry = {
   vaccination_doc_path: string | null;
 };
 
+export type CleaningPhotoExif = {
+  taken_at?: string;
+  latitude?: number;
+  longitude?: number;
+  camera?: string;
+  width?: number;
+  height?: number;
+};
+
 export type CleaningPhoto = {
   room: string;
   path: string;
   uploaded_at: string;
   note?: string;
+  exif?: CleaningPhotoExif;
 };
 
 export type CleaningChecklistItem = {

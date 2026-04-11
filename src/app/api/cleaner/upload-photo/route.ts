@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { validateCleanerSession } from "@/lib/cleaner/auth";
 import { getSessionToken } from "@/lib/cleaner/session";
+import exifReader from "exif-reader";
+import type { CleaningPhotoExif } from "@/types/database";
 
 export async function POST(request: Request) {
   try {
@@ -92,6 +94,48 @@ export async function POST(request: Request) {
     const path = `${registrationId}/${room}-${Date.now()}.${ext}`;
     const buffer = Buffer.from(await file.arrayBuffer());
 
+    // Extract EXIF metadata
+    let exif: CleaningPhotoExif | undefined;
+    try {
+      const exifData = exifReader(buffer);
+      if (exifData) {
+        const dt =
+          exifData.Photo?.DateTimeOriginal ??
+          exifData.Photo?.DateTimeDigitized ??
+          exifData.Image?.DateTime;
+        const gpsInfo = exifData.GPSInfo;
+        const make = exifData.Image?.Make;
+        const model = exifData.Image?.Model;
+        const width =
+          exifData.Photo?.PixelXDimension ?? exifData.Image?.ImageWidth;
+        const height =
+          exifData.Photo?.PixelYDimension ?? exifData.Image?.ImageLength;
+
+        exif = {};
+        if (dt) exif.taken_at = dt instanceof Date ? dt.toISOString() : String(dt);
+        if (gpsInfo?.GPSLatitude && gpsInfo?.GPSLongitude) {
+          const toDecimal = (dms: number[]) =>
+            dms[0] + dms[1] / 60 + dms[2] / 3600;
+          let lat = toDecimal(gpsInfo.GPSLatitude);
+          let lon = toDecimal(gpsInfo.GPSLongitude);
+          if (gpsInfo.GPSLatitudeRef === "S") lat = -lat;
+          if (gpsInfo.GPSLongitudeRef === "W") lon = -lon;
+          exif.latitude = lat;
+          exif.longitude = lon;
+        }
+        if (make || model) {
+          exif.camera = [make, model].filter(Boolean).join(" ");
+        }
+        if (width) exif.width = width;
+        if (height) exif.height = height;
+
+        // Only keep if we got at least one field
+        if (Object.keys(exif).length === 0) exif = undefined;
+      }
+    } catch {
+      // EXIF parsing can fail for PNG/WebP/corrupt files — that's fine
+    }
+
     const { error: uploadError } = await supabase.storage
       .from("cleaning-photos")
       .upload(path, buffer, {
@@ -108,7 +152,7 @@ export async function POST(request: Request) {
     }
 
     // Persist photo to cleaning_status record immediately
-    const photo = { room, path, uploaded_at: new Date().toISOString() };
+    const photo = { room, path, uploaded_at: new Date().toISOString(), ...(exif && { exif }) };
 
     // Ensure cleaning_status row exists, then atomically append the photo.
     // Using ignoreDuplicates so concurrent inserts don't conflict.
