@@ -77,7 +77,7 @@ export async function POST(request: Request) {
 
     const { data: reg } = await supabase
       .from("registration")
-      .select("id, property_id")
+      .select("id, property_id, check_out")
       .eq("id", registrationId)
       .in("property_id", propertyIds)
       .single();
@@ -134,6 +134,24 @@ export async function POST(request: Request) {
       }
     } catch {
       // EXIF parsing can fail for PNG/WebP/corrupt files — that's fine
+    }
+
+    // Reject photos taken before the checkout date
+    if (exif?.taken_at && reg.check_out) {
+      const photoDate = new Date(exif.taken_at);
+      const checkOutDate = new Date(reg.check_out + "T00:00:00");
+      if (photoDate < checkOutDate) {
+        const photoDateStr = photoDate.toLocaleDateString("en-US", {
+          month: "short", day: "numeric", year: "numeric",
+        });
+        const checkOutStr = new Date(reg.check_out + "T00:00:00").toLocaleDateString("en-US", {
+          month: "short", day: "numeric", year: "numeric",
+        });
+        return NextResponse.json(
+          { error: `Sorry, this photo was taken on ${photoDateStr}. Photos must be taken after the checkout date of ${checkOutStr}.` },
+          { status: 400 }
+        );
+      }
     }
 
     const { error: uploadError } = await supabase.storage
