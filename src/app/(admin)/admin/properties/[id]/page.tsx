@@ -13,6 +13,7 @@ import {
   Building2,
   Settings,
 } from "lucide-react";
+import { PropertyActiveToggle } from "@/components/admin/property-active-toggle";
 
 const sections = [
   {
@@ -89,13 +90,19 @@ export default async function PropertyDetailPage({
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">
-          {property.name}
-        </h1>
-        <p className="text-muted-foreground">
-          {property.address || `/p/${property.slug}`}
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">
+            {property.name}
+          </h1>
+          <p className="text-muted-foreground">
+            {property.address || `/p/${property.slug}`}
+          </p>
+        </div>
+        <PropertyActiveToggle
+          propertyId={property.id}
+          initialActive={property.is_active}
+        />
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
