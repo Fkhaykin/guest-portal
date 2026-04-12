@@ -21,7 +21,7 @@ import {
 import exifr from "exifr";
 import type { CleaningPhoto, CleaningPhotoExif } from "@/types/database";
 
-type PhotoWithPreview = CleaningPhoto & { previewUrl: string };
+type PhotoWithPreview = CleaningPhoto & { previewUrl: string; _debug?: string };
 
 function formatExifSummary(exif: CleaningPhotoExif): string {
   const ownerOrCamera = exif.camera || "Unknown device";
@@ -253,11 +253,13 @@ export function CleaningDialog({
 
         // Extract EXIF from the ORIGINAL file before compression strips it
         let clientExif: CleaningPhotoExif | undefined;
+        let exifDebugMsg = "";
         try {
           const exifData = await exifr.parse(rawFiles[i], {
             gps: true, tiff: true, exif: true,
           });
           if (exifData) {
+            exifDebugMsg = `keys: ${Object.keys(exifData).join(",")}`;
             clientExif = {};
             const dt = exifData.DateTimeOriginal ?? exifData.DateTimeDigitized ?? exifData.ModifyDate;
             if (dt) clientExif.taken_at = dt instanceof Date ? dt.toISOString() : String(dt);
@@ -273,9 +275,11 @@ export function CleaningDialog({
             if (w) clientExif.width = w;
             if (h) clientExif.height = h;
             if (Object.keys(clientExif).length === 0) clientExif = undefined;
+          } else {
+            exifDebugMsg = "exifr.parse returned null";
           }
-        } catch {
-          // EXIF extraction failed — continue without it
+        } catch (exifErr) {
+          exifDebugMsg = `exifr error: ${exifErr instanceof Error ? exifErr.message : String(exifErr)}`;
         }
 
         const formData = new FormData();
@@ -293,7 +297,7 @@ export function CleaningDialog({
 
         if (res.ok) {
           const data = await res.json();
-          setPhotos((prev) => [...prev, { ...data.photo, previewUrl }]);
+          setPhotos((prev) => [...prev, { ...data.photo, previewUrl, _debug: exifDebugMsg || `type=${rawFiles[i].type} size=${rawFiles[i].size} exif=${JSON.stringify(clientExif)}` }]);
         } else {
           URL.revokeObjectURL(previewUrl);
           const text = await res.text();
@@ -440,6 +444,9 @@ export function CleaningDialog({
                                 <p className="text-xs text-foreground leading-relaxed">
                                   {formatExifSummary(photo.exif)}
                                 </p>
+                                {photo._debug && (
+                                  <span className="block text-[10px] text-orange-400 break-all">{photo._debug}</span>
+                                )}
                                 {photo.exif.latitude != null && (
                                   <button
                                     type="button"
@@ -463,6 +470,9 @@ export function CleaningDialog({
                             ) : (
                               <p className="text-xs text-muted-foreground">
                                 No metadata available
+                                {photo._debug && (
+                                  <span className="block mt-1 text-[10px] text-red-400 break-all">{photo._debug}</span>
+                                )}
                               </p>
                             )}
                           </div>
