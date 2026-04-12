@@ -45,13 +45,34 @@ function getBrowserLocation(): Promise<{ latitude: number; longitude: number } |
 /** Parse device name from userAgent string. */
 function getDeviceName(): string {
   const ua = navigator.userAgent;
-  // iOS: "iPhone", "iPad"
   const iosMatch = ua.match(/(iPhone|iPad)/);
   if (iosMatch) return iosMatch[1];
-  // Android: extract model from "... ; MODEL Build/..."
   const androidMatch = ua.match(/;\s*([^;)]+?)\s*(?:Build|MIUI)/);
   if (androidMatch) return androidMatch[1].trim();
   return "Unknown device";
+}
+
+function getOSName(): string {
+  const ua = navigator.userAgent;
+  const iosVer = ua.match(/OS (\d+[_.\d]*)/);
+  if (iosVer) return `iOS ${iosVer[1].replace(/_/g, ".")}`;
+  const androidVer = ua.match(/Android ([\d.]+)/);
+  if (androidVer) return `Android ${androidVer[1]}`;
+  if (ua.includes("Mac OS X")) return "macOS";
+  if (ua.includes("Windows")) return "Windows";
+  if (ua.includes("Linux")) return "Linux";
+  return "Unknown OS";
+}
+
+function getBrowserName(): string {
+  const ua = navigator.userAgent;
+  if (ua.includes("CriOS")) return "Chrome (iOS)";
+  if (ua.includes("FxiOS")) return "Firefox (iOS)";
+  if (ua.includes("EdgiOS") || ua.includes("Edg/")) return "Edge";
+  if (ua.includes("Safari") && !ua.includes("Chrome")) return "Safari";
+  if (ua.includes("Chrome")) return "Chrome";
+  if (ua.includes("Firefox")) return "Firefox";
+  return "Unknown browser";
 }
 
 function formatExifSummary(exif: CleaningPhotoExif): string {
@@ -69,6 +90,16 @@ function formatExifSummary(exif: CleaningPhotoExif): string {
   return summary;
 }
 
+function ExifRow({ label, value }: { label: string; value: string | number | undefined | null }) {
+  if (value == null || value === "") return null;
+  return (
+    <div className="flex justify-between gap-4 px-3 py-2">
+      <span className="text-muted-foreground shrink-0">{label}</span>
+      <span className="font-medium text-right break-all">{String(value)}</span>
+    </div>
+  );
+}
+
 function ExifDetailScreen({
   photo,
   onBack,
@@ -76,22 +107,34 @@ function ExifDetailScreen({
   photo: PhotoWithPreview;
   onBack: () => void;
 }) {
-  const exif = photo.exif!;
+  const exif = photo.exif ?? {};
+  const formatBytes = (b: number) => b < 1024 * 1024 ? `${(b / 1024).toFixed(0)} KB` : `${(b / (1024 * 1024)).toFixed(1)} MB`;
+
   return (
     <div className="fixed inset-0 z-100 bg-background flex flex-col">
       <div className="flex items-center gap-2 px-4 py-3 border-b">
         <button onClick={onBack} className="p-1 -ml-1 rounded-md hover:bg-muted">
           <ArrowLeft className="h-5 w-5" />
         </button>
-        <h2 className="font-semibold text-sm">Photo Details</h2>
+        <h2 className="font-semibold text-sm">Photo Details — {photo.room}</h2>
       </div>
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {/* Full photo */}
         <div className="rounded-lg overflow-hidden border bg-muted">
           <img
             src={photo.previewUrl}
             alt={photo.room}
-            className="w-full max-h-48 object-cover"
+            className="w-full object-contain max-h-[50vh]"
           />
+        </div>
+
+        {/* Source badge */}
+        <div className="flex items-center gap-2">
+          <span className={`text-[10px] font-medium uppercase tracking-wider px-2 py-0.5 rounded-full ${
+            exif.source === "exif" ? "bg-green-100 text-green-700" : exif.source === "mixed" ? "bg-yellow-100 text-yellow-700" : "bg-blue-100 text-blue-700"
+          }`}>
+            {exif.source === "exif" ? "From photo EXIF" : exif.source === "mixed" ? "EXIF + Browser" : "Captured by browser"}
+          </span>
         </div>
 
         {/* Map */}
@@ -109,39 +152,56 @@ function ExifDetailScreen({
           </div>
         )}
 
-        {/* EXIF breakdown */}
-        <div className="rounded-lg border divide-y text-sm">
-          {exif.taken_at && (
-            <div className="flex justify-between px-3 py-2.5">
-              <span className="text-muted-foreground">Date & Time</span>
-              <span className="font-medium">
-                {new Date(exif.taken_at).toLocaleString("en-US", {
-                  month: "short", day: "numeric", year: "numeric",
-                  hour: "numeric", minute: "2-digit",
-                })}
-              </span>
-            </div>
-          )}
-          {exif.camera && (
-            <div className="flex justify-between px-3 py-2.5">
-              <span className="text-muted-foreground">Device</span>
-              <span className="font-medium">{exif.camera}</span>
-            </div>
-          )}
-          {exif.latitude != null && exif.longitude != null && (
-            <div className="flex justify-between px-3 py-2.5">
-              <span className="text-muted-foreground">Location</span>
-              <span className="font-medium font-mono text-xs">
-                {exif.latitude.toFixed(6)}, {exif.longitude.toFixed(6)}
-              </span>
-            </div>
-          )}
-          {exif.width && exif.height && (
-            <div className="flex justify-between px-3 py-2.5">
-              <span className="text-muted-foreground">Resolution</span>
-              <span className="font-medium">{exif.width} × {exif.height}</span>
-            </div>
-          )}
+        {/* Date & Location */}
+        <div>
+          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Date & Location</h3>
+          <div className="rounded-lg border divide-y text-sm">
+            <ExifRow label="Date & Time" value={exif.taken_at ? new Date(exif.taken_at).toLocaleString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit", second: "2-digit" }) : undefined} />
+            <ExifRow label="Latitude" value={exif.latitude?.toFixed(6)} />
+            <ExifRow label="Longitude" value={exif.longitude?.toFixed(6)} />
+            <ExifRow label="Altitude" value={exif.altitude != null ? `${exif.altitude.toFixed(1)}m` : undefined} />
+          </div>
+        </div>
+
+        {/* Camera & Lens */}
+        <div>
+          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Camera</h3>
+          <div className="rounded-lg border divide-y text-sm">
+            <ExifRow label="Device" value={exif.camera} />
+            <ExifRow label="Lens" value={exif.lens} />
+            <ExifRow label="ISO" value={exif.iso} />
+            <ExifRow label="Aperture" value={exif.aperture != null ? `f/${exif.aperture}` : undefined} />
+            <ExifRow label="Shutter Speed" value={exif.shutter_speed != null ? `${exif.shutter_speed}s` : undefined} />
+            <ExifRow label="Focal Length" value={exif.focal_length} />
+            <ExifRow label="Flash" value={exif.flash} />
+            <ExifRow label="Exposure Mode" value={exif.exposure_mode} />
+            <ExifRow label="White Balance" value={exif.white_balance} />
+            <ExifRow label="Scene Type" value={exif.scene_type} />
+            <ExifRow label="Software" value={exif.software} />
+          </div>
+        </div>
+
+        {/* Image */}
+        <div>
+          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Image</h3>
+          <div className="rounded-lg border divide-y text-sm">
+            <ExifRow label="Resolution" value={exif.width && exif.height ? `${exif.width} × ${exif.height}` : undefined} />
+            <ExifRow label="Color Space" value={exif.color_space} />
+            <ExifRow label="Orientation" value={exif.orientation} />
+            <ExifRow label="File Type" value={exif.file_type} />
+            <ExifRow label="File Size" value={exif.file_size ? formatBytes(exif.file_size) : undefined} />
+          </div>
+        </div>
+
+        {/* Upload Context */}
+        <div>
+          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Upload Context</h3>
+          <div className="rounded-lg border divide-y text-sm">
+            <ExifRow label="Uploaded" value={new Date(photo.uploaded_at).toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" })} />
+            <ExifRow label="Device" value={exif.device_name} />
+            <ExifRow label="OS" value={exif.os} />
+            <ExifRow label="Browser" value={exif.browser} />
+          </div>
         </div>
       </div>
     </div>
@@ -283,48 +343,67 @@ export function CleaningDialog({
         const previewUrl = URL.createObjectURL(file);
 
         // Extract EXIF from the ORIGINAL file before compression strips it
-        let clientExif: CleaningPhotoExif | undefined;
+        const clientExif: CleaningPhotoExif = {};
+        let hasRealExif = false;
         try {
-          const exifData = await exifr.parse(rawFiles[i], {
-            gps: true, tiff: true, exif: true,
-          });
-          if (exifData) {
-            clientExif = {};
-            const dt = exifData.DateTimeOriginal ?? exifData.DateTimeDigitized ?? exifData.ModifyDate;
-            if (dt) clientExif.taken_at = dt instanceof Date ? dt.toISOString() : String(dt);
-            if (exifData.latitude != null && exifData.longitude != null) {
-              clientExif.latitude = exifData.latitude;
-              clientExif.longitude = exifData.longitude;
+          const d = await exifr.parse(rawFiles[i], true); // true = all segments
+          if (d) {
+            const dt = d.DateTimeOriginal ?? d.DateTimeDigitized ?? d.ModifyDate ?? d.CreateDate;
+            if (dt) { clientExif.taken_at = dt instanceof Date ? dt.toISOString() : String(dt); hasRealExif = true; }
+            if (d.latitude != null && d.longitude != null) {
+              clientExif.latitude = d.latitude;
+              clientExif.longitude = d.longitude;
+              hasRealExif = true;
             }
-            const make = exifData.Make;
-            const model = exifData.Model;
-            if (make || model) clientExif.camera = [make, model].filter(Boolean).join(" ");
-            const w = exifData.ExifImageWidth ?? exifData.ImageWidth;
-            const h = exifData.ExifImageHeight ?? exifData.ImageHeight;
+            if (d.GPSAltitude != null) clientExif.altitude = d.GPSAltitude;
+            const make = d.Make; const model = d.Model;
+            if (make || model) { clientExif.camera = [make, model].filter(Boolean).join(" "); hasRealExif = true; }
+            if (d.LensModel || d.LensMake) clientExif.lens = [d.LensMake, d.LensModel].filter(Boolean).join(" ");
+            const w = d.ExifImageWidth ?? d.ImageWidth;
+            const h = d.ExifImageHeight ?? d.ImageHeight;
             if (w) clientExif.width = w;
             if (h) clientExif.height = h;
-            if (Object.keys(clientExif).length === 0) clientExif = undefined;
+            if (d.ISO ?? d.ISOSpeedRatings) clientExif.iso = d.ISO ?? d.ISOSpeedRatings;
+            if (d.FNumber) clientExif.aperture = d.FNumber;
+            if (d.ExposureTime != null) {
+              clientExif.shutter_speed = d.ExposureTime < 1 ? `1/${Math.round(1 / d.ExposureTime)}` : `${d.ExposureTime}`;
+            }
+            if (d.FocalLength) clientExif.focal_length = `${d.FocalLength}mm${d.FocalLengthIn35mmFormat ? ` (${d.FocalLengthIn35mmFormat}mm eq)` : ""}`;
+            if (d.Flash != null) clientExif.flash = typeof d.Flash === "object" ? JSON.stringify(d.Flash) : String(d.Flash);
+            if (d.Orientation) clientExif.orientation = d.Orientation;
+            if (d.Software) clientExif.software = d.Software;
+            if (d.ColorSpace != null) clientExif.color_space = String(d.ColorSpace);
+            if (d.WhiteBalance != null) clientExif.white_balance = d.WhiteBalance === 0 ? "Auto" : "Manual";
+            if (d.ExposureMode != null) clientExif.exposure_mode = d.ExposureMode === 0 ? "Auto" : d.ExposureMode === 1 ? "Manual" : String(d.ExposureMode);
+            if (d.SceneCaptureType != null) {
+              const scenes = ["Standard", "Landscape", "Portrait", "Night"];
+              clientExif.scene_type = scenes[d.SceneCaptureType] ?? String(d.SceneCaptureType);
+            }
           }
         } catch {
           // EXIF extraction failed
         }
 
-        // iOS strips Make/Model/DateTime/GPS from photo picker selections.
-        // Fill gaps with browser data: current time, geolocation, and device UA.
-        if (!clientExif) clientExif = {};
-        if (!clientExif.taken_at) {
-          clientExif.taken_at = new Date().toISOString();
-        }
+        // Always capture: file metadata, browser context
+        clientExif.file_type = rawFiles[i].type || "unknown";
+        clientExif.file_size = rawFiles[i].size;
+
+        // Fill gaps with browser data when iOS strips EXIF
+        let usedBrowserFallback = false;
+        if (!clientExif.taken_at) { clientExif.taken_at = new Date().toISOString(); usedBrowserFallback = true; }
         if (clientExif.latitude == null) {
           const loc = await getBrowserLocation();
           if (loc) {
             clientExif.latitude = loc.latitude;
             clientExif.longitude = loc.longitude;
+            usedBrowserFallback = true;
           }
         }
-        if (!clientExif.camera) {
-          clientExif.camera = getDeviceName();
-        }
+        if (!clientExif.camera) { clientExif.camera = getDeviceName(); usedBrowserFallback = true; }
+        clientExif.device_name = getDeviceName();
+        clientExif.os = getOSName();
+        clientExif.browser = getBrowserName();
+        clientExif.source = hasRealExif ? (usedBrowserFallback ? "mixed" : "exif") : "browser";
 
         const formData = new FormData();
         formData.append("file", file);
@@ -486,30 +565,23 @@ export function CleaningDialog({
                                 <p className="text-xs text-foreground leading-relaxed">
                                   {formatExifSummary(photo.exif)}
                                 </p>
-                                {photo.exif.latitude != null && (
-                                  <button
-                                    type="button"
-                                    onClick={() => setExifDetailPhoto(photo)}
-                                    className="mt-1.5 flex items-center gap-1 text-xs text-primary hover:underline"
-                                  >
-                                    <MapPin className="h-3 w-3" />
-                                    View details & map
-                                  </button>
-                                )}
-                                {!photo.exif.latitude && (
-                                  <button
-                                    type="button"
-                                    onClick={() => setExifDetailPhoto(photo)}
-                                    className="mt-1.5 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-                                  >
-                                    View details
-                                  </button>
-                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => setExifDetailPhoto(photo)}
+                                  className="mt-1 flex items-center gap-1 text-xs text-primary hover:underline"
+                                >
+                                  <MapPin className="h-3 w-3" />
+                                  {photo.exif.latitude != null ? "View details & map" : "View all details"}
+                                </button>
                               </>
                             ) : (
-                              <p className="text-xs text-muted-foreground">
-                                No metadata available
-                              </p>
+                              <button
+                                type="button"
+                                onClick={() => setExifDetailPhoto(photo)}
+                                className="text-xs text-muted-foreground hover:text-foreground"
+                              >
+                                View details
+                              </button>
                             )}
                           </div>
                         </div>

@@ -24,6 +24,18 @@ import type { CleaningPhoto, CleaningPhotoExif } from "@/types/database";
 
 type PhotoWithUrl = CleaningPhoto & { url?: string | null };
 
+function AdminExifRow({ icon, label, value }: { icon?: React.ReactNode; label: string; value: string }) {
+  return (
+    <div className="flex items-start gap-2 px-3 py-2">
+      {icon && <span className="mt-0.5 shrink-0 text-muted-foreground">{icon}</span>}
+      <div className={icon ? "" : "pl-5"}>
+        <p className="text-[10px] text-muted-foreground">{label}</p>
+        <p className="font-medium text-xs break-all">{value}</p>
+      </div>
+    </div>
+  );
+}
+
 type CleaningDetails = {
   registration_id: string;
   is_cleaned: boolean;
@@ -275,92 +287,96 @@ export function CompletedCleaningDialog({
           </div>
 
           {/* EXIF sidebar */}
-          {fullscreenPhoto.exif && (
-            <div
-              className="w-80 shrink-0 bg-background border-l overflow-y-auto"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="p-4 space-y-4">
-                <h3 className="font-semibold text-sm">Photo Details</h3>
-
-                {/* Map */}
-                {fullscreenPhoto.exif.latitude != null && fullscreenPhoto.exif.longitude != null && (
-                  <div className="rounded-lg overflow-hidden border h-44">
-                    <iframe
-                      title="Photo location"
-                      width="100%"
-                      height="100%"
-                      style={{ border: 0 }}
-                      loading="lazy"
-                      referrerPolicy="no-referrer-when-downgrade"
-                      src={`https://www.openstreetmap.org/export/embed.html?bbox=${fullscreenPhoto.exif.longitude! - 0.003},${fullscreenPhoto.exif.latitude! - 0.002},${fullscreenPhoto.exif.longitude! + 0.003},${fullscreenPhoto.exif.latitude! + 0.002}&layer=mapnik&marker=${fullscreenPhoto.exif.latitude},${fullscreenPhoto.exif.longitude}`}
-                    />
+          <div
+            className="w-80 shrink-0 bg-background border-l overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {(() => {
+              const exif = fullscreenPhoto.exif ?? {};
+              const formatBytes = (b: number) => b < 1024 * 1024 ? `${(b / 1024).toFixed(0)} KB` : `${(b / (1024 * 1024)).toFixed(1)} MB`;
+              return (
+                <div className="p-4 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-semibold text-sm">Photo Details</h3>
+                    {exif.source && (
+                      <span className={`text-[10px] font-medium uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                        exif.source === "exif" ? "bg-green-100 text-green-700" : exif.source === "mixed" ? "bg-yellow-100 text-yellow-700" : "bg-blue-100 text-blue-700"
+                      }`}>
+                        {exif.source === "exif" ? "EXIF" : exif.source === "mixed" ? "EXIF + Browser" : "Browser"}
+                      </span>
+                    )}
                   </div>
-                )}
 
-                {/* EXIF data */}
-                <div className="rounded-lg border divide-y text-sm">
-                  {fullscreenPhoto.exif.taken_at && (
-                    <div className="flex items-start gap-2 px-3 py-2.5">
-                      <Clock className="h-3.5 w-3.5 mt-0.5 shrink-0 text-muted-foreground" />
-                      <div>
-                        <p className="text-xs text-muted-foreground">Date & Time</p>
-                        <p className="font-medium text-sm">
-                          {new Date(fullscreenPhoto.exif.taken_at).toLocaleString("en-US", {
-                            weekday: "short",
-                            month: "short",
-                            day: "numeric",
-                            year: "numeric",
-                            hour: "numeric",
-                            minute: "2-digit",
-                            second: "2-digit",
-                          })}
-                        </p>
-                      </div>
+                  {/* Map */}
+                  {exif.latitude != null && exif.longitude != null && (
+                    <div className="rounded-lg overflow-hidden border h-44">
+                      <iframe
+                        title="Photo location"
+                        width="100%"
+                        height="100%"
+                        style={{ border: 0 }}
+                        loading="lazy"
+                        referrerPolicy="no-referrer-when-downgrade"
+                        src={`https://www.openstreetmap.org/export/embed.html?bbox=${exif.longitude! - 0.003},${exif.latitude! - 0.002},${exif.longitude! + 0.003},${exif.latitude! + 0.002}&layer=mapnik&marker=${exif.latitude},${exif.longitude}`}
+                      />
                     </div>
                   )}
-                  {fullscreenPhoto.exif.camera && (
-                    <div className="flex items-start gap-2 px-3 py-2.5">
-                      <Camera className="h-3.5 w-3.5 mt-0.5 shrink-0 text-muted-foreground" />
-                      <div>
-                        <p className="text-xs text-muted-foreground">Device</p>
-                        <p className="font-medium text-sm">{fullscreenPhoto.exif.camera}</p>
-                      </div>
-                    </div>
-                  )}
-                  {fullscreenPhoto.exif.latitude != null && fullscreenPhoto.exif.longitude != null && (
-                    <div className="flex items-start gap-2 px-3 py-2.5">
-                      <MapPin className="h-3.5 w-3.5 mt-0.5 shrink-0 text-muted-foreground" />
-                      <div>
-                        <p className="text-xs text-muted-foreground">GPS Coordinates</p>
-                        <p className="font-medium text-sm font-mono">
-                          {fullscreenPhoto.exif.latitude.toFixed(6)}, {fullscreenPhoto.exif.longitude.toFixed(6)}
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                  {fullscreenPhoto.exif.width && fullscreenPhoto.exif.height && (
-                    <div className="flex items-start gap-2 px-3 py-2.5">
-                      <Info className="h-3.5 w-3.5 mt-0.5 shrink-0 text-muted-foreground" />
-                      <div>
-                        <p className="text-xs text-muted-foreground">Resolution</p>
-                        <p className="font-medium text-sm">
-                          {fullscreenPhoto.exif.width} × {fullscreenPhoto.exif.height}
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                </div>
 
-                {/* Upload timestamp */}
-                <div className="text-xs text-muted-foreground pt-1">
-                  Uploaded {new Date(fullscreenPhoto.uploaded_at).toLocaleString("en-US", {
-                    month: "short", day: "numeric", hour: "numeric", minute: "2-digit",
-                  })}
+                  {/* Date & Location */}
+                  <div>
+                    <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">Date & Location</h4>
+                    <div className="rounded-lg border divide-y text-xs">
+                      {exif.taken_at && <AdminExifRow icon={<Clock className="h-3 w-3" />} label="Date & Time" value={new Date(exif.taken_at).toLocaleString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit", second: "2-digit" })} />}
+                      {exif.latitude != null && <AdminExifRow icon={<MapPin className="h-3 w-3" />} label="Latitude" value={exif.latitude.toFixed(6)} />}
+                      {exif.longitude != null && <AdminExifRow icon={<MapPin className="h-3 w-3" />} label="Longitude" value={exif.longitude.toFixed(6)} />}
+                      {exif.altitude != null && <AdminExifRow label="Altitude" value={`${exif.altitude.toFixed(1)}m`} />}
+                    </div>
+                  </div>
+
+                  {/* Camera */}
+                  <div>
+                    <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">Camera</h4>
+                    <div className="rounded-lg border divide-y text-xs">
+                      {exif.camera && <AdminExifRow icon={<Camera className="h-3 w-3" />} label="Device" value={exif.camera} />}
+                      {exif.lens && <AdminExifRow label="Lens" value={exif.lens} />}
+                      {exif.iso != null && <AdminExifRow label="ISO" value={String(exif.iso)} />}
+                      {exif.aperture != null && <AdminExifRow label="Aperture" value={`f/${exif.aperture}`} />}
+                      {exif.shutter_speed && <AdminExifRow label="Shutter" value={`${exif.shutter_speed}s`} />}
+                      {exif.focal_length && <AdminExifRow label="Focal Length" value={exif.focal_length} />}
+                      {exif.flash && <AdminExifRow label="Flash" value={exif.flash} />}
+                      {exif.exposure_mode && <AdminExifRow label="Exposure" value={exif.exposure_mode} />}
+                      {exif.white_balance && <AdminExifRow label="White Balance" value={exif.white_balance} />}
+                      {exif.scene_type && <AdminExifRow label="Scene" value={exif.scene_type} />}
+                      {exif.software && <AdminExifRow label="Software" value={exif.software} />}
+                    </div>
+                  </div>
+
+                  {/* Image */}
+                  <div>
+                    <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">Image</h4>
+                    <div className="rounded-lg border divide-y text-xs">
+                      {exif.width && exif.height && <AdminExifRow icon={<Info className="h-3 w-3" />} label="Resolution" value={`${exif.width} × ${exif.height}`} />}
+                      {exif.color_space && <AdminExifRow label="Color Space" value={exif.color_space} />}
+                      {exif.orientation != null && <AdminExifRow label="Orientation" value={String(exif.orientation)} />}
+                      {exif.file_type && <AdminExifRow label="File Type" value={exif.file_type} />}
+                      {exif.file_size != null && <AdminExifRow label="File Size" value={formatBytes(exif.file_size)} />}
+                    </div>
+                  </div>
+
+                  {/* Upload Context */}
+                  <div>
+                    <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">Upload Context</h4>
+                    <div className="rounded-lg border divide-y text-xs">
+                      <AdminExifRow label="Uploaded" value={new Date(fullscreenPhoto.uploaded_at).toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" })} />
+                      {exif.device_name && <AdminExifRow label="Device" value={exif.device_name} />}
+                      {exif.os && <AdminExifRow label="OS" value={exif.os} />}
+                      {exif.browser && <AdminExifRow label="Browser" value={exif.browser} />}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
-          )}
+              );
+            })()}
+          </div>
         </div>
       )}
     </Dialog>

@@ -20,9 +20,28 @@ export type CleaningPhotoExif = {
   taken_at?: string;
   latitude?: number;
   longitude?: number;
+  altitude?: number;
   camera?: string;
+  lens?: string;
   width?: number;
   height?: number;
+  iso?: number;
+  aperture?: number;
+  shutter_speed?: string;
+  focal_length?: string;
+  flash?: string;
+  orientation?: number;
+  software?: string;
+  color_space?: string;
+  white_balance?: string;
+  exposure_mode?: string;
+  scene_type?: string;
+  file_type?: string;
+  file_size?: number;
+  device_name?: string;
+  os?: string;
+  browser?: string;
+  source?: "exif" | "browser" | "mixed";
 };
 
 export type CleaningPhoto = {
