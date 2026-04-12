@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/theme-provider";
+import { PWARegister } from "@/components/pwa-register";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -30,6 +31,14 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
       suppressHydrationWarning
     >
+      <head>
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="theme-color" content="#0a0a0a" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="apple-mobile-web-app-title" content="Summit Lakeside" />
+        <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+      </head>
       <body className="min-h-full flex flex-col">
         <ThemeProvider
           attribute="class"
@@ -38,6 +47,7 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           {children}
+          <PWARegister />
           <Toaster />
         </ThemeProvider>
       </body>
