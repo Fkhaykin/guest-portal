@@ -167,8 +167,8 @@ export function AnalyticsDashboard({
       {/* Date filter */}
       <Card>
         <CardContent className="pt-4 pb-3">
-          <div className="flex flex-wrap items-end gap-3">
-            <div className="flex-1 min-w-[130px]">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
               <label className="text-xs text-muted-foreground mb-1 block">
                 From
               </label>
@@ -179,7 +179,7 @@ export function AnalyticsDashboard({
                 className="h-9 text-sm"
               />
             </div>
-            <div className="flex-1 min-w-[130px]">
+            <div>
               <label className="text-xs text-muted-foreground mb-1 block">
                 To
               </label>
@@ -190,19 +190,21 @@ export function AnalyticsDashboard({
                 className="h-9 text-sm"
               />
             </div>
-            <Button size="sm" onClick={applyFilter} className="h-9">
-              Apply
-            </Button>
-            {hasFilter && (
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={clearFilter}
-                className="h-9 px-2"
-              >
-                <X className="h-4 w-4" />
+            <div className="col-span-2 flex gap-2">
+              <Button size="sm" onClick={applyFilter} className="h-9">
+                Apply
               </Button>
-            )}
+              {hasFilter && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={clearFilter}
+                  className="h-9 px-2"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
           </div>
         </CardContent>
       </Card>
