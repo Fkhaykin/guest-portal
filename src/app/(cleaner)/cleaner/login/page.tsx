@@ -1,10 +1,19 @@
+import Image from "next/image";
 import { LoginForm } from "@/components/cleaner/login-form";
 
 export default function CleanerLoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center px-4">
       <div className="w-full max-w-sm space-y-6">
-        <div className="text-center space-y-2">
+        <div className="text-center space-y-4">
+          <Image
+            src="/logo.png"
+            alt="Summit Lakeside"
+            width={180}
+            height={60}
+            className="mx-auto"
+            priority
+          />
           <h1 className="text-2xl font-bold">Cleaner Portal</h1>
           <p className="text-sm text-muted-foreground">
             Enter your name and password to view your schedule
