@@ -143,13 +143,17 @@ export async function POST(request: Request) {
     const path = `${registrationId}/${room}-${Date.now()}.${ext}`;
     const buffer = Buffer.from(await file.arrayBuffer());
 
-    // Extract EXIF — try uploaded buffer first, fall back to original header
-    // (client sends first 128KB of original when compression stripped EXIF)
-    const originalHeader = formData.get("original_header") as File | null;
+    // Extract EXIF — try server-side parse first, fall back to client-extracted EXIF
     let exif = await parseExif(buffer);
-    if (!exif && originalHeader) {
-      const headerBuf = Buffer.from(await originalHeader.arrayBuffer());
-      exif = await parseExif(headerBuf);
+    if (!exif) {
+      const clientExifStr = formData.get("client_exif") as string | null;
+      if (clientExifStr) {
+        try {
+          exif = JSON.parse(clientExifStr) as CleaningPhotoExif;
+        } catch {
+          // ignore malformed JSON
+        }
+      }
     }
 
     // Reject photos taken before the checkout date

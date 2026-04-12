@@ -18,6 +18,7 @@ import {
   MapPin,
   ArrowLeft,
 } from "lucide-react";
+import exifr from "exifr";
 import type { CleaningPhoto, CleaningPhotoExif } from "@/types/database";
 
 type PhotoWithPreview = CleaningPhoto & { previewUrl: string };
@@ -250,15 +251,39 @@ export function CleaningDialog({
         }
         const previewUrl = URL.createObjectURL(file);
 
+        // Extract EXIF from the ORIGINAL file before compression strips it
+        let clientExif: CleaningPhotoExif | undefined;
+        try {
+          const exifData = await exifr.parse(rawFiles[i], {
+            gps: true, tiff: true, exif: true,
+          });
+          if (exifData) {
+            clientExif = {};
+            const dt = exifData.DateTimeOriginal ?? exifData.DateTimeDigitized ?? exifData.ModifyDate;
+            if (dt) clientExif.taken_at = dt instanceof Date ? dt.toISOString() : String(dt);
+            if (exifData.latitude != null && exifData.longitude != null) {
+              clientExif.latitude = exifData.latitude;
+              clientExif.longitude = exifData.longitude;
+            }
+            const make = exifData.Make;
+            const model = exifData.Model;
+            if (make || model) clientExif.camera = [make, model].filter(Boolean).join(" ");
+            const w = exifData.ExifImageWidth ?? exifData.ImageWidth;
+            const h = exifData.ExifImageHeight ?? exifData.ImageHeight;
+            if (w) clientExif.width = w;
+            if (h) clientExif.height = h;
+            if (Object.keys(clientExif).length === 0) clientExif = undefined;
+          }
+        } catch {
+          // EXIF extraction failed — continue without it
+        }
+
         const formData = new FormData();
         formData.append("file", file);
         formData.append("registration_id", registrationId);
         formData.append("room", room);
-
-        // If file was compressed, send original's EXIF header so the server can extract metadata
-        if (file !== rawFiles[i]) {
-          const header = rawFiles[i].slice(0, 131072); // first 128KB contains EXIF
-          formData.append("original_header", header);
+        if (clientExif) {
+          formData.append("client_exif", JSON.stringify(clientExif));
         }
 
         const res = await fetch("/api/cleaner/upload-photo", {
