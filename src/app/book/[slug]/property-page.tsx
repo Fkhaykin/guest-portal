@@ -231,6 +231,7 @@ export function PropertyPage({
   guests?: string;
 }) {
   const [lodgify, setLodgify] = useState<LodgifyDetails | null>(null);
+  const [maxGuests, setMaxGuests] = useState(property.max_guests);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
@@ -238,6 +239,7 @@ export function PropertyPage({
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         if (data?.lodgify) setLodgify(data.lodgify);
+        if (data?.property?.max_guests) setMaxGuests(data.property.max_guests);
         setLoaded(true);
       })
       .catch(() => setLoaded(true));
@@ -307,13 +309,14 @@ export function PropertyPage({
           )}
 
           <div className="flex flex-wrap items-center gap-3 text-sm">
-            {(lodgify?.bedrooms || property.max_guests) && (
+            {(lodgify?.bedrooms || maxGuests) && (
               <>
-                <span className="flex items-center gap-1.5 font-medium">
-                  <Users className="h-4 w-4 text-muted-foreground" />
-                  {lodgify ? `${lodgify.bedrooms + lodgify.bathrooms > 0 ? (property.max_guests || lodgify.images.length) : ""}` : ""}
-                  {property.max_guests} Guests
-                </span>
+                {maxGuests && (
+                  <span className="flex items-center gap-1.5 font-medium">
+                    <Users className="h-4 w-4 text-muted-foreground" />
+                    {maxGuests} Guests
+                  </span>
+                )}
                 {lodgify && lodgify.bedrooms > 0 && (
                   <span className="flex items-center gap-1.5 font-medium">
                     <BedDouble className="h-4 w-4 text-muted-foreground" />
