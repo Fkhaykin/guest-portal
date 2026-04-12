@@ -134,11 +134,8 @@ export function ReservationCard({
     regularUpsells.length > 0 && regularUpsells.every((u) => fulfilled.includes(u.type));
   const isFullyDone = isCleaned && (regularUpsells.length === 0 || allUpsellsDone);
 
-  // Check-in/out times based on upsell purchases
   const hasEarlyCheckin = upsells.some((u) => u.type === "early_checkin");
   const hasLateCheckout = upsells.some((u) => u.type === "late_checkout");
-  const checkInTime = hasEarlyCheckin ? "1:00 PM (early)" : "4:00 PM";
-  const checkOutTime = hasLateCheckout ? "2:00 PM (late)" : "11:00 AM";
 
   // Relative date labels
   const checkInLabel = getRelativeDayLabel(checkIn);
@@ -310,9 +307,9 @@ export function ReservationCard({
 
           {/* Date & guest row */}
           <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground mt-1.5 ml-13">
-            <span className="whitespace-nowrap">{ciDow} {ciMonth} {ciDay}, {checkInTime}</span>
+            <span className="whitespace-nowrap">{ciDow} {ciMonth} {ciDay}</span>
             <span>&rarr;</span>
-            <span className="whitespace-nowrap">{coDow} {coMonth} {coDay}, {checkOutTime}</span>
+            <span className="whitespace-nowrap">{coDow} {coMonth} {coDay}</span>
             <span className="text-muted-foreground/40">|</span>
             <GuestBreakdownInline numGuests={numGuests} guestList={guestList} pets={pets} />
             {(cleaningFeeCents > 0 || petFeeCents > 0) && (
