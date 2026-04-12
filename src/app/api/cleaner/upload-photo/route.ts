@@ -94,25 +94,30 @@ export async function POST(request: Request) {
     const path = `${registrationId}/${room}-${Date.now()}.${ext}`;
     const buffer = Buffer.from(await file.arrayBuffer());
 
-    // Extract EXIF metadata
+    // Extract EXIF metadata — try uploaded buffer first, fall back to original
+    // header (sent when client-side compression stripped EXIF)
+    const originalHeader = formData.get("original_header") as File | null;
     let exif: CleaningPhotoExif | undefined;
-    try {
-      const exifData = exifReader(buffer);
-      if (exifData) {
-        const dt =
-          exifData.Photo?.DateTimeOriginal ??
-          exifData.Photo?.DateTimeDigitized ??
-          exifData.Image?.DateTime;
-        const gpsInfo = exifData.GPSInfo;
-        const make = exifData.Image?.Make;
-        const model = exifData.Image?.Model;
-        const width =
-          exifData.Photo?.PixelXDimension ?? exifData.Image?.ImageWidth;
-        const height =
-          exifData.Photo?.PixelYDimension ?? exifData.Image?.ImageLength;
 
-        exif = {};
-        if (dt) exif.taken_at = dt instanceof Date ? dt.toISOString() : String(dt);
+    function parseExif(buf: Buffer): CleaningPhotoExif | undefined {
+      try {
+        const data = exifReader(buf);
+        if (!data) return undefined;
+
+        const dt =
+          data.Photo?.DateTimeOriginal ??
+          data.Photo?.DateTimeDigitized ??
+          data.Image?.DateTime;
+        const gpsInfo = data.GPSInfo;
+        const make = data.Image?.Make;
+        const model = data.Image?.Model;
+        const width =
+          data.Photo?.PixelXDimension ?? data.Image?.ImageWidth;
+        const height =
+          data.Photo?.PixelYDimension ?? data.Image?.ImageLength;
+
+        const result: CleaningPhotoExif = {};
+        if (dt) result.taken_at = dt instanceof Date ? dt.toISOString() : String(dt);
         if (gpsInfo?.GPSLatitude && gpsInfo?.GPSLongitude) {
           const toDecimal = (dms: number[]) =>
             dms[0] + dms[1] / 60 + dms[2] / 3600;
@@ -120,20 +125,29 @@ export async function POST(request: Request) {
           let lon = toDecimal(gpsInfo.GPSLongitude);
           if (gpsInfo.GPSLatitudeRef === "S") lat = -lat;
           if (gpsInfo.GPSLongitudeRef === "W") lon = -lon;
-          exif.latitude = lat;
-          exif.longitude = lon;
+          result.latitude = lat;
+          result.longitude = lon;
         }
         if (make || model) {
-          exif.camera = [make, model].filter(Boolean).join(" ");
+          result.camera = [make, model].filter(Boolean).join(" ");
         }
-        if (width) exif.width = width;
-        if (height) exif.height = height;
+        if (width) result.width = width;
+        if (height) result.height = height;
 
-        // Only keep if we got at least one field
-        if (Object.keys(exif).length === 0) exif = undefined;
+        return Object.keys(result).length > 0 ? result : undefined;
+      } catch {
+        return undefined;
       }
-    } catch {
-      // EXIF parsing can fail for PNG/WebP/corrupt files — that's fine
+    }
+
+    exif = parseExif(buffer);
+    if (!exif && originalHeader) {
+      try {
+        const headerBuf = Buffer.from(await originalHeader.arrayBuffer());
+        exif = parseExif(headerBuf);
+      } catch {
+        // ignore
+      }
     }
 
     // Reject photos taken before the checkout date

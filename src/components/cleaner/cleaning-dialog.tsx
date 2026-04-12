@@ -255,6 +255,12 @@ export function CleaningDialog({
         formData.append("registration_id", registrationId);
         formData.append("room", room);
 
+        // If file was compressed, send original's EXIF header so the server can extract metadata
+        if (file !== rawFiles[i]) {
+          const header = rawFiles[i].slice(0, 131072); // first 128KB contains EXIF
+          formData.append("original_header", header);
+        }
+
         const res = await fetch("/api/cleaner/upload-photo", {
           method: "POST",
           body: formData,
