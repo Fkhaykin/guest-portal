@@ -501,26 +501,37 @@ export function CleaningDialog({
                   </div>
                 )}
 
-                {/* Upload button — label wraps a per-area file input so the
-                    tap is a direct user gesture (required on mobile Safari) */}
-                <label
-                  className={`flex items-center gap-2 w-full px-3 py-3 rounded-lg border border-dashed hover:bg-muted/50 transition-colors text-sm text-muted-foreground cursor-pointer ${isUploading ? "opacity-50 pointer-events-none" : ""}`}
-                >
-                  <Camera className="h-4 w-4" />
-                  {areaPhotos.length > 0
-                    ? "Add more photos"
-                    : "Take or upload photos"}
-                  <input
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
-                    multiple
-                    className="sr-only"
-                    onChange={(e) => {
-                      activeRoomRef.current = area;
-                      handleFileSelect(e);
-                    }}
-                  />
-                </label>
+                {/* Upload buttons — separate capture (camera) and pick (library)
+                    so iOS preserves full EXIF when using camera */}
+                <div className={`flex gap-2 ${isUploading ? "opacity-50 pointer-events-none" : ""}`}>
+                  <label className="flex-1 flex items-center justify-center gap-2 px-3 py-3 rounded-lg border border-dashed hover:bg-muted/50 transition-colors text-sm text-muted-foreground cursor-pointer">
+                    <Camera className="h-4 w-4" />
+                    Take photo
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
+                      capture="environment"
+                      className="sr-only"
+                      onChange={(e) => {
+                        activeRoomRef.current = area;
+                        handleFileSelect(e);
+                      }}
+                    />
+                  </label>
+                  <label className="flex items-center justify-center gap-2 px-3 py-3 rounded-lg border border-dashed hover:bg-muted/50 transition-colors text-sm text-muted-foreground cursor-pointer">
+                    Upload
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
+                      multiple
+                      className="sr-only"
+                      onChange={(e) => {
+                        activeRoomRef.current = area;
+                        handleFileSelect(e);
+                      }}
+                    />
+                  </label>
+                </div>
 
                 {/* Optional note */}
                 {areaPhotos.length > 0 && (
