@@ -4,8 +4,9 @@ import { useState } from "react";
 import { Loader2, ExternalLink } from "lucide-react";
 
 /**
- * Embeds the Lodgify-hosted property booking page in an iframe.
- * Falls back to a direct link if the iframe fails to load.
+ * Embeds the Lodgify checkout page for a specific property.
+ * This shows just the calendar with nightly rates and booking form,
+ * not the full property page.
  */
 export function BookingWidget({
   lodgifyPropertyId,
@@ -23,22 +24,16 @@ export function BookingWidget({
   const [loading, setLoading] = useState(true);
   const [iframeError, setIframeError] = useState(false);
 
-  // Slugify the property name to match Lodgify's URL format
-  const slug = propertyName
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
+  // Build the Lodgify checkout URL
+  let checkoutUrl = `https://checkout.lodgify.com/en/summitlakeside/${lodgifyPropertyId}/reservation`;
 
-  // Build the Lodgify property page URL
-  let propertyUrl = `https://www.summitlakeside.com/en/${slug}`;
-
-  // Append date params if provided
   const params = new URLSearchParams();
   if (checkIn) params.set("arrival", checkIn);
   if (checkOut) params.set("departure", checkOut);
   if (guests) params.set("guests", guests);
+  params.set("currency", "USD");
   const queryString = params.toString();
-  if (queryString) propertyUrl += `?${queryString}`;
+  if (queryString) checkoutUrl += `?${queryString}`;
 
   if (iframeError) {
     return (
@@ -46,10 +41,10 @@ export function BookingWidget({
         <h2 className="text-xl font-semibold">Select Your Dates & Book</h2>
         <div className="rounded-xl border-2 border-dashed border-muted-foreground/20 p-8 text-center space-y-4">
           <p className="text-muted-foreground">
-            Book directly on our website for the best rates.
+            Complete your booking directly on our website.
           </p>
           <a
-            href={propertyUrl}
+            href={checkoutUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-lg font-semibold hover:bg-primary/90 transition-colors"
@@ -67,7 +62,7 @@ export function BookingWidget({
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold">Select Your Dates & Book</h2>
         <a
-          href={propertyUrl}
+          href={checkoutUrl}
           target="_blank"
           rel="noopener noreferrer"
           className="text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
@@ -87,7 +82,7 @@ export function BookingWidget({
           </div>
         )}
         <iframe
-          src={propertyUrl}
+          src={checkoutUrl}
           className="w-full border-0"
           style={{ minHeight: "600px", height: "80vh", maxHeight: "900px" }}
           onLoad={() => setLoading(false)}
