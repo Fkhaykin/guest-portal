@@ -222,8 +222,9 @@ export function BookingCalendar({
                 onClick={() => handleDateClick(dateStr)}
                 className={`
                   h-10 text-sm relative transition-colors
-                  ${disabled ? "text-muted-foreground/30 cursor-not-allowed" : "hover:bg-primary/10 cursor-pointer"}
-                  ${booked ? "line-through" : ""}
+                  ${past ? "text-muted-foreground/30 cursor-not-allowed" : ""}
+                  ${booked && !past ? "bg-red-100 dark:bg-red-950/40 text-red-400 dark:text-red-500 cursor-not-allowed line-through" : ""}
+                  ${!disabled ? "hover:bg-primary/10 cursor-pointer" : ""}
                   ${inRange && !rangeStart && !rangeEnd ? "bg-primary/10" : ""}
                   ${rangeStart ? "bg-primary text-primary-foreground rounded-l-lg" : ""}
                   ${rangeEnd ? "bg-primary text-primary-foreground rounded-r-lg" : ""}
@@ -284,7 +285,7 @@ export function BookingCalendar({
               <span className="h-3 w-3 rounded-sm bg-primary/10" /> In range
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="h-3 w-3 rounded-sm bg-muted line-through text-[10px] flex items-center justify-center">x</span> Booked
+              <span className="h-3 w-3 rounded-sm bg-red-100 dark:bg-red-950/40" /> Booked
             </span>
           </div>
         </>
