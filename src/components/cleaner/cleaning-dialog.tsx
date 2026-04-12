@@ -21,7 +21,38 @@ import {
 import exifr from "exifr";
 import type { CleaningPhoto, CleaningPhotoExif } from "@/types/database";
 
-type PhotoWithPreview = CleaningPhoto & { previewUrl: string; _debug?: string };
+type PhotoWithPreview = CleaningPhoto & { previewUrl: string };
+
+/** Get current GPS position from the browser (cached for 5 min). */
+let cachedPosition: { latitude: number; longitude: number; ts: number } | null = null;
+function getBrowserLocation(): Promise<{ latitude: number; longitude: number } | null> {
+  if (cachedPosition && Date.now() - cachedPosition.ts < 300_000) {
+    return Promise.resolve({ latitude: cachedPosition.latitude, longitude: cachedPosition.longitude });
+  }
+  return new Promise((resolve) => {
+    if (!navigator.geolocation) return resolve(null);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        cachedPosition = { latitude: pos.coords.latitude, longitude: pos.coords.longitude, ts: Date.now() };
+        resolve({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
+      },
+      () => resolve(null),
+      { enableHighAccuracy: true, timeout: 5000, maximumAge: 300_000 }
+    );
+  });
+}
+
+/** Parse device name from userAgent string. */
+function getDeviceName(): string {
+  const ua = navigator.userAgent;
+  // iOS: "iPhone", "iPad"
+  const iosMatch = ua.match(/(iPhone|iPad)/);
+  if (iosMatch) return iosMatch[1];
+  // Android: extract model from "... ; MODEL Build/..."
+  const androidMatch = ua.match(/;\s*([^;)]+?)\s*(?:Build|MIUI)/);
+  if (androidMatch) return androidMatch[1].trim();
+  return "Unknown device";
+}
 
 function formatExifSummary(exif: CleaningPhotoExif): string {
   const ownerOrCamera = exif.camera || "Unknown device";
@@ -253,13 +284,11 @@ export function CleaningDialog({
 
         // Extract EXIF from the ORIGINAL file before compression strips it
         let clientExif: CleaningPhotoExif | undefined;
-        let exifDebugMsg = "";
         try {
           const exifData = await exifr.parse(rawFiles[i], {
             gps: true, tiff: true, exif: true,
           });
           if (exifData) {
-            exifDebugMsg = `keys: ${Object.keys(exifData).join(",")}`;
             clientExif = {};
             const dt = exifData.DateTimeOriginal ?? exifData.DateTimeDigitized ?? exifData.ModifyDate;
             if (dt) clientExif.taken_at = dt instanceof Date ? dt.toISOString() : String(dt);
@@ -275,20 +304,33 @@ export function CleaningDialog({
             if (w) clientExif.width = w;
             if (h) clientExif.height = h;
             if (Object.keys(clientExif).length === 0) clientExif = undefined;
-          } else {
-            exifDebugMsg = "exifr.parse returned null";
           }
-        } catch (exifErr) {
-          exifDebugMsg = `exifr error: ${exifErr instanceof Error ? exifErr.message : String(exifErr)}`;
+        } catch {
+          // EXIF extraction failed
+        }
+
+        // iOS strips Make/Model/DateTime/GPS from photo picker selections.
+        // Fill gaps with browser data: current time, geolocation, and device UA.
+        if (!clientExif) clientExif = {};
+        if (!clientExif.taken_at) {
+          clientExif.taken_at = new Date().toISOString();
+        }
+        if (clientExif.latitude == null) {
+          const loc = await getBrowserLocation();
+          if (loc) {
+            clientExif.latitude = loc.latitude;
+            clientExif.longitude = loc.longitude;
+          }
+        }
+        if (!clientExif.camera) {
+          clientExif.camera = getDeviceName();
         }
 
         const formData = new FormData();
         formData.append("file", file);
         formData.append("registration_id", registrationId);
         formData.append("room", room);
-        if (clientExif) {
-          formData.append("client_exif", JSON.stringify(clientExif));
-        }
+        formData.append("client_exif", JSON.stringify(clientExif));
 
         const res = await fetch("/api/cleaner/upload-photo", {
           method: "POST",
@@ -297,7 +339,7 @@ export function CleaningDialog({
 
         if (res.ok) {
           const data = await res.json();
-          setPhotos((prev) => [...prev, { ...data.photo, previewUrl, _debug: exifDebugMsg || `type=${rawFiles[i].type} size=${rawFiles[i].size} exif=${JSON.stringify(clientExif)}` }]);
+          setPhotos((prev) => [...prev, { ...data.photo, previewUrl }]);
         } else {
           URL.revokeObjectURL(previewUrl);
           const text = await res.text();
@@ -444,9 +486,6 @@ export function CleaningDialog({
                                 <p className="text-xs text-foreground leading-relaxed">
                                   {formatExifSummary(photo.exif)}
                                 </p>
-                                {photo._debug && (
-                                  <span className="block text-[10px] text-orange-400 break-all">{photo._debug}</span>
-                                )}
                                 {photo.exif.latitude != null && (
                                   <button
                                     type="button"
@@ -470,9 +509,6 @@ export function CleaningDialog({
                             ) : (
                               <p className="text-xs text-muted-foreground">
                                 No metadata available
-                                {photo._debug && (
-                                  <span className="block mt-1 text-[10px] text-red-400 break-all">{photo._debug}</span>
-                                )}
                               </p>
                             )}
                           </div>
@@ -501,37 +537,25 @@ export function CleaningDialog({
                   </div>
                 )}
 
-                {/* Upload buttons — separate capture (camera) and pick (library)
-                    so iOS preserves full EXIF when using camera */}
-                <div className={`flex gap-2 ${isUploading ? "opacity-50 pointer-events-none" : ""}`}>
-                  <label className="flex-1 flex items-center justify-center gap-2 px-3 py-3 rounded-lg border border-dashed hover:bg-muted/50 transition-colors text-sm text-muted-foreground cursor-pointer">
-                    <Camera className="h-4 w-4" />
-                    Take photo
-                    <input
-                      type="file"
-                      accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
-                      capture="environment"
-                      className="sr-only"
-                      onChange={(e) => {
-                        activeRoomRef.current = area;
-                        handleFileSelect(e);
-                      }}
-                    />
-                  </label>
-                  <label className="flex items-center justify-center gap-2 px-3 py-3 rounded-lg border border-dashed hover:bg-muted/50 transition-colors text-sm text-muted-foreground cursor-pointer">
-                    Upload
-                    <input
-                      type="file"
-                      accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
-                      multiple
-                      className="sr-only"
-                      onChange={(e) => {
-                        activeRoomRef.current = area;
-                        handleFileSelect(e);
-                      }}
-                    />
-                  </label>
-                </div>
+                {/* Upload button */}
+                <label
+                  className={`flex items-center gap-2 w-full px-3 py-3 rounded-lg border border-dashed hover:bg-muted/50 transition-colors text-sm text-muted-foreground cursor-pointer ${isUploading ? "opacity-50 pointer-events-none" : ""}`}
+                >
+                  <Camera className="h-4 w-4" />
+                  {areaPhotos.length > 0
+                    ? "Add more photos"
+                    : "Take or upload photos"}
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
+                    multiple
+                    className="sr-only"
+                    onChange={(e) => {
+                      activeRoomRef.current = area;
+                      handleFileSelect(e);
+                    }}
+                  />
+                </label>
 
                 {/* Optional note */}
                 {areaPhotos.length > 0 && (
