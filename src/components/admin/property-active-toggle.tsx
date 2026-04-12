@@ -18,16 +18,13 @@ export function PropertyActiveToggle({
 
   async function handleToggle(checked: boolean) {
     setSaving(true);
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from("property")
       .update({ is_active: checked })
-      .eq("id", propertyId)
-      .select("is_active")
-      .single();
+      .eq("id", propertyId);
     setSaving(false);
 
-    if (error || !data) return;
-    setIsActive(data.is_active);
+    if (!error) setIsActive(checked);
   }
 
   return (
