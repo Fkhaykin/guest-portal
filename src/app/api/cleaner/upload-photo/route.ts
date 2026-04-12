@@ -2,8 +2,57 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { validateCleanerSession } from "@/lib/cleaner/auth";
 import { getSessionToken } from "@/lib/cleaner/session";
-import exifReader from "exif-reader";
+import exifr from "exifr";
 import type { CleaningPhotoExif } from "@/types/database";
+
+async function parseExif(buf: Buffer): Promise<CleaningPhotoExif | undefined> {
+  try {
+    const data = await exifr.parse(buf, {
+      gps: true,
+      tiff: true,
+      exif: true,
+      pick: [
+        "DateTimeOriginal",
+        "DateTimeDigitized",
+        "ModifyDate",
+        "Make",
+        "Model",
+        "ExifImageWidth",
+        "ExifImageHeight",
+        "ImageWidth",
+        "ImageHeight",
+        "latitude",
+        "longitude",
+      ],
+    });
+    if (!data) return undefined;
+
+    const result: CleaningPhotoExif = {};
+
+    const dt = data.DateTimeOriginal ?? data.DateTimeDigitized ?? data.ModifyDate;
+    if (dt) result.taken_at = dt instanceof Date ? dt.toISOString() : String(dt);
+
+    if (data.latitude != null && data.longitude != null) {
+      result.latitude = data.latitude;
+      result.longitude = data.longitude;
+    }
+
+    const make = data.Make;
+    const model = data.Model;
+    if (make || model) {
+      result.camera = [make, model].filter(Boolean).join(" ");
+    }
+
+    const width = data.ExifImageWidth ?? data.ImageWidth;
+    const height = data.ExifImageHeight ?? data.ImageHeight;
+    if (width) result.width = width;
+    if (height) result.height = height;
+
+    return Object.keys(result).length > 0 ? result : undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 export async function POST(request: Request) {
   try {
@@ -94,63 +143,13 @@ export async function POST(request: Request) {
     const path = `${registrationId}/${room}-${Date.now()}.${ext}`;
     const buffer = Buffer.from(await file.arrayBuffer());
 
-    // Extract EXIF metadata — try uploaded buffer first, fall back to original
-    // header (sent when client-side compression stripped EXIF)
+    // Extract EXIF — try uploaded buffer first, fall back to original header
+    // (client sends first 128KB of original when compression stripped EXIF)
     const originalHeader = formData.get("original_header") as File | null;
-    let exif: CleaningPhotoExif | undefined;
-
-    let exifDebug: string | undefined;
-
-    function parseExif(buf: Buffer, label: string): CleaningPhotoExif | undefined {
-      try {
-        const data = exifReader(buf);
-        if (!data) { exifDebug = `${label}: exifReader returned falsy`; return undefined; }
-
-        const dt =
-          data.Photo?.DateTimeOriginal ??
-          data.Photo?.DateTimeDigitized ??
-          data.Image?.DateTime;
-        const gpsInfo = data.GPSInfo;
-        const make = data.Image?.Make;
-        const model = data.Image?.Model;
-        const width =
-          data.Photo?.PixelXDimension ?? data.Image?.ImageWidth;
-        const height =
-          data.Photo?.PixelYDimension ?? data.Image?.ImageLength;
-
-        const result: CleaningPhotoExif = {};
-        if (dt) result.taken_at = dt instanceof Date ? dt.toISOString() : String(dt);
-        if (gpsInfo?.GPSLatitude && gpsInfo?.GPSLongitude) {
-          const toDecimal = (dms: number[]) =>
-            dms[0] + dms[1] / 60 + dms[2] / 3600;
-          let lat = toDecimal(gpsInfo.GPSLatitude);
-          let lon = toDecimal(gpsInfo.GPSLongitude);
-          if (gpsInfo.GPSLatitudeRef === "S") lat = -lat;
-          if (gpsInfo.GPSLongitudeRef === "W") lon = -lon;
-          result.latitude = lat;
-          result.longitude = lon;
-        }
-        if (make || model) {
-          result.camera = [make, model].filter(Boolean).join(" ");
-        }
-        if (width) result.width = width;
-        if (height) result.height = height;
-
-        return Object.keys(result).length > 0 ? result : undefined;
-      } catch (err) {
-        exifDebug = `${label}: ${err instanceof Error ? err.message : String(err)}`;
-        return undefined;
-      }
-    }
-
-    exif = parseExif(buffer, `uploaded(${file.size}b,${resolvedType})`);
+    let exif = await parseExif(buffer);
     if (!exif && originalHeader) {
-      try {
-        const headerBuf = Buffer.from(await originalHeader.arrayBuffer());
-        exif = parseExif(headerBuf, `header(${headerBuf.length}b)`);
-      } catch {
-        // ignore
-      }
+      const headerBuf = Buffer.from(await originalHeader.arrayBuffer());
+      exif = await parseExif(headerBuf);
     }
 
     // Reject photos taken before the checkout date
@@ -218,7 +217,7 @@ export async function POST(request: Request) {
       console.error("Failed to save photo metadata:", appendError);
     }
 
-    return NextResponse.json({ ok: true, photo, ...(exifDebug && { exifDebug }) });
+    return NextResponse.json({ ok: true, photo });
   } catch (err) {
     console.error("Upload photo error:", err);
     return NextResponse.json(

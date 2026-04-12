@@ -1,38 +1,39 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import exifReader from "exif-reader";
+import exifr from "exifr";
 import type { CleaningPhoto, CleaningPhotoExif } from "@/types/database";
 
-function extractExif(buffer: Buffer): CleaningPhotoExif | undefined {
+async function extractExif(buffer: Buffer): Promise<CleaningPhotoExif | undefined> {
   try {
-    const data = exifReader(buffer);
+    const data = await exifr.parse(buffer, {
+      gps: true,
+      tiff: true,
+      exif: true,
+      pick: [
+        "DateTimeOriginal", "DateTimeDigitized", "ModifyDate",
+        "Make", "Model",
+        "ExifImageWidth", "ExifImageHeight", "ImageWidth", "ImageHeight",
+        "latitude", "longitude",
+      ],
+    });
     if (!data) return undefined;
 
-    const dt =
-      data.Photo?.DateTimeOriginal ??
-      data.Photo?.DateTimeDigitized ??
-      data.Image?.DateTime;
-    const gpsInfo = data.GPSInfo;
-    const make = data.Image?.Make;
-    const model = data.Image?.Model;
-    const width = data.Photo?.PixelXDimension ?? data.Image?.ImageWidth;
-    const height = data.Photo?.PixelYDimension ?? data.Image?.ImageLength;
-
     const exif: CleaningPhotoExif = {};
+
+    const dt = data.DateTimeOriginal ?? data.DateTimeDigitized ?? data.ModifyDate;
     if (dt) exif.taken_at = dt instanceof Date ? dt.toISOString() : String(dt);
-    if (gpsInfo?.GPSLatitude && gpsInfo?.GPSLongitude) {
-      const toDecimal = (dms: number[]) =>
-        dms[0] + dms[1] / 60 + dms[2] / 3600;
-      let lat = toDecimal(gpsInfo.GPSLatitude);
-      let lon = toDecimal(gpsInfo.GPSLongitude);
-      if (gpsInfo.GPSLatitudeRef === "S") lat = -lat;
-      if (gpsInfo.GPSLongitudeRef === "W") lon = -lon;
-      exif.latitude = lat;
-      exif.longitude = lon;
+
+    if (data.latitude != null && data.longitude != null) {
+      exif.latitude = data.latitude;
+      exif.longitude = data.longitude;
     }
-    if (make || model) {
-      exif.camera = [make, model].filter(Boolean).join(" ");
-    }
+
+    const make = data.Make;
+    const model = data.Model;
+    if (make || model) exif.camera = [make, model].filter(Boolean).join(" ");
+
+    const width = data.ExifImageWidth ?? data.ImageWidth;
+    const height = data.ExifImageHeight ?? data.ImageHeight;
     if (width) exif.width = width;
     if (height) exif.height = height;
 
@@ -43,7 +44,6 @@ function extractExif(buffer: Buffer): CleaningPhotoExif | undefined {
 }
 
 export async function POST(request: Request) {
-  // Simple secret check to prevent accidental invocation
   const { searchParams } = new URL(request.url);
   const secret = searchParams.get("secret");
   if (secret !== process.env.SUPABASE_SERVICE_ROLE_KEY?.slice(-8)) {
@@ -52,7 +52,6 @@ export async function POST(request: Request) {
 
   const supabase = createAdminClient();
 
-  // Fetch all cleaning_status rows that have photos
   const { data: rows, error } = await supabase
     .from("cleaning_status")
     .select("registration_id, photos")
@@ -76,7 +75,6 @@ export async function POST(request: Request) {
       totalPhotos++;
       const photo = photos[i];
 
-      // Skip if already has exif
       if (photo.exif) {
         skipped++;
         continue;
@@ -94,7 +92,7 @@ export async function POST(request: Request) {
         }
 
         const buffer = Buffer.from(await fileData.arrayBuffer());
-        const exif = extractExif(buffer);
+        const exif = await extractExif(buffer);
 
         if (exif) {
           photos[i] = { ...photo, exif };

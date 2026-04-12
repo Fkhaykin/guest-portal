@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import type { CleaningPhoto, CleaningPhotoExif } from "@/types/database";
 
-type PhotoWithPreview = CleaningPhoto & { previewUrl: string; _debug?: string };
+type PhotoWithPreview = CleaningPhoto & { previewUrl: string };
 
 function formatExifSummary(exif: CleaningPhotoExif): string {
   const ownerOrCamera = exif.camera || "Unknown device";
@@ -268,7 +268,7 @@ export function CleaningDialog({
 
         if (res.ok) {
           const data = await res.json();
-          setPhotos((prev) => [...prev, { ...data.photo, previewUrl, _debug: data.exifDebug || `compressed=${file !== rawFiles[i]}, fileType=${rawFiles[i].type}, size=${rawFiles[i].size}` }]);
+          setPhotos((prev) => [...prev, { ...data.photo, previewUrl }]);
         } else {
           URL.revokeObjectURL(previewUrl);
           const text = await res.text();
@@ -438,9 +438,6 @@ export function CleaningDialog({
                             ) : (
                               <p className="text-xs text-muted-foreground">
                                 No metadata available
-                                {photo._debug && (
-                                  <span className="block mt-1 text-[10px] text-red-400 break-all">{photo._debug}</span>
-                                )}
                               </p>
                             )}
                           </div>
