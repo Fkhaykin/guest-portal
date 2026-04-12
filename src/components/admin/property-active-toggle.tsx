@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { createClient } from "@/lib/supabase/client";
 
 export function PropertyActiveToggle({
   propertyId,
@@ -14,17 +13,21 @@ export function PropertyActiveToggle({
 }) {
   const [isActive, setIsActive] = useState(initialActive);
   const [saving, setSaving] = useState(false);
-  const supabase = createClient();
 
   async function handleToggle(checked: boolean) {
     setSaving(true);
-    const { error } = await supabase
-      .from("property")
-      .update({ is_active: checked })
-      .eq("id", propertyId);
-    setSaving(false);
-
-    if (!error) setIsActive(checked);
+    try {
+      const res = await fetch("/api/admin/property-status", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ property_id: propertyId, is_active: checked }),
+      });
+      if (res.ok) {
+        setIsActive(checked);
+      }
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
