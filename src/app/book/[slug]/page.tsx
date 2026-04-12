@@ -119,6 +119,7 @@ export default async function BookPropertyPage({
 
         <BookingWidget
           lodgifyPropertyId={property.lodgify_property_id}
+          propertyName={property.name}
           checkIn={query.check_in}
           checkOut={query.check_out}
           guests={query.guests}
