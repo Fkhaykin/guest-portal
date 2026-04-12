@@ -99,10 +99,12 @@ export async function POST(request: Request) {
     const originalHeader = formData.get("original_header") as File | null;
     let exif: CleaningPhotoExif | undefined;
 
-    function parseExif(buf: Buffer): CleaningPhotoExif | undefined {
+    let exifDebug: string | undefined;
+
+    function parseExif(buf: Buffer, label: string): CleaningPhotoExif | undefined {
       try {
         const data = exifReader(buf);
-        if (!data) return undefined;
+        if (!data) { exifDebug = `${label}: exifReader returned falsy`; return undefined; }
 
         const dt =
           data.Photo?.DateTimeOriginal ??
@@ -135,16 +137,17 @@ export async function POST(request: Request) {
         if (height) result.height = height;
 
         return Object.keys(result).length > 0 ? result : undefined;
-      } catch {
+      } catch (err) {
+        exifDebug = `${label}: ${err instanceof Error ? err.message : String(err)}`;
         return undefined;
       }
     }
 
-    exif = parseExif(buffer);
+    exif = parseExif(buffer, `uploaded(${file.size}b,${resolvedType})`);
     if (!exif && originalHeader) {
       try {
         const headerBuf = Buffer.from(await originalHeader.arrayBuffer());
-        exif = parseExif(headerBuf);
+        exif = parseExif(headerBuf, `header(${headerBuf.length}b)`);
       } catch {
         // ignore
       }
@@ -215,7 +218,7 @@ export async function POST(request: Request) {
       console.error("Failed to save photo metadata:", appendError);
     }
 
-    return NextResponse.json({ ok: true, photo });
+    return NextResponse.json({ ok: true, photo, ...(exifDebug && { exifDebug }) });
   } catch (err) {
     console.error("Upload photo error:", err);
     return NextResponse.json(
