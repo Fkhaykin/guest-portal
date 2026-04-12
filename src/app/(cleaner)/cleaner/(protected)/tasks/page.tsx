@@ -72,11 +72,11 @@ export default async function CleanerDashboard() {
   // Get property names and cover images
   const { data: properties } = await supabase
     .from("property")
-    .select("id, name, nickname, cover_image_url, cleaning_photo_areas")
+    .select("id, name, nickname, cover_image_url, cleaning_photo_areas, cleaning_fee_cents")
     .in("id", propertyIds);
 
   const propertyMap = new Map(
-    (properties || []).map((p) => [p.id, { name: p.name, nickname: p.nickname, coverImage: p.cover_image_url, photoAreas: p.cleaning_photo_areas as string[] | null }])
+    (properties || []).map((p) => [p.id, { name: p.name, nickname: p.nickname, coverImage: p.cover_image_url, photoAreas: p.cleaning_photo_areas as string[] | null, cleaningFeeCents: p.cleaning_fee_cents ?? 0 }])
   );
 
   // Get registrations: current, upcoming, and recently departed
@@ -148,6 +148,9 @@ export default async function CleanerDashboard() {
       );
       const status = statusMap.get(reg.id);
       const prop = propertyMap.get(reg.property_id);
+      const hasPets = (reg.pets?.filter((p) => p.name?.trim()).length ?? 0) > 0;
+      const cleaningFeeCents = prop?.cleaningFeeCents ?? 0;
+      const petFeeCents = hasPets ? (cleaner?.pet_fee_cents ?? 0) : 0;
       return (
         <ReservationCard
           key={reg.id}
@@ -168,6 +171,8 @@ export default async function CleanerDashboard() {
           fulfilledUpsells={status?.fulfilled_upsells ?? []}
           photoAreas={prop?.photoAreas || null}
           category={category}
+          cleaningFeeCents={cleaningFeeCents}
+          petFeeCents={petFeeCents}
         />
       );
     });

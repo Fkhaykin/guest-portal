@@ -15,6 +15,7 @@ import {
   SkipForward,
   Undo2,
   Baby,
+  DollarSign,
 } from "lucide-react";
 import type { UpsellEntry, GuestListEntry, PetEntry } from "@/types/database";
 import { CleaningDialog } from "./cleaning-dialog";
@@ -92,6 +93,8 @@ export function ReservationCard({
   photoAreas,
   category,
   isNew,
+  cleaningFeeCents = 0,
+  petFeeCents = 0,
 }: {
   registrationId: string;
   propertyName: string;
@@ -111,6 +114,8 @@ export function ReservationCard({
   photoAreas: string[] | null;
   category: "current" | "upcoming" | "departed";
   isNew?: boolean;
+  cleaningFeeCents?: number;
+  petFeeCents?: number;
 }) {
   const newIds = useNewIds();
   const resolvedIsNew = isNew ?? newIds.has(registrationId);
@@ -310,6 +315,18 @@ export function ReservationCard({
             <span className="whitespace-nowrap">{coDow} {coMonth} {coDay}, {checkOutTime}</span>
             <span className="text-muted-foreground/40">|</span>
             <GuestBreakdownInline numGuests={numGuests} guestList={guestList} pets={pets} />
+            {(cleaningFeeCents > 0 || petFeeCents > 0) && (
+              <>
+                <span className="text-muted-foreground/40">|</span>
+                <span className="inline-flex items-center gap-0.5 whitespace-nowrap font-medium text-green-600 dark:text-green-400">
+                  <DollarSign className="h-3 w-3" />
+                  {((cleaningFeeCents + petFeeCents) / 100).toFixed(0)}
+                  {petFeeCents > 0 && (
+                    <span className="text-muted-foreground font-normal ml-0.5">(+${(petFeeCents / 100).toFixed(0)} pet)</span>
+                  )}
+                </span>
+              </>
+            )}
           </div>
 
           {/* Secondary row: early/late callouts + infant needs + tips + upsells (only if present) */}
