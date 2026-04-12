@@ -168,8 +168,15 @@ export function BookingCalendar({
   // Build checkout URL
   const guests = initialGuests || "2";
   const checkoutParams = new URLSearchParams();
-  if (checkIn) checkoutParams.set("arrival", checkIn.replace(/-/g, ""));
-  if (checkOut) checkoutParams.set("departure", checkOut.replace(/-/g, ""));
+  // Lodgify checkout expects MM/DD/YYYY
+  if (checkIn) {
+    const [y, m, d] = checkIn.split("-");
+    checkoutParams.set("arrival", `${m}/${d}/${y}`);
+  }
+  if (checkOut) {
+    const [y, m, d] = checkOut.split("-");
+    checkoutParams.set("departure", `${m}/${d}/${y}`);
+  }
   checkoutParams.set("adults", guests);
   checkoutParams.set("children", "0");
   checkoutParams.set("pets", "0");
