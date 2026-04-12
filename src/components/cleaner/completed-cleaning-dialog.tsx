@@ -307,6 +307,17 @@ export function CompletedCleaningDialog({
                     )}
                   </div>
 
+                  {/* Date & Location */}
+                  <div>
+                    <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">Date & Location</h4>
+                    <div className="rounded-lg border divide-y text-xs">
+                      {exif.taken_at && <AdminExifRow icon={<Clock className="h-3 w-3" />} label="Date & Time" value={new Date(exif.taken_at).toLocaleString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit", second: "2-digit" })} />}
+                      {exif.latitude != null && <AdminExifRow icon={<MapPin className="h-3 w-3" />} label="Latitude" value={exif.latitude.toFixed(6)} />}
+                      {exif.longitude != null && <AdminExifRow icon={<MapPin className="h-3 w-3" />} label="Longitude" value={exif.longitude.toFixed(6)} />}
+                      {exif.altitude != null && <AdminExifRow label="Altitude" value={`${exif.altitude.toFixed(1)}m`} />}
+                    </div>
+                  </div>
+
                   {/* Map */}
                   {exif.latitude != null && exif.longitude != null && (
                     <div className="rounded-lg overflow-hidden border h-44">
@@ -321,17 +332,6 @@ export function CompletedCleaningDialog({
                       />
                     </div>
                   )}
-
-                  {/* Date & Location */}
-                  <div>
-                    <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">Date & Location</h4>
-                    <div className="rounded-lg border divide-y text-xs">
-                      {exif.taken_at && <AdminExifRow icon={<Clock className="h-3 w-3" />} label="Date & Time" value={new Date(exif.taken_at).toLocaleString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit", second: "2-digit" })} />}
-                      {exif.latitude != null && <AdminExifRow icon={<MapPin className="h-3 w-3" />} label="Latitude" value={exif.latitude.toFixed(6)} />}
-                      {exif.longitude != null && <AdminExifRow icon={<MapPin className="h-3 w-3" />} label="Longitude" value={exif.longitude.toFixed(6)} />}
-                      {exif.altitude != null && <AdminExifRow label="Altitude" value={`${exif.altitude.toFixed(1)}m`} />}
-                    </div>
-                  </div>
 
                   {/* Camera */}
                   <div>

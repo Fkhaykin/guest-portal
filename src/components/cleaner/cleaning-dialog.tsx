@@ -137,6 +137,17 @@ function ExifDetailScreen({
           </span>
         </div>
 
+        {/* Date & Location */}
+        <div>
+          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Date & Location</h3>
+          <div className="rounded-lg border divide-y text-sm">
+            <ExifRow label="Date & Time" value={exif.taken_at ? new Date(exif.taken_at).toLocaleString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit", second: "2-digit" }) : undefined} />
+            <ExifRow label="Latitude" value={exif.latitude?.toFixed(6)} />
+            <ExifRow label="Longitude" value={exif.longitude?.toFixed(6)} />
+            <ExifRow label="Altitude" value={exif.altitude != null ? `${exif.altitude.toFixed(1)}m` : undefined} />
+          </div>
+        </div>
+
         {/* Map */}
         {exif.latitude != null && exif.longitude != null && (
           <div className="rounded-lg overflow-hidden border h-48">
@@ -151,17 +162,6 @@ function ExifDetailScreen({
             />
           </div>
         )}
-
-        {/* Date & Location */}
-        <div>
-          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Date & Location</h3>
-          <div className="rounded-lg border divide-y text-sm">
-            <ExifRow label="Date & Time" value={exif.taken_at ? new Date(exif.taken_at).toLocaleString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit", second: "2-digit" }) : undefined} />
-            <ExifRow label="Latitude" value={exif.latitude?.toFixed(6)} />
-            <ExifRow label="Longitude" value={exif.longitude?.toFixed(6)} />
-            <ExifRow label="Altitude" value={exif.altitude != null ? `${exif.altitude.toFixed(1)}m` : undefined} />
-          </div>
-        </div>
 
         {/* Camera & Lens */}
         <div>
