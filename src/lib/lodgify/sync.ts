@@ -364,6 +364,49 @@ export async function syncBookingById(bookingId: number) {
 }
 
 /**
+ * Sync the latest bookings from Lodgify (used by manual refresh button).
+ * Fetches the most recent page of bookings and returns IDs of newly created registrations.
+ */
+export async function syncLatestBookings() {
+  const supabase = createAdminClient();
+
+  // Get total to find the tail end
+  const { total } = await getBookings({ limit: 1 });
+  const offset = Math.max(0, total - 50);
+  const { items } = await getBookings({ offset, limit: 50 });
+
+  // Check which lodgify booking IDs already exist locally
+  const lodgifyIds = items.map((b) => b.id);
+  const { data: existing } = await supabase
+    .from("registration")
+    .select("lodgify_booking_id")
+    .in("lodgify_booking_id", lodgifyIds);
+  const existingSet = new Set((existing || []).map((r) => r.lodgify_booking_id));
+
+  // Sync all
+  let synced = 0;
+  let skipped = 0;
+  for (const booking of items) {
+    const result = await syncBooking(booking);
+    if (result.skipped) skipped++;
+    else synced++;
+  }
+
+  // Find newly created registration IDs
+  const newLodgifyIds = lodgifyIds.filter((id) => !existingSet.has(id));
+  const newIds: string[] = [];
+  if (newLodgifyIds.length > 0) {
+    const { data: newRegs } = await supabase
+      .from("registration")
+      .select("id")
+      .in("lodgify_booking_id", newLodgifyIds);
+    newIds.push(...(newRegs || []).map((r) => r.id));
+  }
+
+  return { total: items.length, synced, skipped, newIds };
+}
+
+/**
  * Sync a single batch of bookings from Lodgify.
  * Processes one page at a time to avoid function timeouts.
  * Returns next_offset when there are more bookings to process, or done: true when finished.

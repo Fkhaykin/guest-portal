@@ -19,6 +19,7 @@ import {
 import type { UpsellEntry, GuestListEntry, PetEntry } from "@/types/database";
 import { CleaningDialog } from "./cleaning-dialog";
 import { CompletedCleaningDialog } from "./completed-cleaning-dialog";
+import { useNewIds } from "./new-ids-provider";
 
 const UPSELL_LABELS: Record<string, string> = {
   early_checkin: "Early Check-In (1 PM)",
@@ -90,6 +91,7 @@ export function ReservationCard({
   fulfilledUpsells: initialFulfilled,
   photoAreas,
   category,
+  isNew,
 }: {
   registrationId: string;
   propertyName: string;
@@ -108,7 +110,10 @@ export function ReservationCard({
   fulfilledUpsells: string[];
   photoAreas: string[] | null;
   category: "current" | "upcoming" | "departed";
+  isNew?: boolean;
 }) {
+  const newIds = useNewIds();
+  const resolvedIsNew = isNew ?? newIds.has(registrationId);
   const [isCleaned, setIsCleaned] = useState(initialCleaned);
   const [isSkipped, setIsSkipped] = useState(initialSkipped);
   const [fulfilled, setFulfilled] = useState<string[]>(initialFulfilled);
@@ -206,13 +211,15 @@ export function ReservationCard({
     <>
       <Card
         className={`transition-all ${
-          isFullyDone
-            ? "border-green-500/50 bg-green-50/30 dark:bg-green-950/10 opacity-75"
-            : isSkipped
-              ? "border-muted opacity-60"
-              : category === "departed" && !isCleaned
-                ? "border-red-300 bg-red-50/30 dark:bg-red-950/10"
-                : ""
+          resolvedIsNew
+            ? "ring-2 ring-green-500 bg-green-50/40 dark:bg-green-950/20"
+            : isFullyDone
+              ? "border-green-500/50 bg-green-50/30 dark:bg-green-950/10 opacity-75"
+              : isSkipped
+                ? "border-muted opacity-60"
+                : category === "departed" && !isCleaned
+                  ? "border-red-300 bg-red-50/30 dark:bg-red-950/10"
+                  : ""
         }`}
       >
         <CardContent className="py-3 px-4">

@@ -169,6 +169,35 @@ export async function getBookings(params?: {
   return { items, total: data.total };
 }
 
+/**
+ * Check availability for a property over a date range.
+ * Returns an array of period objects with `start`, `end`, and `available` (0 = booked, 1 = available).
+ */
+export async function getAvailability(
+  propertyId: number,
+  start: string,
+  end: string
+): Promise<{ start: string; end: string; available: number }[]> {
+  const data = await lodgifyFetch<
+    { periods: { start: string; end: string; available: number }[] }[]
+  >(`/v2/availability/${propertyId}`, { start, end });
+  // Response is an array of room types; for whole-property rentals, take the first
+  return data[0]?.periods ?? [];
+}
+
+/**
+ * Check if a property is fully available for the given date range.
+ */
+export async function isPropertyAvailable(
+  propertyId: number,
+  checkIn: string,
+  checkOut: string
+): Promise<boolean> {
+  const periods = await getAvailability(propertyId, checkIn, checkOut);
+  // Property is available if no period within the range is booked
+  return periods.every((p) => p.available === 1);
+}
+
 export async function getBookingById(bookingId: number): Promise<LodgifyBooking> {
   const raw = await lodgifyFetch<{
     id: number;

@@ -13,6 +13,8 @@ import {
   Home,
   SkipForward,
 } from "lucide-react";
+import { SyncBookingsButton } from "@/components/cleaner/sync-bookings-button";
+import { NewIdsProvider } from "@/components/cleaner/new-ids-provider";
 import type { UpsellEntry, GuestListEntry, PetEntry } from "@/types/database";
 
 export const dynamic = "force-dynamic";
@@ -176,7 +178,14 @@ export default async function CleanerDashboard() {
   const cleanedDeparted = departed.filter((r) => statusMap.get(r.id)?.is_cleaned);
 
   return (
+    <NewIdsProvider>
     <div className="space-y-6 max-w-3xl mx-auto">
+      {/* Header with sync button */}
+      <div className="flex items-center justify-between">
+        <h1 className="text-lg font-semibold">Tasks</h1>
+        <SyncBookingsButton />
+      </div>
+
       {/* Summary stats */}
       <div className="grid grid-cols-3 gap-3">
         <Card>
@@ -286,5 +295,6 @@ export default async function CleanerDashboard() {
         )}
       </div>
     </div>
+    </NewIdsProvider>
   );
 }

@@ -16,7 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ArrowDown, ArrowUp, ArrowUpDown, ChevronDown } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, ChevronDown, RefreshCw } from "lucide-react";
 import type { GuestListEntry, PetEntry } from "@/types/database";
 
 type Property = {
@@ -59,6 +59,8 @@ export default function AdminReservationsPage() {
   const [loading, setLoading] = useState(true);
   const [sortColumn, setSortColumn] = useState<string>("booked");
   const [sortAsc, setSortAsc] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [newIds, setNewIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     loadProperties();
@@ -82,6 +84,22 @@ export default function AdminReservationsPage() {
       .order("check_in_date", { ascending: false });
     if (data) setRegistrations(data as unknown as Registration[]);
     setLoading(false);
+  }
+
+  async function handleRefresh() {
+    setSyncing(true);
+    try {
+      const res = await fetch("/api/lodgify/refresh", { method: "POST" });
+      const data = await res.json();
+      if (data.newIds?.length > 0) {
+        setNewIds(new Set(data.newIds));
+      }
+      await loadRegistrations();
+    } catch {
+      // silently fail
+    } finally {
+      setSyncing(false);
+    }
   }
 
   function getGuestBreakdown(reg: Registration) {
@@ -171,13 +189,18 @@ export default function AdminReservationsPage() {
 
   const sorted = useMemo(() => {
     return [...filtered].sort((a, b) => {
+      // Pin newly synced rows to the top
+      const aNew = newIds.has(a.id) ? 0 : 1;
+      const bNew = newIds.has(b.id) ? 0 : 1;
+      if (aNew !== bNew) return aNew - bNew;
+
       const aVal = getSortValue(a, sortColumn);
       const bVal = getSortValue(b, sortColumn);
       const cmp = aVal.localeCompare(bVal);
       return sortAsc ? cmp : -cmp;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filtered, sortColumn, sortAsc]);
+  }, [filtered, sortColumn, sortAsc, newIds]);
 
   function SortIcon({ column }: { column: string }) {
     if (sortColumn !== column) return <ArrowUpDown className="inline ml-1 h-3 w-3 text-muted-foreground/50" />;
@@ -188,9 +211,19 @@ export default function AdminReservationsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Reservations</h1>
-        <p className="text-muted-foreground">All reservations across properties</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Reservations</h1>
+          <p className="text-muted-foreground">All reservations across properties</p>
+        </div>
+        <button
+          onClick={handleRefresh}
+          disabled={syncing}
+          className="inline-flex items-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground disabled:opacity-50"
+        >
+          <RefreshCw className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`} />
+          {syncing ? "Syncing..." : "Refresh from Lodgify"}
+        </button>
       </div>
 
       {/* Filters */}
@@ -321,7 +354,7 @@ export default function AdminReservationsPage() {
                 return (
                   <TableRow
                     key={reg.id}
-                    className="cursor-pointer hover:bg-muted/50"
+                    className={`cursor-pointer hover:bg-muted/50 ${newIds.has(reg.id) ? "bg-green-50 dark:bg-green-950/20 border-l-2 border-l-green-500" : ""}`}
                     onClick={() => router.push(`/admin/reservations/${reg.id}`)}
                   >
                     <TableCell>
