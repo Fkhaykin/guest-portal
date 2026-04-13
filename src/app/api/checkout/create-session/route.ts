@@ -54,6 +54,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
 
+  if (pets > 3) {
+    return NextResponse.json({ error: "Maximum 3 pets allowed" }, { status: 400 });
+  }
+
   const supabase = createAdminClient();
 
   // Load property

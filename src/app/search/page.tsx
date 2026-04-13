@@ -426,7 +426,7 @@ function SearchPageInner() {
                 id="s-pets"
                 type="number"
                 min={0}
-                max={10}
+                max={3}
                 value={pets}
                 onChange={(e) => setPets(parseInt(e.target.value) || 0)}
                 className="h-9"
