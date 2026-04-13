@@ -78,6 +78,8 @@ export function BookingCalendar({
   const [checkOut, setCheckOut] = useState<string | null>(initialCheckOut || null);
   const [periods, setPeriods] = useState<AvailabilityPeriod[]>([]);
   const [loading, setLoading] = useState(true);
+  const [quote, setQuote] = useState<{ total: number; subtotal: number; currency: string } | null>(null);
+  const [quoteLoading, setQuoteLoading] = useState(false);
 
   // Fetch 6 months of availability
   useEffect(() => {
@@ -93,6 +95,24 @@ export function BookingCalendar({
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [lodgifyPropertyId]);
+
+  // Fetch price quote when dates are selected
+  useEffect(() => {
+    if (!checkIn || !checkOut) {
+      setQuote(null);
+      return;
+    }
+    setQuoteLoading(true);
+    const guests = initialGuests || "2";
+    fetch(`/api/availability/quote?property_id=${lodgifyPropertyId}&arrival=${checkIn}&departure=${checkOut}&guests=${guests}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data?.total) setQuote(data);
+        else setQuote(null);
+      })
+      .catch(() => setQuote(null))
+      .finally(() => setQuoteLoading(false));
+  }, [checkIn, checkOut, lodgifyPropertyId, initialGuests]);
 
   // Build a set of booked dates for fast lookup
   const bookedDates = useMemo(() => {
@@ -307,6 +327,11 @@ export function BookingCalendar({
               </p>
               <p className="text-sm font-medium">
                 {nights} night{nights !== 1 ? "s" : ""}
+                {quoteLoading ? (
+                  <span className="text-muted-foreground"> &middot; loading price&hellip;</span>
+                ) : quote ? (
+                  <span> &middot; ${Math.round(quote.total).toLocaleString()}</span>
+                ) : null}
               </p>
             </div>
             <a href={checkoutUrl} target="_blank" rel="noopener noreferrer">

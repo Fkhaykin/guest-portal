@@ -198,6 +198,39 @@ export async function isPropertyAvailable(
   return periods.every((p) => p.available === 1);
 }
 
+/**
+ * Get a price quote for a property over a date range.
+ */
+export async function getQuote(
+  propertyId: number,
+  arrival: string,
+  departure: string,
+  guests: number = 2
+): Promise<{ total: number; subtotal: number; currency: string } | null> {
+  try {
+    const data = await lodgifyFetch<{
+      total_including_vat: number;
+      total_excluding_vat: number;
+      currency_code: string;
+      room_types?: Array<{
+        total_including_vat: number;
+        total_excluding_vat: number;
+      }>;
+    }>(`/v2/quote/${propertyId}`, {
+      arrival,
+      departure,
+      adults: String(guests),
+    });
+    return {
+      total: data.total_including_vat,
+      subtotal: data.total_excluding_vat,
+      currency: data.currency_code,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export async function getBookingById(bookingId: number): Promise<LodgifyBooking> {
   const raw = await lodgifyFetch<{
     id: number;
