@@ -36,7 +36,7 @@ export async function GET(request: Request) {
   const supabase = createAdminClient();
   const { data: property } = await supabase
     .from("property")
-    .select("id, lodgify_property_id, cleaning_fee_cents, pet_fee_cents")
+    .select("id, lodgify_property_id, guest_cleaning_fee_cents, guest_pet_fee_cents")
     .eq("id", propertyId)
     .single();
 
@@ -93,8 +93,8 @@ export async function GET(request: Request) {
     }
   }
 
-  const cleaningFeeCents = property.cleaning_fee_cents || 0;
-  const petFeeCents = property.pet_fee_cents || 0;
+  const cleaningFeeCents = property.guest_cleaning_fee_cents || 0;
+  const petFeeCents = property.guest_pet_fee_cents || 0;
   const petFeeTotalCents = pets * petFeeCents;
   const stateTaxCents = Math.round(roomRateCents * PA_STATE_TAX_RATE);
   const countyTaxCents = Math.round(roomRateCents * MONROE_COUNTY_TAX_RATE);
