@@ -183,23 +183,14 @@ export function BookingCalendar({
     return checkOut === dateStr;
   }
 
-  // Build checkout URL — link to the Lodgify website listing with dates pre-filled
+  // Build checkout URL
   const guests = initialGuests || "2";
   const checkoutParams = new URLSearchParams();
-  // Lodgify website expects MM/DD/YYYY
-  if (checkIn) {
-    const [y, m, d] = checkIn.split("-");
-    checkoutParams.set("arrival", `${m}/${d}/${y}`);
-  }
-  if (checkOut) {
-    const [y, m, d] = checkOut.split("-");
-    checkoutParams.set("departure", `${m}/${d}/${y}`);
-  }
+  checkoutParams.set("currency", "USD");
+  if (checkIn) checkoutParams.set("arrival", checkIn);
+  if (checkOut) checkoutParams.set("departure", checkOut);
   checkoutParams.set("adults", guests);
-  checkoutParams.set("children", "0");
-  checkoutParams.set("pets", "0");
-  checkoutParams.set("infants", "0");
-  const checkoutUrl = `https://checkout.lodgify.com/en/summitlakeside/${lodgifyPropertyId}/reservation?${checkoutParams}`;
+  const checkoutUrl = `https://checkout.lodgify.com/summitlakeside/${lodgifyPropertyId}/addons?${checkoutParams}`;
 
   const nights = checkIn && checkOut ? getNightCount(checkIn, checkOut) : null;
 

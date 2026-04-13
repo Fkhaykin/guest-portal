@@ -276,7 +276,7 @@ export function PropertyPage({
             />
           </div>
           <a
-            href={`https://checkout.lodgify.com/en/summitlakeside/${property.lodgify_property_id}/reservation`}
+            href={`https://checkout.lodgify.com/summitlakeside/${property.lodgify_property_id}/addons`}
             target="_blank"
             rel="noopener noreferrer"
             className="text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
