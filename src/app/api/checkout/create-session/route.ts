@@ -212,7 +212,8 @@ export async function POST(request: Request) {
     .single();
 
   if (regErr || !registration) {
-    return NextResponse.json({ error: "Failed to create registration" }, { status: 500 });
+    console.error("[checkout/create-session] Registration insert failed:", regErr);
+    return NextResponse.json({ error: "Failed to create registration", details: regErr?.message }, { status: 500 });
   }
 
   // Build Stripe line items
