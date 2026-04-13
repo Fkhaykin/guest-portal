@@ -57,13 +57,11 @@ const DAY_HEADERS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 
 export function BookingCalendar({
   lodgifyPropertyId,
-  lodgifySlug,
   checkIn: initialCheckIn,
   checkOut: initialCheckOut,
   guests: initialGuests,
 }: {
   lodgifyPropertyId: number;
-  lodgifySlug: string;
   checkIn?: string;
   checkOut?: string;
   guests?: string;
@@ -198,7 +196,10 @@ export function BookingCalendar({
     checkoutParams.set("departure", `${m}/${d}/${y}`);
   }
   checkoutParams.set("adults", guests);
-  const checkoutUrl = `https://www.summitlakeside.com/en/${lodgifySlug}?${checkoutParams}`;
+  checkoutParams.set("children", "0");
+  checkoutParams.set("pets", "0");
+  checkoutParams.set("infants", "0");
+  const checkoutUrl = `https://checkout.lodgify.com/en/summitlakeside/${lodgifyPropertyId}/reservation?${checkoutParams}`;
 
   const nights = checkIn && checkOut ? getNightCount(checkIn, checkOut) : null;
 

@@ -245,11 +245,6 @@ export function PropertyPage({
       .catch(() => setLoaded(true));
   }, [property.slug]);
 
-  const lodgifySlug = property.name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
-
   const images = lodgify?.images || [];
   if (property.cover_image_url && !images.some((img) => img.url === property.cover_image_url)) {
     images.unshift({ url: property.cover_image_url });
@@ -281,7 +276,7 @@ export function PropertyPage({
             />
           </div>
           <a
-            href={`https://www.summitlakeside.com/en/${lodgifySlug}`}
+            href={`https://checkout.lodgify.com/en/summitlakeside/${property.lodgify_property_id}/reservation`}
             target="_blank"
             rel="noopener noreferrer"
             className="text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
@@ -446,7 +441,6 @@ export function PropertyPage({
           <h2 className="text-xl font-semibold">Availability & Booking</h2>
           <BookingCalendar
             lodgifyPropertyId={property.lodgify_property_id}
-            lodgifySlug={lodgifySlug}
             checkIn={checkIn}
             checkOut={checkOut}
             guests={guests}
