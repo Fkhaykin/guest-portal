@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { ChevronLeft, ChevronRight, ExternalLink, Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 /* ------------------------------------------------------------------ */
@@ -57,15 +58,20 @@ const DAY_HEADERS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 
 export function BookingCalendar({
   lodgifyPropertyId,
+  propertySlug,
   checkIn: initialCheckIn,
   checkOut: initialCheckOut,
   guests: initialGuests,
+  pets: initialPets,
 }: {
   lodgifyPropertyId: number;
+  propertySlug: string;
   checkIn?: string;
   checkOut?: string;
   guests?: string;
+  pets?: string;
 }) {
+  const router = useRouter();
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
@@ -183,14 +189,12 @@ export function BookingCalendar({
     return checkOut === dateStr;
   }
 
-  // Build checkout URL
+  // Build checkout URL (internal)
   const guests = initialGuests || "2";
-  const checkoutParams = new URLSearchParams();
-  checkoutParams.set("currency", "USD");
-  if (checkIn) checkoutParams.set("arrival", checkIn);
-  if (checkOut) checkoutParams.set("departure", checkOut);
-  checkoutParams.set("adults", guests);
-  const checkoutUrl = `https://checkout.lodgify.com/summitlakeside/${lodgifyPropertyId}/addons?${checkoutParams}`;
+  const petsParam = initialPets || "0";
+  const checkoutUrl = checkIn && checkOut
+    ? `/book/${propertySlug}/checkout?check_in=${checkIn}&check_out=${checkOut}&guests=${guests}&pets=${petsParam}`
+    : null;
 
   const nights = checkIn && checkOut ? getNightCount(checkIn, checkOut) : null;
 
@@ -326,12 +330,12 @@ export function BookingCalendar({
                 ) : null}
               </p>
             </div>
-            <a href={checkoutUrl} target="_blank" rel="noopener noreferrer">
-              <Button size="lg" className="gap-2">
-                Book Now
-                <ExternalLink className="h-4 w-4" />
-              </Button>
-            </a>
+            <Button
+              size="lg"
+              onClick={() => checkoutUrl && router.push(checkoutUrl)}
+            >
+              Continue to Checkout
+            </Button>
           </div>
         ) : (
           <p className="text-sm text-muted-foreground text-center">

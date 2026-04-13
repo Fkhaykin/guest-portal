@@ -291,3 +291,56 @@ export async function getBookingById(bookingId: number): Promise<LodgifyBooking>
     date_created: raw.created_at ?? null,
   };
 }
+
+/**
+ * Create a booking on Lodgify via the v1 API.
+ * Returns the Lodgify booking ID on success.
+ */
+export async function createBooking(params: {
+  propertyId: number;
+  arrival: string;
+  departure: string;
+  guestName: string;
+  guestEmail: string;
+  guestPhone: string;
+  guests: number;
+  totalAmount: number;
+  source: string;
+}): Promise<number> {
+  const url = `${LODGIFY_BASE_URL}/v1/reservation/booking`;
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      "X-ApiKey": getApiKey(),
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify({
+      property_id: params.propertyId,
+      arrival: params.arrival,
+      departure: params.departure,
+      status: "Booked",
+      source: params.source,
+      guest: {
+        name: params.guestName,
+        email: params.guestEmail,
+        phone: params.guestPhone,
+      },
+      rooms: [
+        {
+          people: params.guests,
+        },
+      ],
+      total_amount: params.totalAmount,
+    }),
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Lodgify create booking error ${res.status}: ${text}`);
+  }
+
+  const data = (await res.json()) as { id: number };
+  return data.id;
+}

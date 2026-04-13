@@ -224,11 +224,13 @@ export function PropertyPage({
   checkIn,
   checkOut,
   guests,
+  pets,
 }: {
   property: Property;
   checkIn?: string;
   checkOut?: string;
   guests?: string;
+  pets?: string;
 }) {
   const [lodgify, setLodgify] = useState<LodgifyDetails | null>(null);
   const [maxGuests, setMaxGuests] = useState(property.max_guests);
@@ -441,9 +443,11 @@ export function PropertyPage({
           <h2 className="text-xl font-semibold">Availability & Booking</h2>
           <BookingCalendar
             lodgifyPropertyId={property.lodgify_property_id}
+            propertySlug={property.slug}
             checkIn={checkIn}
             checkOut={checkOut}
             guests={guests}
+            pets={pets}
           />
         </div>
 

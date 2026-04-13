@@ -6,6 +6,7 @@ import {
   Users,
   ShoppingBag,
   Tag,
+  Ticket,
   MapPin,
   HelpCircle,
   Video,
@@ -33,6 +34,12 @@ const sections = [
     description: "Manage deals and promotions",
     href: "/promotions",
     icon: Tag,
+  },
+  {
+    label: "Promo Codes",
+    description: "Manage discount codes for checkout",
+    href: "/promo-codes",
+    icon: Ticket,
   },
   {
     label: "Recommendations",

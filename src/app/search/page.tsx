@@ -211,10 +211,12 @@ function SearchPageInner() {
   const initialCheckIn = searchParams.get("check_in") || "";
   const initialCheckOut = searchParams.get("check_out") || "";
   const initialGuests = parseInt(searchParams.get("guests") || "2", 10);
+  const initialPets = parseInt(searchParams.get("pets") || "0", 10);
 
   const [checkIn, setCheckIn] = useState(initialCheckIn);
   const [checkOut, setCheckOut] = useState(initialCheckOut);
   const [guests, setGuests] = useState(initialGuests);
+  const [pets, setPets] = useState(initialPets);
   const [results, setResults] = useState<AvailableProperty[] | null>(null);
   const [mapProperties, setMapProperties] = useState<PropertyWithCoords[]>([]);
   const [loading, setLoading] = useState(false);
@@ -319,6 +321,7 @@ function SearchPageInner() {
       check_in: checkIn,
       check_out: checkOut,
       guests: String(guests),
+      pets: String(pets),
     });
     router.replace(`/search?${params}`);
     runSearch(checkIn, checkOut, guests);
@@ -415,6 +418,20 @@ function SearchPageInner() {
                 className="h-9"
               />
             </div>
+            <div className="w-16 space-y-1">
+              <Label htmlFor="s-pets" className="text-xs">
+                Pets
+              </Label>
+              <Input
+                id="s-pets"
+                type="number"
+                min={0}
+                max={10}
+                value={pets}
+                onChange={(e) => setPets(parseInt(e.target.value) || 0)}
+                className="h-9"
+              />
+            </div>
             <Button type="submit" disabled={loading} size="sm" className="h-9 px-4">
               <Search className="h-4 w-4 sm:mr-1.5" />
               <span className="hidden sm:inline">
@@ -479,7 +496,7 @@ function SearchPageInner() {
           {results && results.length > 0 && (
             <div className="space-y-4">
               {results.map((property) => {
-                const bookUrl = `/book/${property.slug}?check_in=${checkIn}&check_out=${checkOut}&guests=${guests}`;
+                const bookUrl = `/book/${property.slug}?check_in=${checkIn}&check_out=${checkOut}&guests=${guests}&pets=${pets}`;
                 return (
                   <Link
                     key={property.id}

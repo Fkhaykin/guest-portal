@@ -32,7 +32,7 @@ export default async function BookPropertyPage({
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ check_in?: string; check_out?: string; guests?: string }>;
+  searchParams: Promise<{ check_in?: string; check_out?: string; guests?: string; pets?: string }>;
 }) {
   const { slug } = await params;
   const query = await searchParams;
@@ -57,6 +57,7 @@ export default async function BookPropertyPage({
       checkIn={query.check_in}
       checkOut={query.check_out}
       guests={query.guests}
+      pets={query.pets}
     />
   );
 }

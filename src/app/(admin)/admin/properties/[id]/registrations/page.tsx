@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/table";
 import { ExternalLink } from "lucide-react";
 import { RegistrationActions } from "@/components/admin/registration-actions";
+import { ResendPaymentButton } from "@/components/admin/resend-payment-button";
 import type { GuestListEntry, PetEntry } from "@/types/database";
 
 export default async function AdminRegistrationsPage({
@@ -33,7 +34,7 @@ export default async function AdminRegistrationsPage({
     .from("registration")
     .select("*, guest:guest_id(full_name, email, phone)")
     .eq("property_id", id)
-    .not("signature_url", "is", null)
+    .or("signature_url.not.is.null,status.eq.pending_payment,status.eq.quote")
     .order("created_at", { ascending: false });
 
   return (
@@ -147,18 +148,38 @@ export default async function AdminRegistrationsPage({
                           ? "default"
                           : reg.status === "completed"
                             ? "secondary"
-                            : "destructive"
+                            : reg.status === "pending_payment"
+                              ? "outline"
+                              : reg.status === "quote"
+                                ? "outline"
+                                : "destructive"
+                      }
+                      className={
+                        reg.status === "pending_payment"
+                          ? "border-amber-500 text-amber-600"
+                          : reg.status === "quote"
+                            ? "border-blue-500 text-blue-600"
+                            : ""
                       }
                     >
-                      {reg.status}
+                      {reg.status === "pending_payment"
+                        ? "Payment Failed"
+                        : reg.status === "quote"
+                          ? "Quote Sent"
+                          : reg.status}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
-                    <RegistrationActions
-                      registrationId={reg.id}
-                      hasSignature={!!reg.signature_url}
-                      guestName={guest?.full_name ?? "Unknown"}
-                    />
+                    <div className="flex items-center justify-end gap-1">
+                      {(reg.status === "pending_payment" || reg.status === "quote") && (
+                        <ResendPaymentButton registrationId={reg.id} />
+                      )}
+                      <RegistrationActions
+                        registrationId={reg.id}
+                        hasSignature={!!reg.signature_url}
+                        guestName={guest?.full_name ?? "Unknown"}
+                      />
+                    </div>
                   </TableCell>
                 </TableRow>
               );
