@@ -78,7 +78,7 @@ export function BookingCalendar({
   const [checkOut, setCheckOut] = useState<string | null>(initialCheckOut || null);
   const [periods, setPeriods] = useState<AvailabilityPeriod[]>([]);
   const [loading, setLoading] = useState(true);
-  const [quote, setQuote] = useState<{ total: number; subtotal: number; currency: string } | null>(null);
+  const [quote, setQuote] = useState<{ total: number; currency: string } | null>(null);
   const [quoteLoading, setQuoteLoading] = useState(false);
 
   // Fetch 6 months of availability

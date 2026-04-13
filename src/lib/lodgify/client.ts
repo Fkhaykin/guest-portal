@@ -200,31 +200,41 @@ export async function isPropertyAvailable(
 
 /**
  * Get a price quote for a property over a date range.
+ * Fetches the room type ID first, then requests a quote with it.
  */
 export async function getQuote(
   propertyId: number,
   arrival: string,
   departure: string,
   guests: number = 2
-): Promise<{ total: number; subtotal: number; currency: string } | null> {
+): Promise<{ total: number; currency: string } | null> {
   try {
-    const data = await lodgifyFetch<{
-      total_including_vat: number;
-      total_excluding_vat: number;
-      currency_code: string;
-      room_types?: Array<{
-        total_including_vat: number;
+    // Get room type ID (required by Lodgify quote API)
+    const rooms = await lodgifyFetch<{ id: number }[]>(
+      `/v2/properties/${propertyId}/rooms`
+    );
+    const roomId = rooms[0]?.id;
+    if (!roomId) return null;
+
+    const data = await lodgifyFetch<
+      {
+        total_including_vat: number | null;
         total_excluding_vat: number;
-      }>;
-    }>(`/v2/quote/${propertyId}`, {
+        currency_code: string;
+      }[]
+    >(`/v2/quote/${propertyId}`, {
       arrival,
       departure,
-      adults: String(guests),
+      "roomTypes[0].id": String(roomId),
+      "roomTypes[0].people": String(guests),
     });
+
+    const quote = data[0];
+    if (!quote) return null;
+
     return {
-      total: data.total_including_vat,
-      subtotal: data.total_excluding_vat,
-      currency: data.currency_code,
+      total: quote.total_including_vat ?? quote.total_excluding_vat,
+      currency: quote.currency_code,
     };
   } catch {
     return null;
