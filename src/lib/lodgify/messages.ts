@@ -17,8 +17,8 @@ export interface LodgifyMessage {
 
 /**
  * Fetch messages for a Lodgify booking.
- * Tries GET /v1/reservation/booking/{id}/messages first,
- * falls back to extracting messages from the booking detail endpoint.
+ * Gets the thread_uid from the booking detail, then fetches the
+ * v2 messaging thread which contains the full conversation.
  */
 export async function fetchMessagesForBooking(
   bookingId: number
@@ -28,74 +28,46 @@ export async function fetchMessagesForBooking(
     Accept: "application/json",
   };
 
-  // Try the dedicated messages endpoint
-  try {
-    const res = await fetch(
-      `${LODGIFY_BASE_URL}/v1/reservation/booking/${bookingId}/messages`,
-      { headers }
-    );
-
-    if (res.ok) {
-      const raw = await res.json();
-      console.log(
-        "[lodgify-messages] GET messages response shape:",
-        JSON.stringify(raw).slice(0, 500)
-      );
-      return normalizeMessages(raw);
-    }
-
-    console.log(
-      "[lodgify-messages] Messages endpoint returned",
-      res.status,
-      "— falling back to booking detail"
-    );
-  } catch (err) {
-    console.error("[lodgify-messages] Messages endpoint error:", err);
-  }
-
-  // Fallback: fetch booking detail and extract messages field
+  // Step 1: Get thread_uid from booking detail
   try {
     const res = await fetch(
       `${LODGIFY_BASE_URL}/v2/reservations/bookings/${bookingId}`,
       { headers }
     );
 
-    if (res.ok) {
-      const raw = (await res.json()) as Record<string, unknown>;
-      console.log(
-        "[lodgify-messages] Booking detail keys:",
-        Object.keys(raw).join(", ")
-      );
-
-      if (Array.isArray(raw.messages)) {
-        return normalizeMessages(raw.messages);
-      }
-      if (raw.thread_id || raw.thread_guid) {
-        console.log(
-          "[lodgify-messages] Found thread ref:",
-          raw.thread_id ?? raw.thread_guid
-        );
-        // Could try v2 messaging endpoint with this GUID
-        const threadGuid = String(raw.thread_guid ?? raw.thread_id);
-        return await fetchThreadMessages(threadGuid);
-      }
+    if (!res.ok) {
+      console.error("[lodgify-messages] Booking detail returned", res.status);
+      return [];
     }
-  } catch (err) {
-    console.error("[lodgify-messages] Booking detail fallback error:", err);
-  }
 
-  return [];
+    const booking = (await res.json()) as Record<string, unknown>;
+    const threadUid = booking.thread_uid as string | undefined;
+
+    if (!threadUid) {
+      console.log("[lodgify-messages] No thread_uid on booking", bookingId);
+      return [];
+    }
+
+    // Step 2: Fetch the message thread
+    return await fetchThreadMessages(threadUid);
+  } catch (err) {
+    console.error("[lodgify-messages] Error fetching messages:", err);
+    return [];
+  }
 }
 
 /**
  * Fetch messages from the v2 messaging thread endpoint.
+ * Response shape: { thread_uid, guest_name, guest_email, last_message_date,
+ *   is_read, messages: [{ id, subject, message, type, date_created, attachments,
+ *   message_status, is_read, route, is_imported }], is_closed, error_message }
  */
 async function fetchThreadMessages(
-  threadGuid: string
+  threadUid: string
 ): Promise<LodgifyMessage[]> {
   try {
     const res = await fetch(
-      `${LODGIFY_BASE_URL}/v2/messaging/${threadGuid}`,
+      `${LODGIFY_BASE_URL}/v2/messaging/${threadUid}`,
       {
         headers: {
           "X-ApiKey": getApiKey(),
@@ -104,24 +76,20 @@ async function fetchThreadMessages(
       }
     );
 
-    if (res.ok) {
-      const raw = await res.json();
-      console.log(
-        "[lodgify-messages] Thread response shape:",
-        JSON.stringify(raw).slice(0, 500)
-      );
-
-      // Thread may have a messages array or similar
-      const messages = raw.messages ?? raw.items ?? raw.entries ?? [];
-      if (Array.isArray(messages)) {
-        return normalizeMessages(messages);
-      }
+    if (!res.ok) {
+      console.error("[lodgify-messages] Thread endpoint returned", res.status);
+      return [];
     }
+
+    const raw = await res.json();
+    const messages = raw.messages;
+    if (!Array.isArray(messages)) return [];
+
+    return normalizeMessages(messages, raw.guest_name ?? "");
   } catch (err) {
     console.error("[lodgify-messages] Thread endpoint error:", err);
+    return [];
   }
-
-  return [];
 }
 
 /**
@@ -168,21 +136,19 @@ export async function sendMessage(
 // --- Normalization ---
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
-function normalizeMessages(raw: unknown): LodgifyMessage[] {
-  const items = Array.isArray(raw) ? raw : [];
-  return items.map((item: any, index: number) => normalizeMessage(item, index));
+function normalizeMessages(raw: any[], guestName: string): LodgifyMessage[] {
+  return raw.map((item, index) => normalizeMessage(item, index, guestName));
 }
 
-function normalizeMessage(raw: any, index: number): LodgifyMessage {
+function normalizeMessage(raw: any, index: number, guestName: string): LodgifyMessage {
+  const type: string = raw.type ?? "Comment";
   return {
-    id: String(raw.id ?? raw.Id ?? index),
-    message: raw.message ?? raw.Message ?? raw.body ?? raw.Body ?? raw.text ?? "",
-    subject: raw.subject ?? raw.Subject ?? "",
-    type: raw.type ?? raw.Type ?? raw.sender_type ?? "Comment",
-    created_at:
-      raw.created_at ?? raw.CreatedAt ?? raw.date ?? raw.Date ?? raw.timestamp ?? "",
-    sender_name:
-      raw.sender_name ?? raw.SenderName ?? raw.sender ?? raw.from ?? raw.From ?? "",
+    id: String(raw.id ?? index),
+    message: (raw.message ?? "").replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]+>/g, ""),
+    subject: raw.subject ?? "",
+    type,
+    created_at: raw.date_created ?? raw.created_at ?? "",
+    sender_name: type === "Owner" ? "You" : guestName || "Guest",
   };
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */
