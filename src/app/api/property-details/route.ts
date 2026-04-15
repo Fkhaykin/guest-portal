@@ -84,7 +84,7 @@ export async function GET(request: Request) {
         address: property.address,
         description: propData.description || property.description,
         cover_image_url: property.cover_image_url,
-        max_guests: room?.max_people || property.max_guests,
+        max_guests: property.max_guests ?? room?.max_people ?? null,
         lodgify_property_id: property.lodgify_property_id,
       },
       lodgify: {
