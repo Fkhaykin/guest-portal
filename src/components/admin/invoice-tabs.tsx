@@ -7,6 +7,14 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
   SprayCan,
   Receipt,
   Home,
@@ -16,6 +24,8 @@ import {
   User,
   CheckCircle2,
   Trash2,
+  FileText,
+  Loader2,
 } from "lucide-react";
 import type {
   AdminInvoiceRow,
@@ -134,6 +144,46 @@ function UnpaidTab({
   cleanings: AdminUnpaidCleaning[];
   totalUnpaid: number;
 }) {
+  const router = useRouter();
+  const [showModal, setShowModal] = useState(false);
+  const [generating, setGenerating] = useState(false);
+
+  async function handleGenerate() {
+    setGenerating(true);
+    try {
+      const res = await fetch("/api/admin/invoices", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          cleanings: cleanings.map((c) => ({
+            registrationId: c.registrationId,
+            cleanerId: c.cleanerId,
+            propertyName: c.propertyName,
+            checkOutDate: c.checkOutDate,
+            cleaningFee: c.cleaningFee,
+            petFee: c.petFee,
+            hasPets: c.hasPets,
+          })),
+        }),
+      });
+
+      if (res.ok) {
+        setShowModal(false);
+        router.refresh();
+      }
+    } finally {
+      setGenerating(false);
+    }
+  }
+
+  // Group cleanings by cleaner for the modal
+  const byCleanerName = new Map<string, AdminUnpaidCleaning[]>();
+  for (const c of cleanings) {
+    const list = byCleanerName.get(c.cleanerName) || [];
+    list.push(c);
+    byCleanerName.set(c.cleanerName, list);
+  }
+
   if (cleanings.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center space-y-3">
@@ -161,10 +211,10 @@ function UnpaidTab({
               </p>
               <p className="text-2xl font-bold">{formatCents(totalUnpaid)}</p>
             </div>
-            <div className="text-right">
-              <p className="text-xs text-muted-foreground">Auto-invoice</p>
-              <p className="text-sm font-medium">Every Monday</p>
-            </div>
+            <Button onClick={() => setShowModal(true)} size="sm">
+              <FileText className="h-4 w-4 mr-1.5" />
+              Generate Invoice
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -218,7 +268,7 @@ function UnpaidTab({
                       {c.hasPets && (
                         <span className="flex items-center gap-1 text-amber-600">
                           <PawPrint className="h-3 w-3" />
-                          Pets
+                          {c.petCount} pet{c.petCount !== 1 ? "s" : ""}
                         </span>
                       )}
                     </div>
@@ -245,6 +295,112 @@ function UnpaidTab({
           </Link>
         ))}
       </div>
+
+      {/* Generate Invoice Modal */}
+      <Dialog open={showModal} onOpenChange={setShowModal}>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Generate Invoice</DialogTitle>
+            <DialogDescription>
+              Create an invoice for all {cleanings.length} completed cleaning
+              {cleanings.length !== 1 ? "s" : ""} below.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            {[...byCleanerName.entries()].map(([cleanerName, items]) => {
+              const cleanerTotal = items.reduce((s, c) => s + c.totalFee, 0);
+              return (
+                <div key={cleanerName} className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-semibold flex items-center gap-1.5">
+                      <User className="h-3.5 w-3.5" />
+                      {cleanerName}
+                    </p>
+                    <p className="text-sm font-semibold">
+                      {formatCents(cleanerTotal)}
+                    </p>
+                  </div>
+                  <div className="space-y-1.5 pl-1">
+                    {items.map((c) => (
+                      <div
+                        key={c.registrationId}
+                        className="rounded-md border p-2.5 text-xs space-y-1"
+                      >
+                        <div className="flex items-center justify-between">
+                          <p className="font-medium">{c.propertyName}</p>
+                          <p className="font-semibold">
+                            {formatCents(c.totalFee)}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-3 text-muted-foreground">
+                          <span className="flex items-center gap-1">
+                            <CalendarDays className="h-3 w-3" />
+                            {formatDate(c.checkInDate)} &ndash;{" "}
+                            {formatDate(c.checkOutDate)}
+                          </span>
+                          {c.guestName && (
+                            <span className="truncate">{c.guestName}</span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-3 text-muted-foreground">
+                          <span className="flex items-center gap-1">
+                            <Users className="h-3 w-3" />
+                            {c.guestCount} guest{c.guestCount !== 1 ? "s" : ""}
+                          </span>
+                          {c.hasPets && (
+                            <span className="flex items-center gap-1 text-amber-600">
+                              <PawPrint className="h-3 w-3" />
+                              {c.petCount} pet{c.petCount !== 1 ? "s" : ""}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-3 text-muted-foreground">
+                          <span>
+                            Cleaning: {formatCents(c.cleaningFee)}
+                          </span>
+                          {c.petFee > 0 && (
+                            <span>Pet fee: {formatCents(c.petFee)}</span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Grand total */}
+            <div className="border-t pt-3 flex items-center justify-between">
+              <p className="text-sm font-semibold">Total</p>
+              <p className="text-lg font-bold">{formatCents(totalUnpaid)}</p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowModal(false)}
+              disabled={generating}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleGenerate} disabled={generating}>
+              {generating ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <FileText className="h-4 w-4 mr-1.5" />
+                  Confirm &amp; Create Invoice
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

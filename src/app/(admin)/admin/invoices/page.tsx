@@ -22,11 +22,13 @@ export type AdminUnpaidCleaning = {
   propertyName: string;
   propertyCoverImage: string | null;
   cleanerName: string;
+  cleanerId: string;
   guestName: string | null;
   checkInDate: string;
   checkOutDate: string;
   cleanedAt: string | null;
   guestCount: number;
+  petCount: number;
   hasPets: boolean;
   cleaningFee: number;
   petFee: number;
@@ -168,16 +170,19 @@ export default async function AdminInvoicesPage() {
             const guest = r.guest as unknown as {
               full_name: string;
             } | null;
+            const petCount = (pets || []).filter((p) => p.name?.trim()).length;
             return {
               registrationId: r.id,
               propertyName: prop.name,
               propertyCoverImage: prop.cover_image_url,
               cleanerName: cleanerNameMap.get(cleanerId) || "Unknown",
+              cleanerId,
               guestName: guest?.full_name || null,
               checkInDate: r.check_in_date,
               checkOutDate: r.check_out_date,
               cleanedAt: cleanedAtMap.get(r.id) || null,
               guestCount: r.num_guests,
+              petCount,
               hasPets,
               cleaningFee,
               petFee,
