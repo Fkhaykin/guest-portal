@@ -75,11 +75,20 @@ export function BookingCalendar({
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const [viewMonth, setViewMonth] = useState(
-    initialCheckIn ? parseDate(initialCheckIn) : today
+  const currentMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+  const [viewMonth, setViewMonth] = useState(() => {
+    if (initialCheckIn) {
+      const d = parseDate(initialCheckIn);
+      return d >= today ? new Date(d.getFullYear(), d.getMonth(), 1) : currentMonth;
+    }
+    return currentMonth;
+  });
+  const [checkIn, setCheckIn] = useState<string | null>(
+    initialCheckIn && parseDate(initialCheckIn) >= today ? initialCheckIn : null
   );
-  const [checkIn, setCheckIn] = useState<string | null>(initialCheckIn || null);
-  const [checkOut, setCheckOut] = useState<string | null>(initialCheckOut || null);
+  const [checkOut, setCheckOut] = useState<string | null>(
+    initialCheckOut && initialCheckIn && parseDate(initialCheckIn) >= today ? initialCheckOut : null
+  );
   const [periods, setPeriods] = useState<AvailabilityPeriod[]>([]);
   const [loading, setLoading] = useState(true);
   const [quote, setQuote] = useState<{ total: number; currency: string } | null>(null);
@@ -276,7 +285,7 @@ export function BookingCalendar({
           <div className="flex items-center justify-between">
             <button
               onClick={() => setViewMonth(addMonths(viewMonth, -1))}
-              disabled={viewMonth <= today}
+              disabled={viewMonth <= currentMonth}
               className="h-8 w-8 rounded-lg flex items-center justify-center hover:bg-accent disabled:opacity-30 disabled:cursor-not-allowed"
             >
               <ChevronLeft className="h-4 w-4" />
