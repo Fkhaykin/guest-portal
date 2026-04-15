@@ -472,12 +472,8 @@ function SiteNav() {
 
             {/* CTA */}
             <Link
-              href="#book"
+              href="/search"
               className="ml-3 px-5 py-2 text-sm font-semibold bg-white text-black rounded-lg hover:bg-white/90 transition-colors"
-              onClick={(e) => {
-                e.preventDefault();
-                window.scrollTo({ top: 0, behavior: "smooth" });
-              }}
             >
               Book Now
             </Link>
@@ -522,13 +518,9 @@ function SiteNav() {
             ))}
             <div className="pt-2 px-4">
               <Link
-                href="#book"
+                href="/search"
                 className="block w-full text-center px-5 py-3 text-sm font-semibold bg-white text-black rounded-lg hover:bg-white/90 transition-colors"
-                onClick={(e) => {
-                  e.preventDefault();
-                  setMobileOpen(false);
-                  window.scrollTo({ top: 0, behavior: "smooth" });
-                }}
+                onClick={() => setMobileOpen(false)}
               >
                 Book Now
               </Link>

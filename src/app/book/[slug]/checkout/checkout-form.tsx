@@ -132,6 +132,7 @@ export function CheckoutForm({
   const grandTotalCents = pricing
     ? pricing.total_cents + upsellTotalCents - discountCents
     : 0;
+  const belowMinStay = pricing !== null && pricing.room_rate_cents === 0;
 
   async function applyPromo() {
     if (!promoCode.trim() || !pricing) return;
@@ -380,6 +381,14 @@ export function CheckoutForm({
                     <div className="flex items-center justify-center py-8">
                       <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                     </div>
+                  ) : belowMinStay ? (
+                    <div className="rounded-lg bg-amber-50 border border-amber-200 p-4 text-sm space-y-1">
+                      <p className="font-semibold text-amber-800">Stay is too short</p>
+                      <p className="text-amber-700">
+                        This property requires a longer minimum stay for your selected dates.
+                        Please choose a longer date range to book.
+                      </p>
+                    </div>
                   ) : pricing ? (
                     <div className="space-y-2 text-sm">
                       {/* Nightly rates */}
@@ -464,7 +473,7 @@ export function CheckoutForm({
                   <Button
                     className="w-full"
                     size="lg"
-                    disabled={submitting || !pricing || !guestName || !guestEmail}
+                    disabled={submitting || !pricing || belowMinStay || !guestName || !guestEmail}
                     onClick={handleCheckout}
                   >
                     {submitting ? (

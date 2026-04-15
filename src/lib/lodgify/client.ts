@@ -37,6 +37,7 @@ export interface LodgifyProperty {
   address: string | null;
   description: string | null;
   imageUrl: string | null;
+  maxGuests: number | null;
 }
 
 export interface LodgifyGuest {
@@ -112,13 +113,31 @@ interface LodgifyV1Booking {
 
 export async function getProperties(): Promise<LodgifyProperty[]> {
   const data = await lodgifyFetch<{ items: Array<{ id: number; name: string; address?: string; city?: string; state?: string; zip?: string; country?: string; description?: string; image_url?: string; images?: Array<{ url: string }> }> }>("/v2/properties");
-  return data.items.map((p) => ({
-    id: p.id,
-    name: p.name,
-    address: [p.address, p.city, p.state, p.zip].filter(Boolean).join(", ") || null,
-    description: p.description ?? null,
-    imageUrl: p.image_url || p.images?.[0]?.url || null,
-  }));
+
+  // Fetch room data for each property to get max_people (capacity)
+  const properties = await Promise.all(
+    data.items.map(async (p) => {
+      let maxGuests: number | null = null;
+      try {
+        const rooms = await lodgifyFetch<{ max_people?: number }[]>(
+          `/v2/properties/${p.id}/rooms`
+        );
+        maxGuests = rooms[0]?.max_people ?? null;
+      } catch {
+        // If rooms fetch fails, leave maxGuests null
+      }
+      return {
+        id: p.id,
+        name: p.name,
+        address: [p.address, p.city, p.state, p.zip].filter(Boolean).join(", ") || null,
+        description: p.description ?? null,
+        imageUrl: p.image_url || p.images?.[0]?.url || null,
+        maxGuests,
+      };
+    })
+  );
+
+  return properties;
 }
 
 /**

@@ -130,6 +130,7 @@ export async function syncProperties() {
           address: lp.address,
           description: lp.description,
           ...(coverImageUrl ? { cover_image_url: coverImageUrl } : {}),
+          ...(lp.maxGuests ? { max_guests: lp.maxGuests } : {}),
         })
         .eq("id", existing.id);
       updated++;
@@ -162,6 +163,7 @@ export async function syncProperties() {
           lodgify_property_id: lp.id,
           is_active: true,
           ...(coverImageUrl ? { cover_image_url: coverImageUrl } : {}),
+          ...(lp.maxGuests ? { max_guests: lp.maxGuests } : {}),
         });
 
       if (error) {
