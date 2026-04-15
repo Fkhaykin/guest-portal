@@ -95,6 +95,7 @@ export function ReservationCard({
   isNew,
   cleaningFeeCents = 0,
   petFeeCents = 0,
+  bookedOn,
 }: {
   registrationId: string;
   propertyName: string;
@@ -116,6 +117,7 @@ export function ReservationCard({
   isNew?: boolean;
   cleaningFeeCents?: number;
   petFeeCents?: number;
+  bookedOn?: string | null;
 }) {
   const newIds = useNewIds();
   const resolvedIsNew = isNew ?? newIds.has(registrationId);
@@ -324,6 +326,12 @@ export function ReservationCard({
                 </span>
               </>
             )}
+            {bookedOn && (
+              <>
+                <span className="text-muted-foreground/40">|</span>
+                <span className="whitespace-nowrap">Booked {new Date(bookedOn).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
+              </>
+            )}
           </div>
 
           {/* Secondary row: early/late callouts + infant needs + tips + upsells (only if present) */}
@@ -404,6 +412,7 @@ export function ReservationCard({
         propertyName={propertyName}
         checkOutDate={checkOut}
         photoAreas={photoAreas}
+        expectedPetCount={pets?.filter((p) => p.name?.trim()).length ?? 0}
         onComplete={handleCleaningComplete}
       />
 

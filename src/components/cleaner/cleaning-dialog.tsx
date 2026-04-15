@@ -17,7 +17,12 @@ import {
   Loader2,
   MapPin,
   ArrowLeft,
+  AlertTriangle,
+  PawPrint,
+  Plus,
+  Trash2,
 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import exifr from "exifr";
 import type { CleaningPhoto, CleaningPhotoExif } from "@/types/database";
 
@@ -281,6 +286,19 @@ const DEFAULT_PHOTO_AREAS = [
   "Driveway",
 ];
 
+export type DamageReport = {
+  description: string;
+  photos: { path: string; previewUrl: string }[];
+};
+
+export type PetReport = {
+  description: string;
+  count: number;
+  labels: { kind: string }[];
+};
+
+const PET_KIND_OPTIONS = ["Dog", "Cat", "Bird", "Rabbit", "Other"];
+
 export function CleaningDialog({
   open,
   onOpenChange,
@@ -288,6 +306,7 @@ export function CleaningDialog({
   propertyName,
   checkOutDate,
   photoAreas,
+  expectedPetCount,
   onComplete,
 }: {
   open: boolean;
@@ -296,6 +315,7 @@ export function CleaningDialog({
   propertyName: string;
   checkOutDate: string;
   photoAreas: string[] | null;
+  expectedPetCount?: number;
   onComplete: () => void;
 }) {
   const areas = photoAreas && photoAreas.length > 0 ? photoAreas : DEFAULT_PHOTO_AREAS;
@@ -310,6 +330,17 @@ export function CleaningDialog({
   const [uploadProgress, setUploadProgress] = useState<
     Record<string, { total: number; completed: number }>
   >({});
+
+  // Damage report state
+  const [reportDamage, setReportDamage] = useState(false);
+  const [damageDescription, setDamageDescription] = useState("");
+  const [damagePhotos, setDamagePhotos] = useState<{ path: string; previewUrl: string }[]>([]);
+  const [damageUploading, setDamageUploading] = useState(false);
+
+  // Pet report state
+  const [reportPets, setReportPets] = useState(false);
+  const [petDescription, setPetDescription] = useState("");
+  const [petLabels, setPetLabels] = useState<{ kind: string }[]>([{ kind: "Dog" }]);
 
   const photosPerArea = areas.reduce<Record<string, PhotoWithPreview[]>>((acc, area) => {
     acc[area] = photos.filter((p) => p.room === area);
@@ -467,6 +498,52 @@ export function CleaningDialog({
     });
   }
 
+  async function handleDamagePhotoSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    const rawFiles = Array.from(files);
+    e.target.value = "";
+    setDamageUploading(true);
+
+    for (const rawFile of rawFiles) {
+      try {
+        let file: File;
+        try { file = await compressImage(rawFile); } catch { file = rawFile; }
+
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("registration_id", registrationId);
+
+        const res = await fetch("/api/cleaner/upload-damage-photo", {
+          method: "POST",
+          body: formData,
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          setDamagePhotos((prev) => [...prev, { path: data.path, previewUrl: URL.createObjectURL(file) }]);
+        }
+      } catch {
+        // upload failed
+      }
+    }
+    setDamageUploading(false);
+  }
+
+  function removeDamagePhoto(index: number) {
+    setDamagePhotos((prev) => {
+      const photo = prev[index];
+      URL.revokeObjectURL(photo.previewUrl);
+      // Delete from server
+      fetch("/api/cleaner/delete-damage-photo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ registration_id: registrationId, path: photo.path }),
+      });
+      return prev.filter((_, i) => i !== index);
+    });
+  }
+
   async function handleSubmit() {
     setSubmitting(true);
 
@@ -478,14 +555,34 @@ export function CleaningDialog({
       note: notes[p.room] || undefined,
     }));
 
+    const body: Record<string, unknown> = {
+      registration_id: registrationId,
+      is_cleaned: true,
+      photos: photosWithNotes,
+    };
+
+    // Attach damage report
+    if (reportDamage && damageDescription.trim()) {
+      body.damage_report = {
+        description: damageDescription.trim(),
+        photos: damagePhotos.map((p) => p.path),
+      };
+    }
+
+    // Attach pet report
+    if (reportPets && petLabels.length > 0) {
+      body.pet_report = {
+        description: petDescription.trim(),
+        count: petLabels.length,
+        labels: petLabels.map((l) => l.kind),
+        expected_pet_count: expectedPetCount ?? 0,
+      };
+    }
+
     await fetch("/api/cleaner/update-status", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        registration_id: registrationId,
-        is_cleaned: true,
-        photos: photosWithNotes,
-      }),
+      body: JSON.stringify(body),
     });
 
     setSubmitting(false);
@@ -644,6 +741,150 @@ export function CleaningDialog({
               </div>
             );
           })}
+
+          <Separator />
+
+          {/* Damage Report Section */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="report-damage"
+                checked={reportDamage}
+                onCheckedChange={(checked) => setReportDamage(checked === true)}
+              />
+              <label
+                htmlFor="report-damage"
+                className="flex items-center gap-1.5 text-sm font-medium cursor-pointer"
+              >
+                <AlertTriangle className="h-4 w-4 text-red-500" />
+                Report damages that occurred during this stay
+              </label>
+            </div>
+
+            {reportDamage && (
+              <div className="ml-6 space-y-3 p-3 rounded-lg border border-red-200 bg-red-50/50 dark:border-red-900 dark:bg-red-950/20">
+                <textarea
+                  placeholder="Describe the damages..."
+                  value={damageDescription}
+                  onChange={(e) => setDamageDescription(e.target.value)}
+                  rows={3}
+                  className="w-full px-3 py-2 rounded-lg border text-sm bg-background placeholder:text-muted-foreground/60 resize-none"
+                />
+
+                {/* Damage photos */}
+                {damagePhotos.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {damagePhotos.map((photo, i) => (
+                      <div key={i} className="relative">
+                        <img
+                          src={photo.previewUrl}
+                          alt={`Damage ${i + 1}`}
+                          className="w-16 h-16 rounded-lg object-cover border"
+                        />
+                        <button
+                          onClick={() => removeDamagePhoto(i)}
+                          className="absolute -top-1.5 -right-1.5 bg-black/70 text-white rounded-full p-0.5"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <label className={`flex items-center gap-2 w-full px-3 py-3 rounded-lg border border-dashed hover:bg-muted/50 transition-colors text-sm text-muted-foreground cursor-pointer ${damageUploading ? "opacity-50 pointer-events-none" : ""}`}>
+                  {damageUploading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Camera className="h-4 w-4" />
+                  )}
+                  {damagePhotos.length > 0 ? "Add more damage photos" : "Upload damage photos"}
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
+                    multiple
+                    className="sr-only"
+                    onChange={handleDamagePhotoSelect}
+                  />
+                </label>
+              </div>
+            )}
+          </div>
+
+          {/* Pet Report Section */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="report-pets"
+                checked={reportPets}
+                onCheckedChange={(checked) => setReportPets(checked === true)}
+              />
+              <label
+                htmlFor="report-pets"
+                className="flex items-center gap-1.5 text-sm font-medium cursor-pointer"
+              >
+                <PawPrint className="h-4 w-4 text-amber-500" />
+                This reservation had pets
+              </label>
+            </div>
+
+            {reportPets && (
+              <div className="ml-6 space-y-3 p-3 rounded-lg border border-amber-200 bg-amber-50/50 dark:border-amber-900 dark:bg-amber-950/20">
+                {expectedPetCount != null && (
+                  <p className="text-xs text-muted-foreground">
+                    Expected pets on booking: <span className="font-medium">{expectedPetCount}</span>
+                  </p>
+                )}
+
+                {/* Pet labels list */}
+                <div className="space-y-2">
+                  {petLabels.map((pet, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground w-6">#{i + 1}</span>
+                      <select
+                        value={pet.kind}
+                        onChange={(e) => {
+                          const next = [...petLabels];
+                          next[i] = { kind: e.target.value };
+                          setPetLabels(next);
+                        }}
+                        className="flex-1 px-3 py-2 rounded-lg border text-sm bg-background"
+                      >
+                        {PET_KIND_OPTIONS.map((k) => (
+                          <option key={k} value={k}>{k}</option>
+                        ))}
+                      </select>
+                      {petLabels.length > 1 && (
+                        <button
+                          onClick={() => setPetLabels((prev) => prev.filter((_, idx) => idx !== i))}
+                          className="p-1.5 rounded-md hover:bg-muted text-muted-foreground"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setPetLabels((prev) => [...prev, { kind: "Dog" }])}
+                  className="flex items-center gap-1.5 text-xs text-primary hover:underline"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  Add another pet
+                </button>
+
+                <textarea
+                  placeholder="Additional notes about pets (optional)"
+                  value={petDescription}
+                  onChange={(e) => setPetDescription(e.target.value)}
+                  rows={2}
+                  className="w-full px-3 py-2 rounded-lg border text-sm bg-background placeholder:text-muted-foreground/60 resize-none"
+                />
+              </div>
+            )}
+          </div>
 
           <Separator />
 

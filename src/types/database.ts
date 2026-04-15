@@ -89,6 +89,9 @@ export type UpsellEntry = {
   meta?: Record<string, unknown>;
 };
 
+export type AircoverClaimType = "damage" | "pet_discrepancy";
+export type AircoverClaimStatus = "open" | "claim_filed" | "claim_approved" | "claim_denied";
+
 export type NotificationEvent = {
   enabled: boolean;
   message: string;
@@ -886,6 +889,56 @@ export type Database = {
         };
       };
     };
+      aircover_claim: {
+        Row: {
+          id: string;
+          registration_id: string;
+          property_id: string;
+          cleaner_id: string | null;
+          claim_type: AircoverClaimType;
+          status: AircoverClaimStatus;
+          damage_description: string | null;
+          damage_photos: string[];
+          pet_description: string | null;
+          reported_pet_count: number | null;
+          reported_pet_labels: string[];
+          expected_pet_count: number | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          registration_id: string;
+          property_id: string;
+          cleaner_id?: string | null;
+          claim_type: AircoverClaimType;
+          status?: AircoverClaimStatus;
+          damage_description?: string | null;
+          damage_photos?: string[];
+          pet_description?: string | null;
+          reported_pet_count?: number | null;
+          reported_pet_labels?: string[];
+          expected_pet_count?: number | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          registration_id?: string;
+          property_id?: string;
+          cleaner_id?: string | null;
+          claim_type?: AircoverClaimType;
+          status?: AircoverClaimStatus;
+          damage_description?: string | null;
+          damage_photos?: string[];
+          pet_description?: string | null;
+          reported_pet_count?: number | null;
+          reported_pet_labels?: string[];
+          expected_pet_count?: number | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
     Views: Record<string, never>;
     Functions: Record<string, never>;
     Enums: Record<string, never>;

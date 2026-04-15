@@ -22,6 +22,8 @@ export async function POST(request: Request) {
     checklist?: { room: string; item: string; checked: boolean }[];
     photos?: { room: string; path: string; uploaded_at: string; note?: string }[];
     notes?: string | null;
+    damage_report?: { description: string; photos: string[] };
+    pet_report?: { description: string; count: number; labels: string[]; expected_pet_count: number };
   };
   try {
     body = await request.json();
@@ -29,7 +31,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { registration_id, is_cleaned, is_skipped, fulfilled_upsells, checklist, photos, notes } = body;
+  const { registration_id, is_cleaned, is_skipped, fulfilled_upsells, checklist, photos, notes, damage_report, pet_report } = body;
   if (!registration_id) {
     return NextResponse.json(
       { error: "registration_id is required" },
@@ -115,6 +117,82 @@ export async function POST(request: Request) {
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  // Create aircover claims if damage or pet discrepancy reported
+  const claimsToCreate: Record<string, unknown>[] = [];
+
+  if (damage_report && damage_report.description) {
+    claimsToCreate.push({
+      registration_id,
+      property_id: reg.property_id,
+      cleaner_id: cleaner.id,
+      claim_type: "damage",
+      damage_description: damage_report.description,
+      damage_photos: damage_report.photos || [],
+    });
+  }
+
+  if (pet_report && pet_report.count > 0) {
+    const expectedPets = pet_report.expected_pet_count ?? 0;
+    const reportedPets = pet_report.count;
+    // Create a claim if there's a discrepancy OR if pets were found at all
+    // (useful for tracking even when counts match)
+    if (reportedPets !== expectedPets || reportedPets > 0) {
+      claimsToCreate.push({
+        registration_id,
+        property_id: reg.property_id,
+        cleaner_id: cleaner.id,
+        claim_type: "pet_discrepancy",
+        pet_description: pet_report.description || null,
+        reported_pet_count: reportedPets,
+        reported_pet_labels: pet_report.labels || [],
+        expected_pet_count: expectedPets,
+      });
+    }
+  }
+
+  if (claimsToCreate.length > 0) {
+    const { data: createdClaims } = await supabase
+      .from("aircover_claim")
+      .insert(claimsToCreate)
+      .select("id, claim_type");
+
+    // Send email notification for each new claim
+    if (createdClaims && createdClaims.length > 0) {
+      try {
+        const { data: property } = await supabase
+          .from("property")
+          .select("name, host_id")
+          .eq("id", reg.property_id)
+          .single();
+
+        if (property) {
+          const { data: host } = await supabase
+            .from("host")
+            .select("email, full_name")
+            .eq("id", property.host_id)
+            .single();
+
+          if (host?.email) {
+            const { sendAircoverClaimEmail } = await import("@/lib/email/send-aircover-claim");
+            for (const claim of createdClaims) {
+              await sendAircoverClaimEmail({
+                to: host.email,
+                hostName: host.full_name,
+                propertyName: property.name,
+                claimType: claim.claim_type,
+                claimId: claim.id,
+              }).catch((err) => {
+                console.error("Failed to send aircover claim email:", err);
+              });
+            }
+          }
+        }
+      } catch (emailErr) {
+        console.error("Aircover claim email error:", emailErr);
+      }
+    }
   }
 
   return NextResponse.json({ status });
