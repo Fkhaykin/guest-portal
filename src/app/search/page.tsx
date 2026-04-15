@@ -61,6 +61,10 @@ function formatShortDate(dateStr: string) {
   });
 }
 
+function fmtPrice(cents: number) {
+  return `$${Math.round(cents / 100).toLocaleString()}`;
+}
+
 function getNightCount(checkIn: string, checkOut: string) {
   const d1 = new Date(checkIn + "T00:00:00");
   const d2 = new Date(checkOut + "T00:00:00");
@@ -86,6 +90,7 @@ function ResultsMap({
   checkIn,
   checkOut,
   guests,
+  pricingMap,
 }: {
   properties: PropertyWithCoords[];
   hoveredId: string | null;
@@ -93,6 +98,7 @@ function ResultsMap({
   checkIn: string;
   checkOut: string;
   guests: number;
+  pricingMap: Record<string, { total_cents: number; room_rate_cents: number } | null>;
 }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const selected = properties.find((p) => p.id === selectedId);
@@ -182,9 +188,15 @@ function ResultsMap({
                 Up to {selected.max_guests} guests
               </p>
             )}
-            <p className="text-xs font-medium text-blue-600 mt-1">
-              View &amp; Book &rarr;
-            </p>
+            {pricingMap[selected.id] && pricingMap[selected.id]!.room_rate_cents > 0 ? (
+              <p className="text-xs font-semibold text-blue-600 mt-1">
+                {fmtPrice(pricingMap[selected.id]!.total_cents)} total &rarr;
+              </p>
+            ) : (
+              <p className="text-xs font-medium text-blue-600 mt-1">
+                View &amp; Book &rarr;
+              </p>
+            )}
           </Link>
         </InfoWindowF>
       )}
@@ -223,6 +235,7 @@ function SearchPageInner() {
   const [error, setError] = useState<string | null>(null);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [showMap, setShowMap] = useState(false); // mobile map toggle
+  const [pricingMap, setPricingMap] = useState<Record<string, { total_cents: number; room_rate_cents: number } | null>>({});
 
   const today = new Date().toISOString().split("T")[0];
 
@@ -278,6 +291,42 @@ function SearchPageInner() {
     geocodeAll();
     return () => { cancelled = true; };
   }, [results, hasMapKey]);
+
+  // Fetch pricing for each result
+  useEffect(() => {
+    if (!results || results.length === 0 || !checkIn || !checkOut) return;
+    let cancelled = false;
+
+    async function fetchPricing() {
+      const entries: Record<string, { total_cents: number; room_rate_cents: number } | null> = {};
+      await Promise.all(
+        results!.map(async (p) => {
+          try {
+            const params = new URLSearchParams({
+              property_id: p.id,
+              check_in: checkIn,
+              check_out: checkOut,
+              guests: String(guests),
+              pets: String(pets),
+            });
+            const res = await fetch(`/api/checkout/pricing?${params}`);
+            if (res.ok) {
+              const data = await res.json();
+              entries[p.id] = { total_cents: data.total_cents, room_rate_cents: data.room_rate_cents };
+            } else {
+              entries[p.id] = null;
+            }
+          } catch {
+            entries[p.id] = null;
+          }
+        })
+      );
+      if (!cancelled) setPricingMap(entries);
+    }
+
+    fetchPricing();
+    return () => { cancelled = true; };
+  }, [results, checkIn, checkOut, guests, pets]);
 
   // Run search on mount if params are present
   useEffect(() => {
@@ -372,8 +421,8 @@ function SearchPageInner() {
       {/* Search bar */}
       <div className="border-b bg-background px-4 sm:px-6 py-3">
         <form onSubmit={handleSubmit}>
-          <div className="flex items-end gap-3 max-w-4xl mx-auto">
-            <div className="flex-1 space-y-1">
+          <div className="grid grid-cols-2 sm:grid-cols-[1fr_1fr_5rem_4.5rem_auto] items-end gap-3 max-w-4xl mx-auto">
+            <div className="space-y-1">
               <Label htmlFor="s-checkin" className="text-xs">
                 Check-in
               </Label>
@@ -390,7 +439,7 @@ function SearchPageInner() {
                 required
               />
             </div>
-            <div className="flex-1 space-y-1">
+            <div className="space-y-1">
               <Label htmlFor="s-checkout" className="text-xs">
                 Check-out
               </Label>
@@ -404,7 +453,7 @@ function SearchPageInner() {
                 required
               />
             </div>
-            <div className="w-20 space-y-1">
+            <div className="space-y-1">
               <Label htmlFor="s-guests" className="text-xs">
                 Guests
               </Label>
@@ -418,7 +467,7 @@ function SearchPageInner() {
                 className="h-9"
               />
             </div>
-            <div className="w-16 space-y-1">
+            <div className="space-y-1">
               <Label htmlFor="s-pets" className="text-xs">
                 Pets
               </Label>
@@ -432,11 +481,9 @@ function SearchPageInner() {
                 className="h-9"
               />
             </div>
-            <Button type="submit" disabled={loading} size="sm" className="h-9 px-4">
-              <Search className="h-4 w-4 sm:mr-1.5" />
-              <span className="hidden sm:inline">
-                {loading ? "Searching..." : "Search"}
-              </span>
+            <Button type="submit" disabled={loading} size="sm" className="h-9 px-4 col-span-2 sm:col-span-1">
+              <Search className="h-4 w-4 mr-1.5" />
+              {loading ? "Searching..." : "Search"}
             </Button>
           </div>
         </form>
@@ -560,10 +607,23 @@ function SearchPageInner() {
                                 {nights} night{nights !== 1 ? "s" : ""}
                               </span>
                             </div>
-                            <span className="text-sm font-semibold text-primary flex items-center gap-1">
-                              Book Now
-                              <Calendar className="h-3.5 w-3.5" />
-                            </span>
+                            {pricingMap[property.id] !== undefined ? (
+                              pricingMap[property.id] && pricingMap[property.id]!.room_rate_cents > 0 ? (
+                                <span className="text-sm font-semibold text-primary flex items-center gap-1">
+                                  {fmtPrice(pricingMap[property.id]!.total_cents)} total
+                                  <Calendar className="h-3.5 w-3.5" />
+                                </span>
+                              ) : (
+                                <span className="text-xs font-medium text-amber-600">
+                                  Min. stay not met
+                                </span>
+                              )
+                            ) : (
+                              <span className="text-sm font-semibold text-primary flex items-center gap-1">
+                                Book Now
+                                <Calendar className="h-3.5 w-3.5" />
+                              </span>
+                            )}
                           </div>
                         </CardContent>
                       </div>
@@ -604,6 +664,7 @@ function SearchPageInner() {
                 checkIn={checkIn}
                 checkOut={checkOut}
                 guests={guests}
+                pricingMap={pricingMap}
               />
             </div>
           </div>
