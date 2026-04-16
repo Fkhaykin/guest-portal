@@ -34,7 +34,7 @@ export default async function PropertyHomePage({
         )}
       </div>
 
-      <GuestPhotoCarousel propertyId={property.id} />
+      <GuestPhotoCarousel propertyId={property.id} propertySlug={slug} />
 
       <QuickLinks slug={slug} />
 

@@ -2,7 +2,11 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Camera, ChevronLeft, ChevronRight, MapPin } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Camera, ChevronLeft, ChevronRight, MapPin, Clock, Search } from "lucide-react";
+import Link from "next/link";
+
+const SESSION_KEY = "guest-portal-session";
 
 type GuestPhoto = {
   id: string;
@@ -12,12 +16,86 @@ type GuestPhoto = {
   property_name: string | null;
 };
 
+type SessionData = {
+  guestName: string;
+  reservation: {
+    id: string;
+    property: { slug: string };
+  };
+} | null;
+
+function getSession(): SessionData {
+  try {
+    const raw = sessionStorage.getItem(SESSION_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+function EmptyState({ propertySlug }: { propertySlug?: string }) {
+  const [session, setSession] = useState<SessionData>(null);
+  const [checked, setChecked] = useState(false);
+
+  useEffect(() => {
+    setSession(getSession());
+    setChecked(true);
+  }, []);
+
+  const slug = propertySlug || session?.reservation?.property?.slug;
+
+  return (
+    <section className="px-4 sm:px-6 py-10 max-w-6xl mx-auto w-full">
+      <Card className="border-dashed border-2 overflow-hidden">
+        <CardContent className="flex flex-col items-center text-center gap-4 py-10 px-6">
+          <div className="rounded-full bg-primary/10 p-4">
+            <Camera className="h-8 w-8 text-primary" />
+          </div>
+          <div className="space-y-2 max-w-md">
+            <h2 className="text-xl sm:text-2xl font-bold tracking-tight">
+              Guest Photo Album
+            </h2>
+            <p className="text-muted-foreground text-sm sm:text-base">
+              Share photos from your stay and earn a free late check-out!
+            </p>
+          </div>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Clock className="h-3.5 w-3.5" />
+            <span>Upload 3 photos to unlock a complimentary late check-out</span>
+          </div>
+          {checked && (
+            session && slug ? (
+              <Link href={`/p/${slug}/photos`}>
+                <Button size="lg" className="mt-2">
+                  <Camera className="h-4 w-4 mr-2" />
+                  Upload Photos
+                </Button>
+              </Link>
+            ) : (
+              <Link href="/">
+                <Button size="lg" variant="outline" className="mt-2">
+                  <Search className="h-4 w-4 mr-2" />
+                  Find My Booking
+                </Button>
+              </Link>
+            )
+          )}
+        </CardContent>
+      </Card>
+    </section>
+  );
+}
+
 export function GuestPhotoCarousel({
   propertyId,
+  propertySlug,
 }: {
   propertyId?: string;
+  propertySlug?: string;
 }) {
   const [photos, setPhotos] = useState<GuestPhoto[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const [current, setCurrent] = useState(0);
   const [isAutoPlaying, setIsAutoPlaying] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -31,6 +109,7 @@ export function GuestPhotoCarousel({
         const data = await res.json();
         setPhotos(data.photos || []);
       }
+      setLoaded(true);
     }
     load();
   }, [propertyId]);
@@ -68,7 +147,11 @@ export function GuestPhotoCarousel({
     startAutoPlay();
   };
 
-  if (photos.length === 0) return null;
+  if (!loaded) return null;
+
+  if (photos.length === 0) {
+    return <EmptyState propertySlug={propertySlug} />;
+  }
 
   return (
     <section className="px-4 sm:px-6 py-10 max-w-6xl mx-auto w-full">
