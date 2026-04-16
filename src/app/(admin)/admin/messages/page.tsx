@@ -33,7 +33,7 @@ type Conversation = {
 export default function AdminMessagesPage() {
   const supabase = createClient();
   const searchParams = useSearchParams();
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesTopRef = useRef<HTMLDivElement>(null);
 
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loadingConversations, setLoadingConversations] = useState(true);
@@ -44,6 +44,7 @@ export default function AdminMessagesPage() {
   const [newMessage, setNewMessage] = useState("");
   const [sending, setSending] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [timeFilter, setTimeFilter] = useState<"all" | "current" | "past" | "future">("all");
 
   // Load conversations from Supabase
   useEffect(() => {
@@ -94,7 +95,9 @@ export default function AdminMessagesPage() {
           return;
         }
 
-        setMessages(data.messages ?? []);
+        const msgs: LodgifyMessage[] = data.messages ?? [];
+        msgs.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        setMessages(msgs);
       } catch {
         setMessageError("Failed to connect to messaging service");
       } finally {
@@ -105,9 +108,9 @@ export default function AdminMessagesPage() {
     fetchMessages();
   }, [selectedBookingId]);
 
-  // Scroll to bottom when messages change
+  // Scroll to top when messages change (latest first)
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    messagesTopRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
   async function handleSend() {
@@ -122,9 +125,8 @@ export default function AdminMessagesPage() {
       });
 
       if (res.ok) {
-        // Optimistically add the message
+        // Optimistically add the message (latest first)
         setMessages((prev) => [
-          ...prev,
           {
             id: `temp-${Date.now()}`,
             message: newMessage.trim(),
@@ -133,6 +135,7 @@ export default function AdminMessagesPage() {
             created_at: new Date().toISOString(),
             sender_name: "You",
           },
+          ...prev,
         ]);
         setNewMessage("");
 
@@ -142,7 +145,9 @@ export default function AdminMessagesPage() {
         );
         const refreshData = await refreshRes.json();
         if (refreshRes.ok && refreshData.messages) {
-          setMessages(refreshData.messages);
+          const msgs: LodgifyMessage[] = refreshData.messages;
+          msgs.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+          setMessages(msgs);
         }
       } else {
         const data = await res.json();
@@ -156,16 +161,32 @@ export default function AdminMessagesPage() {
   }
 
   const filtered = useMemo(() => {
-    if (!searchQuery.trim()) return conversations;
-    const q = searchQuery.toLowerCase();
-    return conversations.filter(
-      (c) =>
-        c.guest?.full_name?.toLowerCase().includes(q) ||
-        c.property?.name?.toLowerCase().includes(q) ||
-        c.property?.nickname?.toLowerCase().includes(q) ||
-        String(c.lodgify_booking_id).includes(q)
-    );
-  }, [conversations, searchQuery]);
+    const today = new Date().toISOString().slice(0, 10);
+    let result = conversations;
+
+    // Apply time filter
+    if (timeFilter === "current") {
+      result = result.filter((c) => c.check_in_date <= today && c.check_out_date >= today);
+    } else if (timeFilter === "past") {
+      result = result.filter((c) => c.check_out_date < today);
+    } else if (timeFilter === "future") {
+      result = result.filter((c) => c.check_in_date > today);
+    }
+
+    // Apply search filter
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(
+        (c) =>
+          c.guest?.full_name?.toLowerCase().includes(q) ||
+          c.property?.name?.toLowerCase().includes(q) ||
+          c.property?.nickname?.toLowerCase().includes(q) ||
+          String(c.lodgify_booking_id).includes(q)
+      );
+    }
+
+    return result;
+  }, [conversations, searchQuery, timeFilter]);
 
   const selectedConversation = conversations.find(
     (c) => c.lodgify_booking_id === selectedBookingId
@@ -210,8 +231,8 @@ export default function AdminMessagesPage() {
       <div className="flex flex-1 min-h-0 rounded-lg border bg-card">
         {/* Left panel — Conversation list */}
         <div className="w-80 flex-shrink-0 border-r flex flex-col">
-          {/* Search */}
-          <div className="p-3 border-b">
+          {/* Search + Filters */}
+          <div className="p-3 border-b space-y-2">
             <div className="relative">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
@@ -220,6 +241,19 @@ export default function AdminMessagesPage() {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-9"
               />
+            </div>
+            <div className="flex gap-1">
+              {(["all", "current", "past", "future"] as const).map((f) => (
+                <Button
+                  key={f}
+                  variant={timeFilter === f ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setTimeFilter(f)}
+                  className="flex-1 text-xs capitalize h-7"
+                >
+                  {f}
+                </Button>
+              ))}
             </div>
           </div>
 
@@ -330,6 +364,7 @@ export default function AdminMessagesPage() {
 
               {/* Messages area */}
               <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                <div ref={messagesTopRef} />
                 {loadingMessages ? (
                   <div className="flex items-center justify-center h-full">
                     <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
@@ -429,7 +464,6 @@ export default function AdminMessagesPage() {
                     );
                   })
                 )}
-                <div ref={messagesEndRef} />
               </div>
 
               {/* Message input */}
