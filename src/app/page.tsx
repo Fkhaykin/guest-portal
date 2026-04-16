@@ -20,6 +20,7 @@ import { GuestPhotoCarousel } from "@/components/guest/guest-photo-carousel";
 import { InstagramFeedSection } from "@/components/guest/instagram-feed";
 import { ReviewsCarousel } from "@/components/guest/reviews-carousel";
 import { REVIEWS } from "@/lib/reviews-data";
+import { ThemeToggle } from "@/components/theme-toggle";
 import {
   Search,
   MapPin,
@@ -482,6 +483,8 @@ function SiteNav() {
               )}
             </div>
 
+            <ThemeToggle className="inline-flex items-center justify-center rounded-md p-2 text-white/80 hover:text-white hover:bg-white/10 transition-colors focus:outline-none" />
+
             {/* CTA */}
             <Link
               href="/search"
@@ -583,6 +586,10 @@ function MobileMenuOverlay({
 
         {/* Bottom CTA */}
         <div className="space-y-4">
+          <div className="flex items-center justify-between px-2 py-2">
+            <span className="text-sm text-white/60">Theme</span>
+            <ThemeToggle className="inline-flex items-center justify-center rounded-md p-2 text-white/80 hover:text-white hover:bg-white/10 transition-colors focus:outline-none" />
+          </div>
           <Link
             href="/search"
             className="block w-full text-center px-5 py-4 text-base font-semibold bg-white text-black rounded-xl hover:bg-white/90 transition-colors"
