@@ -602,14 +602,16 @@ function SearchPageInner() {
                             <h3 className="font-semibold text-lg leading-tight">
                               {property.name}
                             </h3>
-                            {property.address && (
-                              <p className="text-sm text-muted-foreground flex items-start gap-1.5 mt-1">
-                                <MapPin className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                                <span className="line-clamp-1">
-                                  {property.address}
-                                </span>
-                              </p>
-                            )}
+                            {property.address && (() => {
+                              const parts = property.address.split(",").map(p => p.trim());
+                              const general = parts.length >= 3 ? parts.slice(-3, -1).join(", ") : parts.length >= 2 ? parts.slice(-2).join(", ") : parts[0];
+                              return general ? (
+                                <p className="text-sm text-muted-foreground flex items-start gap-1.5 mt-1">
+                                  <MapPin className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                                  <span className="line-clamp-1">{general}</span>
+                                </p>
+                              ) : null;
+                            })()}
                             {property.description && (
                               <p className="text-sm text-muted-foreground line-clamp-2 mt-1.5">
                                 {property.description}
@@ -703,14 +705,16 @@ function SearchPageInner() {
                               <h3 className="font-semibold text-lg leading-tight">
                                 {property.name}
                               </h3>
-                              {property.address && (
-                                <p className="text-sm text-muted-foreground flex items-start gap-1.5 mt-1">
-                                  <MapPin className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                                  <span className="line-clamp-1">
-                                    {property.address}
-                                  </span>
-                                </p>
-                              )}
+                              {property.address && (() => {
+                                const parts = property.address.split(",").map(p => p.trim());
+                                const general = parts.length >= 3 ? parts.slice(-3, -1).join(", ") : parts.length >= 2 ? parts.slice(-2).join(", ") : parts[0];
+                                return general ? (
+                                  <p className="text-sm text-muted-foreground flex items-start gap-1.5 mt-1">
+                                    <MapPin className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                                    <span className="line-clamp-1">{general}</span>
+                                  </p>
+                                ) : null;
+                              })()}
                               {property.description && (
                                 <p className="text-sm text-muted-foreground line-clamp-2 mt-1.5">
                                   {property.description}
