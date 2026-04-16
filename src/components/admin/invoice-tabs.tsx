@@ -15,6 +15,12 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   SprayCan,
   Receipt,
   Home,
@@ -26,6 +32,7 @@ import {
   Trash2,
   FileText,
   Loader2,
+  ChevronDown,
 } from "lucide-react";
 import type {
   AdminInvoiceRow,
@@ -148,6 +155,7 @@ function UnpaidTab({
   const [showModal, setShowModal] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [skipped, setSkipped] = useState<Set<string>>(new Set());
+  const [invoiceType, setInvoiceType] = useState<"bianca" | "summit" | null>(null);
 
   function toggleSkip(registrationId: string) {
     setSkipped((prev) => {
@@ -158,7 +166,18 @@ function UnpaidTab({
     });
   }
 
-  const included = cleanings.filter((c) => !skipped.has(c.registrationId));
+  const isBiancaProperty = (name: string) =>
+    name.toLowerCase().includes("bianca");
+
+  const typeFiltered = invoiceType
+    ? cleanings.filter((c) =>
+        invoiceType === "bianca"
+          ? isBiancaProperty(c.propertyName)
+          : !isBiancaProperty(c.propertyName)
+      )
+    : cleanings;
+
+  const included = typeFiltered.filter((c) => !skipped.has(c.registrationId));
   const includedTotal = included.reduce((s, c) => s + c.totalFee, 0);
 
   async function handleGenerate() {
@@ -184,6 +203,7 @@ function UnpaidTab({
       if (res.ok) {
         setShowModal(false);
         setSkipped(new Set());
+        setInvoiceType(null);
         router.refresh();
       }
     } finally {
@@ -191,9 +211,9 @@ function UnpaidTab({
     }
   }
 
-  // Group cleanings by cleaner for the modal
+  // Group cleanings by cleaner for the modal (use type-filtered list)
   const byCleanerName = new Map<string, AdminUnpaidCleaning[]>();
-  for (const c of cleanings) {
+  for (const c of typeFiltered) {
     const list = byCleanerName.get(c.cleanerName) || [];
     list.push(c);
     byCleanerName.set(c.cleanerName, list);
@@ -221,22 +241,43 @@ function UnpaidTab({
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-muted-foreground">
-                {skipped.size > 0
-                  ? `${included.length} of ${cleanings.length} cleaning${cleanings.length !== 1 ? "s" : ""} selected`
-                  : `${cleanings.length} cleaning${cleanings.length !== 1 ? "s" : ""} pending invoice`}
+                {cleanings.length} cleaning{cleanings.length !== 1 ? "s" : ""} pending invoice
               </p>
               <p className="text-2xl font-bold">
-                {formatCents(includedTotal)}
+                {formatCents(totalUnpaid)}
               </p>
             </div>
-            <Button
-              onClick={() => setShowModal(true)}
-              size="sm"
-              disabled={included.length === 0}
-            >
-              <FileText className="h-4 w-4 mr-1.5" />
-              Generate Invoice
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <Button size="sm">
+                    <FileText className="h-4 w-4 mr-1.5" />
+                    Create Invoice
+                    <ChevronDown className="h-3.5 w-3.5 ml-1.5" />
+                  </Button>
+                }
+              />
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  onClick={() => {
+                    setInvoiceType("summit");
+                    setSkipped(new Set());
+                    setShowModal(true);
+                  }}
+                >
+                  Summit Invoice
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => {
+                    setInvoiceType("bianca");
+                    setSkipped(new Set());
+                    setShowModal(true);
+                  }}
+                >
+                  Bianca Invoice
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </CardContent>
       </Card>
@@ -338,14 +379,23 @@ function UnpaidTab({
       </div>
 
       {/* Generate Invoice Modal */}
-      <Dialog open={showModal} onOpenChange={setShowModal}>
+      <Dialog open={showModal} onOpenChange={(open) => {
+        setShowModal(open);
+        if (!open) setInvoiceType(null);
+      }}>
         <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Generate Invoice</DialogTitle>
+            <DialogTitle>
+              {invoiceType === "bianca"
+                ? "Generate Bianca Invoice"
+                : "Generate Summit Invoice"}
+            </DialogTitle>
             <DialogDescription>
-              {skipped.size > 0
-                ? `${included.length} of ${cleanings.length} cleaning${cleanings.length !== 1 ? "s" : ""} selected — ${skipped.size} skipped.`
-                : `Create an invoice for all ${cleanings.length} completed cleaning${cleanings.length !== 1 ? "s" : ""} below.`}
+              {typeFiltered.length === 0
+                ? `No ${invoiceType === "bianca" ? "Bianca" : "Summit"} cleanings to invoice.`
+                : skipped.size > 0
+                  ? `${included.length} of ${typeFiltered.length} cleaning${typeFiltered.length !== 1 ? "s" : ""} selected — ${skipped.size} skipped.`
+                  : `Create an invoice for ${typeFiltered.length} ${invoiceType === "bianca" ? "Bianca" : "Summit"} cleaning${typeFiltered.length !== 1 ? "s" : ""} below.`}
             </DialogDescription>
           </DialogHeader>
 
