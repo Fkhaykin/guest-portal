@@ -560,7 +560,7 @@ function AvailabilitySearch() {
     <form onSubmit={handleSubmit} className="space-y-3">
       <div className="grid grid-cols-2 sm:grid-cols-[1fr_1fr_6rem_5rem_auto] rounded-2xl overflow-hidden bg-white/10 backdrop-blur-xl border border-white/20 shadow-2xl shadow-black/20">
         <div className="px-4 sm:px-6 py-4 sm:py-5 border-r border-b sm:border-b-0 border-white/15 hover:bg-white/5 transition-colors">
-          <label htmlFor="v2-checkin" className="block text-xs font-semibold text-white/60 mb-1 tracking-wide">
+          <label htmlFor="v2-checkin" className="block text-xs font-semibold text-white/60 mb-1 tracking-wide text-center sm:text-left">
             Check-in
           </label>
           <input
@@ -572,12 +572,12 @@ function AvailabilitySearch() {
               setCheckIn(e.target.value);
               if (checkOut && e.target.value >= checkOut) setCheckOut("");
             }}
-            className="w-full bg-transparent text-white text-base sm:text-lg font-medium outline-none scheme-dark"
+            className="w-full bg-transparent text-white text-base sm:text-lg font-medium outline-none scheme-dark text-center sm:text-left"
             required
           />
         </div>
         <div className="px-4 sm:px-6 py-4 sm:py-5 border-b sm:border-b-0 sm:border-r border-white/15 hover:bg-white/5 transition-colors">
-          <label htmlFor="v2-checkout" className="block text-xs font-semibold text-white/60 mb-1 tracking-wide">
+          <label htmlFor="v2-checkout" className="block text-xs font-semibold text-white/60 mb-1 tracking-wide text-center sm:text-left">
             Check-out
           </label>
           <input
@@ -590,12 +590,12 @@ function AvailabilitySearch() {
               if (checkIn && val <= checkIn) return;
               setCheckOut(val);
             }}
-            className="w-full bg-transparent text-white text-base sm:text-lg font-medium outline-none scheme-dark"
+            className="w-full bg-transparent text-white text-base sm:text-lg font-medium outline-none scheme-dark text-center sm:text-left"
             required
           />
         </div>
         <div className="px-4 sm:px-6 py-4 sm:py-5 border-r border-white/15 hover:bg-white/5 transition-colors">
-          <label htmlFor="v2-guests" className="block text-xs font-semibold text-white/60 mb-1 tracking-wide">
+          <label htmlFor="v2-guests" className="block text-xs font-semibold text-white/60 mb-1 tracking-wide text-center sm:text-left">
             Guests
           </label>
           <input
@@ -605,11 +605,11 @@ function AvailabilitySearch() {
             max={30}
             value={guests}
             onChange={(e) => setGuests(parseInt(e.target.value) || 1)}
-            className="w-full bg-transparent text-white text-base sm:text-lg font-medium outline-none scheme-dark"
+            className="w-full bg-transparent text-white text-base sm:text-lg font-medium outline-none scheme-dark text-center sm:text-left"
           />
         </div>
         <div className="px-4 sm:px-6 py-4 sm:py-5 hover:bg-white/5 transition-colors sm:border-r border-white/15">
-          <label htmlFor="v2-pets" className="block text-xs font-semibold text-white/60 mb-1 tracking-wide">
+          <label htmlFor="v2-pets" className="block text-xs font-semibold text-white/60 mb-1 tracking-wide text-center sm:text-left">
             Pets
           </label>
           <input
@@ -619,7 +619,7 @@ function AvailabilitySearch() {
             max={3}
             value={pets}
             onChange={(e) => setPets(parseInt(e.target.value) || 0)}
-            className="w-full bg-transparent text-white text-base sm:text-lg font-medium outline-none scheme-dark"
+            className="w-full bg-transparent text-white text-base sm:text-lg font-medium outline-none scheme-dark text-center sm:text-left"
           />
         </div>
         {/* Desktop: icon button inside the card */}
