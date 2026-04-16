@@ -12,6 +12,7 @@ import {
   MapPin,
   HelpCircle,
   Gift,
+  Camera,
 } from "lucide-react";
 
 const SESSION_KEY = "guest-portal-session";
@@ -40,6 +41,7 @@ export function GuestNav({ slug: slugProp }: { slug?: string } = {}) {
       ? { label: "Manage Stay", href: "/update", icon: PenLine }
       : { label: "Register", href: "/register", icon: ClipboardList },
     { label: "Add-Ons", href: "/add-ons", icon: Gift },
+    { label: "Photos", href: "/photos", icon: Camera },
     { label: "Promotions", href: "/promotions", icon: Tag },
     { label: "Explore", href: "/recommendations", icon: MapPin },
     { label: "FAQ", href: "/faq", icon: HelpCircle },
