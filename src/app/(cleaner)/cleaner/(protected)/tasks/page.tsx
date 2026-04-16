@@ -3,7 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { validateCleanerSession } from "@/lib/cleaner/auth";
 import { getSessionToken } from "@/lib/cleaner/session";
 import { ReservationCard } from "@/components/cleaner/reservation-card";
-import { CollapsibleSection } from "@/components/cleaner/collapsible-section";
+import { TasksTabs } from "@/components/cleaner/tasks-tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   AlertTriangle,
@@ -228,79 +228,52 @@ export default async function CleanerDashboard() {
         </div>
       )}
 
-      {/* Task list */}
-      <div className="space-y-6">
-        {uncleanedDeparted.length > 0 && (
-          <CollapsibleSection
-            title="Needs Cleaning"
-            icon={<AlertTriangle className="h-4 w-4 text-red-500" />}
-            count={uncleanedDeparted.length}
-            defaultOpen
-          >
-            <div className="space-y-3">
-              {renderCards(uncleanedDeparted, "departed")}
-            </div>
-          </CollapsibleSection>
-        )}
-
-        {current.length > 0 && (
-          <CollapsibleSection
-            title="Currently In-House"
-            icon={<CalendarCheck className="h-4 w-4 text-blue-500" />}
-            count={current.length}
-            defaultOpen
-          >
-            <div className="space-y-3">
-              {renderCards(current, "current")}
-            </div>
-          </CollapsibleSection>
-        )}
-
-        {upcoming.length > 0 && (
-          <CollapsibleSection
-            title="Upcoming Arrivals"
-            icon={<CalendarClock className="h-4 w-4 text-amber-500" />}
-            count={upcoming.length}
-            defaultOpen
-          >
-            <div className="space-y-3">
-              {renderCards(upcoming, "upcoming")}
-            </div>
-          </CollapsibleSection>
-        )}
-
-        {cleanedDeparted.length > 0 && (
-          <CollapsibleSection
-            title="Completed"
-            icon={<CheckCircle2 className="h-4 w-4 text-green-500" />}
-            count={cleanedDeparted.length}
-            defaultOpen={false}
-          >
-            <div className="space-y-3">
-              {renderCards(cleanedDeparted, "departed")}
-            </div>
-          </CollapsibleSection>
-        )}
-
-        {skippedDeparted.length > 0 && (
-          <CollapsibleSection
-            title="Skipped"
-            icon={<SkipForward className="h-4 w-4 text-muted-foreground" />}
-            count={skippedDeparted.length}
-            defaultOpen={false}
-          >
-            <div className="space-y-3">
-              {renderCards(skippedDeparted, "departed")}
-            </div>
-          </CollapsibleSection>
-        )}
-
-        {regs.length === 0 && (
-          <div className="text-center py-12 text-muted-foreground">
-            No reservations to show right now.
-          </div>
-        )}
-      </div>
+      {/* Task tabs */}
+      <TasksTabs
+        defaultTab={uncleanedDeparted.length > 0 ? "needs-cleaning" : current.length > 0 ? "in-house" : "upcoming"}
+        categories={[
+          {
+            key: "needs-cleaning",
+            label: "Needs Cleaning",
+            icon: <AlertTriangle className="h-3.5 w-3.5 text-red-500" />,
+            count: uncleanedDeparted.length,
+            cards: renderCards(uncleanedDeparted, "departed"),
+            empty: "All caught up!",
+          },
+          {
+            key: "in-house",
+            label: "In-House",
+            icon: <CalendarCheck className="h-3.5 w-3.5 text-blue-500" />,
+            count: current.length,
+            cards: renderCards(current, "current"),
+            empty: "No guests currently in-house.",
+          },
+          {
+            key: "upcoming",
+            label: "Upcoming",
+            icon: <CalendarClock className="h-3.5 w-3.5 text-amber-500" />,
+            count: upcoming.length,
+            cards: renderCards(upcoming, "upcoming"),
+            empty: "No upcoming arrivals.",
+          },
+          {
+            key: "completed",
+            label: "Completed",
+            icon: <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />,
+            count: cleanedDeparted.length,
+            cards: renderCards(cleanedDeparted, "departed"),
+            empty: "No completed cleanings yet.",
+          },
+          {
+            key: "skipped",
+            label: "Skipped",
+            icon: <SkipForward className="h-3.5 w-3.5 text-muted-foreground" />,
+            count: skippedDeparted.length,
+            cards: renderCards(skippedDeparted, "departed"),
+            empty: "No skipped tasks.",
+          },
+        ]}
+      />
     </div>
     </NewIdsProvider>
   );
