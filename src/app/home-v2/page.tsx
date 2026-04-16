@@ -583,9 +583,13 @@ function AvailabilitySearch() {
           <input
             id="v2-checkout"
             type="date"
-            min={checkIn || today}
+            min={checkIn ? new Date(new Date(checkIn + "T00:00:00").getTime() + 86400000).toISOString().split("T")[0] : tomorrow}
             value={checkOut}
-            onChange={(e) => setCheckOut(e.target.value)}
+            onChange={(e) => {
+              const val = e.target.value;
+              if (checkIn && val <= checkIn) return;
+              setCheckOut(val);
+            }}
             className="w-full bg-transparent text-white text-base sm:text-lg font-medium outline-none scheme-dark"
             required
           />
