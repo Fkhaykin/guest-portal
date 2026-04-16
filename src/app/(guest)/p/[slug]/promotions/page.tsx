@@ -20,7 +20,6 @@ export default async function PromotionsPage({
     .from("property")
     .select("id")
     .eq("slug", slug)
-    .eq("is_active", true)
     .single();
 
   if (!property) notFound();

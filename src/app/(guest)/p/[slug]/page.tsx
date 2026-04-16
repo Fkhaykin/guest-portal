@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 import { QuickLinks } from "./quick-links";
 import { GuestPhotoCarousel } from "@/components/guest/guest-photo-carousel";
+import { InstagramFeedSection } from "@/components/guest/instagram-feed";
 
 export default async function PropertyHomePage({
   params,
@@ -15,7 +16,6 @@ export default async function PropertyHomePage({
     .from("property")
     .select("*")
     .eq("slug", slug)
-    .eq("is_active", true)
     .single();
 
   if (!property) notFound();
@@ -36,6 +36,8 @@ export default async function PropertyHomePage({
       <GuestPhotoCarousel propertyId={property.id} />
 
       <QuickLinks slug={slug} />
+
+      <InstagramFeedSection />
     </div>
   );
 }
