@@ -209,16 +209,19 @@ export default function ReservationDetailPage() {
           .maybeSingle();
         setPrevCleaning(prevCleaningData);
 
-        // Get signed URLs for previous cleaning photos
+        // Get signed URLs for previous cleaning photos via admin API
         if (prevCleaningData?.photos?.length) {
-          const urls: Record<string, string> = {};
-          for (const photo of prevCleaningData.photos) {
-            const { data: signedUrl } = await supabase.storage
-              .from("cleaning-photos")
-              .createSignedUrl(photo.path, 3600);
-            if (signedUrl) urls[photo.path] = signedUrl.signedUrl;
+          const res = await fetch(
+            `/api/admin/cleaning-photos?registration_id=${prevRegs[0].id}`
+          );
+          if (res.ok) {
+            const data = await res.json();
+            const urls: Record<string, string> = {};
+            for (const photo of data.cleaning?.photos ?? []) {
+              if (photo.url) urls[photo.path] = photo.url;
+            }
+            setPhotoUrls(urls);
           }
-          setPhotoUrls(urls);
         }
       }
       // Fetch reimbursement charges linked to this registration
