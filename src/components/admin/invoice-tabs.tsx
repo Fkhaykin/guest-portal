@@ -86,6 +86,17 @@ function formatTimestamp(ts: string) {
   });
 }
 
+function getDueDate(invoice: AdminInvoiceRow): string {
+  if (invoice.is_monthly) {
+    const end = new Date(invoice.period_end + "T00:00:00");
+    const due = new Date(end.getFullYear(), end.getMonth() + 1, 5);
+    return due.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  }
+  const created = new Date(invoice.created_at);
+  created.setDate(created.getDate() + 5);
+  return created.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
 export function AdminInvoiceTabs({
   unpaidCleanings,
   invoices,
@@ -631,6 +642,9 @@ function HistoryTab({ invoices }: { invoices: AdminInvoiceRow[] }) {
                       {inv.cleaner_name} &middot;{" "}
                       {formatDateFull(inv.period_start)} &ndash;{" "}
                       {formatDateFull(inv.period_end)}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Due: {getDueDate(inv)}
                     </p>
                   </div>
                   <div className="flex items-center gap-2">

@@ -74,6 +74,20 @@ function formatTimestamp(ts: string) {
   });
 }
 
+function getDueDate(invoice: InvoiceRow): string {
+  const isMonthly = invoice.line_items.some((i) => i.type === "monthly_fee");
+  if (isMonthly) {
+    // Due on the 5th of the month after period_end
+    const end = new Date(invoice.period_end + "T00:00:00");
+    const due = new Date(end.getFullYear(), end.getMonth() + 1, 5);
+    return due.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  }
+  // Standard: 5 days after created_at
+  const created = new Date(invoice.created_at);
+  created.setDate(created.getDate() + 5);
+  return created.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
 export function InvoiceTabs({
   unpaidCleanings,
   invoices,
@@ -297,7 +311,7 @@ function HistoryTab({
           <TableRow>
             <TableHead>Invoice</TableHead>
             <TableHead>Period</TableHead>
-            <TableHead>Items</TableHead>
+            <TableHead>Due</TableHead>
             <TableHead>Status</TableHead>
             <TableHead className="text-right">Amount</TableHead>
           </TableRow>
@@ -319,7 +333,7 @@ function HistoryTab({
                 {formatDate(inv.period_start)} &ndash; {formatDate(inv.period_end)}
               </TableCell>
               <TableCell className="text-sm text-muted-foreground">
-                {inv.line_items.length} item{inv.line_items.length !== 1 ? "s" : ""}
+                {getDueDate(inv)}
               </TableCell>
               <TableCell>
                 <Badge className={STATUS_STYLES[inv.status] || ""}>{inv.status}</Badge>
@@ -366,6 +380,9 @@ function InvoiceModal({
           </div>
           <p className="text-sm text-muted-foreground">
             {formatDateFull(invoice.period_start)} &ndash; {formatDateFull(invoice.period_end)}
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Due: <span className="font-medium text-foreground">{getDueDate(invoice)}</span>
           </p>
         </DialogHeader>
 

@@ -16,6 +16,7 @@ export type AdminInvoiceRow = {
   created_at: string;
   cleaner_name: string;
   is_bianca: boolean;
+  is_monthly: boolean;
 };
 
 export type AdminUnpaidCleaning = {
@@ -272,6 +273,7 @@ export default async function AdminInvoicesPage() {
     const isBianca = items.some((item) =>
       item.description?.toLowerCase().includes("bianca")
     );
+    const isMonthly = items.some((item) => item.type === "monthly_fee");
     return {
       id: inv.id,
       invoice_number: inv.invoice_number,
@@ -283,6 +285,7 @@ export default async function AdminInvoicesPage() {
       cleaner_name:
         (inv.cleaner as { name: string } | null)?.name || "Unknown",
       is_bianca: isBianca,
+      is_monthly: isMonthly,
     };
   });
 

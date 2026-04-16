@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Plus, Receipt } from "lucide-react";
 import type { InvoiceRow } from "@/app/(cleaner)/cleaner/(protected)/invoices/page";
+import type { InvoiceLineItem } from "@/types/database";
 
 const STATUS_STYLES: Record<string, string> = {
   open: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200",
@@ -25,6 +26,18 @@ function formatDate(dateStr: string) {
     day: "numeric",
     year: "numeric",
   });
+}
+
+function getDueDate(invoice: InvoiceRow): string {
+  const isMonthly = invoice.line_items.some((i: InvoiceLineItem) => i.type === "monthly_fee");
+  if (isMonthly) {
+    const end = new Date(invoice.period_end + "T00:00:00");
+    const due = new Date(end.getFullYear(), end.getMonth() + 1, 5);
+    return due.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  }
+  const created = new Date(invoice.created_at);
+  created.setDate(created.getDate() + 5);
+  return created.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
 export function InvoiceList({ invoices }: { invoices: InvoiceRow[] }) {
@@ -64,6 +77,9 @@ export function InvoiceList({ invoices }: { invoices: InvoiceRow[] }) {
                     </div>
                     <p className="text-xs text-muted-foreground">
                       {formatDate(inv.period_start)} &ndash; {formatDate(inv.period_end)}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Due: {getDueDate(inv)}
                     </p>
                   </div>
                   <p className="text-sm font-semibold">{formatCents(inv.total)}</p>

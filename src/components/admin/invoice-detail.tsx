@@ -72,6 +72,18 @@ function formatTimestamp(ts: string) {
   });
 }
 
+function getDueDate(invoice: { line_items: InvoiceLineItem[]; period_end: string; created_at: string }): string {
+  const isMonthly = invoice.line_items.some((i) => i.type === "monthly_fee");
+  if (isMonthly) {
+    const end = new Date(invoice.period_end + "T00:00:00");
+    const due = new Date(end.getFullYear(), end.getMonth() + 1, 5);
+    return due.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  }
+  const created = new Date(invoice.created_at);
+  created.setDate(created.getDate() + 5);
+  return created.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
 const WEEKDAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 
 function MiniCalendar({
@@ -252,6 +264,8 @@ export function AdminInvoiceDetail({
                 {formatDate(invoice.period_start)} &ndash;{" "}
                 {formatDate(invoice.period_end)}
               </span>
+              <span>&middot;</span>
+              <span>Due: {getDueDate(invoice)}</span>
             </div>
           </div>
         </div>
