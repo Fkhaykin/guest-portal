@@ -299,7 +299,7 @@ export function PropertyPage({
         </div>
       </header>
 
-      <div className="max-w-5xl mx-auto w-full px-4 sm:px-6 py-6 space-y-8">
+      <div className="max-w-5xl mx-auto w-full px-4 sm:px-6 pt-0 pb-6 sm:py-6 space-y-8">
         {/* Photo gallery */}
         {images.length > 0 && <PhotoGallery images={images} />}
 
