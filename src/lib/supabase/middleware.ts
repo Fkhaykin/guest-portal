@@ -55,12 +55,18 @@ export async function updateSession(request: NextRequest) {
 
   const prefix = subdomain ? SUBDOMAIN_PREFIX_MAP[subdomain] : undefined;
 
+  // Guest subdomain: rewrite only the root to /checkin (other paths stay as-is)
+  const isGuestRoot = subdomain === "guest" && pathname === "/";
+
   // Compute the internal path that Next.js will serve
   const needsRewrite =
-    !!prefix && !shouldSkipRewrite(pathname) && !pathname.startsWith(prefix);
-  const internalPath = needsRewrite
-    ? `${prefix}${pathname === "/" ? "" : pathname}`
-    : pathname;
+    isGuestRoot ||
+    (!!prefix && !shouldSkipRewrite(pathname) && !pathname.startsWith(prefix));
+  const internalPath = isGuestRoot
+    ? "/checkin"
+    : needsRewrite
+      ? `${prefix}${pathname === "/" ? "" : pathname}`
+      : pathname;
 
   // Helper: create the base response (rewrite or next) preserving the request
   function makeResponse() {

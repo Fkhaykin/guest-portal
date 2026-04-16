@@ -698,7 +698,7 @@ export default function ThingsToDoPage() {
         <div className="absolute top-0 left-0 right-0 z-10">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-5">
             <Link
-              href="/home-v2"
+              href="/"
               className="inline-flex items-center gap-2 text-sm text-white/70 hover:text-white transition-colors"
             >
               <ArrowLeft className="h-4 w-4" />
@@ -765,7 +765,7 @@ export default function ThingsToDoPage() {
             discover. Ask us for personalized recommendations during your stay!
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <Link href="/home-v2">
+            <Link href="/">
               <Button
                 size="lg"
                 className="bg-white text-black hover:bg-white/90 gap-2"

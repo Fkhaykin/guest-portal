@@ -403,7 +403,7 @@ function SearchPageInner() {
       <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="flex items-center gap-4 px-4 sm:px-6 h-14">
           <Link
-            href="/home-v2"
+            href="/"
             className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
             <ArrowLeft className="h-4 w-4" />

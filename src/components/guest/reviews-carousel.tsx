@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Star, ChevronLeft, ChevronRight, MapPin } from "lucide-react";
-import { REVIEWS, REVIEW_STATS } from "@/app/home-v2/reviews-data";
+import { REVIEWS, REVIEW_STATS } from "@/lib/reviews-data";
 
 // Show top 20 five-star reviews (diverse property mix)
 const CAROUSEL_REVIEWS = (() => {

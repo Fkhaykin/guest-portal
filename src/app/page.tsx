@@ -1,76 +1,66 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { getGuestToken, setGuestToken, clearGuestToken } from "@/lib/guest-session";
+import { useState, useEffect, useCallback, useRef } from "react";
+import Image from "next/image";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Card,
   CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import Link from "next/link";
+import { Separator } from "@/components/ui/separator";
+import { createClient } from "@/lib/supabase/client";
 import {
+  clearGuestToken,
+} from "@/lib/guest-session";
+import { GuestPhotoCarousel } from "@/components/guest/guest-photo-carousel";
+import { InstagramFeedSection } from "@/components/guest/instagram-feed";
+import { ReviewsCarousel } from "@/components/guest/reviews-carousel";
+import { REVIEWS } from "@/lib/reviews-data";
+import {
+  Search,
   MapPin,
+  Calendar,
   Users,
+  ChevronRight,
+  ChevronDown,
   Clock,
   DoorOpen,
   DoorClosed,
-  PawPrint,
-  Baby,
-  User,
-  ClipboardCheck,
-  ChevronRight,
-  Check,
+  Star,
+  ArrowRight,
+  Sparkles,
+  Mountain,
+  Waves,
   Flame,
-  BedDouble,
+  PartyPopper,
+  HeartHandshake,
+  Snowflake,
   UtensilsCrossed,
   TreePine,
-  Coffee,
-  Sparkles,
-  Lock,
-  Heart,
-  Truck,
-  Car,
-  ShoppingBag,
-  Package,
-  AlertCircle,
+  Dices,
+  Tent,
+  Menu,
+  X,
 } from "lucide-react";
-import dynamic from "next/dynamic";
 
-const GettingHereMap = dynamic(
-  () =>
-    import("@/components/guest/getting-here-map").then(
-      (mod) => mod.GettingHereMap
-    ),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="w-full h-112.5 rounded-xl bg-muted animate-pulse" />
-    ),
-  }
-);
-import { PropertyHeader } from "@/components/guest/guest-header";
-import { GuestNav } from "@/components/guest/guest-nav";
-import { LandingPage } from "@/components/guest/landing-page";
 
-type GuestBreakdown = {
-  adults: number;
-  children: number;
-  infants: number;
-  pets: number;
-};
 
-type LodgifyDetails = {
-  check_in_time: string | null;
-  check_out_time: string | null;
-  total_amount: number | null;
-  currency_code: string | null;
-  source: string | null;
-  guest_breakdown: GuestBreakdown | null;
+/* ------------------------------------------------------------------ */
+/*  Types                                                              */
+/* ------------------------------------------------------------------ */
+
+type Property = {
+  id: string;
+  name: string;
+  slug: string;
+  address: string | null;
+  description: string | null;
+  cover_image_url: string | null;
+  max_guests: number | null;
 };
 
 type Reservation = {
@@ -78,31 +68,33 @@ type Reservation = {
   check_in_date: string;
   check_out_date: string;
   num_guests: number;
-  notes: string | null;
   status: string;
   signature_url: string | null;
-  booking_source: string | null;
   property: {
     id: string;
     name: string;
     slug: string;
     address: string | null;
-    description: string | null;
     cover_image_url: string | null;
     timezone: string;
-    hoa_type?: string;
   };
-  lodgify: LodgifyDetails | null;
 };
 
-function formatDate(dateStr: string) {
-  return new Date(dateStr + "T00:00:00").toLocaleDateString("en-US", {
-    weekday: "short",
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
-}
+type Promotion = {
+  id: string;
+  title: string;
+  description: string | null;
+  promo_code: string | null;
+  discount_percent: number | null;
+  discount_amount: number | null;
+  valid_from: string | null;
+  valid_until: string | null;
+  is_active: boolean;
+};
+
+/* ------------------------------------------------------------------ */
+/*  Helpers                                                            */
+/* ------------------------------------------------------------------ */
 
 function formatShortDate(dateStr: string) {
   return new Date(dateStr + "T00:00:00").toLocaleDateString("en-US", {
@@ -112,12 +104,13 @@ function formatShortDate(dateStr: string) {
   });
 }
 
-function formatTime(timeStr: string) {
-  const [hours, minutes] = timeStr.split(":");
-  const h = parseInt(hours);
-  const ampm = h >= 12 ? "PM" : "AM";
-  const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
-  return `${h12}:${minutes} ${ampm}`;
+function getDaysUntil(dateStr: string) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const target = new Date(dateStr + "T00:00:00");
+  return Math.ceil(
+    (target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+  );
 }
 
 function getNightCount(checkIn: string, checkOut: string) {
@@ -126,559 +119,16 @@ function getNightCount(checkIn: string, checkOut: string) {
   return Math.round((d2.getTime() - d1.getTime()) / (1000 * 60 * 60 * 24));
 }
 
-function getDaysUntil(dateStr: string) {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const target = new Date(dateStr + "T00:00:00");
-  return Math.ceil((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-}
+/* ------------------------------------------------------------------ */
+/*  Session helpers (reused from main page)                            */
+/* ------------------------------------------------------------------ */
 
-// --- Guest Dashboard ---
-const upsellIcons: Record<string, React.ReactNode> = {
-  early_checkin: <DoorOpen className="h-5 w-5 text-blue-600" />,
-  late_checkout: <DoorClosed className="h-5 w-5 text-blue-600" />,
-  new_sheets: <BedDouble className="h-5 w-5 text-purple-600" />,
-  firewood: <Flame className="h-5 w-5 text-orange-600" />,
-  baby_high_chair: <Baby className="h-5 w-5 text-pink-500" />,
-  private_chef: <UtensilsCrossed className="h-5 w-5 text-amber-600" />,
-  luxury_picnic: <TreePine className="h-5 w-5 text-green-600" />,
-  breakfast_delivery: <Coffee className="h-5 w-5 text-amber-700" />,
-  tip_cleaning: <Heart className="h-5 w-5 text-rose-500" />,
-  tip_delivery: <Heart className="h-5 w-5 text-rose-500" />,
-  tip_breakfast: <Heart className="h-5 w-5 text-rose-500" />,
-};
+const SESSION_KEY = "guest-portal-session";
 
-type PurchasedUpsell = {
-  type: string;
-  label: string;
-  price_cents: number;
-  status: string;
-};
-
-type DeliveryEntry = {
-  id: string;
-  category: "rideshare" | "food_grocery" | "other";
-  provider: string | null;
-  num_cars: number;
-  arrival_date: string;
-  has_return: boolean;
-  return_date: string | null;
-  created_at: string;
-};
-
-function GuestDashboard({
-  guestName,
-  reservation,
-  onReset,
-}: {
+function loadSession(): {
   guestName: string;
   reservation: Reservation;
-  onReset: () => void;
-}) {
-  const firstName = (guestName || "").split(" ")[0];
-  const nights = getNightCount(reservation.check_in_date, reservation.check_out_date);
-  const daysUntil = getDaysUntil(reservation.check_in_date);
-  const lodgify = reservation.lodgify;
-  const breakdown = lodgify?.guest_breakdown;
-  const [purchasedUpsells, setPurchasedUpsells] = useState<PurchasedUpsell[]>([]);
-  const [deliveries, setDeliveries] = useState<DeliveryEntry[]>([]);
-
-  useEffect(() => {
-    fetch(`/api/guest/delivery-rideshare?registration_id=${reservation.id}`, {
-      headers: { "x-guest-token": getGuestToken() },
-    })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (data?.entries) setDeliveries(data.entries);
-      })
-      .catch(() => {});
-  }, [reservation.id]);
-
-  useEffect(() => {
-    fetch("/api/guest/upsells", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-guest-token": getGuestToken() },
-      body: JSON.stringify({ registration_id: reservation.id }),
-    })
-      .then((res) => res.ok ? res.json() : null)
-      .then((data) => {
-        if (data?.purchased) setPurchasedUpsells(data.purchased);
-      })
-      .catch(() => {});
-  }, [reservation.id]);
-
-  const hasEarlyCheckin = purchasedUpsells.some((u) => u.type === "early_checkin" && u.status === "paid");
-  const hasLateCheckout = purchasedUpsells.some((u) => u.type === "late_checkout" && u.status === "paid");
-
-  const countdownLabel =
-    daysUntil === 0
-      ? "Today is the day!"
-      : daysUntil === 1
-        ? "Tomorrow!"
-        : daysUntil > 0
-          ? `${daysUntil} days away`
-          : "In progress";
-
-  return (
-    <main className="flex-1 flex flex-col items-center">
-      {/* Hero image — full width, fades into background */}
-      {reservation.property.cover_image_url && (
-        <div className="relative w-full">
-          <div className="relative w-full h-48 sm:h-56">
-            <img
-              src={reservation.property.cover_image_url}
-              alt={reservation.property.name}
-              className="w-full h-full object-cover"
-            />
-            <div className="absolute inset-0 bg-linear-to-t from-background via-background/20 to-transparent" />
-          </div>
-          <div className="absolute bottom-4 left-0 right-0 px-6 sm:px-8">
-            <div className="max-w-2xl mx-auto">
-              <h2 className="text-2xl sm:text-3xl font-bold leading-tight">
-                {reservation.property.name}
-              </h2>
-              {reservation.property.address && (
-                daysUntil <= 7 ? (
-                  <p className="flex items-start gap-1.5 mt-1 text-sm text-muted-foreground">
-                    <MapPin className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-                    <span className="wrap-break-word">{reservation.property.address}</span>
-                  </p>
-                ) : (
-                  <p className="flex items-center gap-1.5 mt-1 text-sm text-muted-foreground/60">
-                    <Lock className="h-3.5 w-3.5" />
-                    Address available 7 days before check-in
-                  </p>
-                )
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div className="max-w-2xl w-full space-y-6 p-4 sm:p-6">
-        {/* Welcome + countdown */}
-        <div className="text-center space-y-2">
-          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight">
-            {firstName ? `Welcome, ${firstName}!` : "Welcome!"}
-          </h1>
-          <p className="text-muted-foreground max-w-lg mx-auto">
-            Thanks for booking your Poconos getaway with Summit Lakeside
-            Rentals! We&apos;re getting everything ready for you &mdash;
-            from the hot tub to the lakefront views, your retreat awaits.
-            Here&apos;s everything you need to know before you arrive.
-          </p>
-          {daysUntil >= 0 && (
-            <div className="pt-2">
-              <Badge variant="secondary" className="text-sm px-4 py-1.5">
-                <Clock className="h-3.5 w-3.5 mr-1.5" />
-                {countdownLabel}
-              </Badge>
-            </div>
-          )}
-        </div>
-
-        {/* Registration banner */}
-        {reservation.signature_url ? (
-          <div className="rounded-xl border p-5 space-y-3">
-            <div className="flex items-start gap-3">
-              <div className="rounded-full bg-muted p-2 shrink-0 mt-0.5">
-                <ClipboardCheck className="h-5 w-5" />
-              </div>
-              <div className="space-y-1">
-                <h3 className="font-semibold text-base">
-                  Registration complete
-                </h3>
-                <p className="text-sm text-muted-foreground">
-                  Your guest registration has been submitted. Need to make
-                  changes? You can update your details anytime before check-in.
-                </p>
-              </div>
-            </div>
-            <Link href={`/p/${reservation.property.slug}/update`}>
-              <Button variant="outline" size="lg" className="w-full">
-                Edit Registration
-              </Button>
-            </Link>
-          </div>
-        ) : (
-          <div className="rounded-xl border-2 border-primary bg-primary/5 p-5 space-y-3">
-            <div className="flex items-start gap-3">
-              <div className="rounded-full bg-primary p-2 shrink-0 mt-0.5">
-                <ClipboardCheck className="h-5 w-5 text-primary-foreground" />
-              </div>
-              <div className="space-y-1">
-                <h3 className="font-semibold text-base">
-                  Action required: Complete your guest registration
-                </h3>
-                <p className="text-sm text-muted-foreground">
-                  Before you arrive, we need a few details from you &mdash;
-                  guest info, vehicle registration, and any special requests.
-                  This helps us prepare for your stay and ensures a smooth check-in.
-                </p>
-              </div>
-            </div>
-            <Link href={`/p/${reservation.property.slug}/register`}>
-              <Button size="lg" className="w-full">
-                Complete Guest Registration
-              </Button>
-            </Link>
-          </div>
-        )}
-
-        {/* Booking details grid */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg">Your Reservation</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Check-in / Check-out row */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className={`relative rounded-lg border p-4 space-y-1 overflow-hidden ${hasEarlyCheckin ? "border-blue-300 bg-blue-50/50 dark:border-blue-700 dark:bg-blue-950/30" : ""}`}>
-                {hasEarlyCheckin && (
-                  <div className="absolute top-0 right-0 bg-blue-600 text-white text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-bl-lg">
-                    Early
-                  </div>
-                )}
-                <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                  <DoorOpen className="h-3.5 w-3.5" />
-                  Check-in
-                </div>
-                <p className="font-semibold">
-                  {formatShortDate(reservation.check_in_date)}
-                </p>
-                <p className={`text-sm ${hasEarlyCheckin ? "text-blue-700 dark:text-blue-400 font-medium" : "text-muted-foreground"}`}>
-                  After {hasEarlyCheckin ? "1:00 PM" : lodgify?.check_in_time ? formatTime(lodgify.check_in_time) : "4:00 PM"}
-                </p>
-              </div>
-              <div className={`relative rounded-lg border p-4 space-y-1 overflow-hidden ${hasLateCheckout ? "border-purple-300 bg-purple-50/50 dark:border-purple-700 dark:bg-purple-950/30" : ""}`}>
-                {hasLateCheckout && (
-                  <div className="absolute top-0 right-0 bg-purple-600 text-white text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-bl-lg">
-                    Late
-                  </div>
-                )}
-                <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                  <DoorClosed className="h-3.5 w-3.5" />
-                  Check-out
-                </div>
-                <p className="font-semibold">
-                  {formatShortDate(reservation.check_out_date)}
-                </p>
-                <p className={`text-sm ${hasLateCheckout ? "text-purple-700 dark:text-purple-400 font-medium" : "text-muted-foreground"}`}>
-                  By {hasLateCheckout ? "2:00 PM" : lodgify?.check_out_time ? formatTime(lodgify.check_out_time) : "11:00 AM"}
-                </p>
-              </div>
-            </div>
-
-            {/* Stay duration */}
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">Duration</span>
-              <span className="font-medium">
-                {nights} night{nights !== 1 ? "s" : ""}
-              </span>
-            </div>
-
-            <Separator />
-
-            {/* Guest breakdown */}
-            <div className="space-y-2">
-              <p className="text-sm font-medium">Guests</p>
-              <div className="flex flex-wrap gap-3">
-                {breakdown ? (
-                  <>
-                    {breakdown.adults > 0 && (
-                      <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                        <User className="h-4 w-4" />
-                        {breakdown.adults} adult{breakdown.adults !== 1 ? "s" : ""}
-                      </div>
-                    )}
-                    {breakdown.children > 0 && (
-                      <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                        <Users className="h-4 w-4" />
-                        {breakdown.children} child{breakdown.children !== 1 ? "ren" : ""}
-                      </div>
-                    )}
-                    {breakdown.infants > 0 && (
-                      <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                        <Baby className="h-4 w-4" />
-                        {breakdown.infants} infant{breakdown.infants !== 1 ? "s" : ""}
-                      </div>
-                    )}
-                    {breakdown.pets > 0 && (
-                      <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                        <PawPrint className="h-4 w-4" />
-                        {breakdown.pets} pet{breakdown.pets !== 1 ? "s" : ""}
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                    <Users className="h-4 w-4" />
-                    {reservation.num_guests} guest{reservation.num_guests !== 1 ? "s" : ""}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {reservation.notes && (
-              <>
-                <Separator />
-                <div className="space-y-1">
-                  <p className="text-sm font-medium">Notes</p>
-                  <p className="text-sm text-muted-foreground">
-                    {reservation.notes}
-                  </p>
-                </div>
-              </>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Important Information — shown when address is unlocked (Penn Estates only) */}
-        {daysUntil <= 7 && reservation.property.address && reservation.property.hoa_type !== "bmlc" && (
-          <Card className="border-amber-200 bg-amber-50/50 dark:border-amber-800 dark:bg-amber-950/30">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-xl flex items-center gap-2">
-                <AlertCircle className="h-5 w-5 text-amber-600" />
-                Important Information
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-3">
-                <h3 className="font-semibold text-lg flex items-center gap-2">
-                  <Car className="h-5 w-5" /> Getting Here
-                </h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  Penn Estates has <strong>two entrances</strong>, but you{" "}
-                  <strong className="text-foreground">must enter via Hallet Road to the Main Gate</strong>{" "}
-                  to get your gate pass before proceeding to the home.{" "}
-                  <span className="text-red-600 dark:text-red-400 font-medium">
-                    GPS often routes guests to the Cranberry Road entrance instead
-                  </span>{" "}
-                  — which means driving all the way around the community. Don&apos;t
-                  make that mistake!
-                </p>
-                <GettingHereMap propertyAddress={reservation.property.address} />
-                <div className="rounded-lg bg-white/80 dark:bg-black/20 border p-3 text-sm space-y-1.5">
-                  <p className="font-semibold flex items-center gap-1.5">
-                    <MapPin className="h-4 w-4 text-green-600" /> Main Gate Address
-                  </p>
-                  <p className="font-medium">525 Penn Estates Drive, East Stroudsburg, PA</p>
-                  <p className="text-muted-foreground text-xs">
-                    Present your driver&apos;s license at the gate to receive a printed gate pass, then proceed to your home.
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Location */}
-        {reservation.property.address && (
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <MapPin className="h-5 w-5" /> Your home&apos;s location
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {daysUntil <= 7 ? (
-                <div className="space-y-3">
-                  <p className="text-sm font-medium">{reservation.property.address}</p>
-                  <div className="rounded-lg overflow-hidden border">
-                    <iframe
-                      width="100%"
-                      height="250"
-                      style={{ border: 0 }}
-                      loading="lazy"
-                      referrerPolicy="no-referrer-when-downgrade"
-                      src={`https://maps.google.com/maps?q=${encodeURIComponent(reservation.property.address)}&t=&z=15&ie=UTF8&iwloc=&output=embed`}
-                    />
-                  </div>
-                  <a
-                    href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(reservation.property.address)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <Button variant="outline" size="sm" className="w-full">
-                      <MapPin className="h-4 w-4 mr-1.5" /> Get Directions
-                    </Button>
-                  </a>
-                </div>
-              ) : (
-                <div className="rounded-lg bg-muted/50 p-6 text-center space-y-2">
-                  <Lock className="h-8 w-8 text-muted-foreground mx-auto" />
-                  <p className="text-sm font-medium text-muted-foreground">
-                    Exact address &amp; map available 7 days before check-in
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {daysUntil > 7
-                      ? `You'll receive it on ${formatDate(
-                          new Date(
-                            new Date(reservation.check_in_date + "T00:00:00").getTime() - 7 * 24 * 60 * 60 * 1000
-                          ).toISOString().split("T")[0]
-                        )}`
-                      : ""}
-                  </p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Purchased add-ons */}
-        {purchasedUpsells.length > 0 && (
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Sparkles className="h-5 w-5" /> Your Add-Ons
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {purchasedUpsells.map((u, i) => (
-                <div key={i} className="flex items-center gap-3 rounded-lg border p-3">
-                  <div className="shrink-0">
-                    {upsellIcons[u.type] || <Sparkles className="h-5 w-5 text-muted-foreground" />}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium">{u.label}</p>
-                    {u.price_cents > 0 && (
-                      <p className="text-xs text-muted-foreground">${(u.price_cents / 100).toFixed(2)}</p>
-                    )}
-                  </div>
-                  <Check className="h-4 w-4 text-green-600 shrink-0" />
-                </div>
-              ))}
-              <Link href={`/p/${reservation.property.slug}/add-ons`}>
-                <Button variant="outline" size="sm" className="w-full mt-2">
-                  Browse More Add-Ons
-                </Button>
-              </Link>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Deliveries & Rideshares */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Truck className="h-5 w-5" /> Deliveries & Rideshares
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {deliveries.length > 0 ? (
-              deliveries.map((d) => (
-                <div key={d.id} className="flex items-center gap-3 rounded-lg border p-3">
-                  <div className="shrink-0">
-                    {d.category === "rideshare" ? (
-                      <Car className="h-5 w-5 text-blue-600" />
-                    ) : d.category === "food_grocery" ? (
-                      <ShoppingBag className="h-5 w-5 text-green-600" />
-                    ) : (
-                      <Package className="h-5 w-5 text-muted-foreground" />
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium">
-                      {d.provider || "Other"}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {formatShortDate(d.arrival_date)}
-                      {d.category === "rideshare" && d.num_cars > 1 && ` \u00b7 ${d.num_cars} cars`}
-                      {d.has_return && d.return_date && ` \u00b7 Return ${formatShortDate(d.return_date)}`}
-                    </p>
-                  </div>
-                  <Badge variant="secondary" className="text-xs shrink-0">
-                    {d.category === "rideshare" ? "Ride" : d.category === "food_grocery" ? "Delivery" : "Other"}
-                  </Badge>
-                </div>
-              ))
-            ) : (
-              <p className="text-sm text-muted-foreground text-center py-2">
-                No deliveries or rideshares registered yet.
-              </p>
-            )}
-            <Link href={`/p/${reservation.property.slug}/delivery`}>
-              <Button variant="outline" size="sm" className="w-full mt-2">
-                Register Delivery / Rideshare
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
-
-        {/* Explore property links */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg">Explore Your Property</CardTitle>
-            <CardDescription>
-              Everything you need to know about your stay
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="grid grid-cols-2 gap-3">
-            {[
-              { label: "Property Home", href: `/p/${reservation.property.slug}`, icon: "home" },
-              { label: "Services", href: `/p/${reservation.property.slug}/services`, icon: "services" },
-              { label: "FAQ", href: `/p/${reservation.property.slug}/faq`, icon: "faq" },
-              { label: "Recommendations", href: `/p/${reservation.property.slug}/recommendations`, icon: "recs" },
-              { label: "Videos", href: `/p/${reservation.property.slug}/videos`, icon: "videos" },
-              { label: "Promotions", href: `/p/${reservation.property.slug}/promotions`, icon: "promos" },
-            ].map((item) => (
-              <Link
-                key={item.label}
-                href={item.href}
-                className="flex items-center gap-2 rounded-lg border p-3 text-sm font-medium hover:bg-accent transition-colors"
-              >
-                <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                {item.label}
-              </Link>
-            ))}
-          </CardContent>
-        </Card>
-
-        {/* Footer actions */}
-        <div className="pb-8">
-          <Button
-            variant="ghost"
-            className="w-full text-muted-foreground"
-            onClick={onReset}
-          >
-            Log Out
-          </Button>
-        </div>
-      </div>
-    </main>
-  );
-}
-
-// --- Refresh reservation from DB ---
-async function refreshReservation(stale: Reservation): Promise<Reservation | null> {
-  try {
-    const res = await fetch("/api/guest/refresh", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-guest-token": getGuestToken() },
-      body: JSON.stringify({ registration_id: stale.id }),
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
-    return { ...stale, signature_url: data.signature_url };
-  } catch {
-    return null;
-  }
-}
-
-// --- Session persistence ---
-const SESSION_KEY = "guest-portal-session";
-function saveSession(guestName: string, reservation: Reservation, guestToken?: string) {
-  try {
-    sessionStorage.setItem(SESSION_KEY, JSON.stringify({ guestName, reservation }));
-    if (guestToken) {
-      setGuestToken(guestToken);
-    }
-  } catch {
-    // Storage full or unavailable
-  }
-}
-
-function loadSession(): { guestName: string; reservation: Reservation } | null {
+} | null {
   try {
     const raw = sessionStorage.getItem(SESSION_KEY);
     if (!raw) return null;
@@ -688,99 +138,1229 @@ function loadSession(): { guestName: string; reservation: Reservation } | null {
   }
 }
 
-function clearSession() {
-  try {
-    sessionStorage.removeItem(SESSION_KEY);
-    clearGuestToken();
-  } catch {
-    // Ignore
-  }
-}
+/* ------------------------------------------------------------------ */
+/*  Hero images — lifestyle shots from summitlakeside.com              */
+/* ------------------------------------------------------------------ */
 
-// --- Root ---
-export default function HomePage() {
-  const [guestName, setGuestName] = useState("");
-  const [reservation, setReservation] = useState<Reservation | null>(null);
-  const [loaded, setLoaded] = useState(false);
+const HERO_IMAGES = [
+  {
+    url: "https://l.icdbcdn.com/oh/50c22370-10d6-4d03-a5de-32850450a9cc.jpg?w=2080",
+    alt: "Summit Lakeside lakefront home",
+  },
+  {
+    url: "https://l.icdbcdn.com/oh/a76e1fe4-7e5a-4132-930b-9590e921f4b6.jpg?w=2080",
+    alt: "Lakeside deck with mountain views",
+  },
+  {
+    url: "https://l.icdbcdn.com/oh/311087b3-8e1e-4f24-a0a9-369f403bae88.jpg?w=2080",
+    alt: "Cozy cabin interior",
+  },
+  {
+    url: "https://l.icdbcdn.com/oh/dbdc55c3-eefe-4dc5-a935-f87a24f8bd15.jpg?w=2080",
+    alt: "Hot tub with lake views",
+  },
+  {
+    url: "https://l.icdbcdn.com/oh/d6286b3e-1cc0-4a50-ac1e-0a1391fbd148.jpg?w=2080",
+    alt: "Pocono Mountains lakefront property",
+  },
+  {
+    url: "https://l.icdbcdn.com/oh/00f0a1c3-98a8-4809-a307-bf9fed4b0f32.jpg?w=2080",
+    alt: "Firepit by the lake at sunset",
+  },
+  {
+    url: "https://l.icdbcdn.com/oh/70c85f21-ddb7-48b6-a074-d6531fcc2a5a.jpg?w=2080",
+    alt: "Mountain retreat exterior",
+  },
+  {
+    url: "https://l.icdbcdn.com/oh/378c067c-9ea7-479f-b0fa-ec12927f112e.jpg?w=2080",
+    alt: "Lakeside living room with panoramic views",
+  },
+];
 
-  // Handle auth callback code that lands on root (Supabase magic link)
+/* ------------------------------------------------------------------ */
+/*  Carousel data                                                      */
+/* ------------------------------------------------------------------ */
+
+const EXPLORE_POCONOS = [
+  {
+    title: "Book Your Bachelorette Party",
+    image:
+      "https://images.unsplash.com/photo-1529543544282-ea6407407db9?w=800&q=80",
+    icon: PartyPopper,
+    gradient: "from-pink-600/80 to-purple-700/80",
+  },
+  {
+    title: "Gather 'Round the Fire",
+    image:
+      "https://images.unsplash.com/photo-1475483768296-6163e08872a1?w=800&q=80",
+    icon: Flame,
+    gradient: "from-orange-600/80 to-red-700/80",
+  },
+  {
+    title: "Plan a Ski Trip",
+    image:
+      "https://images.unsplash.com/photo-1551524559-8af4e6624178?w=800&q=80",
+    icon: Snowflake,
+    gradient: "from-sky-600/80 to-blue-800/80",
+  },
+  {
+    title: "Get Out on the Lake",
+    image:
+      "https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=800&q=80",
+    icon: Waves,
+    gradient: "from-cyan-600/80 to-teal-700/80",
+  },
+  {
+    title: "Take a Wellness Retreat",
+    image:
+      "https://images.unsplash.com/photo-1540555700478-4be289fbec6d?w=800&q=80",
+    icon: HeartHandshake,
+    gradient: "from-emerald-600/80 to-green-800/80",
+  },
+];
+
+const LOCAL_HIGHLIGHTS = [
+  {
+    title: "Grab a Bite to Eat",
+    image:
+      "https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=800&q=80",
+    icon: UtensilsCrossed,
+    gradient: "from-amber-600/80 to-orange-700/80",
+  },
+  {
+    title: "Check Out Local Ski Areas",
+    image:
+      "https://images.unsplash.com/photo-1565992441121-4367c2967103?w=800&q=80",
+    icon: Mountain,
+    gradient: "from-slate-600/80 to-blue-800/80",
+  },
+  {
+    title: "Get in Touch with Nature",
+    image:
+      "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=800&q=80",
+    icon: TreePine,
+    gradient: "from-green-700/80 to-emerald-900/80",
+  },
+  {
+    title: "Casino Night",
+    image:
+      "https://images.unsplash.com/photo-1596838132731-3301c3fd4317?w=800&q=80",
+    icon: Dices,
+    gradient: "from-violet-700/80 to-purple-900/80",
+  },
+  {
+    title: "Go Camping & Glamping",
+    image:
+      "https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?w=800&q=80",
+    icon: Tent,
+    gradient: "from-yellow-700/80 to-amber-900/80",
+  },
+];
+
+/* ------------------------------------------------------------------ */
+/*  Instagram feed — curated photos from @summitlakeside               */
+/* ------------------------------------------------------------------ */
+
+
+/* ------------------------------------------------------------------ */
+/*  Auto-rotating Carousel                                             */
+/* ------------------------------------------------------------------ */
+
+function Carousel({
+  items,
+  title,
+  subtitle,
+}: {
+  items: {
+    title: string;
+    image: string;
+    icon: React.ComponentType<{ className?: string }>;
+    gradient: string;
+  }[];
+  title: string;
+  subtitle?: string;
+}) {
+  const [current, setCurrent] = useState(0);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval>>(null);
+
+  const startAutoPlay = useCallback(() => {
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    intervalRef.current = setInterval(() => {
+      setCurrent((prev) => (prev + 1) % items.length);
+    }, 4000);
+  }, [items.length]);
+
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const code = params.get("code");
-    if (code) {
-      window.location.href = `/auth/callback?code=${code}&redirect=/admin`;
-      return;
-    }
+    startAutoPlay();
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [startAutoPlay]);
 
-    // Admin preview: auto-login as guest from ?reg=REGISTRATION_ID&token=TOKEN
-    const regId = params.get("reg");
-    const previewToken = params.get("token");
-    if (regId && previewToken) {
-      // Clean the URL so a refresh doesn't re-fetch
-      window.history.replaceState({}, "", "/");
-      fetch(`/api/guest/preview?reg=${encodeURIComponent(regId)}&token=${encodeURIComponent(previewToken)}`)
-        .then((r) => (r.ok ? r.json() : null))
-        .then((data) => {
-          if (data) {
-            setGuestName(data.guest_name);
-            setReservation(data.reservation);
-            saveSession(data.guest_name, data.reservation, data.guest_token);
-          }
-          setLoaded(true);
-        })
-        .catch(() => setLoaded(true));
-      return;
-    }
-
-    const session = loadSession();
-    if (session) {
-      setGuestName(session.guestName);
-      setReservation(session.reservation);
-
-      // Re-fetch to pick up changes made during registration
-      refreshReservation(session.reservation).then((fresh) => {
-        if (fresh) {
-          setReservation(fresh);
-          saveSession(session.guestName, fresh);
-        }
+  useEffect(() => {
+    if (scrollRef.current) {
+      const cardWidth = 280 + 16; // card width + gap
+      scrollRef.current.scrollTo({
+        left: current * cardWidth,
+        behavior: "smooth",
       });
     }
+  }, [current]);
+
+  const goTo = (index: number) => {
+    setCurrent(index);
+    startAutoPlay();
+  };
+
+  return (
+    <section className="space-y-4">
+      <div className="px-4 sm:px-6">
+        <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">
+          {title}
+        </h2>
+        {subtitle && (
+          <p className="text-muted-foreground mt-1">{subtitle}</p>
+        )}
+      </div>
+
+      <div className="relative">
+        <div
+          ref={scrollRef}
+          className="flex gap-4 overflow-x-auto snap-x snap-mandatory scrollbar-hide px-4 sm:px-6 pb-2"
+          style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+          onMouseEnter={() => {
+            if (intervalRef.current) clearInterval(intervalRef.current);
+          }}
+          onMouseLeave={startAutoPlay}
+        >
+          {items.map((item, i) => {
+            const Icon = item.icon;
+            return (
+              <button
+                key={i}
+                onClick={() => goTo(i)}
+                className="group relative flex-shrink-0 w-[280px] h-[180px] rounded-xl overflow-hidden snap-start focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <img
+                  src={item.image}
+                  alt={item.title}
+                  className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                />
+                <div
+                  className={`absolute inset-0 bg-gradient-to-t ${item.gradient}`}
+                />
+                <div className="absolute inset-0 flex flex-col justify-end p-5">
+                  <div className="flex items-center gap-2">
+                    <Icon className="h-5 w-5 text-white/90" />
+                    <span className="text-white font-semibold text-base text-left leading-tight">
+                      {item.title}
+                    </span>
+                  </div>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Dots indicator */}
+        <div className="flex justify-center gap-1.5 mt-3">
+          {items.map((_, i) => (
+            <button
+              key={i}
+              onClick={() => goTo(i)}
+              className={`h-1.5 rounded-full transition-all duration-300 ${
+                i === current
+                  ? "w-6 bg-foreground"
+                  : "w-1.5 bg-foreground/20 hover:bg-foreground/40"
+              }`}
+            />
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Site Navigation                                                    */
+/* ------------------------------------------------------------------ */
+
+const NAV_LINKS = [
+  { label: "Home", href: "/" },
+  { label: "Visit Poconos", href: "/things-to-do" },
+  { label: "Why Summit?", href: "#why-summit" },
+  { label: "Contact Us", href: "#contact" },
+];
+
+const RESOURCES_LINKS = [
+  { label: "Rental Policies", href: "#" },
+  { label: "Management Service", href: "#" },
+  { label: "Rental Agreement", href: "#" },
+];
+
+function SiteNav() {
+  const [scrolled, setScrolled] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [resourcesOpen, setResourcesOpen] = useState(false);
+  const resourcesTimeout = useRef<ReturnType<typeof setTimeout>>(null);
+
+  useEffect(() => {
+    function handleScroll() {
+      setScrolled(window.scrollY > 40);
+    }
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  return (
+    <>
+    <nav
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+        scrolled || mobileOpen
+          ? "bg-black/70 backdrop-blur-xl border-b border-white/10 shadow-lg"
+          : "bg-transparent"
+      }`}
+    >
+      <div className="max-w-7xl mx-auto px-4 sm:px-6">
+        <div className="flex items-center justify-between h-16">
+          {/* Logo */}
+          <Link href="/" className="shrink-0">
+            <Image
+              src="/logo.png"
+              alt="Summit Lakeside Rentals"
+              width={140}
+              height={70}
+              className="h-9 w-auto"
+              priority
+            />
+          </Link>
+
+          {/* Desktop nav */}
+          <div className="hidden md:flex items-center gap-1">
+            {NAV_LINKS.map((link) => (
+              <Link
+                key={link.label}
+                href={link.href}
+                className="px-3 py-2 text-sm font-medium text-white/80 hover:text-white transition-colors rounded-lg hover:bg-white/10"
+              >
+                {link.label}
+              </Link>
+            ))}
+
+            {/* Resources dropdown */}
+            <div
+              className="relative"
+              onMouseEnter={() => {
+                if (resourcesTimeout.current) clearTimeout(resourcesTimeout.current);
+                setResourcesOpen(true);
+              }}
+              onMouseLeave={() => {
+                resourcesTimeout.current = setTimeout(() => setResourcesOpen(false), 150);
+              }}
+            >
+              <button
+                className="px-3 py-2 text-sm font-medium text-white/80 hover:text-white transition-colors rounded-lg hover:bg-white/10 flex items-center gap-1"
+                onClick={() => setResourcesOpen(!resourcesOpen)}
+              >
+                Resources
+                <ChevronDown className={`h-3.5 w-3.5 transition-transform ${resourcesOpen ? "rotate-180" : ""}`} />
+              </button>
+              {resourcesOpen && (
+                <div className="absolute top-full left-0 mt-1 w-52 rounded-xl bg-black/80 backdrop-blur-xl border border-white/15 shadow-xl overflow-hidden py-1">
+                  {RESOURCES_LINKS.map((link) => (
+                    <Link
+                      key={link.label}
+                      href={link.href}
+                      className="block px-4 py-2.5 text-sm text-white/80 hover:text-white hover:bg-white/10 transition-colors"
+                      onClick={() => setResourcesOpen(false)}
+                    >
+                      {link.label}
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* CTA */}
+            <Link
+              href="/search"
+              className="ml-3 px-5 py-2 text-sm font-semibold bg-white text-black rounded-lg hover:bg-white/90 transition-colors"
+            >
+              Book Now
+            </Link>
+          </div>
+
+          {/* Mobile menu button */}
+          <button
+            className="md:hidden p-2 text-white/80 hover:text-white transition-colors"
+            onClick={() => setMobileOpen(!mobileOpen)}
+          >
+            {mobileOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+          </button>
+        </div>
+      </div>
+
+    </nav>
+
+    {/* Full-screen mobile menu */}
+    <MobileMenuOverlay open={mobileOpen} onClose={() => setMobileOpen(false)} />
+
+    </>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Mobile Menu Overlay                                                */
+/* ------------------------------------------------------------------ */
+
+function MobileMenuOverlay({
+  open,
+  onClose,
+}: {
+  open: boolean;
+  onClose: () => void;
+}) {
+  // Lock body scroll when open
+  useEffect(() => {
+    if (open) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [open]);
+
+  return (
+    <div
+      className={`fixed inset-0 z-[45] md:hidden transition-all duration-300 ${
+        open
+          ? "opacity-100 pointer-events-auto"
+          : "opacity-0 pointer-events-none"
+      }`}
+    >
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-black/80 backdrop-blur-2xl" onClick={onClose} />
+
+      {/* Content */}
+      <div
+        className={`relative flex flex-col justify-between h-full pt-20 pb-8 px-6 transition-transform duration-300 ${
+          open ? "translate-y-0" : "-translate-y-4"
+        }`}
+      >
+        {/* Nav links */}
+        <div className="space-y-1">
+          {NAV_LINKS.map((link, i) => (
+            <Link
+              key={link.label}
+              href={link.href}
+              className="block px-2 py-3.5 text-2xl font-semibold text-white/90 hover:text-white transition-colors border-b border-white/10"
+              onClick={onClose}
+              style={{
+                transitionDelay: open ? `${i * 50}ms` : "0ms",
+              }}
+            >
+              {link.label}
+            </Link>
+          ))}
+
+          <div className="pt-4 pb-1 px-2 text-xs font-semibold text-white/30 uppercase tracking-widest">
+            Resources
+          </div>
+          {RESOURCES_LINKS.map((link) => (
+            <Link
+              key={link.label}
+              href={link.href}
+              className="block px-2 py-2.5 text-base text-white/60 hover:text-white transition-colors"
+              onClick={onClose}
+            >
+              {link.label}
+            </Link>
+          ))}
+        </div>
+
+        {/* Bottom CTA */}
+        <div className="space-y-4">
+          <Link
+            href="/search"
+            className="block w-full text-center px-5 py-4 text-base font-semibold bg-white text-black rounded-xl hover:bg-white/90 transition-colors"
+            onClick={onClose}
+          >
+            Book Now
+          </Link>
+          <p className="text-center text-sm text-white/40">
+            summitlakeside.com
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Availability Search Form (navigates to /search)                    */
+/* ------------------------------------------------------------------ */
+
+function AvailabilitySearch() {
+  const today = new Date().toISOString().split("T")[0];
+  const tomorrow = new Date(Date.now() + 86400000).toISOString().split("T")[0];
+  const [checkIn, setCheckIn] = useState(today);
+  const [checkOut, setCheckOut] = useState(tomorrow);
+  const [guests, setGuests] = useState(2);
+  const [pets, setPets] = useState(0);
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!checkIn || !checkOut) return;
+    const params = new URLSearchParams({
+      check_in: checkIn,
+      check_out: checkOut,
+      guests: String(guests),
+      pets: String(pets),
+    });
+    window.location.href = `/search?${params}`;
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-3">
+      <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_6rem_5rem_auto] rounded-2xl overflow-hidden bg-white/10 backdrop-blur-xl border border-white/20 shadow-2xl shadow-black/20">
+        <div className="px-4 sm:px-6 py-4 sm:py-5 border-b sm:border-b-0 sm:border-r border-white/15 hover:bg-white/5 transition-colors">
+          <label htmlFor="v2-checkin" className="block text-xs font-semibold text-white/60 mb-1 tracking-wide text-center sm:text-left">
+            Check-in
+          </label>
+          <input
+            id="v2-checkin"
+            type="date"
+            min={today}
+            value={checkIn}
+            onChange={(e) => {
+              setCheckIn(e.target.value);
+              if (checkOut && e.target.value >= checkOut) setCheckOut("");
+            }}
+            className="w-full bg-transparent text-white text-base sm:text-lg font-medium outline-none scheme-dark text-center sm:text-left"
+            required
+          />
+        </div>
+        <div className="px-4 sm:px-6 py-4 sm:py-5 border-b sm:border-b-0 sm:border-r border-white/15 hover:bg-white/5 transition-colors">
+          <label htmlFor="v2-checkout" className="block text-xs font-semibold text-white/60 mb-1 tracking-wide text-center sm:text-left">
+            Check-out
+          </label>
+          <input
+            id="v2-checkout"
+            type="date"
+            min={checkIn ? new Date(new Date(checkIn + "T00:00:00").getTime() + 86400000).toISOString().split("T")[0] : tomorrow}
+            value={checkOut}
+            onChange={(e) => {
+              const val = e.target.value;
+              if (checkIn && val <= checkIn) return;
+              setCheckOut(val);
+            }}
+            className="w-full bg-transparent text-white text-base sm:text-lg font-medium outline-none scheme-dark text-center sm:text-left"
+            required
+          />
+        </div>
+        <div className="grid grid-cols-2 sm:contents border-b sm:border-b-0 border-white/15">
+        <div className="px-4 sm:px-6 py-4 sm:py-5 border-r border-white/15 hover:bg-white/5 transition-colors">
+          <label htmlFor="v2-guests" className="block text-xs font-semibold text-white/60 mb-1 tracking-wide text-center sm:text-left">
+            Guests
+          </label>
+          <input
+            id="v2-guests"
+            type="number"
+            min={1}
+            max={30}
+            value={guests}
+            onChange={(e) => setGuests(parseInt(e.target.value) || 1)}
+            className="w-full bg-transparent text-white text-base sm:text-lg font-medium outline-none scheme-dark text-center sm:text-left"
+          />
+        </div>
+        <div className="px-4 sm:px-6 py-4 sm:py-5 hover:bg-white/5 transition-colors sm:border-r border-white/15">
+          <label htmlFor="v2-pets" className="block text-xs font-semibold text-white/60 mb-1 tracking-wide text-center sm:text-left">
+            Pets
+          </label>
+          <input
+            id="v2-pets"
+            type="number"
+            min={0}
+            max={3}
+            value={pets}
+            onChange={(e) => setPets(parseInt(e.target.value) || 0)}
+            className="w-full bg-transparent text-white text-base sm:text-lg font-medium outline-none scheme-dark text-center sm:text-left"
+          />
+        </div>
+        </div>
+        {/* Desktop: icon button inside the card */}
+        <div className="hidden sm:flex items-center justify-center px-3">
+          <button
+            type="submit"
+            className="h-12 w-12 rounded-xl bg-white/15 text-white hover:bg-white/25 transition-colors flex items-center justify-center shrink-0 border border-white/20"
+          >
+            <Search className="h-5 w-5" />
+          </button>
+        </div>
+      </div>
+      {/* Mobile: full-width search button below the card */}
+      <button
+        type="submit"
+        className="sm:hidden w-full h-12 rounded-xl bg-white/15 text-white hover:bg-white/25 transition-colors flex items-center justify-center border border-white/20 gap-2 backdrop-blur-xl"
+      >
+        <Search className="h-5 w-5" />
+        <span className="text-sm font-medium">Search</span>
+      </button>
+    </form>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Trip Summary Card (logged-in guest)                                */
+/* ------------------------------------------------------------------ */
+
+function TripSummaryCard({ reservation }: { reservation: Reservation }) {
+  const daysUntil = getDaysUntil(reservation.check_in_date);
+  const nights = getNightCount(
+    reservation.check_in_date,
+    reservation.check_out_date
+  );
+
+  const countdownLabel =
+    daysUntil === 0
+      ? "Today!"
+      : daysUntil === 1
+        ? "Tomorrow!"
+        : daysUntil > 0
+          ? `${daysUntil} days away`
+          : "In progress";
+
+  return (
+    <Link href="/" className="block">
+      <Card className="overflow-hidden border-primary/20 hover:border-primary/40 transition-colors">
+        <div className="flex">
+          {reservation.property.cover_image_url && (
+            <div className="relative w-28 sm:w-36 flex-shrink-0">
+              <img
+                src={reservation.property.cover_image_url}
+                alt={reservation.property.name}
+                className="absolute inset-0 w-full h-full object-cover"
+              />
+            </div>
+          )}
+          <div className="flex-1 p-4 space-y-2">
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <h3 className="font-semibold text-base leading-tight">
+                  {reservation.property.name}
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  {nights} night{nights !== 1 ? "s" : ""} &middot;{" "}
+                  {reservation.num_guests} guest
+                  {reservation.num_guests !== 1 ? "s" : ""}
+                </p>
+              </div>
+              <Badge
+                variant="secondary"
+                className="text-xs shrink-0 whitespace-nowrap"
+              >
+                <Clock className="h-3 w-3 mr-1" />
+                {countdownLabel}
+              </Badge>
+            </div>
+            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+              <div className="flex items-center gap-1.5">
+                <DoorOpen className="h-3.5 w-3.5" />
+                {formatShortDate(reservation.check_in_date)}
+              </div>
+              <ArrowRight className="h-3 w-3" />
+              <div className="flex items-center gap-1.5">
+                <DoorClosed className="h-3.5 w-3.5" />
+                {formatShortDate(reservation.check_out_date)}
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5 text-sm text-primary font-medium">
+              Manage Booking
+              <ChevronRight className="h-4 w-4" />
+            </div>
+          </div>
+        </div>
+      </Card>
+    </Link>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Property Card                                                      */
+/* ------------------------------------------------------------------ */
+
+function PropertyCard({
+  property,
+  bookingQuery,
+}: {
+  property: Property;
+  bookingQuery?: { checkIn: string; checkOut: string; guests: number } | null;
+}) {
+  const nights = bookingQuery
+    ? getNightCount(bookingQuery.checkIn, bookingQuery.checkOut)
+    : null;
+
+  const bookUrl = bookingQuery
+    ? `/book/${property.slug}?check_in=${bookingQuery.checkIn}&check_out=${bookingQuery.checkOut}&guests=${bookingQuery.guests}`
+    : `/book/${property.slug}`;
+
+  return (
+    <Link href={bookUrl} className="block">
+      <Card className="overflow-hidden group hover:shadow-lg transition-shadow">
+        <div className="relative h-48 sm:h-56">
+          {property.cover_image_url ? (
+            <img
+              src={property.cover_image_url}
+              alt={property.name}
+              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+            />
+          ) : (
+            <div className="w-full h-full bg-muted flex items-center justify-center">
+              <Mountain className="h-12 w-12 text-muted-foreground/30" />
+            </div>
+          )}
+          <div className="absolute top-3 right-3 flex gap-2">
+            {bookingQuery && (
+              <Badge className="bg-green-600 text-white border-0">
+                Available
+              </Badge>
+            )}
+            {property.max_guests && (
+              <Badge
+                variant="secondary"
+                className="bg-black/60 text-white border-0 backdrop-blur-sm"
+              >
+                <Users className="h-3 w-3 mr-1" />
+                Up to {property.max_guests}
+              </Badge>
+            )}
+          </div>
+        </div>
+        <CardContent className="p-4 space-y-2">
+          <h3 className="font-semibold text-lg">{property.name}</h3>
+          {property.address && (() => {
+            const parts = property.address.split(",").map(p => p.trim());
+            const general = parts.length >= 3 ? parts.slice(-3, -1).join(", ") : parts.length >= 2 ? parts.slice(-2).join(", ") : parts[0];
+            return general ? (
+              <p className="text-sm text-muted-foreground flex items-start gap-1.5">
+                <MapPin className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                <span className="line-clamp-1">{general}</span>
+              </p>
+            ) : null;
+          })()}
+          {/* Review rating */}
+          {(() => {
+            const propertyReviews = REVIEWS.filter(
+              (r) => r.property === property.name
+            );
+            if (propertyReviews.length === 0) return null;
+            const avg =
+              propertyReviews.reduce((s, r) => s + r.rating, 0) /
+              propertyReviews.length;
+            return (
+              <div className="flex items-center gap-1.5 text-sm">
+                <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
+                <span className="font-medium">{avg.toFixed(1)}</span>
+                <span className="text-muted-foreground">
+                  ({propertyReviews.length} review
+                  {propertyReviews.length !== 1 ? "s" : ""})
+                </span>
+              </div>
+            );
+          })()}
+          {property.description && (
+            <p className="text-sm text-muted-foreground line-clamp-2">
+              {property.description}
+            </p>
+          )}
+          {bookingQuery && nights && (
+            <p className="text-sm font-medium">
+              {nights} night{nights !== 1 ? "s" : ""} &middot;{" "}
+              {formatShortDate(bookingQuery.checkIn)} &ndash;{" "}
+              {formatShortDate(bookingQuery.checkOut)}
+            </p>
+          )}
+          <div
+            className={`inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors w-full mt-2 h-8 px-3 ${
+              bookingQuery
+                ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                : "border border-input bg-background hover:bg-accent hover:text-accent-foreground"
+            }`}
+          >
+            <Calendar className="h-4 w-4" />
+            {bookingQuery ? "Book Now" : "View Availability"}
+          </div>
+        </CardContent>
+      </Card>
+    </Link>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Special Offer Card                                                 */
+/* ------------------------------------------------------------------ */
+
+function OfferCard({ promotion }: { promotion: Promotion }) {
+  const validUntil = promotion.valid_until
+    ? new Date(promotion.valid_until + "T00:00:00")
+    : null;
+  const isExpiringSoon =
+    validUntil &&
+    validUntil.getTime() - Date.now() < 7 * 24 * 60 * 60 * 1000;
+
+  return (
+    <Card className="overflow-hidden border-amber-200/50 dark:border-amber-800/30 bg-gradient-to-br from-amber-50/50 to-orange-50/30 dark:from-amber-950/20 dark:to-orange-950/10">
+      <CardContent className="p-5 space-y-3">
+        <div className="flex items-start justify-between gap-2">
+          <div className="space-y-1">
+            <h3 className="font-semibold text-base">{promotion.title}</h3>
+            {promotion.description && (
+              <p className="text-sm text-muted-foreground line-clamp-2">
+                {promotion.description}
+              </p>
+            )}
+          </div>
+          <div className="shrink-0">
+            {promotion.discount_percent ? (
+              <Badge className="bg-amber-600 text-white text-lg font-bold px-3 py-1">
+                {promotion.discount_percent}% OFF
+              </Badge>
+            ) : promotion.discount_amount ? (
+              <Badge className="bg-amber-600 text-white text-lg font-bold px-3 py-1">
+                ${promotion.discount_amount} OFF
+              </Badge>
+            ) : (
+              <Sparkles className="h-6 w-6 text-amber-600" />
+            )}
+          </div>
+        </div>
+        {promotion.promo_code && (
+          <div className="flex items-center gap-2">
+            <code className="bg-white dark:bg-black/20 border border-dashed border-amber-300 dark:border-amber-700 rounded-lg px-3 py-1.5 text-sm font-mono font-semibold tracking-wider">
+              {promotion.promo_code}
+            </code>
+            {isExpiringSoon && (
+              <span className="text-xs text-red-600 dark:text-red-400 font-medium">
+                Expires soon!
+              </span>
+            )}
+          </div>
+        )}
+        {validUntil && (
+          <p className="text-xs text-muted-foreground">
+            Valid through{" "}
+            {validUntil.toLocaleDateString("en-US", {
+              month: "long",
+              day: "numeric",
+              year: "numeric",
+            })}
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Main Page                                                          */
+/* ------------------------------------------------------------------ */
+
+export default function HomeV2Page() {
+  const [heroIndex, setHeroIndex] = useState(0);
+  const heroTouchStart = useRef<number | null>(null);
+  const [session, setSession] = useState<{
+    guestName: string;
+    reservation: Reservation;
+  } | null>(null);
+  const [properties, setProperties] = useState<Property[]>([]);
+  const [promotions, setPromotions] = useState<Promotion[]>([]);
+  const [loaded, setLoaded] = useState(false);
+
+  // Rotate hero images
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setHeroIndex((prev) => (prev + 1) % HERO_IMAGES.length);
+    }, 6000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Load session + fetch data
+  useEffect(() => {
+    const existing = loadSession();
+    if (existing) setSession(existing);
     setLoaded(true);
+
+    const supabase = createClient();
+
+    // Fetch properties
+    supabase
+      .from("property")
+      .select("id, name, slug, address, description, cover_image_url, max_guests")
+      .eq("is_active", true)
+      .order("sort_order", { ascending: true })
+      .then(({ data }) => {
+        if (data) setProperties(data);
+      });
+
+    // Fetch public promotions (not property-specific)
+    supabase
+      .from("promotion")
+      .select("id, title, description, promo_code, discount_percent, discount_amount, valid_from, valid_until, is_active")
+      .eq("is_active", true)
+      .or(`valid_until.is.null,valid_until.gte.${new Date().toISOString().split("T")[0]}`)
+      .order("created_at", { ascending: false })
+      .then(({ data }) => {
+        if (data) setPromotions(data);
+      });
   }, []);
 
   if (!loaded) return null;
 
   return (
-    <>
-      {reservation ? (
-        <>
-          <PropertyHeader propertyName={reservation.property.name} />
-          <GuestNav slug={reservation.property.slug} />
-          <GuestDashboard
-            guestName={guestName}
-            reservation={reservation}
-            onReset={() => {
-              setReservation(null);
-              setGuestName("");
-              clearSession();
-            }}
-          />
-        </>
-      ) : (
-        <LandingPage
-          onFound={({ guestName: name, reservation: res, guestToken }) => {
-            setGuestName(name);
-            setReservation(res);
-            saveSession(name, res, guestToken);
-            // If redirected here from an auth-required page, go back
-            const redirect = new URLSearchParams(window.location.search).get("redirect");
-            if (redirect) {
-              window.history.replaceState({}, "", "/");
-              window.location.href = redirect;
-            }
-          }}
-        />
+    <div className="min-h-screen flex flex-col font-(family-name:--font-plus-jakarta)">
+      {/* ============================================================ */}
+      {/*  HERO + BOOKING SEARCH                                       */}
+      {/* ============================================================ */}
+      <section
+        className="relative min-h-screen flex flex-col"
+        onTouchStart={(e) => { heroTouchStart.current = e.touches[0].clientX; }}
+        onTouchEnd={(e) => {
+          if (heroTouchStart.current === null) return;
+          const delta = e.changedTouches[0].clientX - heroTouchStart.current;
+          if (Math.abs(delta) > 50) {
+            setHeroIndex((prev) =>
+              delta < 0
+                ? (prev + 1) % HERO_IMAGES.length
+                : (prev - 1 + HERO_IMAGES.length) % HERO_IMAGES.length
+            );
+          }
+          heroTouchStart.current = null;
+        }}
+      >
+        {/* Background images with crossfade */}
+        {HERO_IMAGES.map((img, i) => (
+          <div
+            key={i}
+            className="absolute inset-0 transition-opacity duration-1000"
+            style={{ opacity: i === heroIndex ? 1 : 0 }}
+          >
+            <img
+              src={img.url}
+              alt={img.alt}
+              className="w-full h-full object-cover"
+            />
+          </div>
+        ))}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/40 to-black/70" />
+
+        {/* Floating Nav */}
+        <SiteNav />
+
+        {/* Hero content */}
+        <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-4 sm:px-6 text-center">
+          <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-white tracking-tight max-w-3xl leading-tight">
+            Your Poconos Getaway Starts Here
+          </h1>
+          <p className="mt-3 text-lg sm:text-xl text-white/80 max-w-xl">
+            Lakefront homes with hot tubs, game rooms, and direct lake access.
+            Book direct and save.
+          </p>
+
+          {/* Booking search card */}
+          <div className="mt-10 w-full max-w-2xl">
+            {session ? (
+              <TripSummaryCard reservation={session.reservation} />
+            ) : (
+              <AvailabilitySearch />
+            )}
+          </div>
+
+          {/* Already booked? */}
+          <p className="mt-4 text-white/60 text-sm">
+            Already booked?{" "}
+            <Link
+              href="/checkin"
+              className="text-white underline underline-offset-4 hover:text-white/90"
+            >
+              Find your reservation and check in
+            </Link>
+          </p>
+        </div>
+
+        {/* Hero dots */}
+        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 flex gap-1.5">
+          {HERO_IMAGES.map((_, i) => (
+            <button
+              key={i}
+              onClick={() => setHeroIndex(i)}
+              className={`h-1.5 rounded-full transition-all duration-300 ${
+                i === heroIndex
+                  ? "w-6 bg-white"
+                  : "w-1.5 bg-white/40 hover:bg-white/60"
+              }`}
+            />
+          ))}
+        </div>
+      </section>
+
+      {/* ============================================================ */}
+      {/*  TRIP SUMMARY (shown below hero when logged in)               */}
+      {/* ============================================================ */}
+      {session && (
+        <section className="px-4 sm:px-6 py-8 max-w-4xl mx-auto w-full">
+          <div className="space-y-3">
+            <h2 className="text-xl font-semibold">
+              Welcome back,{" "}
+              {(session.guestName || "").split(" ")[0] || "Guest"}!
+            </h2>
+            <p className="text-muted-foreground text-sm">
+              Your upcoming trip is all set. Tap below to manage your booking,
+              complete registration, or browse add-ons.
+            </p>
+          </div>
+        </section>
       )}
-    </>
+
+
+
+      {/* ============================================================ */}
+      {/*  OUR HOMES                                                    */}
+      {/* ============================================================ */}
+      {properties.length > 0 && (
+        <section className="px-4 sm:px-6 py-10 max-w-6xl mx-auto w-full">
+          <div className="space-y-1 mb-6">
+            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">
+              Our Homes
+            </h2>
+            <p className="text-muted-foreground">
+              Handpicked lakefront retreats in the Pocono Mountains
+            </p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {properties.map((property) => (
+              <PropertyCard key={property.id} property={property} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* ============================================================ */}
+      {/*  UPSCALE EXPERIENCE                                           */}
+      {/* ============================================================ */}
+      <section className="w-full py-16 px-4 sm:px-8">
+        <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-10 items-start">
+          <div className="space-y-8">
+            <div className="space-y-4">
+              <h2 className="text-2xl font-bold">
+                Upscale experience
+              </h2>
+              <p className="text-muted-foreground leading-relaxed">
+                Each lakehouse is thoughtfully designed with premium furnishings,
+                elegant d&eacute;cor, and modern amenities to ensure a comfortable and
+                sophisticated stay. From serene lakeside views to private outdoor
+                spaces, every detail is curated for relaxation and indulgence.
+                Personalized services and exclusive features, such as gourmet
+                kitchens and hot tubs, elevate the guest experience, making Summit
+                Lakeside the ideal retreat for those seeking both tranquility and
+                luxury.
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              <h3 className="text-xl font-semibold text-amber-500">
+                Thoughtful convenience
+              </h3>
+              <p className="text-muted-foreground leading-relaxed">
+                From seamless check-ins to fully stocked essentials, every aspect is
+                designed to ensure effortless comfort. Modern amenities like
+                high-speed Wi-Fi, smart home features, and curated local
+                recommendations make it easy for guests to relax and enjoy their
+                time without hassle.
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              <h3 className="text-xl font-semibold text-amber-500">
+                What you can expect at Summit
+              </h3>
+              <div className="grid grid-cols-2 gap-x-8 gap-y-1.5 text-muted-foreground">
+                <ul className="space-y-1.5 list-disc list-inside">
+                  <li>Stocked Linens &amp; Towels</li>
+                  <li>Kitchen utensils</li>
+                  <li>Toiletries</li>
+                  <li>Blankets</li>
+                </ul>
+                <ul className="space-y-1.5 list-disc list-inside">
+                  <li>USB outlets</li>
+                  <li>Newly Renovated</li>
+                  <li>Games &amp; Toys</li>
+                  <li>Boats &amp; Kayaks</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <div className="relative w-full aspect-4/5 rounded-lg overflow-hidden">
+            <Image
+              src="/landing/bathroom.jpg"
+              alt="Luxury bathroom with freestanding tub"
+              fill
+              className="object-cover"
+              sizes="(max-width: 768px) 100vw, 50vw"
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* ============================================================ */}
+      {/*  PET FRIENDLY                                                  */}
+      {/* ============================================================ */}
+      <section className="w-full relative overflow-hidden">
+        <div className="relative w-full aspect-16/7 min-h-100">
+          <Image
+            src="/landing/pet-friendly.jpg"
+            alt="French bulldog relaxing in living room"
+            fill
+            className="object-cover"
+            sizes="100vw"
+          />
+          <div className="absolute inset-0 bg-linear-to-r from-black/70 via-black/40 to-transparent" />
+          <div className="absolute inset-0 flex items-center px-6 sm:px-12 md:px-20">
+            <div className="max-w-lg space-y-3">
+              <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-white leading-tight">
+                No need for a dog sitter.
+              </h2>
+              <p className="text-lg sm:text-xl text-white/90 font-medium">
+                Summit Lakeside properties are pet friendly, so you can bring the
+                whole family along!
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ============================================================ */}
+      {/*  GUEST PHOTOS                                                 */}
+      {/* ============================================================ */}
+      <Separator className="max-w-6xl mx-auto" />
+      <GuestPhotoCarousel />
+
+      {/* ============================================================ */}
+      {/*  GUEST REVIEWS                                                */}
+      {/* ============================================================ */}
+      <Separator className="max-w-6xl mx-auto" />
+      <ReviewsCarousel />
+
+      <Separator className="max-w-6xl mx-auto" />
+
+      {/* ============================================================ */}
+      {/*  EXPLORE POCONOS CAROUSEL                                     */}
+      {/* ============================================================ */}
+      <div className="py-10 max-w-6xl mx-auto w-full">
+        <Carousel
+          items={EXPLORE_POCONOS}
+          title="Explore the Poconos"
+          subtitle="Find your perfect mountain escape"
+        />
+      </div>
+
+      <Separator className="max-w-6xl mx-auto" />
+
+      {/* ============================================================ */}
+      {/*  LOCAL HIGHLIGHTS CAROUSEL                                    */}
+      {/* ============================================================ */}
+      <div className="py-10 max-w-6xl mx-auto w-full">
+        <Carousel
+          items={LOCAL_HIGHLIGHTS}
+          title="Things to Do Nearby"
+          subtitle="Discover the best the Poconos has to offer"
+        />
+      </div>
+
+      {/* ============================================================ */}
+      {/*  INSTAGRAM FEED                                               */}
+      {/* ============================================================ */}
+      <Separator className="max-w-6xl mx-auto" />
+      <InstagramFeedSection />
+
+      {/* ============================================================ */}
+      {/*  SPECIAL OFFERS                                               */}
+      {/* ============================================================ */}
+      {promotions.length > 0 && (
+        <>
+          <Separator className="max-w-6xl mx-auto" />
+          <section className="px-4 sm:px-6 py-10 max-w-4xl mx-auto w-full">
+            <div className="space-y-1 mb-6">
+              <h2 className="text-2xl sm:text-3xl font-bold tracking-tight flex items-center gap-2">
+                <Star className="h-6 w-6 text-amber-500" />
+                Special Offers
+              </h2>
+              <p className="text-muted-foreground">
+                Exclusive deals available right now
+              </p>
+            </div>
+            <div className="grid gap-4">
+              {promotions.map((promo) => (
+                <OfferCard key={promo.id} promotion={promo} />
+              ))}
+            </div>
+          </section>
+        </>
+      )}
+
+      {/* ============================================================ */}
+      {/*  FOOTER                                                       */}
+      {/* ============================================================ */}
+      <footer className="mt-auto border-t bg-muted/30">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-8">
+            <div className="space-y-3">
+              <Image
+                src="/logo.png"
+                alt="Summit Lakeside Rentals"
+                width={140}
+                height={70}
+                className="h-10 w-auto invert dark:invert-0"
+              />
+              <p className="text-sm text-muted-foreground">
+                Premium lakefront vacation homes in the Pocono Mountains of
+                Pennsylvania.
+              </p>
+            </div>
+            <div className="space-y-3">
+              <h4 className="font-semibold text-sm">Quick Links</h4>
+              <nav className="flex flex-col gap-2 text-sm text-muted-foreground">
+                <Link href="/checkin" className="hover:text-foreground transition-colors">
+                  Find My Booking
+                </Link>
+                <a
+                  href="https://summitlakeside.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-foreground transition-colors"
+                >
+                  Visit Our Website
+                </a>
+              </nav>
+            </div>
+            <div className="space-y-3">
+              <h4 className="font-semibold text-sm">Contact</h4>
+              <div className="text-sm text-muted-foreground space-y-1">
+                <p>East Stroudsburg, PA</p>
+                <p>Pocono Mountains, Pennsylvania</p>
+              </div>
+            </div>
+          </div>
+          <Separator className="my-6" />
+          <p className="text-xs text-muted-foreground text-center">
+            &copy; {new Date().getFullYear()} Summit Lakeside Rentals. All
+            rights reserved.
+          </p>
+        </div>
+      </footer>
+    </div>
   );
 }

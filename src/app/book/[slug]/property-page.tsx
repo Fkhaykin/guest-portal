@@ -277,14 +277,14 @@ export function PropertyPage({
       <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur">
         <div className="max-w-6xl mx-auto flex items-center gap-4 px-4 sm:px-6 h-14">
           <Link
-            href="/home-v2"
+            href="/"
             className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
             <ArrowLeft className="h-4 w-4" />
             Back
           </Link>
           <div className="flex-1 flex justify-center">
-            <Link href="/home-v2">
+            <Link href="/">
               <Image
                 src="/logo.png"
                 alt="Summit Lakeside Rentals"
