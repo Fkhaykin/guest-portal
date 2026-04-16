@@ -154,16 +154,24 @@ function UnpaidTab({
   const router = useRouter();
   const [showModal, setShowModal] = useState(false);
   const [generating, setGenerating] = useState(false);
-  const [skipped, setSkipped] = useState<Set<string>>(new Set());
+  const [skipping, setSkipping] = useState<string | null>(null);
   const [invoiceType, setInvoiceType] = useState<"bianca" | "summit" | null>(null);
 
-  function toggleSkip(registrationId: string) {
-    setSkipped((prev) => {
-      const next = new Set(prev);
-      if (next.has(registrationId)) next.delete(registrationId);
-      else next.add(registrationId);
-      return next;
-    });
+  async function handleSkip(registrationId: string) {
+    if (skipping) return;
+    setSkipping(registrationId);
+    try {
+      const res = await fetch("/api/admin/skip-cleaning", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ registration_id: registrationId }),
+      });
+      if (res.ok) {
+        router.refresh();
+      }
+    } finally {
+      setSkipping(null);
+    }
   }
 
   const isBiancaProperty = (name: string) =>
@@ -177,7 +185,7 @@ function UnpaidTab({
       )
     : cleanings;
 
-  const included = typeFiltered.filter((c) => !skipped.has(c.registrationId));
+  const included = typeFiltered;
   const includedTotal = included.reduce((s, c) => s + c.totalFee, 0);
 
   async function handleGenerate() {
@@ -202,7 +210,6 @@ function UnpaidTab({
 
       if (res.ok) {
         setShowModal(false);
-        setSkipped(new Set());
         setInvoiceType(null);
         router.refresh();
       }
@@ -261,7 +268,6 @@ function UnpaidTab({
                 <DropdownMenuItem
                   onClick={() => {
                     setInvoiceType("summit");
-                    setSkipped(new Set());
                     setShowModal(true);
                   }}
                 >
@@ -270,7 +276,6 @@ function UnpaidTab({
                 <DropdownMenuItem
                   onClick={() => {
                     setInvoiceType("bianca");
-                    setSkipped(new Set());
                     setShowModal(true);
                   }}
                 >
@@ -285,9 +290,9 @@ function UnpaidTab({
       {/* Cleaning list */}
       <div className="flex flex-col gap-4">
         {cleanings.map((c) => {
-          const isSkipped = skipped.has(c.registrationId);
+          const isBeingSkipped = skipping === c.registrationId;
           return (
-            <div key={c.registrationId} className={`relative ${isSkipped ? "opacity-50" : ""}`}>
+            <div key={c.registrationId} className={`relative ${isBeingSkipped ? "opacity-50" : ""}`}>
               <Link href={`/admin/reservations/${c.registrationId}`} className="block">
                 <Card className="hover:bg-accent/50 transition-colors cursor-pointer">
                   <CardContent className="py-3">
@@ -306,7 +311,7 @@ function UnpaidTab({
                         )}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className={`text-sm font-medium truncate ${isSkipped ? "line-through" : ""}`}>
+                        <p className="text-sm font-medium truncate">
                           {c.propertyName}
                         </p>
                         <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -347,7 +352,7 @@ function UnpaidTab({
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
                         <div className="text-right">
-                          <p className={`text-sm font-semibold ${isSkipped ? "line-through" : ""}`}>
+                          <p className="text-sm font-semibold">
                             {formatCents(c.totalFee)}
                           </p>
                           {c.petFee > 0 && (
@@ -364,14 +369,15 @@ function UnpaidTab({
               <Button
                 variant="ghost"
                 size="sm"
-                className="absolute top-1 right-1 h-7 text-[10px] text-muted-foreground hover:text-foreground z-10"
+                className="absolute top-1 right-1 h-7 text-[10px] text-muted-foreground hover:text-destructive z-10"
+                disabled={isBeingSkipped}
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  toggleSkip(c.registrationId);
+                  handleSkip(c.registrationId);
                 }}
               >
-                {isSkipped ? "Include" : "Skip"}
+                {isBeingSkipped ? "Skipping..." : "Skip"}
               </Button>
             </div>
           );
@@ -393,19 +399,13 @@ function UnpaidTab({
             <DialogDescription>
               {typeFiltered.length === 0
                 ? `No ${invoiceType === "bianca" ? "Bianca" : "Summit"} cleanings to invoice.`
-                : skipped.size > 0
-                  ? `${included.length} of ${typeFiltered.length} cleaning${typeFiltered.length !== 1 ? "s" : ""} selected — ${skipped.size} skipped.`
-                  : `Create an invoice for ${typeFiltered.length} ${invoiceType === "bianca" ? "Bianca" : "Summit"} cleaning${typeFiltered.length !== 1 ? "s" : ""} below.`}
+                : `Create an invoice for ${typeFiltered.length} ${invoiceType === "bianca" ? "Bianca" : "Summit"} cleaning${typeFiltered.length !== 1 ? "s" : ""} below.`}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-2">
             {[...byCleanerName.entries()].map(([cleanerName, items]) => {
-              const includedItems = items.filter(
-                (c) => !skipped.has(c.registrationId)
-              );
-              if (includedItems.length === 0) return null;
-              const cleanerTotal = includedItems.reduce(
+              const cleanerTotal = items.reduce(
                 (s, c) => s + c.totalFee,
                 0
               );
@@ -421,7 +421,7 @@ function UnpaidTab({
                     </p>
                   </div>
                   <div className="space-y-1.5 pl-1">
-                    {includedItems.map((c) => (
+                    {items.map((c) => (
                       <div
                         key={c.registrationId}
                         className="rounded-md border p-2.5 text-xs space-y-1"
@@ -471,8 +471,7 @@ function UnpaidTab({
 
             {included.length === 0 && (
               <p className="text-sm text-muted-foreground text-center py-4">
-                All cleanings have been skipped. Include at least one to
-                generate an invoice.
+                No cleanings available for this invoice type.
               </p>
             )}
 

@@ -129,6 +129,7 @@ export default async function AdminInvoicesPage() {
             .from("cleaning_status")
             .select("registration_id, cleaned_at")
             .eq("is_cleaned", true)
+            .eq("is_skipped", false)
             .in("registration_id", allRegIds)
         : { data: [] };
 
