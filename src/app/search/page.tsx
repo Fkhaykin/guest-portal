@@ -21,6 +21,7 @@ import {
   Loader2,
   Map as MapIcon,
   List,
+  Home,
 } from "lucide-react";
 import { useSearchParams, useRouter } from "next/navigation";
 import {
@@ -29,6 +30,7 @@ import {
   MarkerF,
   InfoWindowF,
 } from "@react-google-maps/api";
+import { createClient } from "@/lib/supabase/client";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -170,7 +172,7 @@ function ResultsMap({
           onCloseClick={() => setSelectedId(null)}
         >
           <Link
-            href={`/book/${selected.slug}?check_in=${checkIn}&check_out=${checkOut}&guests=${guests}`}
+            href={checkIn && checkOut ? `/book/${selected.slug}?check_in=${checkIn}&check_out=${checkOut}&guests=${guests}` : `/book/${selected.slug}`}
             className="block max-w-[220px] no-underline text-inherit"
           >
             {selected.cover_image_url && (
@@ -236,17 +238,36 @@ function SearchPageInner() {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [showMap, setShowMap] = useState(false); // mobile map toggle
   const [pricingMap, setPricingMap] = useState<Record<string, { total_cents: number; room_rate_cents: number } | null>>({});
+  const [browseAll, setBrowseAll] = useState<AvailableProperty[] | null>(null);
 
   const today = new Date().toISOString().split("T")[0];
+  const hasSearchDates = !!(checkIn && checkOut);
+
+  // When no search params, load all properties as browse mode
+  useEffect(() => {
+    if (initialCheckIn && initialCheckOut) return; // will run search instead
+    const supabase = createClient();
+    supabase
+      .from("property")
+      .select("id, name, slug, address, description, cover_image_url, max_guests")
+      .eq("is_active", true)
+      .order("name")
+      .then(({ data }) => {
+        if (data) setBrowseAll(data);
+      });
+  }, [initialCheckIn, initialCheckOut]);
 
   const nights =
     checkIn && checkOut ? getNightCount(checkIn, checkOut) : null;
 
   const hasMapKey = !!process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
 
+  // The active set of properties to display (search results or browse-all)
+  const displayProperties = results ?? browseAll;
+
   // Geocode properties for map pins
   useEffect(() => {
-    if (!hasMapKey || !results || results.length === 0) {
+    if (!hasMapKey || !displayProperties || displayProperties.length === 0) {
       setMapProperties([]);
       return;
     }
@@ -267,7 +288,7 @@ function SearchPageInner() {
 
       const geocoder = new google.maps.Geocoder();
       const withCoords: PropertyWithCoords[] = [];
-      for (const prop of results!) {
+      for (const prop of displayProperties!) {
         if (cancelled) return;
         if (!prop.address) continue;
         try {
@@ -290,7 +311,7 @@ function SearchPageInner() {
 
     geocodeAll();
     return () => { cancelled = true; };
-  }, [results, hasMapKey]);
+  }, [displayProperties, hasMapKey]);
 
   // Fetch pricing for each result
   useEffect(() => {
@@ -398,7 +419,7 @@ function SearchPageInner() {
             />
           </div>
           {/* Mobile map toggle */}
-          {hasMapKey && results && results.length > 0 && (
+          {hasMapKey && displayProperties && displayProperties.length > 0 && (
             <button
               className="lg:hidden flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
               onClick={() => setShowMap(!showMap)}
@@ -414,7 +435,7 @@ function SearchPageInner() {
               )}
             </button>
           )}
-          {!(hasMapKey && results && results.length > 0) && <div className="w-14" />}
+          {!(hasMapKey && displayProperties && displayProperties.length > 0) && <div className="w-14" />}
         </div>
       </header>
 
@@ -634,8 +655,94 @@ function SearchPageInner() {
             </div>
           )}
 
-          {/* Empty state */}
-          {!results && !loading && !error && (
+          {/* Browse all properties (no dates selected) */}
+          {!results && !loading && !error && browseAll && browseAll.length > 0 && (
+            <>
+              <div className="mb-5">
+                <h1 className="text-xl font-bold tracking-tight">
+                  Our Homes
+                </h1>
+                <p className="text-muted-foreground text-sm mt-0.5">
+                  Select your dates above to check availability and pricing
+                </p>
+              </div>
+              <div className="space-y-4">
+                {browseAll.map((property) => {
+                  const browseUrl = `/book/${property.slug}`;
+                  return (
+                    <Link
+                      key={property.id}
+                      href={browseUrl}
+                      className="block"
+                      onMouseEnter={() => setHoveredId(property.id)}
+                      onMouseLeave={() => setHoveredId(null)}
+                    >
+                      <Card
+                        className={`overflow-hidden group transition-all ${
+                          hoveredId === property.id
+                            ? "shadow-lg ring-2 ring-primary/30"
+                            : "hover:shadow-md"
+                        }`}
+                      >
+                        <div className="flex flex-col sm:flex-row">
+                          <div className="relative w-full sm:w-56 h-44 sm:h-auto shrink-0">
+                            {property.cover_image_url ? (
+                              <img
+                                src={property.cover_image_url}
+                                alt={property.name}
+                                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                              />
+                            ) : (
+                              <div className="w-full h-full bg-muted flex items-center justify-center">
+                                <Mountain className="h-10 w-10 text-muted-foreground/30" />
+                              </div>
+                            )}
+                          </div>
+                          <CardContent className="flex-1 p-4 flex flex-col justify-between">
+                            <div>
+                              <h3 className="font-semibold text-lg leading-tight">
+                                {property.name}
+                              </h3>
+                              {property.address && (
+                                <p className="text-sm text-muted-foreground flex items-start gap-1.5 mt-1">
+                                  <MapPin className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                                  <span className="line-clamp-1">
+                                    {property.address}
+                                  </span>
+                                </p>
+                              )}
+                              {property.description && (
+                                <p className="text-sm text-muted-foreground line-clamp-2 mt-1.5">
+                                  {property.description}
+                                </p>
+                              )}
+                            </div>
+                            <div className="flex items-center justify-between mt-3">
+                              <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                                {property.max_guests && (
+                                  <span className="flex items-center gap-1">
+                                    <Users className="h-3.5 w-3.5" />
+                                    Up to {property.max_guests}
+                                  </span>
+                                )}
+                              </div>
+                              <span className="text-sm font-medium text-primary flex items-center gap-1">
+                                View Availability
+                                <Calendar className="h-3.5 w-3.5" />
+                              </span>
+                            </div>
+                          </CardContent>
+                        </div>
+                      </Card>
+                    </Link>
+                  );
+                })}
+              </div>
+            </>
+          )}
+
+          {/* Empty state — only if no browse-all either */}
+          {!results && !loading && !error && (!browseAll || browseAll.length === 0) && (
             <div className="text-center py-16 space-y-3">
               <Search className="h-12 w-12 text-muted-foreground/30 mx-auto" />
               <h1 className="text-2xl font-bold">
@@ -650,7 +757,7 @@ function SearchPageInner() {
         </div>
 
         {/* Right: map */}
-        {hasMapKey && results && results.length > 0 && (
+        {hasMapKey && displayProperties && displayProperties.length > 0 && (
           <div
             className={`lg:w-[45%] xl:w-[50%] shrink-0 ${
               showMap ? "block" : "hidden lg:block"
