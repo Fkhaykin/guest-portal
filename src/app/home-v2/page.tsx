@@ -541,6 +541,7 @@ function AvailabilitySearch() {
   const [checkIn, setCheckIn] = useState("");
   const [checkOut, setCheckOut] = useState("");
   const [guests, setGuests] = useState(2);
+  const [pets, setPets] = useState(0);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -549,13 +550,14 @@ function AvailabilitySearch() {
       check_in: checkIn,
       check_out: checkOut,
       guests: String(guests),
+      pets: String(pets),
     });
     window.location.href = `/search?${params}`;
   }
 
   return (
     <form onSubmit={handleSubmit}>
-      <div className="grid grid-cols-2 sm:grid-cols-[1fr_1fr_6rem_auto] rounded-2xl overflow-hidden bg-white/10 backdrop-blur-xl border border-white/20 shadow-2xl shadow-black/20">
+      <div className="grid grid-cols-2 sm:grid-cols-[1fr_1fr_6rem_5rem_auto] rounded-2xl overflow-hidden bg-white/10 backdrop-blur-xl border border-white/20 shadow-2xl shadow-black/20">
         <div className="px-4 sm:px-6 py-4 sm:py-5 border-r border-white/15 hover:bg-white/5 transition-colors">
           <label htmlFor="v2-checkin" className="block text-xs font-semibold text-white/60 mb-1 tracking-wide">
             Check-in
@@ -587,7 +589,7 @@ function AvailabilitySearch() {
             required
           />
         </div>
-        <div className="px-4 sm:px-6 py-4 sm:py-5 border-b sm:border-b-0 border-r border-white/15 hover:bg-white/5 transition-colors">
+        <div className="px-4 sm:px-6 py-4 sm:py-5 border-r border-white/15 hover:bg-white/5 transition-colors">
           <label htmlFor="v2-guests" className="block text-xs font-semibold text-white/60 mb-1 tracking-wide">
             Guests
           </label>
@@ -601,7 +603,21 @@ function AvailabilitySearch() {
             className="w-full bg-transparent text-white text-base sm:text-lg font-medium outline-none scheme-dark"
           />
         </div>
-        <div className="flex items-center justify-center px-3 py-3 sm:py-0">
+        <div className="px-4 sm:px-6 py-4 sm:py-5 border-b sm:border-b-0 sm:border-r border-white/15 hover:bg-white/5 transition-colors">
+          <label htmlFor="v2-pets" className="block text-xs font-semibold text-white/60 mb-1 tracking-wide">
+            Pets
+          </label>
+          <input
+            id="v2-pets"
+            type="number"
+            min={0}
+            max={3}
+            value={pets}
+            onChange={(e) => setPets(parseInt(e.target.value) || 0)}
+            className="w-full bg-transparent text-white text-base sm:text-lg font-medium outline-none scheme-dark"
+          />
+        </div>
+        <div className="flex items-center justify-center px-3 py-3 sm:py-0 col-span-2 sm:col-span-1">
           <button
             type="submit"
             className="h-12 w-full sm:w-12 rounded-xl bg-white/15 text-white hover:bg-white/25 transition-colors flex items-center justify-center shrink-0 border border-white/20 gap-2"
