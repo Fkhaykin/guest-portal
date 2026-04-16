@@ -1409,6 +1409,101 @@ export default function HomeV2Page() {
       )}
 
       {/* ============================================================ */}
+      {/*  UPSCALE EXPERIENCE                                           */}
+      {/* ============================================================ */}
+      <section className="w-full py-16 px-4 sm:px-8">
+        <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-10 items-start">
+          <div className="space-y-8">
+            <div className="space-y-4">
+              <h2 className="text-2xl font-bold">
+                Upscale experience
+              </h2>
+              <p className="text-muted-foreground leading-relaxed">
+                Each lakehouse is thoughtfully designed with premium furnishings,
+                elegant d&eacute;cor, and modern amenities to ensure a comfortable and
+                sophisticated stay. From serene lakeside views to private outdoor
+                spaces, every detail is curated for relaxation and indulgence.
+                Personalized services and exclusive features, such as gourmet
+                kitchens and hot tubs, elevate the guest experience, making Summit
+                Lakeside the ideal retreat for those seeking both tranquility and
+                luxury.
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              <h3 className="text-xl font-semibold text-amber-500">
+                Thoughtful convenience
+              </h3>
+              <p className="text-muted-foreground leading-relaxed">
+                From seamless check-ins to fully stocked essentials, every aspect is
+                designed to ensure effortless comfort. Modern amenities like
+                high-speed Wi-Fi, smart home features, and curated local
+                recommendations make it easy for guests to relax and enjoy their
+                time without hassle.
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              <h3 className="text-xl font-semibold text-amber-500">
+                What you can expect at Summit
+              </h3>
+              <div className="grid grid-cols-2 gap-x-8 gap-y-1.5 text-muted-foreground">
+                <ul className="space-y-1.5 list-disc list-inside">
+                  <li>Stocked Linens &amp; Towels</li>
+                  <li>Kitchen utensils</li>
+                  <li>Toiletries</li>
+                  <li>Blankets</li>
+                </ul>
+                <ul className="space-y-1.5 list-disc list-inside">
+                  <li>USB outlets</li>
+                  <li>Newly Renovated</li>
+                  <li>Games &amp; Toys</li>
+                  <li>Boats &amp; Kayaks</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <div className="relative w-full aspect-4/5 rounded-lg overflow-hidden">
+            <Image
+              src="/landing/bathroom.jpg"
+              alt="Luxury bathroom with freestanding tub"
+              fill
+              className="object-cover"
+              sizes="(max-width: 768px) 100vw, 50vw"
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* ============================================================ */}
+      {/*  PET FRIENDLY                                                  */}
+      {/* ============================================================ */}
+      <section className="w-full relative overflow-hidden">
+        <div className="relative w-full aspect-16/7 min-h-100">
+          <Image
+            src="/landing/pet-friendly.jpg"
+            alt="French bulldog relaxing in living room"
+            fill
+            className="object-cover"
+            sizes="100vw"
+          />
+          <div className="absolute inset-0 bg-linear-to-r from-black/70 via-black/40 to-transparent" />
+          <div className="absolute inset-0 flex items-center px-6 sm:px-12 md:px-20">
+            <div className="max-w-lg space-y-3">
+              <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-white leading-tight">
+                No need for a dog sitter.
+              </h2>
+              <p className="text-lg sm:text-xl text-white/90 font-medium">
+                Summit Lakeside properties are pet friendly, so you can bring the
+                whole family along!
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ============================================================ */}
       {/*  GUEST PHOTOS                                                 */}
       {/* ============================================================ */}
       <Separator className="max-w-6xl mx-auto" />
