@@ -429,7 +429,7 @@ export function PropertyPage({
         <Separator />
 
         {/* Booking calendar */}
-        <div className="space-y-4">
+        <div id="booking" className="space-y-4 scroll-mt-6">
           <h2 className="text-xl font-semibold">Availability & Booking</h2>
           <BookingCalendar
             lodgifyPropertyId={property.lodgify_property_id}
@@ -447,7 +447,7 @@ export function PropertyPage({
       <GuestPhotoCarousel propertyId={property.id} />
 
       {/* Reviews */}
-      <ReviewsCarousel />
+      <ReviewsCarousel ctaHref="#booking" />
 
       {/* Spacer */}
       <div className="h-8" />

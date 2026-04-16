@@ -1,14 +1,14 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Star, ChevronLeft, ChevronRight, MapPin, Calendar } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Star, MapPin, Calendar, ArrowRight } from "lucide-react";
 import { REVIEWS, REVIEW_STATS } from "@/lib/reviews-data";
 
 // Show top 20 five-star reviews (diverse property mix)
-const CAROUSEL_REVIEWS = (() => {
+const MASONRY_REVIEWS = (() => {
   const fiveStars = REVIEWS.filter((r) => r.rating === 5 && r.text.length > 80);
   const picked: typeof REVIEWS = [];
   const propCount: Record<string, number> = {};
@@ -29,77 +29,30 @@ const platformColor: Record<string, string> = {
   Direct: "bg-amber-500/10 text-amber-600",
 };
 
-export function ReviewsCarousel() {
-  const [current, setCurrent] = useState(0);
-  const [isAutoPlaying, setIsAutoPlaying] = useState(true);
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const intervalRef = useRef<ReturnType<typeof setInterval>>(null);
-
-  const reviews = CAROUSEL_REVIEWS;
-
-  const startAutoPlay = useCallback(() => {
-    if (intervalRef.current) clearInterval(intervalRef.current);
-    if (!isAutoPlaying) return;
-    intervalRef.current = setInterval(() => {
-      setCurrent((prev) => (prev + 1) % reviews.length);
-    }, 5000);
-  }, [isAutoPlaying, reviews.length]);
-
-  useEffect(() => {
-    startAutoPlay();
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, [startAutoPlay]);
-
-  useEffect(() => {
-    if (scrollRef.current) {
-      const card = scrollRef.current.querySelector("[data-review]");
-      if (card) {
-        const cardWidth = card.getBoundingClientRect().width + 16;
-        scrollRef.current.scrollTo({
-          left: current * cardWidth,
-          behavior: "smooth",
-        });
-      }
-    }
-  }, [current]);
-
-  const go = (dir: -1 | 1) => {
-    setCurrent((prev) => (prev + dir + reviews.length) % reviews.length);
-    startAutoPlay();
-  };
+export function ReviewsCarousel({
+  ctaHref,
+  ctaLabel = "See for yourself, book now!",
+}: {
+  ctaHref?: string;
+  ctaLabel?: string;
+} = {}) {
+  const reviews = MASONRY_REVIEWS;
 
   return (
     <section className="px-4 sm:px-6 py-10 max-w-6xl mx-auto w-full">
-      <div className="flex items-center justify-between mb-6">
-        <div className="space-y-1">
-          <h2 className="text-2xl sm:text-3xl font-bold tracking-tight flex items-center gap-2.5">
-            <Star className="h-6 w-6 fill-amber-400 text-amber-400" />
-            Guest Reviews
-          </h2>
-          <p className="text-muted-foreground">
-            {REVIEW_STATS.totalCount}+ verified guest reviews across all properties
-          </p>
-        </div>
-        <div className="hidden sm:flex items-center gap-2">
-          <button
-            onClick={() => go(-1)}
-            className="h-9 w-9 rounded-full border border-input flex items-center justify-center hover:bg-accent transition-colors"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </button>
-          <button
-            onClick={() => go(1)}
-            className="h-9 w-9 rounded-full border border-input flex items-center justify-center hover:bg-accent transition-colors"
-          >
-            <ChevronRight className="h-4 w-4" />
-          </button>
-        </div>
+      {/* Header */}
+      <div className="space-y-1 mb-6">
+        <h2 className="text-2xl sm:text-3xl font-bold tracking-tight flex items-center gap-2.5">
+          <Star className="h-6 w-6 fill-amber-400 text-amber-400" />
+          Guest Reviews
+        </h2>
+        <p className="text-muted-foreground">
+          {REVIEW_STATS.totalCount}+ verified guest reviews across all properties
+        </p>
       </div>
 
       {/* Rating summary bar */}
-      <div className="flex items-center gap-4 mb-6 flex-wrap">
+      <div className="flex items-center gap-4 mb-8 flex-wrap">
         <div className="flex items-center gap-1.5">
           <span className="text-3xl font-bold">{REVIEW_STATS.averageRating}</span>
           <div className="flex gap-0.5">
@@ -128,27 +81,12 @@ export function ReviewsCarousel() {
         </div>
       </div>
 
-      {/* Review cards carousel */}
+      {/* Masonry grid with fade overlay */}
       <div className="relative">
-        <div
-          ref={scrollRef}
-          className="flex gap-4 overflow-x-auto snap-x snap-mandatory scrollbar-hide pb-2"
-          style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
-          onMouseEnter={() => {
-            setIsAutoPlaying(false);
-            if (intervalRef.current) clearInterval(intervalRef.current);
-          }}
-          onMouseLeave={() => {
-            setIsAutoPlaying(true);
-          }}
-        >
+        <div className="columns-1 sm:columns-2 lg:columns-3 gap-4 space-y-4 max-h-200 overflow-hidden">
           {reviews.map((review) => (
-            <div
-              key={review.id}
-              data-review
-              className="shrink-0 w-[320px] sm:w-95 snap-start"
-            >
-              <Card className="border-border/50 hover:border-border transition-colors">
+            <div key={review.id} className="break-inside-avoid">
+              <Card className="border-border/50">
                 <CardContent className="p-5 flex flex-col">
                   {/* Header */}
                   <div className="flex items-center gap-3 mb-3">
@@ -156,10 +94,10 @@ export function ReviewsCarousel() {
                       <img
                         src={review.imageUrl}
                         alt={review.name}
-                        className="h-11 w-11 rounded-full object-cover shrink-0"
+                        className="h-10 w-10 rounded-full object-cover shrink-0"
                       />
                     ) : (
-                      <div className="h-11 w-11 rounded-full bg-primary/10 flex items-center justify-center text-sm font-semibold text-primary shrink-0">
+                      <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-sm font-semibold text-primary shrink-0">
                         {review.name
                           .split(" ")
                           .map((n) => n[0])
@@ -215,24 +153,16 @@ export function ReviewsCarousel() {
             </div>
           ))}
         </div>
-      </div>
 
-      {/* Dots */}
-      <div className="flex justify-center gap-1.5 mt-4">
-        {reviews.map((_, i) => (
-          <button
-            key={i}
-            onClick={() => {
-              setCurrent(i);
-              startAutoPlay();
-            }}
-            className={`h-1.5 rounded-full transition-all duration-300 ${
-              i === current
-                ? "w-6 bg-foreground"
-                : "w-1.5 bg-foreground/20 hover:bg-foreground/40"
-            }`}
-          />
-        ))}
+        {/* Fade overlay + CTA */}
+        <div className="absolute inset-x-0 bottom-0 h-64 bg-linear-to-t from-background via-background/90 to-transparent flex items-end justify-center pb-8">
+          <a href={ctaHref || "/#properties"}>
+            <Button size="lg" className="gap-2 text-base px-8 shadow-lg">
+              {ctaLabel}
+              <ArrowRight className="h-4 w-4" />
+            </Button>
+          </a>
+        </div>
       </div>
     </section>
   );
