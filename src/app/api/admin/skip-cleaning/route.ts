@@ -21,40 +21,45 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  let body: { registration_id: string };
+  let body: { registration_ids: string[] };
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { registration_id } = body;
-  if (!registration_id) {
-    return NextResponse.json({ error: "Missing registration_id" }, { status: 400 });
+  const { registration_ids } = body;
+  if (!registration_ids?.length) {
+    return NextResponse.json({ error: "Missing registration_ids" }, { status: 400 });
   }
 
   const admin = createAdminClient();
 
-  // Verify registration belongs to a property owned by this host
-  const { data: reg } = await admin
+  // Verify all registrations belong to properties owned by this host
+  const { data: regs } = await admin
     .from("registration")
     .select("id, property:property_id(host_id)")
-    .eq("id", registration_id)
-    .single();
+    .in("id", registration_ids);
 
-  const property = reg?.property as unknown as { host_id: string } | null;
-  if (!reg || property?.host_id !== host.id) {
+  const validIds = (regs || [])
+    .filter((r) => {
+      const property = r.property as unknown as { host_id: string } | null;
+      return property?.host_id === host.id;
+    })
+    .map((r) => r.id);
+
+  if (validIds.length === 0) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
   const { error } = await admin
     .from("cleaning_status")
     .update({ is_skipped: true })
-    .eq("registration_id", registration_id);
+    .in("registration_id", validIds);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json({ success: true });
+  return NextResponse.json({ success: true, skipped: validIds.length });
 }

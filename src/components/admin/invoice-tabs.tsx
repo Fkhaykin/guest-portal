@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -21,6 +22,14 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
   SprayCan,
   Receipt,
   Home,
@@ -33,6 +42,7 @@ import {
   FileText,
   Loader2,
   ChevronDown,
+  Ban,
 } from "lucide-react";
 import type {
   AdminInvoiceRow,
@@ -152,51 +162,87 @@ function UnpaidTab({
   totalUnpaid: number;
 }) {
   const router = useRouter();
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [showModal, setShowModal] = useState(false);
   const [generating, setGenerating] = useState(false);
-  const [skipping, setSkipping] = useState<string | null>(null);
+  const [skipping, setSkipping] = useState(false);
   const [invoiceType, setInvoiceType] = useState<"bianca" | "summit" | null>(null);
 
-  async function handleSkip(registrationId: string) {
-    if (skipping) return;
-    setSkipping(registrationId);
+  const allIds = cleanings.map((c) => c.registrationId);
+  const allSelected = cleanings.length > 0 && selected.size === cleanings.length;
+  const someSelected = selected.size > 0 && selected.size < cleanings.length;
+
+  function toggleAll() {
+    if (allSelected) {
+      setSelected(new Set());
+    } else {
+      setSelected(new Set(allIds));
+    }
+  }
+
+  function toggleOne(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  const selectedCleanings = cleanings.filter((c) => selected.has(c.registrationId));
+  const selectedTotal = selectedCleanings.reduce((s, c) => s + c.totalFee, 0);
+
+  async function handleSkipSelected() {
+    if (selected.size === 0 || skipping) return;
+    setSkipping(true);
     try {
       const res = await fetch("/api/admin/skip-cleaning", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ registration_id: registrationId }),
+        body: JSON.stringify({ registration_ids: [...selected] }),
       });
       if (res.ok) {
+        setSelected(new Set());
         router.refresh();
       }
     } finally {
-      setSkipping(null);
+      setSkipping(false);
     }
+  }
+
+  function handleCreateInvoice(type: "bianca" | "summit") {
+    setInvoiceType(type);
+    setShowModal(true);
   }
 
   const isBiancaProperty = (name: string) =>
     name.toLowerCase().includes("bianca");
 
-  const typeFiltered = invoiceType
-    ? cleanings.filter((c) =>
-        invoiceType === "bianca"
-          ? isBiancaProperty(c.propertyName)
-          : !isBiancaProperty(c.propertyName)
-      )
-    : cleanings;
+  // For the modal, filter selected cleanings by invoice type
+  const modalCleanings = selectedCleanings.filter((c) =>
+    invoiceType === "bianca"
+      ? isBiancaProperty(c.propertyName)
+      : !isBiancaProperty(c.propertyName)
+  );
+  const modalTotal = modalCleanings.reduce((s, c) => s + c.totalFee, 0);
 
-  const included = typeFiltered;
-  const includedTotal = included.reduce((s, c) => s + c.totalFee, 0);
+  // Group modal cleanings by cleaner
+  const byCleanerName = new Map<string, AdminUnpaidCleaning[]>();
+  for (const c of modalCleanings) {
+    const list = byCleanerName.get(c.cleanerName) || [];
+    list.push(c);
+    byCleanerName.set(c.cleanerName, list);
+  }
 
   async function handleGenerate() {
-    if (included.length === 0) return;
+    if (modalCleanings.length === 0) return;
     setGenerating(true);
     try {
       const res = await fetch("/api/admin/invoices", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          cleanings: included.map((c) => ({
+          cleanings: modalCleanings.map((c) => ({
             registrationId: c.registrationId,
             cleanerId: c.cleanerId,
             propertyName: c.propertyName,
@@ -211,19 +257,12 @@ function UnpaidTab({
       if (res.ok) {
         setShowModal(false);
         setInvoiceType(null);
+        setSelected(new Set());
         router.refresh();
       }
     } finally {
       setGenerating(false);
     }
-  }
-
-  // Group cleanings by cleaner for the modal (use type-filtered list)
-  const byCleanerName = new Map<string, AdminUnpaidCleaning[]>();
-  for (const c of typeFiltered) {
-    const list = byCleanerName.get(c.cleanerName) || [];
-    list.push(c);
-    byCleanerName.set(c.cleanerName, list);
   }
 
   if (cleanings.length === 0) {
@@ -242,146 +281,159 @@ function UnpaidTab({
 
   return (
     <div className="space-y-4">
-      {/* Summary card */}
-      <Card className="bg-primary/5 border-primary/20">
-        <CardContent className="py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-muted-foreground">
-                {cleanings.length} cleaning{cleanings.length !== 1 ? "s" : ""} pending invoice
-              </p>
-              <p className="text-2xl font-bold">
-                {formatCents(totalUnpaid)}
-              </p>
+      {/* Bulk action bar — shown when items are selected */}
+      {selected.size > 0 ? (
+        <Card className="bg-primary/5 border-primary/20">
+          <CardContent className="py-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium">
+                  {selected.size} selected &middot; {formatCents(selectedTotal)}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSkipSelected}
+                  disabled={skipping}
+                >
+                  {skipping ? (
+                    <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                  ) : (
+                    <Ban className="h-4 w-4 mr-1.5" />
+                  )}
+                  Skip
+                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    render={
+                      <Button size="sm">
+                        <FileText className="h-4 w-4 mr-1.5" />
+                        Create Invoice
+                        <ChevronDown className="h-3.5 w-3.5 ml-1.5" />
+                      </Button>
+                    }
+                  />
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => handleCreateInvoice("summit")}>
+                      Summit Invoice
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleCreateInvoice("bianca")}>
+                      Bianca Invoice
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
             </div>
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                render={
-                  <Button size="sm">
-                    <FileText className="h-4 w-4 mr-1.5" />
-                    Create Invoice
-                    <ChevronDown className="h-3.5 w-3.5 ml-1.5" />
-                  </Button>
-                }
-              />
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem
-                  onClick={() => {
-                    setInvoiceType("summit");
-                    setShowModal(true);
-                  }}
-                >
-                  Summit Invoice
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => {
-                    setInvoiceType("bianca");
-                    setShowModal(true);
-                  }}
-                >
-                  Bianca Invoice
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card className="bg-primary/5 border-primary/20">
+          <CardContent className="py-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">
+                  {cleanings.length} cleaning{cleanings.length !== 1 ? "s" : ""} pending invoice
+                </p>
+                <p className="text-2xl font-bold">{formatCents(totalUnpaid)}</p>
+              </div>
+              <p className="text-xs text-muted-foreground">Select rows to take action</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
-      {/* Cleaning list */}
-      <div className="flex flex-col gap-4">
-        {cleanings.map((c) => {
-          const isBeingSkipped = skipping === c.registrationId;
-          return (
-            <div key={c.registrationId} className={`relative ${isBeingSkipped ? "opacity-50" : ""}`}>
-              <Link href={`/admin/reservations/${c.registrationId}`} className="block">
-                <Card className="hover:bg-accent/50 transition-colors cursor-pointer">
-                  <CardContent className="py-3">
-                    <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-lg overflow-hidden shrink-0">
-                        {c.propertyCoverImage ? (
-                          <img
-                            src={c.propertyCoverImage}
-                            alt={c.propertyName}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full bg-muted flex items-center justify-center">
-                            <Home className="h-4 w-4 text-muted-foreground" />
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">
-                          {c.propertyName}
+      {/* Table */}
+      <div className="rounded-lg border overflow-hidden">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-10 pl-3">
+                <Checkbox
+                  checked={allSelected}
+                  indeterminate={someSelected}
+                  onCheckedChange={toggleAll}
+                />
+              </TableHead>
+              <TableHead>Property</TableHead>
+              <TableHead className="hidden sm:table-cell">Guest</TableHead>
+              <TableHead className="hidden sm:table-cell">Dates</TableHead>
+              <TableHead className="text-right pr-4">Amount</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {cleanings.map((c) => {
+              const isSelected = selected.has(c.registrationId);
+              return (
+                <TableRow
+                  key={c.registrationId}
+                  className={`cursor-pointer transition-colors ${isSelected ? "bg-primary/5" : ""}`}
+                  onClick={() => toggleOne(c.registrationId)}
+                >
+                  <TableCell className="pl-3" onClick={(e) => e.stopPropagation()}>
+                    <Checkbox
+                      checked={isSelected}
+                      onCheckedChange={() => toggleOne(c.registrationId)}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium truncate">{c.propertyName}</p>
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        <User className="h-3 w-3" />
+                        {c.cleanerName}
+                      </p>
+                      {/* Mobile-only: guest + dates */}
+                      <div className="sm:hidden text-xs text-muted-foreground mt-0.5 space-y-0.5">
+                        {c.guestName && <p className="truncate">{c.guestName}</p>}
+                        <p>
+                          {formatDate(c.checkInDate)} &ndash; {formatDate(c.checkOutDate)}
                         </p>
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <span className="flex items-center gap-1">
-                            <User className="h-3 w-3" />
-                            {c.cleanerName}
-                          </span>
-                          {c.guestName && (
-                            <>
-                              <span>&middot;</span>
-                              <span className="truncate">{c.guestName}</span>
-                            </>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
-                          <span className="flex items-center gap-1">
-                            <CalendarDays className="h-3 w-3" />
-                            {formatDate(c.checkInDate)} &ndash;{" "}
-                            {formatDate(c.checkOutDate)}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Users className="h-3 w-3" />
-                            {c.guestCount}
-                          </span>
-                          {c.hasPets && (
-                            <span className="flex items-center gap-1 text-amber-600">
-                              <PawPrint className="h-3 w-3" />
-                              {c.petCount} pet{c.petCount !== 1 ? "s" : ""}
-                            </span>
-                          )}
-                        </div>
-                        {c.cleanedAt && (
-                          <p className="text-[10px] text-muted-foreground mt-0.5">
-                            <SprayCan className="h-2.5 w-2.5 inline mr-0.5" />
-                            Cleaned {formatTimestamp(c.cleanedAt)}
-                          </p>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <div className="text-right">
-                          <p className="text-sm font-semibold">
-                            {formatCents(c.totalFee)}
-                          </p>
-                          {c.petFee > 0 && (
-                            <p className="text-[10px] text-muted-foreground">
-                              incl. {formatCents(c.petFee)} pet fee
-                            </p>
-                          )}
-                        </div>
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
-              </Link>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="absolute top-1 right-1 h-7 text-[10px] text-muted-foreground hover:text-destructive z-10"
-                disabled={isBeingSkipped}
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  handleSkip(c.registrationId);
-                }}
-              >
-                {isBeingSkipped ? "Skipping..." : "Skip"}
-              </Button>
-            </div>
-          );
-        })}
+                  </TableCell>
+                  <TableCell className="hidden sm:table-cell">
+                    <div className="text-sm">
+                      {c.guestName && <p className="truncate">{c.guestName}</p>}
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <Users className="h-3 w-3" />
+                          {c.guestCount}
+                        </span>
+                        {c.hasPets && (
+                          <span className="flex items-center gap-1 text-amber-600">
+                            <PawPrint className="h-3 w-3" />
+                            {c.petCount}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell className="hidden sm:table-cell">
+                    <p className="text-sm whitespace-nowrap">
+                      {formatDate(c.checkInDate)} &ndash; {formatDate(c.checkOutDate)}
+                    </p>
+                    {c.cleanedAt && (
+                      <p className="text-[10px] text-muted-foreground flex items-center gap-0.5 mt-0.5">
+                        <SprayCan className="h-2.5 w-2.5" />
+                        {formatTimestamp(c.cleanedAt)}
+                      </p>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right pr-4">
+                    <p className="text-sm font-semibold">{formatCents(c.totalFee)}</p>
+                    {c.petFee > 0 && (
+                      <p className="text-[10px] text-muted-foreground">
+                        +{formatCents(c.petFee)} pet
+                      </p>
+                    )}
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
       </div>
 
       {/* Generate Invoice Modal */}
@@ -397,18 +449,15 @@ function UnpaidTab({
                 : "Generate Summit Invoice"}
             </DialogTitle>
             <DialogDescription>
-              {typeFiltered.length === 0
-                ? `No ${invoiceType === "bianca" ? "Bianca" : "Summit"} cleanings to invoice.`
-                : `Create an invoice for ${typeFiltered.length} ${invoiceType === "bianca" ? "Bianca" : "Summit"} cleaning${typeFiltered.length !== 1 ? "s" : ""} below.`}
+              {modalCleanings.length === 0
+                ? `No ${invoiceType === "bianca" ? "Bianca" : "Summit"} cleanings in your selection.`
+                : `Create an invoice for ${modalCleanings.length} ${invoiceType === "bianca" ? "Bianca" : "Summit"} cleaning${modalCleanings.length !== 1 ? "s" : ""}.`}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-2">
             {[...byCleanerName.entries()].map(([cleanerName, items]) => {
-              const cleanerTotal = items.reduce(
-                (s, c) => s + c.totalFee,
-                0
-              );
+              const cleanerTotal = items.reduce((s, c) => s + c.totalFee, 0);
               return (
                 <div key={cleanerName} className="space-y-2">
                   <div className="flex items-center justify-between">
@@ -428,39 +477,17 @@ function UnpaidTab({
                       >
                         <div className="flex items-center justify-between">
                           <p className="font-medium">{c.propertyName}</p>
-                          <p className="font-semibold">
-                            {formatCents(c.totalFee)}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-3 text-muted-foreground">
-                          <span className="flex items-center gap-1">
-                            <CalendarDays className="h-3 w-3" />
-                            {formatDate(c.checkInDate)} &ndash;{" "}
-                            {formatDate(c.checkOutDate)}
-                          </span>
-                          {c.guestName && (
-                            <span className="truncate">{c.guestName}</span>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-3 text-muted-foreground">
-                          <span className="flex items-center gap-1">
-                            <Users className="h-3 w-3" />
-                            {c.guestCount} guest{c.guestCount !== 1 ? "s" : ""}
-                          </span>
-                          {c.hasPets && (
-                            <span className="flex items-center gap-1 text-amber-600">
-                              <PawPrint className="h-3 w-3" />
-                              {c.petCount} pet{c.petCount !== 1 ? "s" : ""}
-                            </span>
-                          )}
+                          <p className="font-semibold">{formatCents(c.totalFee)}</p>
                         </div>
                         <div className="flex items-center gap-3 text-muted-foreground">
                           <span>
-                            Cleaning: {formatCents(c.cleaningFee)}
+                            {formatDate(c.checkInDate)} &ndash; {formatDate(c.checkOutDate)}
                           </span>
-                          {c.petFee > 0 && (
-                            <span>Pet fee: {formatCents(c.petFee)}</span>
-                          )}
+                          {c.guestName && <span className="truncate">{c.guestName}</span>}
+                        </div>
+                        <div className="flex items-center gap-3 text-muted-foreground">
+                          <span>Cleaning: {formatCents(c.cleaningFee)}</span>
+                          {c.petFee > 0 && <span>Pet fee: {formatCents(c.petFee)}</span>}
                         </div>
                       </div>
                     ))}
@@ -469,19 +496,18 @@ function UnpaidTab({
               );
             })}
 
-            {included.length === 0 && (
+            {modalCleanings.length === 0 && (
               <p className="text-sm text-muted-foreground text-center py-4">
-                No cleanings available for this invoice type.
+                None of the selected cleanings match this invoice type.
               </p>
             )}
 
-            {/* Grand total */}
-            <div className="border-t pt-3 flex items-center justify-between">
-              <p className="text-sm font-semibold">Total</p>
-              <p className="text-lg font-bold">
-                {formatCents(includedTotal)}
-              </p>
-            </div>
+            {modalCleanings.length > 0 && (
+              <div className="border-t pt-3 flex items-center justify-between">
+                <p className="text-sm font-semibold">Total</p>
+                <p className="text-lg font-bold">{formatCents(modalTotal)}</p>
+              </div>
+            )}
           </div>
 
           <DialogFooter>
@@ -494,7 +520,7 @@ function UnpaidTab({
             </Button>
             <Button
               onClick={handleGenerate}
-              disabled={generating || included.length === 0}
+              disabled={generating || modalCleanings.length === 0}
             >
               {generating ? (
                 <>
