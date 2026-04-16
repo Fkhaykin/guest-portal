@@ -103,84 +103,99 @@ const AMENITY_LABELS: Record<string, string> = {
 function PhotoGallery({ images }: { images: { url: string }[] }) {
   const [current, setCurrent] = useState(0);
   const [showAll, setShowAll] = useState(false);
+  const thumbRef = useRef<HTMLDivElement>(null);
+
+  // Keep active thumbnail scrolled into view
+  useEffect(() => {
+    if (!thumbRef.current) return;
+    const btn = thumbRef.current.children[current] as HTMLElement | undefined;
+    btn?.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+  }, [current]);
 
   if (images.length === 0) return null;
 
   return (
     <>
-      {/* Main gallery */}
-      <div className="relative group">
-        <div className="aspect-[16/9] sm:aspect-[2/1] overflow-hidden rounded-xl">
-          <img
-            src={images[current].url}
-            alt={`Photo ${current + 1}`}
-            className="w-full h-full object-cover"
-          />
-        </div>
-        {images.length > 1 && (
-          <>
-            <button
-              onClick={() => setCurrent((p) => (p - 1 + images.length) % images.length)}
-              className="absolute left-3 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full bg-black/50 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/70"
-            >
-              <ChevronLeft className="h-5 w-5" />
-            </button>
-            <button
-              onClick={() => setCurrent((p) => (p + 1) % images.length)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full bg-black/50 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/70"
-            >
-              <ChevronRight className="h-5 w-5" />
-            </button>
-            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1">
-              {images.slice(0, 10).map((_, i) => (
-                <button
-                  key={i}
-                  onClick={() => setCurrent(i)}
-                  className={`h-1.5 rounded-full transition-all ${
-                    i === current ? "w-5 bg-white" : "w-1.5 bg-white/50"
-                  }`}
-                />
-              ))}
-              {images.length > 10 && (
-                <span className="text-white/70 text-xs ml-1">
-                  +{images.length - 10}
-                </span>
-              )}
+      {/* Hero carousel — full width, fade at bottom, floating thumbnails */}
+      <div className="relative group -mx-4 sm:-mx-6">
+        {/* Main image */}
+        <div className="relative w-full aspect-video sm:aspect-21/9 overflow-hidden">
+          {images.map((img, i) => (
+            <img
+              key={i}
+              src={img.url}
+              alt={`Photo ${i + 1}`}
+              className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ${
+                i === current ? "opacity-100" : "opacity-0"
+              }`}
+            />
+          ))}
+
+          {/* Fade overlay at bottom */}
+          <div className="absolute inset-x-0 bottom-0 h-1/3 bg-linear-to-t from-background via-background/60 to-transparent pointer-events-none" />
+
+          {/* Prev / Next arrows */}
+          {images.length > 1 && (
+            <>
+              <button
+                onClick={() => setCurrent((p) => (p - 1 + images.length) % images.length)}
+                className="absolute left-3 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full bg-black/40 backdrop-blur-sm text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/60"
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </button>
+              <button
+                onClick={() => setCurrent((p) => (p + 1) % images.length)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full bg-black/40 backdrop-blur-sm text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/60"
+              >
+                <ChevronRight className="h-5 w-5" />
+              </button>
+            </>
+          )}
+
+          {/* Floating thumbnail strip — positioned over the fade area */}
+          {images.length > 1 && (
+            <div className="absolute bottom-4 inset-x-0 flex justify-center px-4 z-10">
+              <div
+                ref={thumbRef}
+                className="flex gap-2 overflow-x-auto py-1 px-1 max-w-full rounded-xl bg-black/30 backdrop-blur-md"
+                style={{ scrollbarWidth: "none" }}
+              >
+                {images.slice(0, 10).map((img, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setCurrent(i)}
+                    className={`shrink-0 w-16 h-11 sm:w-20 sm:h-14 rounded-lg overflow-hidden ring-2 transition-all ${
+                      i === current
+                        ? "ring-white scale-105 shadow-lg"
+                        : "ring-transparent opacity-60 hover:opacity-100"
+                    }`}
+                  >
+                    <img src={img.url} alt="" className="w-full h-full object-cover" />
+                  </button>
+                ))}
+                {images.length > 10 && (
+                  <button
+                    onClick={() => setShowAll(true)}
+                    className="shrink-0 w-16 h-11 sm:w-20 sm:h-14 rounded-lg bg-white/10 backdrop-blur flex items-center justify-center text-xs font-medium text-white"
+                  >
+                    +{images.length - 10}
+                  </button>
+                )}
+              </div>
             </div>
+          )}
+
+          {/* View all button */}
+          {images.length > 1 && (
             <button
               onClick={() => setShowAll(true)}
-              className="absolute bottom-3 right-3 px-3 py-1.5 rounded-lg bg-black/60 text-white text-xs font-medium hover:bg-black/80 transition-colors backdrop-blur-sm"
+              className="absolute top-4 right-4 px-3 py-1.5 rounded-lg bg-black/40 backdrop-blur-sm text-white text-xs font-medium hover:bg-black/60 transition-colors z-10"
             >
               View all {images.length} photos
             </button>
-          </>
-        )}
-      </div>
-
-      {/* Thumbnail strip */}
-      {images.length > 1 && (
-        <div className="flex gap-2 overflow-x-auto py-2 scrollbar-hide" style={{ scrollbarWidth: "none" }}>
-          {images.slice(0, 8).map((img, i) => (
-            <button
-              key={i}
-              onClick={() => setCurrent(i)}
-              className={`shrink-0 w-20 h-14 rounded-lg overflow-hidden border-2 transition-colors ${
-                i === current ? "border-primary" : "border-transparent opacity-70 hover:opacity-100"
-              }`}
-            >
-              <img src={img.url} alt="" className="w-full h-full object-cover" />
-            </button>
-          ))}
-          {images.length > 8 && (
-            <button
-              onClick={() => setShowAll(true)}
-              className="shrink-0 w-20 h-14 rounded-lg bg-muted flex items-center justify-center text-xs font-medium text-muted-foreground"
-            >
-              +{images.length - 8}
-            </button>
           )}
         </div>
-      )}
+      </div>
 
       {/* Full gallery modal */}
       {showAll && (
