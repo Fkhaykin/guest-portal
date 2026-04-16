@@ -29,7 +29,7 @@ export default async function AdminInvoiceDetailPage({
   const admin = createAdminClient();
   const { data: invoice } = await admin
     .from("cleaner_invoice")
-    .select("*, cleaner:cleaner_id(name)")
+    .select("*, cleaner:cleaner_id(name, phone, company, email)")
     .eq("id", id)
     .eq("host_id", host.id)
     .single();
@@ -63,7 +63,10 @@ export default async function AdminInvoiceDetailPage({
         approved_at: invoice.approved_at,
         paid_at: invoice.paid_at,
         created_at: invoice.created_at,
-        cleaner_name: (invoice.cleaner as { name: string } | null)?.name || "Unknown",
+        cleaner_name: (invoice.cleaner as { name: string; phone: string | null; company: string | null; email: string | null } | null)?.name || "Unknown",
+        cleaner_phone: (invoice.cleaner as { name: string; phone: string | null; company: string | null; email: string | null } | null)?.phone || null,
+        cleaner_company: (invoice.cleaner as { name: string; phone: string | null; company: string | null; email: string | null } | null)?.company || null,
+        cleaner_email: (invoice.cleaner as { name: string; phone: string | null; company: string | null; email: string | null } | null)?.email || null,
         attachments: attachmentsWithUrls,
       }}
     />

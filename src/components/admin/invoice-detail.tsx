@@ -12,10 +12,13 @@ import {
   CheckCircle2,
   DollarSign,
   Home,
+  Mail,
   PawPrint,
   Pencil,
+  Phone,
   Trash2,
   Wrench,
+  Building2,
   ReceiptText,
   User,
   FileText,
@@ -69,6 +72,84 @@ function formatTimestamp(ts: string) {
   });
 }
 
+const WEEKDAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+
+function MiniCalendar({
+  periodStart,
+  periodEnd,
+  checkoutDates,
+}: {
+  periodStart: string;
+  periodEnd: string;
+  checkoutDates: string[];
+}) {
+  const start = new Date(periodStart + "T00:00:00");
+  const end = new Date(periodEnd + "T00:00:00");
+  const checkoutSet = new Set(checkoutDates);
+
+  // Build list of months to show
+  const months: Date[] = [];
+  const cursor = new Date(start.getFullYear(), start.getMonth(), 1);
+  const endMonth = new Date(end.getFullYear(), end.getMonth(), 1);
+  while (cursor <= endMonth) {
+    months.push(new Date(cursor));
+    cursor.setMonth(cursor.getMonth() + 1);
+  }
+
+  return (
+    <div className="flex flex-wrap gap-4">
+      {months.map((month) => {
+        const year = month.getFullYear();
+        const mo = month.getMonth();
+        const daysInMonth = new Date(year, mo + 1, 0).getDate();
+        const firstDow = new Date(year, mo, 1).getDay();
+        const monthLabel = month.toLocaleDateString("en-US", {
+          month: "short",
+          year: "numeric",
+        });
+
+        return (
+          <div key={monthLabel} className="min-w-45">
+            <p className="text-xs font-medium text-center mb-1">{monthLabel}</p>
+            <div className="grid grid-cols-7 gap-px text-center text-[10px]">
+              {WEEKDAYS.map((d) => (
+                <span key={d} className="text-muted-foreground font-medium py-0.5">
+                  {d}
+                </span>
+              ))}
+              {Array.from({ length: firstDow }).map((_, i) => (
+                <span key={`pad-${i}`} />
+              ))}
+              {Array.from({ length: daysInMonth }).map((_, i) => {
+                const day = i + 1;
+                const date = new Date(year, mo, day);
+                const dateStr = `${year}-${String(mo + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+                const inRange = date >= start && date <= end;
+                const isCheckout = checkoutSet.has(dateStr);
+
+                return (
+                  <span
+                    key={day}
+                    className={`py-0.5 rounded-sm ${
+                      isCheckout
+                        ? "bg-primary text-primary-foreground font-semibold"
+                        : inRange
+                          ? "bg-primary/15 text-foreground"
+                          : "text-muted-foreground/60"
+                    }`}
+                  >
+                    {day}
+                  </span>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export function AdminInvoiceDetail({
   invoice,
 }: {
@@ -87,6 +168,9 @@ export function AdminInvoiceDetail({
     paid_at: string | null;
     created_at: string;
     cleaner_name: string;
+    cleaner_phone: string | null;
+    cleaner_company: string | null;
+    cleaner_email: string | null;
     attachments: { name: string; path: string; uploaded_at: string; url: string | null }[];
   };
 }) {
@@ -190,6 +274,58 @@ export function AdminInvoiceDetail({
           </Button>
           <Badge className={STATUS_STYLES[status]}>{status}</Badge>
         </div>
+      </div>
+
+      {/* Cleaner info + Calendar */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Card>
+          <CardContent className="pt-4">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="flex items-center justify-center h-9 w-9 rounded-full bg-primary/10">
+                <User className="h-4 w-4 text-primary" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold">{invoice.cleaner_name}</p>
+                {invoice.cleaner_company && (
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <Building2 className="h-3 w-3" />
+                    <span>{invoice.cleaner_company}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="space-y-1.5 text-xs text-muted-foreground">
+              {invoice.cleaner_phone && (
+                <div className="flex items-center gap-2">
+                  <Phone className="h-3 w-3" />
+                  <span>{invoice.cleaner_phone}</span>
+                </div>
+              )}
+              {invoice.cleaner_email && (
+                <div className="flex items-center gap-2">
+                  <Mail className="h-3 w-3" />
+                  <span>{invoice.cleaner_email}</span>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="pt-4">
+            <p className="text-sm font-medium mb-2">
+              {formatDate(invoice.period_start)} &ndash; {formatDate(invoice.period_end)}
+            </p>
+            <MiniCalendar
+              periodStart={invoice.period_start}
+              periodEnd={invoice.period_end}
+              checkoutDates={invoice.line_items
+                .filter((l) => l.type === "cleaning")
+                .map((l) => l.description.match(/\(checkout (\d{4}-\d{2}-\d{2})\)/)?.[1])
+                .filter((d): d is string => !!d)}
+            />
+          </CardContent>
+        </Card>
       </div>
 
       {/* Line items */}
