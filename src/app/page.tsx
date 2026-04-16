@@ -1157,8 +1157,8 @@ export default function HomeV2Page() {
       {/* ============================================================ */}
       {/*  UPSCALE EXPERIENCE                                           */}
       {/* ============================================================ */}
-      <section className="w-full py-16 px-4 sm:px-8">
-        <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-10 items-start">
+      <section className="px-4 sm:px-6 py-16 max-w-6xl mx-auto w-full">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-10 items-start">
           <div className="space-y-8">
             <div className="space-y-4">
               <h2 className="text-2xl font-bold">
@@ -1211,12 +1211,10 @@ export default function HomeV2Page() {
           </div>
 
           <div className="relative w-full aspect-4/5 rounded-lg overflow-hidden">
-            <Image
-              src="/landing/bathroom.jpg"
+            <img
+              src="https://l.icdbcdn.com/oh/a76e1fe4-7e5a-4132-930b-9590e921f4b6.jpg?w=1200"
               alt="Luxury bathroom with freestanding tub"
-              fill
-              className="object-cover"
-              sizes="(max-width: 768px) 100vw, 50vw"
+              className="absolute inset-0 w-full h-full object-cover"
             />
           </div>
         </div>
@@ -1225,17 +1223,15 @@ export default function HomeV2Page() {
       {/* ============================================================ */}
       {/*  PET FRIENDLY                                                  */}
       {/* ============================================================ */}
-      <section className="w-full relative overflow-hidden">
-        <div className="relative w-full aspect-16/7 min-h-100">
-          <Image
-            src="/landing/pet-friendly.jpg"
-            alt="French bulldog relaxing in living room"
-            fill
-            className="object-cover"
-            sizes="100vw"
+      <section className="px-4 sm:px-6 max-w-6xl mx-auto w-full">
+        <div className="relative w-full aspect-16/7 min-h-80 rounded-xl overflow-hidden">
+          <img
+            src="https://l.icdbcdn.com/oh/dbdc55c3-eefe-4dc5-a935-f87a24f8bd15.jpg?w=2080"
+            alt="Pet friendly lakefront property"
+            className="absolute inset-0 w-full h-full object-cover"
           />
           <div className="absolute inset-0 bg-linear-to-r from-black/70 via-black/40 to-transparent" />
-          <div className="absolute inset-0 flex items-center px-6 sm:px-12 md:px-20">
+          <div className="absolute inset-0 flex items-center px-6 sm:px-12 md:px-16">
             <div className="max-w-lg space-y-3">
               <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-white leading-tight">
                 No need for a dog sitter.
