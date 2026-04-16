@@ -14,7 +14,7 @@ import {
   Wifi,
   ChevronLeft,
   ChevronRight,
-  ExternalLink,
+
   Star,
   MapPin,
   DollarSign,
@@ -284,22 +284,18 @@ export function PropertyPage({
             Back
           </Link>
           <div className="flex-1 flex justify-center">
-            <Image
-              src="/logo.png"
-              alt="Summit Lakeside Rentals"
-              width={120}
-              height={60}
-              className="h-8 w-auto invert dark:invert-0"
-            />
+            <Link href="/home-v2">
+              <Image
+                src="/logo.png"
+                alt="Summit Lakeside Rentals"
+                width={120}
+                height={60}
+                className="h-8 w-auto invert dark:invert-0"
+              />
+            </Link>
           </div>
-          <a
-            href={`https://checkout.lodgify.com/summitlakeside/${property.lodgify_property_id}/addons`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
-          >
-            <ExternalLink className="h-3.5 w-3.5" />
-          </a>
+          {/* Spacer to keep logo centered */}
+          <div className="w-[52px]" />
         </div>
       </header>
 
