@@ -20,7 +20,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Pencil, Trash2, Eye, EyeOff, Phone, DollarSign, PawPrint } from "lucide-react";
+import { Plus, Pencil, Trash2, Eye, EyeOff, Phone, DollarSign, PawPrint, Building2, Mail } from "lucide-react";
 import type { Tables } from "@/types/database";
 
 type CleanerWithCount = Tables<"cleaner"> & { property_count: number };
@@ -72,6 +72,11 @@ export default function AdminCleanersPage() {
     const formData = new FormData(e.currentTarget);
     const name = formData.get("name") as string;
     const phone = (formData.get("phone") as string)?.trim() || null;
+    const email = (formData.get("email") as string)?.trim() || null;
+    const company = (formData.get("company") as string)?.trim() || null;
+    const tax_id = (formData.get("tax_id") as string)?.trim() || null;
+    const address = (formData.get("address") as string)?.trim() || null;
+    const payment_method = (formData.get("payment_method") as string)?.trim() || null;
     const password = formData.get("password") as string;
     const monthlyFeeStr = formData.get("monthly_fee") as string;
     const monthly_fee_cents = monthlyFeeStr
@@ -83,10 +88,10 @@ export default function AdminCleanersPage() {
       : 0;
 
     if (editing) {
-      // Update name, phone, and fees
+      // Update cleaner fields
       await supabase
         .from("cleaner")
-        .update({ name, phone, monthly_fee_cents, pet_fee_cents })
+        .update({ name, phone, email, company, tax_id, address, payment_method, monthly_fee_cents, pet_fee_cents })
         .eq("id", editing.id);
 
       // Update password if provided
@@ -144,6 +149,11 @@ export default function AdminCleanersPage() {
         host_id: host.id,
         name,
         phone,
+        email,
+        company,
+        tax_id,
+        address,
+        payment_method,
         password_hash: hash,
         monthly_fee_cents,
         pet_fee_cents,
@@ -207,13 +217,59 @@ export default function AdminCleanersPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="phone">Phone (for SMS notifications)</Label>
+                <Label htmlFor="phone">Phone</Label>
                 <Input
                   id="phone"
                   name="phone"
                   type="tel"
                   defaultValue={editing?.phone ?? ""}
                   placeholder="+1 555 123 4567"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  name="email"
+                  type="email"
+                  defaultValue={editing?.email ?? ""}
+                  placeholder="cleaner@example.com"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="company">Company Name</Label>
+                <Input
+                  id="company"
+                  name="company"
+                  defaultValue={editing?.company ?? ""}
+                  placeholder="ABC Cleaning LLC"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="tax_id">Tax ID</Label>
+                <Input
+                  id="tax_id"
+                  name="tax_id"
+                  defaultValue={editing?.tax_id ?? ""}
+                  placeholder="XX-XXXXXXX"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="address">Address</Label>
+                <Input
+                  id="address"
+                  name="address"
+                  defaultValue={editing?.address ?? ""}
+                  placeholder="123 Main St, City, ST 12345"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="payment_method">Payment Method</Label>
+                <Input
+                  id="payment_method"
+                  name="payment_method"
+                  defaultValue={editing?.payment_method ?? ""}
+                  placeholder="Zelle, Venmo, Check, etc."
                 />
               </div>
               <div className="space-y-2">
@@ -302,10 +358,22 @@ export default function AdminCleanersPage() {
                   <CardTitle className="text-base">{cleaner.name}</CardTitle>
                   <p className="text-sm text-muted-foreground">
                     {cleaner.property_count} propert{cleaner.property_count === 1 ? "y" : "ies"} assigned
+                    {cleaner.company && (
+                      <span className="inline-flex items-center gap-1 ml-2">
+                        <Building2 className="h-3 w-3" />
+                        {cleaner.company}
+                      </span>
+                    )}
                     {cleaner.phone && (
                       <span className="inline-flex items-center gap-1 ml-2">
                         <Phone className="h-3 w-3" />
                         {cleaner.phone}
+                      </span>
+                    )}
+                    {cleaner.email && (
+                      <span className="inline-flex items-center gap-1 ml-2">
+                        <Mail className="h-3 w-3" />
+                        {cleaner.email}
                       </span>
                     )}
                     {cleaner.monthly_fee_cents > 0 && (

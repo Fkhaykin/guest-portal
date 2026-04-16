@@ -11,7 +11,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Check } from "lucide-react";
+import { ArrowLeft, Check, Building2, Mail, Phone, DollarSign, PawPrint, FileText, MapPin, CreditCard } from "lucide-react";
 import type { Tables } from "@/types/database";
 
 export default function AdminCleanerDetailPage({
@@ -100,6 +100,68 @@ export default function AdminCleanerDetailPage({
           <p className="text-muted-foreground">Assign properties this cleaner can access</p>
         </div>
       </div>
+
+      {/* Profile info */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Profile</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2 text-sm">
+          {cleaner.company && (
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Building2 className="h-4 w-4 shrink-0" />
+              <span>{cleaner.company}</span>
+            </div>
+          )}
+          {cleaner.email && (
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Mail className="h-4 w-4 shrink-0" />
+              <span>{cleaner.email}</span>
+            </div>
+          )}
+          {cleaner.phone && (
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Phone className="h-4 w-4 shrink-0" />
+              <span>{cleaner.phone}</span>
+            </div>
+          )}
+          {cleaner.address && (
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <MapPin className="h-4 w-4 shrink-0" />
+              <span>{cleaner.address}</span>
+            </div>
+          )}
+          {cleaner.tax_id && (
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <FileText className="h-4 w-4 shrink-0" />
+              <span>Tax ID: {cleaner.tax_id}</span>
+            </div>
+          )}
+          {cleaner.payment_method && (
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <CreditCard className="h-4 w-4 shrink-0" />
+              <span>{cleaner.payment_method}</span>
+            </div>
+          )}
+          <div className="flex items-center gap-4 pt-1">
+            {cleaner.monthly_fee_cents > 0 && (
+              <div className="flex items-center gap-1 text-muted-foreground">
+                <DollarSign className="h-4 w-4" />
+                <span>${(cleaner.monthly_fee_cents / 100).toFixed(2)}/mo</span>
+              </div>
+            )}
+            {cleaner.pet_fee_cents > 0 && (
+              <div className="flex items-center gap-1 text-muted-foreground">
+                <PawPrint className="h-4 w-4" />
+                <span>${(cleaner.pet_fee_cents / 100).toFixed(2)}/pet</span>
+              </div>
+            )}
+          </div>
+          {!cleaner.company && !cleaner.email && !cleaner.phone && !cleaner.address && !cleaner.tax_id && !cleaner.payment_method && (
+            <p className="text-muted-foreground">No profile info yet. Edit this cleaner to add details.</p>
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

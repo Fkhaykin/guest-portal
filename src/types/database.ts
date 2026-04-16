@@ -311,6 +311,7 @@ export type Database = {
           signature_url: string | null;
           booking_source: string | null;
           total_amount_cents: number;
+          photo_reward_claimed: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -333,6 +334,7 @@ export type Database = {
           signature_url?: string | null;
           booking_source?: string | null;
           total_amount_cents?: number;
+          photo_reward_claimed?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -355,8 +357,41 @@ export type Database = {
           signature_url?: string | null;
           booking_source?: string | null;
           total_amount_cents?: number;
+          photo_reward_claimed?: boolean;
           created_at?: string;
           updated_at?: string;
+        };
+      };
+      guest_photo: {
+        Row: {
+          id: string;
+          registration_id: string;
+          property_id: string;
+          file_path: string;
+          caption: string | null;
+          guest_name: string | null;
+          approved: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          registration_id: string;
+          property_id: string;
+          file_path: string;
+          caption?: string | null;
+          guest_name?: string | null;
+          approved?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          registration_id?: string;
+          property_id?: string;
+          file_path?: string;
+          caption?: string | null;
+          guest_name?: string | null;
+          approved?: boolean;
+          created_at?: string;
         };
       };
       vehicle: {
@@ -675,6 +710,11 @@ export type Database = {
           host_id: string;
           name: string;
           phone: string | null;
+          email: string | null;
+          company: string | null;
+          tax_id: string | null;
+          address: string | null;
+          payment_method: string | null;
           password_hash: string;
           is_active: boolean;
           monthly_fee_cents: number;
@@ -687,6 +727,11 @@ export type Database = {
           host_id: string;
           name: string;
           phone?: string | null;
+          email?: string | null;
+          company?: string | null;
+          tax_id?: string | null;
+          address?: string | null;
+          payment_method?: string | null;
           password_hash: string;
           is_active?: boolean;
           monthly_fee_cents?: number;
@@ -699,6 +744,11 @@ export type Database = {
           host_id?: string;
           name?: string;
           phone?: string | null;
+          email?: string | null;
+          company?: string | null;
+          tax_id?: string | null;
+          address?: string | null;
+          payment_method?: string | null;
           password_hash?: string;
           is_active?: boolean;
           monthly_fee_cents?: number;
