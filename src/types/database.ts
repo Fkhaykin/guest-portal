@@ -175,6 +175,7 @@ export type Database = {
           cleaning_fee_cents: number;
           pet_fee_cents: number;
           listing_urls: Record<string, string>;
+          sort_order: number;
           created_at: string;
           updated_at: string;
         };
@@ -212,6 +213,7 @@ export type Database = {
           cleaning_fee_cents?: number;
           pet_fee_cents?: number;
           listing_urls?: Record<string, string>;
+          sort_order?: number;
           created_at?: string;
           updated_at?: string;
         };
@@ -249,6 +251,7 @@ export type Database = {
           cleaning_fee_cents?: number;
           pet_fee_cents?: number;
           listing_urls?: Record<string, string>;
+          sort_order?: number;
           created_at?: string;
           updated_at?: string;
         };

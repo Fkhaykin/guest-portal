@@ -251,7 +251,7 @@ function SearchPageInner() {
       .from("property")
       .select("id, name, slug, address, description, cover_image_url, max_guests")
       .eq("is_active", true)
-      .order("name")
+      .order("sort_order", { ascending: true })
       .then(({ data }) => {
         if (data) setBrowseAll(data);
       });
@@ -442,7 +442,7 @@ function SearchPageInner() {
       {/* Search bar */}
       <div className="border-b bg-background px-4 sm:px-6 py-3">
         <form onSubmit={handleSubmit}>
-          <div className="grid grid-cols-2 sm:grid-cols-[1fr_1fr_5rem_4.5rem_auto] items-end gap-3 max-w-4xl mx-auto">
+          <div className="grid grid-cols-2 sm:grid-cols-[1fr_1fr_5rem_4.5rem_auto] items-end gap-x-3 gap-y-2 max-w-4xl mx-auto">
             <div className="space-y-1">
               <Label htmlFor="s-checkin" className="text-xs">
                 Check-in
@@ -456,7 +456,7 @@ function SearchPageInner() {
                   setCheckIn(e.target.value);
                   if (checkOut && e.target.value >= checkOut) setCheckOut("");
                 }}
-                className="h-9"
+                className="h-9 min-w-0"
                 required
               />
             </div>
@@ -470,7 +470,7 @@ function SearchPageInner() {
                 min={checkIn || today}
                 value={checkOut}
                 onChange={(e) => setCheckOut(e.target.value)}
-                className="h-9"
+                className="h-9 min-w-0"
                 required
               />
             </div>

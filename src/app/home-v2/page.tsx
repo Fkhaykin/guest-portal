@@ -883,6 +883,7 @@ function OfferCard({ promotion }: { promotion: Promotion }) {
 
 export default function HomeV2Page() {
   const [heroIndex, setHeroIndex] = useState(0);
+  const heroTouchStart = useRef<number | null>(null);
   const [session, setSession] = useState<{
     guestName: string;
     reservation: Reservation;
@@ -912,7 +913,7 @@ export default function HomeV2Page() {
       .from("property")
       .select("id, name, slug, address, description, cover_image_url, max_guests")
       .eq("is_active", true)
-      .order("name")
+      .order("sort_order", { ascending: true })
       .then(({ data }) => {
         if (data) setProperties(data);
       });
@@ -936,7 +937,22 @@ export default function HomeV2Page() {
       {/* ============================================================ */}
       {/*  HERO + BOOKING SEARCH                                       */}
       {/* ============================================================ */}
-      <section className="relative min-h-screen flex flex-col">
+      <section
+        className="relative min-h-screen flex flex-col"
+        onTouchStart={(e) => { heroTouchStart.current = e.touches[0].clientX; }}
+        onTouchEnd={(e) => {
+          if (heroTouchStart.current === null) return;
+          const delta = e.changedTouches[0].clientX - heroTouchStart.current;
+          if (Math.abs(delta) > 50) {
+            setHeroIndex((prev) =>
+              delta < 0
+                ? (prev + 1) % HERO_IMAGES.length
+                : (prev - 1 + HERO_IMAGES.length) % HERO_IMAGES.length
+            );
+          }
+          heroTouchStart.current = null;
+        }}
+      >
         {/* Background images with crossfade */}
         {HERO_IMAGES.map((img, i) => (
           <div
