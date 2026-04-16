@@ -188,9 +188,13 @@ export async function fetchAllConversations(
     };
 
     for (const b of data.items) {
+      // Skip bookings with no real guest name
+      const name = b.guest?.name?.trim();
+      if (!name || name.toLowerCase() === "unknown" || name.toLowerCase() === "unknown guest") continue;
+
       allBookings.push({
         booking_id: b.id,
-        guest_name: b.guest.name,
+        guest_name: name,
         guest_email: b.guest.email,
         property_id: b.property_id,
         property_name: propertyMap[b.property_id] ?? null,
