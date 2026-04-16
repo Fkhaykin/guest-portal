@@ -144,15 +144,14 @@ export interface ConversationThread {
   departure: string;
   status: string;
   source: string | null;
-  last_message_date: string | null;
-  last_message_preview: string | null;
-  is_read: boolean;
+  date_created: string | null;
 }
 
 /**
- * Fetch all Lodgify bookings with thread metadata for the conversations list.
- * Pulls from Lodgify v1 reservations (paginated), then fetches v2 booking
- * details for thread_uid and thread metadata for last_message_date.
+ * Fetch all Lodgify bookings for the conversations list.
+ * Uses only the v1 reservations endpoint (paginated) — no per-booking
+ * thread lookups, so this is fast even with hundreds of bookings.
+ * Returns bookings sorted by most recently created first.
  */
 export async function fetchAllConversations(
   propertyMap: Record<number, string>
@@ -162,20 +161,10 @@ export async function fetchAllConversations(
     Accept: "application/json",
   };
 
-  // Step 1: Fetch all bookings from Lodgify v1 (paginated)
-  const allBookings: Array<{
-    id: number;
-    guest_name: string;
-    guest_email: string | null;
-    property_id: number;
-    arrival: string;
-    departure: string;
-    status: string;
-    source: string | null;
-  }> = [];
-
+  const allBookings: ConversationThread[] = [];
   let offset = 0;
   const limit = 50;
+
   while (true) {
     const res = await fetch(
       `${LODGIFY_BASE_URL}/v1/reservation?offset=${offset}&limit=${limit}`,
@@ -192,20 +181,24 @@ export async function fetchAllConversations(
         departure: string | null;
         status: string;
         source: string | null;
+        date_created?: string | null;
+        created_at?: string | null;
       }>;
       total: number;
     };
 
     for (const b of data.items) {
       allBookings.push({
-        id: b.id,
+        booking_id: b.id,
         guest_name: b.guest.name,
         guest_email: b.guest.email,
         property_id: b.property_id,
+        property_name: propertyMap[b.property_id] ?? null,
         arrival: b.arrival ?? "",
         departure: b.departure ?? "",
         status: b.status,
         source: b.source,
+        date_created: b.created_at ?? b.date_created ?? null,
       });
     }
 
@@ -213,81 +206,14 @@ export async function fetchAllConversations(
     offset += limit;
   }
 
-  // Step 2: For each booking, fetch v2 detail for thread_uid, then thread metadata
-  const CONCURRENCY = 15;
-  const results: ConversationThread[] = [];
-
-  for (let i = 0; i < allBookings.length; i += CONCURRENCY) {
-    const batch = allBookings.slice(i, i + CONCURRENCY);
-    await Promise.allSettled(
-      batch.map(async (booking) => {
-        let lastMessageDate: string | null = null;
-        let lastMessagePreview: string | null = null;
-        let isRead = true;
-
-        try {
-          const bookingRes = await fetch(
-            `${LODGIFY_BASE_URL}/v2/reservations/bookings/${booking.id}`,
-            { headers, cache: "no-store" }
-          );
-
-          if (bookingRes.ok) {
-            const detail = (await bookingRes.json()) as Record<string, unknown>;
-            const threadUid = detail.thread_uid as string | undefined;
-
-            if (threadUid) {
-              const threadRes = await fetch(
-                `${LODGIFY_BASE_URL}/v2/messaging/${threadUid}`,
-                { headers, cache: "no-store" }
-              );
-
-              if (threadRes.ok) {
-                const thread = (await threadRes.json()) as Record<string, unknown>;
-                lastMessageDate = (thread.last_message_date as string) ?? null;
-                isRead = (thread.is_read as boolean) ?? true;
-
-                // Get preview from last message
-                const msgs = thread.messages as Array<Record<string, unknown>> | undefined;
-                if (msgs && msgs.length > 0) {
-                  const last = msgs[msgs.length - 1];
-                  const msg = (last.message as string) ?? "";
-                  lastMessagePreview = msg.replace(/<[^>]+>/g, "").slice(0, 80) || null;
-                }
-              }
-            }
-          }
-        } catch {
-          // Skip failures silently
-        }
-
-        results.push({
-          booking_id: booking.id,
-          guest_name: booking.guest_name,
-          guest_email: booking.guest_email,
-          property_id: booking.property_id,
-          property_name: propertyMap[booking.property_id] ?? null,
-          arrival: booking.arrival,
-          departure: booking.departure,
-          status: booking.status,
-          source: booking.source,
-          last_message_date: lastMessageDate,
-          last_message_preview: lastMessagePreview,
-          is_read: isRead,
-        });
-      })
-    );
-  }
-
-  // Sort by last_message_date descending (threads with messages first)
-  results.sort((a, b) => {
-    if (a.last_message_date && b.last_message_date)
-      return b.last_message_date.localeCompare(a.last_message_date);
-    if (a.last_message_date) return -1;
-    if (b.last_message_date) return 1;
-    return b.arrival.localeCompare(a.arrival);
+  // v1 API returns newest bookings first by default, but sort explicitly
+  allBookings.sort((a, b) => {
+    const da = a.date_created ?? "";
+    const db = b.date_created ?? "";
+    return db.localeCompare(da);
   });
 
-  return results;
+  return allBookings;
 }
 
 // --- Normalization ---

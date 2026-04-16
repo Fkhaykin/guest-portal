@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,7 @@ import type { LodgifyMessage, ConversationThread } from "@/lib/lodgify/messages"
 
 export default function AdminMessagesPage() {
   const searchParams = useSearchParams();
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const [conversations, setConversations] = useState<ConversationThread[]>([]);
   const [loadingConversations, setLoadingConversations] = useState(true);
   const [selectedBookingId, setSelectedBookingId] = useState<number | null>(null);
@@ -79,7 +80,8 @@ export default function AdminMessagesPage() {
         }
 
         const msgs: LodgifyMessage[] = data.messages ?? [];
-        msgs.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        // Sort oldest first (top) → newest last (bottom), like a chat
+        msgs.sort((a, b) => (a.created_at || "").localeCompare(b.created_at || ""));
         setMessages(msgs);
       } catch {
         setMessageError("Failed to connect to messaging service");
@@ -90,6 +92,11 @@ export default function AdminMessagesPage() {
 
     fetchMessages();
   }, [selectedBookingId]);
+
+  // Scroll to bottom when messages change
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
   async function handleSend() {
     if (!newMessage.trim() || !selectedBookingId || sending) return;
@@ -103,8 +110,9 @@ export default function AdminMessagesPage() {
       });
 
       if (res.ok) {
-        // Optimistically add the message (newest first)
+        // Optimistically append (oldest first, newest at bottom)
         setMessages((prev) => [
+          ...prev,
           {
             id: `temp-${Date.now()}`,
             message: newMessage.trim(),
@@ -113,7 +121,6 @@ export default function AdminMessagesPage() {
             created_at: new Date().toISOString(),
             sender_name: "You",
           },
-          ...prev,
         ]);
         setNewMessage("");
 
@@ -124,7 +131,7 @@ export default function AdminMessagesPage() {
         const refreshData = await refreshRes.json();
         if (refreshRes.ok && refreshData.messages) {
           const msgs: LodgifyMessage[] = refreshData.messages;
-          msgs.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+          msgs.sort((a, b) => (a.created_at || "").localeCompare(b.created_at || ""));
           setMessages(msgs);
         }
       } else {
@@ -260,18 +267,17 @@ export default function AdminMessagesPage() {
                   onClick={() => setSelectedBookingId(conv.booking_id)}
                   className={cn(
                     "w-full text-left p-3 border-b hover:bg-muted/50 transition-colors",
-                    selectedBookingId === conv.booking_id && "bg-accent",
-                    !conv.is_read && "bg-primary/5"
+                    selectedBookingId === conv.booking_id && "bg-accent"
                   )}
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
-                      <p className={cn("text-sm truncate", !conv.is_read ? "font-bold" : "font-medium")}>
+                      <p className="font-medium text-sm truncate">
                         {conv.guest_name || "Unknown Guest"}
                       </p>
-                      {conv.last_message_preview && (
+                      {conv.property_name && (
                         <p className="text-xs text-muted-foreground truncate mt-0.5">
-                          {conv.last_message_preview}
+                          {conv.property_name}
                         </p>
                       )}
                       <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
@@ -281,21 +287,15 @@ export default function AdminMessagesPage() {
                       </div>
                     </div>
                     <div className="flex flex-col items-end gap-1">
-                      {conv.last_message_date ? (
-                        <span className="text-[10px] text-muted-foreground whitespace-nowrap">
-                          {formatDate(conv.last_message_date.slice(0, 10))}
-                        </span>
-                      ) : (
-                        <Badge
-                          variant="outline"
-                          className={cn(
-                            "text-[10px] px-1.5 py-0",
-                            getStatusColor(conv.status)
-                          )}
-                        >
-                          {conv.status}
-                        </Badge>
-                      )}
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          "text-[10px] px-1.5 py-0",
+                          getStatusColor(conv.status)
+                        )}
+                      >
+                        {conv.status}
+                      </Badge>
                       {conv.source && (
                         <span className="text-[10px] text-muted-foreground">
                           {cleanSourceName(conv.source)}
@@ -458,6 +458,7 @@ export default function AdminMessagesPage() {
                     );
                   })
                 )}
+                <div ref={messagesEndRef} />
               </div>
 
               {/* Message input */}
