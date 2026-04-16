@@ -15,7 +15,6 @@ export async function generateMetadata({
     .from("property")
     .select("name, description")
     .eq("slug", slug)
-    .eq("is_active", true)
     .single();
 
   if (!property) return { title: "Property Not Found" };
@@ -40,7 +39,6 @@ export default async function PropertyLayout({
     .from("property")
     .select("*")
     .eq("slug", slug)
-    .eq("is_active", true)
     .single();
 
   if (!property) {
