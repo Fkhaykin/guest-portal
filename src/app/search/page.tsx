@@ -764,10 +764,10 @@ function SearchPageInner() {
         {hasMapKey && displayProperties && displayProperties.length > 0 && (
           <div
             className={`lg:w-[45%] xl:w-[50%] shrink-0 ${
-              showMap ? "block" : "hidden lg:block"
+              showMap ? "flex-1 w-full" : "hidden lg:block"
             }`}
           >
-            <div className="h-full p-3 pl-0">
+            <div className="h-full p-3 lg:pl-0">
               <ResultsMap
                 properties={mapProperties}
                 hoveredId={hoveredId}
