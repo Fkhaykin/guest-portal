@@ -147,15 +147,29 @@ function UnpaidTab({
   const router = useRouter();
   const [showModal, setShowModal] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [skipped, setSkipped] = useState<Set<string>>(new Set());
+
+  function toggleSkip(registrationId: string) {
+    setSkipped((prev) => {
+      const next = new Set(prev);
+      if (next.has(registrationId)) next.delete(registrationId);
+      else next.add(registrationId);
+      return next;
+    });
+  }
+
+  const included = cleanings.filter((c) => !skipped.has(c.registrationId));
+  const includedTotal = included.reduce((s, c) => s + c.totalFee, 0);
 
   async function handleGenerate() {
+    if (included.length === 0) return;
     setGenerating(true);
     try {
       const res = await fetch("/api/admin/invoices", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          cleanings: cleanings.map((c) => ({
+          cleanings: included.map((c) => ({
             registrationId: c.registrationId,
             cleanerId: c.cleanerId,
             propertyName: c.propertyName,
@@ -169,6 +183,7 @@ function UnpaidTab({
 
       if (res.ok) {
         setShowModal(false);
+        setSkipped(new Set());
         router.refresh();
       }
     } finally {
@@ -206,12 +221,19 @@ function UnpaidTab({
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-muted-foreground">
-                {cleanings.length} cleaning
-                {cleanings.length !== 1 ? "s" : ""} pending invoice
+                {skipped.size > 0
+                  ? `${included.length} of ${cleanings.length} cleaning${cleanings.length !== 1 ? "s" : ""} selected`
+                  : `${cleanings.length} cleaning${cleanings.length !== 1 ? "s" : ""} pending invoice`}
               </p>
-              <p className="text-2xl font-bold">{formatCents(totalUnpaid)}</p>
+              <p className="text-2xl font-bold">
+                {formatCents(includedTotal)}
+              </p>
             </div>
-            <Button onClick={() => setShowModal(true)} size="sm">
+            <Button
+              onClick={() => setShowModal(true)}
+              size="sm"
+              disabled={included.length === 0}
+            >
               <FileText className="h-4 w-4 mr-1.5" />
               Generate Invoice
             </Button>
@@ -221,79 +243,98 @@ function UnpaidTab({
 
       {/* Cleaning list */}
       <div className="flex flex-col gap-4">
-        {cleanings.map((c) => (
-          <Link key={c.registrationId} href={`/admin/reservations/${c.registrationId}`} className="block">
-            <Card className="hover:bg-accent/50 transition-colors cursor-pointer">
-              <CardContent className="py-3">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-lg overflow-hidden shrink-0">
-                    {c.propertyCoverImage ? (
-                      <img
-                        src={c.propertyCoverImage}
-                        alt={c.propertyName}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full bg-muted flex items-center justify-center">
-                        <Home className="h-4 w-4 text-muted-foreground" />
+        {cleanings.map((c) => {
+          const isSkipped = skipped.has(c.registrationId);
+          return (
+            <div key={c.registrationId} className={`relative ${isSkipped ? "opacity-50" : ""}`}>
+              <Link href={`/admin/reservations/${c.registrationId}`} className="block">
+                <Card className="hover:bg-accent/50 transition-colors cursor-pointer">
+                  <CardContent className="py-3">
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-lg overflow-hidden shrink-0">
+                        {c.propertyCoverImage ? (
+                          <img
+                            src={c.propertyCoverImage}
+                            alt={c.propertyName}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full bg-muted flex items-center justify-center">
+                            <Home className="h-4 w-4 text-muted-foreground" />
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">
-                      {c.propertyName}
-                    </p>
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <span className="flex items-center gap-1">
-                        <User className="h-3 w-3" />
-                        {c.cleanerName}
-                      </span>
-                      {c.guestName && (
-                        <>
-                          <span>&middot;</span>
-                          <span className="truncate">{c.guestName}</span>
-                        </>
-                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-sm font-medium truncate ${isSkipped ? "line-through" : ""}`}>
+                          {c.propertyName}
+                        </p>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <span className="flex items-center gap-1">
+                            <User className="h-3 w-3" />
+                            {c.cleanerName}
+                          </span>
+                          {c.guestName && (
+                            <>
+                              <span>&middot;</span>
+                              <span className="truncate">{c.guestName}</span>
+                            </>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
+                          <span className="flex items-center gap-1">
+                            <CalendarDays className="h-3 w-3" />
+                            {formatDate(c.checkInDate)} &ndash;{" "}
+                            {formatDate(c.checkOutDate)}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Users className="h-3 w-3" />
+                            {c.guestCount}
+                          </span>
+                          {c.hasPets && (
+                            <span className="flex items-center gap-1 text-amber-600">
+                              <PawPrint className="h-3 w-3" />
+                              {c.petCount} pet{c.petCount !== 1 ? "s" : ""}
+                            </span>
+                          )}
+                        </div>
+                        {c.cleanedAt && (
+                          <p className="text-[10px] text-muted-foreground mt-0.5">
+                            <SprayCan className="h-2.5 w-2.5 inline mr-0.5" />
+                            Cleaned {formatTimestamp(c.cleanedAt)}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <div className="text-right">
+                          <p className={`text-sm font-semibold ${isSkipped ? "line-through" : ""}`}>
+                            {formatCents(c.totalFee)}
+                          </p>
+                          {c.petFee > 0 && (
+                            <p className="text-[10px] text-muted-foreground">
+                              incl. {formatCents(c.petFee)} pet fee
+                            </p>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
-                      <span className="flex items-center gap-1">
-                        <CalendarDays className="h-3 w-3" />
-                        {formatDate(c.checkInDate)} &ndash;{" "}
-                        {formatDate(c.checkOutDate)}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Users className="h-3 w-3" />
-                        {c.guestCount}
-                      </span>
-                      {c.hasPets && (
-                        <span className="flex items-center gap-1 text-amber-600">
-                          <PawPrint className="h-3 w-3" />
-                          {c.petCount} pet{c.petCount !== 1 ? "s" : ""}
-                        </span>
-                      )}
-                    </div>
-                    {c.cleanedAt && (
-                      <p className="text-[10px] text-muted-foreground mt-0.5">
-                        <SprayCan className="h-2.5 w-2.5 inline mr-0.5" />
-                        Cleaned {formatTimestamp(c.cleanedAt)}
-                      </p>
-                    )}
-                  </div>
-                  <div className="text-right shrink-0">
-                    <p className="text-sm font-semibold">
-                      {formatCents(c.totalFee)}
-                    </p>
-                    {c.petFee > 0 && (
-                      <p className="text-[10px] text-muted-foreground">
-                        incl. {formatCents(c.petFee)} pet fee
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </Link>
-        ))}
+                  </CardContent>
+                </Card>
+              </Link>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="absolute top-1 right-1 h-7 text-[10px] text-muted-foreground hover:text-foreground z-10"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  toggleSkip(c.registrationId);
+                }}
+              >
+                {isSkipped ? "Include" : "Skip"}
+              </Button>
+            </div>
+          );
+        })}
       </div>
 
       {/* Generate Invoice Modal */}
@@ -302,14 +343,22 @@ function UnpaidTab({
           <DialogHeader>
             <DialogTitle>Generate Invoice</DialogTitle>
             <DialogDescription>
-              Create an invoice for all {cleanings.length} completed cleaning
-              {cleanings.length !== 1 ? "s" : ""} below.
+              {skipped.size > 0
+                ? `${included.length} of ${cleanings.length} cleaning${cleanings.length !== 1 ? "s" : ""} selected — ${skipped.size} skipped.`
+                : `Create an invoice for all ${cleanings.length} completed cleaning${cleanings.length !== 1 ? "s" : ""} below.`}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-2">
             {[...byCleanerName.entries()].map(([cleanerName, items]) => {
-              const cleanerTotal = items.reduce((s, c) => s + c.totalFee, 0);
+              const includedItems = items.filter(
+                (c) => !skipped.has(c.registrationId)
+              );
+              if (includedItems.length === 0) return null;
+              const cleanerTotal = includedItems.reduce(
+                (s, c) => s + c.totalFee,
+                0
+              );
               return (
                 <div key={cleanerName} className="space-y-2">
                   <div className="flex items-center justify-between">
@@ -322,7 +371,7 @@ function UnpaidTab({
                     </p>
                   </div>
                   <div className="space-y-1.5 pl-1">
-                    {items.map((c) => (
+                    {includedItems.map((c) => (
                       <div
                         key={c.registrationId}
                         className="rounded-md border p-2.5 text-xs space-y-1"
@@ -370,10 +419,19 @@ function UnpaidTab({
               );
             })}
 
+            {included.length === 0 && (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                All cleanings have been skipped. Include at least one to
+                generate an invoice.
+              </p>
+            )}
+
             {/* Grand total */}
             <div className="border-t pt-3 flex items-center justify-between">
               <p className="text-sm font-semibold">Total</p>
-              <p className="text-lg font-bold">{formatCents(totalUnpaid)}</p>
+              <p className="text-lg font-bold">
+                {formatCents(includedTotal)}
+              </p>
             </div>
           </div>
 
@@ -385,7 +443,10 @@ function UnpaidTab({
             >
               Cancel
             </Button>
-            <Button onClick={handleGenerate} disabled={generating}>
+            <Button
+              onClick={handleGenerate}
+              disabled={generating || included.length === 0}
+            >
               {generating ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
