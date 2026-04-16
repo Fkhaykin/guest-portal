@@ -555,8 +555,8 @@ function AvailabilitySearch() {
 
   return (
     <form onSubmit={handleSubmit}>
-      <div className="flex items-stretch rounded-2xl overflow-hidden bg-white/10 backdrop-blur-xl border border-white/20 shadow-2xl shadow-black/20">
-        <div className="flex-1 px-6 py-5 border-r border-white/15 hover:bg-white/5 transition-colors">
+      <div className="grid grid-cols-2 sm:grid-cols-[1fr_1fr_6rem_auto] rounded-2xl overflow-hidden bg-white/10 backdrop-blur-xl border border-white/20 shadow-2xl shadow-black/20">
+        <div className="px-4 sm:px-6 py-4 sm:py-5 border-r border-white/15 hover:bg-white/5 transition-colors">
           <label htmlFor="v2-checkin" className="block text-xs font-semibold text-white/60 mb-1 tracking-wide">
             Check-in
           </label>
@@ -569,11 +569,11 @@ function AvailabilitySearch() {
               setCheckIn(e.target.value);
               if (checkOut && e.target.value >= checkOut) setCheckOut("");
             }}
-            className="w-full bg-transparent text-white text-lg font-medium outline-none scheme-dark"
+            className="w-full bg-transparent text-white text-base sm:text-lg font-medium outline-none scheme-dark"
             required
           />
         </div>
-        <div className="flex-1 px-6 py-5 border-r border-white/15 hover:bg-white/5 transition-colors">
+        <div className="px-4 sm:px-6 py-4 sm:py-5 border-b sm:border-b-0 sm:border-r border-white/15 hover:bg-white/5 transition-colors">
           <label htmlFor="v2-checkout" className="block text-xs font-semibold text-white/60 mb-1 tracking-wide">
             Check-out
           </label>
@@ -583,11 +583,11 @@ function AvailabilitySearch() {
             min={checkIn || today}
             value={checkOut}
             onChange={(e) => setCheckOut(e.target.value)}
-            className="w-full bg-transparent text-white text-lg font-medium outline-none scheme-dark"
+            className="w-full bg-transparent text-white text-base sm:text-lg font-medium outline-none scheme-dark"
             required
           />
         </div>
-        <div className="w-28 px-6 py-5 border-r border-white/15 hover:bg-white/5 transition-colors">
+        <div className="px-4 sm:px-6 py-4 sm:py-5 border-b sm:border-b-0 border-r border-white/15 hover:bg-white/5 transition-colors">
           <label htmlFor="v2-guests" className="block text-xs font-semibold text-white/60 mb-1 tracking-wide">
             Guests
           </label>
@@ -598,15 +598,16 @@ function AvailabilitySearch() {
             max={30}
             value={guests}
             onChange={(e) => setGuests(parseInt(e.target.value) || 1)}
-            className="w-full bg-transparent text-white text-lg font-medium outline-none scheme-dark"
+            className="w-full bg-transparent text-white text-base sm:text-lg font-medium outline-none scheme-dark"
           />
         </div>
-        <div className="flex items-center px-3">
+        <div className="flex items-center justify-center px-3 py-3 sm:py-0">
           <button
             type="submit"
-            className="h-12 w-12 rounded-xl bg-white/15 text-white hover:bg-white/25 transition-colors flex items-center justify-center shrink-0 border border-white/20"
+            className="h-12 w-full sm:w-12 rounded-xl bg-white/15 text-white hover:bg-white/25 transition-colors flex items-center justify-center shrink-0 border border-white/20 gap-2"
           >
             <Search className="h-5 w-5" />
+            <span className="sm:hidden text-sm font-medium">Search</span>
           </button>
         </div>
       </div>
