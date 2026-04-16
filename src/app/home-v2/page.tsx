@@ -16,6 +16,7 @@ import { createClient } from "@/lib/supabase/client";
 import {
   clearGuestToken,
 } from "@/lib/guest-session";
+import { GuestPhotoCarousel } from "@/components/guest/guest-photo-carousel";
 import {
   Search,
   MapPin,
@@ -1511,6 +1512,12 @@ export default function HomeV2Page() {
           </div>
         </section>
       )}
+
+      {/* ============================================================ */}
+      {/*  GUEST PHOTOS                                                 */}
+      {/* ============================================================ */}
+      <Separator className="max-w-6xl mx-auto" />
+      <GuestPhotoCarousel />
 
       {/* ============================================================ */}
       {/*  GUEST REVIEWS                                                */}
