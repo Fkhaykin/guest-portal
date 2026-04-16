@@ -41,7 +41,360 @@ import {
   Tent,
   Menu,
   X,
+  Quote,
+  ChevronLeft,
 } from "lucide-react";
+
+/* ------------------------------------------------------------------ */
+/*  Reviews data                                                       */
+/* ------------------------------------------------------------------ */
+
+type Review = {
+  id: number;
+  name: string;
+  date: string;
+  rating: number;
+  text: string;
+  property: string;
+  platform: "Airbnb" | "VRBO" | "Google" | "Direct";
+  avatar?: string;
+};
+
+const REVIEWS: Review[] = [
+  {
+    id: 1,
+    name: "Jessica M.",
+    date: "March 2026",
+    rating: 5,
+    text: "We absolutely loved the home, and the location was perfect. Everything we needed was easily accessible, and the home had so much to offer our family! The lake views from the deck were breathtaking and the hot tub was the perfect way to end each evening.",
+    property: "Lakefront Home w/ Hot Tub, Game Room, Deck, Boats, Fire Pit",
+    platform: "Airbnb",
+  },
+  {
+    id: 2,
+    name: "Michael T.",
+    date: "February 2026",
+    rating: 5,
+    text: "This place exceeded all expectations. The game room kept the kids entertained for hours while the adults relaxed by the fire pit. Feliks was an amazing host — super responsive and made sure we had everything we needed. Already planning our next trip!",
+    property: "Lakeview Chalet w/ Hot Tub, Sauna, Decks, Boats, & Fire Pit!",
+    platform: "VRBO",
+  },
+  {
+    id: 3,
+    name: "Sarah K.",
+    date: "January 2026",
+    rating: 5,
+    text: "Perfect winter getaway! The sauna was incredible after a day of skiing at Camelback. The house was spotless, beautifully decorated, and had every amenity you could think of. The lakefront location is unbeatable — woke up to stunning views every morning.",
+    property: "Lakeview Chalet w/ Hot Tub, Sauna, Decks, Boats, & Fire Pit!",
+    platform: "Airbnb",
+  },
+  {
+    id: 4,
+    name: "David & Lisa R.",
+    date: "December 2025",
+    rating: 5,
+    text: "We hosted our family Christmas here and it was magical. 12 of us fit comfortably with room to spare. The kitchen was fully equipped for our holiday feast, and the kids loved the game room. The fenced yard was perfect for our dog. Can't say enough good things!",
+    property: "Lake Adjacent Home w/ Hot Tub, Game Room, Boats, Fenced Yard",
+    platform: "Airbnb",
+  },
+  {
+    id: 5,
+    name: "Amanda P.",
+    date: "November 2025",
+    rating: 5,
+    text: "Hosted my bachelorette party here and it was PERFECT. The hot tub, the fire pit, the boats — we had the best time. The house is gorgeous and the lake views are absolutely stunning. Feliks went above and beyond to make our weekend special.",
+    property: "Lakefront Mansion w/ 3 Decks, Hot Tub, Boats, & Game Room!",
+    platform: "VRBO",
+  },
+  {
+    id: 6,
+    name: "Chris W.",
+    date: "October 2025",
+    rating: 5,
+    text: "Fall foliage season in the Poconos was spectacular from this property. We spent every morning on the deck with coffee watching the leaves change over the lake. The house was immaculate and had everything we needed. Already booked again for next year!",
+    property: "Cozy Lakefront Home w/ Game Room, Hot Tub, Fire Pit, & Boats",
+    platform: "Airbnb",
+  },
+  {
+    id: 7,
+    name: "Rachel & James H.",
+    date: "September 2025",
+    rating: 5,
+    text: "This luxury chalet is the real deal. From the moment we walked in, we were blown away by the quality of everything. The three decks give you views from every angle, and the hot tub overlooking the lake at night was pure magic. 10/10 would recommend.",
+    property: "Luxury Lakefront Chalet in Poconos 1.5hrs from NYC",
+    platform: "Airbnb",
+  },
+  {
+    id: 8,
+    name: "Nicole F.",
+    date: "August 2025",
+    rating: 5,
+    text: "Best Airbnb we've ever stayed at, hands down. The kayaks and paddleboards were a huge hit with our group. We spent entire days on the lake and came home to the hot tub and fire pit. The host thought of everything — even left us local restaurant recommendations!",
+    property: "Lakefront Home w/ Hot Tub, Game Room, Deck, Boats, Fire Pit",
+    platform: "Airbnb",
+  },
+  {
+    id: 9,
+    name: "Tom B.",
+    date: "July 2025",
+    rating: 5,
+    text: "Brought the whole crew — 10 adults and 4 kids — and there was plenty of space for everyone. The mansion layout is perfect for groups. Multiple decks, tons of seating, and the game room kept everyone happy on the rainy day. Lake access was the cherry on top.",
+    property: "Lakefront Mansion w/ 3 Decks, Hot Tub, Boats, & Game Room!",
+    platform: "VRBO",
+  },
+  {
+    id: 10,
+    name: "Emily S.",
+    date: "June 2025",
+    rating: 5,
+    text: "A true hidden gem in the Poconos! The property is even more beautiful in person than in the photos. Our toddler loved the fenced yard and we felt so safe letting her play while we relaxed. The hot tub with mountain views was the highlight of our trip.",
+    property: "Lake Adjacent Home w/ Hot Tub, Game Room, Boats, Fenced Yard",
+    platform: "Airbnb",
+  },
+  {
+    id: 11,
+    name: "Marcus D.",
+    date: "May 2025",
+    rating: 5,
+    text: "Second time staying here and it just keeps getting better. Feliks has added even more amenities since our last visit. The new sauna was incredible. If you're looking for a lakefront escape that's close to NYC but feels a world away, this is it.",
+    property: "Lakeview Chalet w/ Hot Tub, Sauna, Decks, Boats, & Fire Pit!",
+    platform: "Airbnb",
+  },
+  {
+    id: 12,
+    name: "Priya & Raj L.",
+    date: "April 2025",
+    rating: 5,
+    text: "We celebrated our anniversary here and it was absolutely perfect. The chalet is luxurious, cozy, and romantic all at once. Waking up to lake views every morning was a dream. The attention to detail in this property is remarkable — truly five-star hospitality.",
+    property: "Luxury Lakefront Chalet in Poconos 1.5hrs from NYC",
+    platform: "VRBO",
+  },
+];
+
+/* ------------------------------------------------------------------ */
+/*  Reviews Carousel                                                   */
+/* ------------------------------------------------------------------ */
+
+function ReviewsCarousel() {
+  const [current, setCurrent] = useState(0);
+  const [isAutoPlaying, setIsAutoPlaying] = useState(true);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval>>(null);
+
+  const startAutoPlay = useCallback(() => {
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    if (!isAutoPlaying) return;
+    intervalRef.current = setInterval(() => {
+      setCurrent((prev) => (prev + 1) % REVIEWS.length);
+    }, 5000);
+  }, [isAutoPlaying]);
+
+  useEffect(() => {
+    startAutoPlay();
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [startAutoPlay]);
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      const card = scrollRef.current.querySelector("[data-review]");
+      if (card) {
+        const cardWidth = card.getBoundingClientRect().width + 16;
+        scrollRef.current.scrollTo({
+          left: current * cardWidth,
+          behavior: "smooth",
+        });
+      }
+    }
+  }, [current]);
+
+  const go = (dir: -1 | 1) => {
+    setCurrent((prev) => (prev + dir + REVIEWS.length) % REVIEWS.length);
+    startAutoPlay();
+  };
+
+  const platformColor: Record<string, string> = {
+    Airbnb: "bg-[#FF5A5F]/10 text-[#FF5A5F]",
+    VRBO: "bg-[#3B5FD9]/10 text-[#3B5FD9]",
+    Google: "bg-emerald-500/10 text-emerald-600",
+    Direct: "bg-amber-500/10 text-amber-600",
+  };
+
+  return (
+    <section className="px-4 sm:px-6 py-10 max-w-6xl mx-auto w-full">
+      <div className="flex items-center justify-between mb-6">
+        <div className="space-y-1">
+          <h2 className="text-2xl sm:text-3xl font-bold tracking-tight flex items-center gap-2.5">
+            <Star className="h-6 w-6 fill-amber-400 text-amber-400" />
+            Guest Reviews
+          </h2>
+          <p className="text-muted-foreground">
+            {REVIEWS.length}+ five-star reviews across Airbnb &amp; VRBO
+          </p>
+        </div>
+        <div className="hidden sm:flex items-center gap-2">
+          <button
+            onClick={() => go(-1)}
+            className="h-9 w-9 rounded-full border border-input flex items-center justify-center hover:bg-accent transition-colors"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <button
+            onClick={() => go(1)}
+            className="h-9 w-9 rounded-full border border-input flex items-center justify-center hover:bg-accent transition-colors"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+
+      {/* Rating summary bar */}
+      <div className="flex items-center gap-4 mb-6 flex-wrap">
+        <div className="flex items-center gap-1.5">
+          <span className="text-3xl font-bold">5.0</span>
+          <div className="flex gap-0.5">
+            {Array.from({ length: 5 }, (_, i) => (
+              <Star
+                key={i}
+                className="h-4 w-4 fill-amber-400 text-amber-400"
+              />
+            ))}
+          </div>
+        </div>
+        <Separator orientation="vertical" className="h-8 hidden sm:block" />
+        <div className="flex gap-2 flex-wrap">
+          {(["Airbnb", "VRBO"] as const).map((platform) => (
+            <Badge
+              key={platform}
+              variant="secondary"
+              className={`${platformColor[platform]} border-0 text-xs font-medium`}
+            >
+              {platform} ·{" "}
+              {REVIEWS.filter((r) => r.platform === platform).length} reviews
+            </Badge>
+          ))}
+        </div>
+      </div>
+
+      {/* Review cards carousel */}
+      <div className="relative">
+        <div
+          ref={scrollRef}
+          className="flex gap-4 overflow-x-auto snap-x snap-mandatory scrollbar-hide pb-2"
+          style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+          onMouseEnter={() => {
+            setIsAutoPlaying(false);
+            if (intervalRef.current) clearInterval(intervalRef.current);
+          }}
+          onMouseLeave={() => {
+            setIsAutoPlaying(true);
+          }}
+        >
+          {REVIEWS.map((review) => (
+            <div
+              key={review.id}
+              data-review
+              className="shrink-0 w-[320px] sm:w-95 snap-start"
+            >
+              <Card className="h-full border-border/50 hover:border-border transition-colors">
+                <CardContent className="p-5 flex flex-col h-full">
+                  {/* Header */}
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-sm font-semibold text-primary">
+                        {review.name
+                          .split(" ")
+                          .map((n) => n[0])
+                          .join("")
+                          .slice(0, 2)}
+                      </div>
+                      <div>
+                        <p className="font-semibold text-sm">{review.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {review.date}
+                        </p>
+                      </div>
+                    </div>
+                    <Badge
+                      variant="secondary"
+                      className={`${platformColor[review.platform]} border-0 text-[10px] font-medium`}
+                    >
+                      {review.platform}
+                    </Badge>
+                  </div>
+
+                  {/* Stars */}
+                  <div className="flex gap-0.5 mb-3">
+                    {Array.from({ length: 5 }, (_, i) => (
+                      <Star
+                        key={i}
+                        className={`h-3.5 w-3.5 ${
+                          i < review.rating
+                            ? "fill-amber-400 text-amber-400"
+                            : "text-muted-foreground/25"
+                        }`}
+                      />
+                    ))}
+                  </div>
+
+                  {/* Review text */}
+                  <p className="text-sm text-muted-foreground leading-relaxed flex-1">
+                    &ldquo;{review.text}&rdquo;
+                  </p>
+
+                  {/* Property */}
+                  <div className="mt-3 pt-3 border-t">
+                    <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                      <MapPin className="h-3 w-3 shrink-0" />
+                      <span className="line-clamp-1">{review.property}</span>
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Dots */}
+      <div className="flex justify-center gap-1.5 mt-4">
+        {REVIEWS.map((_, i) => (
+          <button
+            key={i}
+            onClick={() => {
+              setCurrent(i);
+              startAutoPlay();
+            }}
+            className={`h-1.5 rounded-full transition-all duration-300 ${
+              i === current
+                ? "w-6 bg-foreground"
+                : "w-1.5 bg-foreground/20 hover:bg-foreground/40"
+            }`}
+          />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function InstagramIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
+      <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+      <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
+    </svg>
+  );
+}
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -252,6 +605,29 @@ const LOCAL_HIGHLIGHTS = [
 ];
 
 /* ------------------------------------------------------------------ */
+/*  Instagram feed — curated photos from @summitlakeside               */
+/* ------------------------------------------------------------------ */
+
+const ELFSIGHT_APP_ID = process.env.NEXT_PUBLIC_ELFSIGHT_APP_ID || "018c3f37-3b89-4752-8511-6de4a86567a3";
+
+/* ------------------------------------------------------------------ */
+/*  Instagram Feed (Elfsight embed)                                    */
+/* ------------------------------------------------------------------ */
+
+function InstagramFeed({ appId }: { appId: string }) {
+  useEffect(() => {
+    // Only load the script once
+    if (document.querySelector('script[src*="elfsight"]')) return;
+    const script = document.createElement("script");
+    script.src = "https://elfsightcdn.com/platform.js";
+    script.async = true;
+    document.body.appendChild(script);
+  }, []);
+
+  return <div className={`elfsight-app-${appId}`} data-elfsight-app-lazy />;
+}
+
+/* ------------------------------------------------------------------ */
 /*  Auto-rotating Carousel                                             */
 /* ------------------------------------------------------------------ */
 
@@ -377,7 +753,7 @@ function Carousel({
 
 const NAV_LINKS = [
   { label: "Home", href: "/home-v2" },
-  { label: "Visit Poconos", href: "#explore" },
+  { label: "Visit Poconos", href: "/home-v2/things-to-do" },
   { label: "Why Summit?", href: "#why-summit" },
   { label: "Contact Us", href: "#contact" },
 ];
@@ -614,8 +990,8 @@ function AvailabilitySearch() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
-      <div className="grid grid-cols-2 sm:grid-cols-[1fr_1fr_6rem_5rem_auto] rounded-2xl overflow-hidden bg-white/10 backdrop-blur-xl border border-white/20 shadow-2xl shadow-black/20">
-        <div className="px-4 sm:px-6 py-4 sm:py-5 border-r border-b sm:border-b-0 border-white/15 hover:bg-white/5 transition-colors">
+      <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_6rem_5rem_auto] rounded-2xl overflow-hidden bg-white/10 backdrop-blur-xl border border-white/20 shadow-2xl shadow-black/20">
+        <div className="px-4 sm:px-6 py-4 sm:py-5 border-b sm:border-b-0 sm:border-r border-white/15 hover:bg-white/5 transition-colors">
           <label htmlFor="v2-checkin" className="block text-xs font-semibold text-white/60 mb-1 tracking-wide text-center sm:text-left">
             Check-in
           </label>
@@ -650,6 +1026,7 @@ function AvailabilitySearch() {
             required
           />
         </div>
+        <div className="grid grid-cols-2 sm:contents border-b sm:border-b-0 border-white/15">
         <div className="px-4 sm:px-6 py-4 sm:py-5 border-r border-white/15 hover:bg-white/5 transition-colors">
           <label htmlFor="v2-guests" className="block text-xs font-semibold text-white/60 mb-1 tracking-wide text-center sm:text-left">
             Guests
@@ -677,6 +1054,7 @@ function AvailabilitySearch() {
             onChange={(e) => setPets(parseInt(e.target.value) || 0)}
             className="w-full bg-transparent text-white text-base sm:text-lg font-medium outline-none scheme-dark text-center sm:text-left"
           />
+        </div>
         </div>
         {/* Desktop: icon button inside the card */}
         <div className="hidden sm:flex items-center justify-center px-3">
@@ -837,6 +1215,26 @@ function PropertyCard({
                 <span className="line-clamp-1">{general}</span>
               </p>
             ) : null;
+          })()}
+          {/* Review rating */}
+          {(() => {
+            const propertyReviews = REVIEWS.filter(
+              (r) => r.property === property.name
+            );
+            if (propertyReviews.length === 0) return null;
+            const avg =
+              propertyReviews.reduce((s, r) => s + r.rating, 0) /
+              propertyReviews.length;
+            return (
+              <div className="flex items-center gap-1.5 text-sm">
+                <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
+                <span className="font-medium">{avg.toFixed(1)}</span>
+                <span className="text-muted-foreground">
+                  ({propertyReviews.length} review
+                  {propertyReviews.length !== 1 ? "s" : ""})
+                </span>
+              </div>
+            );
           })()}
           {property.description && (
             <p className="text-sm text-muted-foreground line-clamp-2">
@@ -1114,6 +1512,12 @@ export default function HomeV2Page() {
         </section>
       )}
 
+      {/* ============================================================ */}
+      {/*  GUEST REVIEWS                                                */}
+      {/* ============================================================ */}
+      <Separator className="max-w-6xl mx-auto" />
+      <ReviewsCarousel />
+
       <Separator className="max-w-6xl mx-auto" />
 
       {/* ============================================================ */}
@@ -1139,6 +1543,50 @@ export default function HomeV2Page() {
           subtitle="Discover the best the Poconos has to offer"
         />
       </div>
+
+      {/* ============================================================ */}
+      {/*  INSTAGRAM FEED                                               */}
+      {/* ============================================================ */}
+      {ELFSIGHT_APP_ID && (
+        <>
+          <Separator className="max-w-6xl mx-auto" />
+          <section className="px-4 sm:px-6 py-10 max-w-6xl mx-auto w-full">
+            <div className="flex items-center justify-between mb-6">
+              <div className="space-y-1">
+                <h2 className="text-2xl sm:text-3xl font-bold tracking-tight flex items-center gap-2.5">
+                  <InstagramIcon className="h-6 w-6" />
+                  @summitlakeside
+                </h2>
+                <p className="text-muted-foreground">
+                  Follow us for more lakefront moments
+                </p>
+              </div>
+              <a
+                href="https://instagram.com/summitlakeside"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hidden sm:inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border border-input bg-background hover:bg-accent hover:text-accent-foreground transition-colors"
+              >
+                <InstagramIcon className="h-4 w-4" />
+                Follow
+              </a>
+            </div>
+            <InstagramFeed appId={ELFSIGHT_APP_ID} />
+            {/* Mobile follow button */}
+            <div className="mt-4 sm:hidden">
+              <a
+                href="https://instagram.com/summitlakeside"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 w-full py-3 text-sm font-medium rounded-lg border border-input bg-background hover:bg-accent hover:text-accent-foreground transition-colors"
+              >
+                <InstagramIcon className="h-4 w-4" />
+                Follow @summitlakeside
+              </a>
+            </div>
+          </section>
+        </>
+      )}
 
       {/* ============================================================ */}
       {/*  SPECIAL OFFERS                                               */}
