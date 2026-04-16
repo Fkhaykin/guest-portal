@@ -9,6 +9,7 @@ export type Review = {
   text: string;
   property: string;
   platform: "Airbnb" | "VRBO" | "Google" | "Direct";
+  imageUrl?: string;
 };
 
 export const REVIEWS: Review[] = [

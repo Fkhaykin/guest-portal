@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Star, ChevronLeft, ChevronRight, MapPin } from "lucide-react";
+import { Star, ChevronLeft, ChevronRight, MapPin, Calendar } from "lucide-react";
 import { REVIEWS, REVIEW_STATS } from "@/lib/reviews-data";
 
 // Show top 20 five-star reviews (diverse property mix)
@@ -148,31 +148,40 @@ export function ReviewsCarousel() {
               data-review
               className="shrink-0 w-[320px] sm:w-95 snap-start"
             >
-              <Card className="h-full border-border/50 hover:border-border transition-colors">
-                <CardContent className="p-5 flex flex-col h-full">
+              <Card className="border-border/50 hover:border-border transition-colors">
+                <CardContent className="p-5 flex flex-col">
                   {/* Header */}
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-sm font-semibold text-primary">
+                  <div className="flex items-center gap-3 mb-3">
+                    {review.imageUrl ? (
+                      <img
+                        src={review.imageUrl}
+                        alt={review.name}
+                        className="h-11 w-11 rounded-full object-cover shrink-0"
+                      />
+                    ) : (
+                      <div className="h-11 w-11 rounded-full bg-primary/10 flex items-center justify-center text-sm font-semibold text-primary shrink-0">
                         {review.name
                           .split(" ")
                           .map((n) => n[0])
                           .join("")
                           .slice(0, 2)}
                       </div>
-                      <div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
                         <p className="font-semibold text-sm">{review.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {review.date}
-                        </p>
+                        <Badge
+                          variant="secondary"
+                          className={`${platformColor[review.platform]} border-0 text-[10px] font-medium shrink-0`}
+                        >
+                          {review.platform}
+                        </Badge>
                       </div>
+                      <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                        <Calendar className="h-3 w-3" />
+                        {review.date}
+                      </p>
                     </div>
-                    <Badge
-                      variant="secondary"
-                      className={`${platformColor[review.platform]} border-0 text-[10px] font-medium`}
-                    >
-                      {review.platform}
-                    </Badge>
                   </div>
 
                   {/* Stars */}
@@ -190,7 +199,7 @@ export function ReviewsCarousel() {
                   </div>
 
                   {/* Review text */}
-                  <p className="text-sm text-muted-foreground leading-relaxed flex-1">
+                  <p className="text-sm text-muted-foreground leading-relaxed">
                     &ldquo;{review.text}&rdquo;
                   </p>
 
