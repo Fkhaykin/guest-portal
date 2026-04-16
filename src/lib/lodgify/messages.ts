@@ -32,7 +32,7 @@ export async function fetchMessagesForBooking(
   try {
     const res = await fetch(
       `${LODGIFY_BASE_URL}/v2/reservations/bookings/${bookingId}`,
-      { headers }
+      { headers, cache: "no-store" }
     );
 
     if (!res.ok) {
@@ -73,6 +73,7 @@ async function fetchThreadMessages(
           "X-ApiKey": getApiKey(),
           Accept: "application/json",
         },
+        cache: "no-store",
       }
     );
 

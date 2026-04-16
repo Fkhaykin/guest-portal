@@ -108,11 +108,6 @@ export default function AdminMessagesPage() {
     fetchMessages();
   }, [selectedBookingId]);
 
-  // Scroll to top when messages change (latest first)
-  useEffect(() => {
-    messagesTopRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
-
   async function handleSend() {
     if (!newMessage.trim() || !selectedBookingId || sending) return;
 
@@ -125,7 +120,7 @@ export default function AdminMessagesPage() {
       });
 
       if (res.ok) {
-        // Optimistically add the message (latest first)
+        // Optimistically add the message (newest first)
         setMessages((prev) => [
           {
             id: `temp-${Date.now()}`,
@@ -364,7 +359,6 @@ export default function AdminMessagesPage() {
 
               {/* Messages area */}
               <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                <div ref={messagesTopRef} />
                 {loadingMessages ? (
                   <div className="flex items-center justify-center h-full">
                     <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
