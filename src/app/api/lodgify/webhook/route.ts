@@ -30,16 +30,18 @@ export async function POST(request: Request) {
     }
   }
 
-  let body: { event?: string; booking_id?: number };
+  let body: { action?: string; event?: string; booking_id?: number; booking?: { id?: number } };
   try {
     body = JSON.parse(rawBody);
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const bookingId = body.booking_id;
+  // Lodgify sends { "action": "booking_change", "booking": { "id": 123 } }
+  // Also support flat { "booking_id": 123 } for manual triggers
+  const bookingId = body.booking?.id ?? body.booking_id;
   if (!bookingId) {
-    return NextResponse.json({ error: "Missing booking_id" }, { status: 400 });
+    return NextResponse.json({ error: "Missing booking id" }, { status: 400 });
   }
 
   try {
