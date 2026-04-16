@@ -538,8 +538,9 @@ function SiteNav() {
 
 function AvailabilitySearch() {
   const today = new Date().toISOString().split("T")[0];
-  const [checkIn, setCheckIn] = useState("");
-  const [checkOut, setCheckOut] = useState("");
+  const tomorrow = new Date(Date.now() + 86400000).toISOString().split("T")[0];
+  const [checkIn, setCheckIn] = useState(today);
+  const [checkOut, setCheckOut] = useState(tomorrow);
   const [guests, setGuests] = useState(2);
   const [pets, setPets] = useState(0);
 
@@ -558,7 +559,7 @@ function AvailabilitySearch() {
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
       <div className="grid grid-cols-2 sm:grid-cols-[1fr_1fr_6rem_5rem_auto] rounded-2xl overflow-hidden bg-white/10 backdrop-blur-xl border border-white/20 shadow-2xl shadow-black/20">
-        <div className="px-4 sm:px-6 py-4 sm:py-5 border-r border-white/15 hover:bg-white/5 transition-colors">
+        <div className="px-4 sm:px-6 py-4 sm:py-5 border-r border-b sm:border-b-0 border-white/15 hover:bg-white/5 transition-colors">
           <label htmlFor="v2-checkin" className="block text-xs font-semibold text-white/60 mb-1 tracking-wide">
             Check-in
           </label>
@@ -767,12 +768,16 @@ function PropertyCard({
         </div>
         <CardContent className="p-4 space-y-2">
           <h3 className="font-semibold text-lg">{property.name}</h3>
-          {property.address && (
-            <p className="text-sm text-muted-foreground flex items-start gap-1.5">
-              <MapPin className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-              <span className="line-clamp-1">{property.address}</span>
-            </p>
-          )}
+          {property.address && (() => {
+            const parts = property.address.split(",").map(p => p.trim());
+            const general = parts.length >= 3 ? parts.slice(-3, -1).join(", ") : parts.length >= 2 ? parts.slice(-2).join(", ") : parts[0];
+            return general ? (
+              <p className="text-sm text-muted-foreground flex items-start gap-1.5">
+                <MapPin className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                <span className="line-clamp-1">{general}</span>
+              </p>
+            ) : null;
+          })()}
           {property.description && (
             <p className="text-sm text-muted-foreground line-clamp-2">
               {property.description}
