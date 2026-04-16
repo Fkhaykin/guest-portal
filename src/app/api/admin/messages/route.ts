@@ -1,8 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { fetchLastMessageDates } from "@/lib/lodgify/messages";
+import { fetchAllConversations } from "@/lib/lodgify/messages";
 
-export async function POST(request: NextRequest) {
+export async function GET() {
   const supabase = await createClient();
   const {
     data: { user },
@@ -11,12 +11,20 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const body = await request.json();
-  const bookingIds: number[] = body?.booking_ids;
-  if (!Array.isArray(bookingIds) || bookingIds.length === 0) {
-    return NextResponse.json({ error: "booking_ids required" }, { status: 400 });
+  // Build property ID → name map from Supabase
+  const { data: properties } = await supabase
+    .from("property")
+    .select("lodgify_property_id, name, nickname");
+
+  const propertyMap: Record<number, string> = {};
+  if (properties) {
+    for (const p of properties) {
+      if (p.lodgify_property_id) {
+        propertyMap[p.lodgify_property_id] = p.nickname || p.name;
+      }
+    }
   }
 
-  const dates = await fetchLastMessageDates(bookingIds);
-  return NextResponse.json({ dates });
+  const conversations = await fetchAllConversations(propertyMap);
+  return NextResponse.json({ conversations });
 }

@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -17,24 +16,11 @@ import {
   CalendarDays,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { LodgifyMessage } from "@/lib/lodgify/messages";
-
-type Conversation = {
-  id: string;
-  lodgify_booking_id: number;
-  check_in_date: string;
-  check_out_date: string;
-  status: "active" | "completed" | "cancelled";
-  booking_source: string | null;
-  guest: { full_name: string; email: string | null; phone: string | null } | null;
-  property: { name: string; nickname: string | null } | null;
-};
+import type { LodgifyMessage, ConversationThread } from "@/lib/lodgify/messages";
 
 export default function AdminMessagesPage() {
-  const supabase = createClient();
   const searchParams = useSearchParams();
-  const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [lastMessageDates, setLastMessageDates] = useState<Record<number, string>>({});
+  const [conversations, setConversations] = useState<ConversationThread[]>([]);
   const [loadingConversations, setLoadingConversations] = useState(true);
   const [selectedBookingId, setSelectedBookingId] = useState<number | null>(null);
   const [messages, setMessages] = useState<LodgifyMessage[]>([]);
@@ -45,40 +31,22 @@ export default function AdminMessagesPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [timeFilter, setTimeFilter] = useState<"all" | "current" | "past" | "future">("all");
 
-  // Load conversations from Supabase
+  // Load conversations from Lodgify (sorted by last message date)
   useEffect(() => {
     async function load() {
-      const { data } = await supabase
-        .from("registration")
-        .select(
-          "id, lodgify_booking_id, check_in_date, check_out_date, status, booking_source, guest:guest_id(full_name, email, phone), property:property_id(name, nickname)"
-        )
-        .not("lodgify_booking_id", "is", null)
-        .order("check_in_date", { ascending: false });
-
-      if (data) {
-        const convs = data as unknown as Conversation[];
-        setConversations(convs);
-
-        // Fetch last message dates from Lodgify to sort by recency
-        const bookingIds = convs.map((c) => c.lodgify_booking_id);
-        if (bookingIds.length > 0) {
-          fetch("/api/admin/messages", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ booking_ids: bookingIds }),
-          })
-            .then((res) => res.json())
-            .then((result) => {
-              if (result.dates) setLastMessageDates(result.dates);
-            })
-            .catch(() => {});
+      try {
+        const res = await fetch("/api/admin/messages");
+        const data = await res.json();
+        if (res.ok && data.conversations) {
+          setConversations(data.conversations);
         }
+      } catch {
+        // silent
+      } finally {
+        setLoadingConversations(false);
       }
-      setLoadingConversations(false);
     }
     load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Handle deep link via ?booking=123
@@ -176,11 +144,11 @@ export default function AdminMessagesPage() {
 
     // Apply time filter
     if (timeFilter === "current") {
-      result = result.filter((c) => c.check_in_date <= today && c.check_out_date >= today);
+      result = result.filter((c) => c.arrival <= today && c.departure >= today);
     } else if (timeFilter === "past") {
-      result = result.filter((c) => c.check_out_date < today);
+      result = result.filter((c) => c.departure < today);
     } else if (timeFilter === "future") {
-      result = result.filter((c) => c.check_in_date > today);
+      result = result.filter((c) => c.arrival > today);
     }
 
     // Apply search filter
@@ -188,28 +156,18 @@ export default function AdminMessagesPage() {
       const q = searchQuery.toLowerCase();
       result = result.filter(
         (c) =>
-          c.guest?.full_name?.toLowerCase().includes(q) ||
-          c.property?.name?.toLowerCase().includes(q) ||
-          c.property?.nickname?.toLowerCase().includes(q) ||
-          String(c.lodgify_booking_id).includes(q)
+          c.guest_name?.toLowerCase().includes(q) ||
+          c.property_name?.toLowerCase().includes(q) ||
+          String(c.booking_id).includes(q)
       );
     }
 
-    // Sort by last message date (newest first), fall back to check-in date
-    result = [...result].sort((a, b) => {
-      const dateA = lastMessageDates[a.lodgify_booking_id] || "";
-      const dateB = lastMessageDates[b.lodgify_booking_id] || "";
-      if (dateA && dateB) return dateB.localeCompare(dateA);
-      if (dateA) return -1;
-      if (dateB) return 1;
-      return b.check_in_date.localeCompare(a.check_in_date);
-    });
-
+    // Already sorted by last_message_date from the API
     return result;
-  }, [conversations, searchQuery, timeFilter, lastMessageDates]);
+  }, [conversations, searchQuery, timeFilter]);
 
   const selectedConversation = conversations.find(
-    (c) => c.lodgify_booking_id === selectedBookingId
+    (c) => c.booking_id === selectedBookingId
   );
 
   function formatDate(dateStr: string) {
@@ -220,13 +178,19 @@ export default function AdminMessagesPage() {
   }
 
   function getStatusColor(status: string) {
-    switch (status) {
+    switch (status.toLowerCase()) {
       case "active":
+      case "booked":
         return "bg-green-100 text-green-800 border-green-200";
       case "completed":
+      case "checkedout":
         return "bg-yellow-100 text-yellow-800 border-yellow-200";
       case "cancelled":
+      case "declined":
         return "bg-red-100 text-red-800 border-red-200";
+      case "open":
+      case "tentative":
+        return "bg-blue-100 text-blue-800 border-blue-200";
       default:
         return "";
     }
@@ -292,32 +256,34 @@ export default function AdminMessagesPage() {
             ) : (
               filtered.map((conv) => (
                 <button
-                  key={conv.id}
-                  onClick={() => setSelectedBookingId(conv.lodgify_booking_id)}
+                  key={conv.booking_id}
+                  onClick={() => setSelectedBookingId(conv.booking_id)}
                   className={cn(
                     "w-full text-left p-3 border-b hover:bg-muted/50 transition-colors",
-                    selectedBookingId === conv.lodgify_booking_id &&
-                      "bg-accent"
+                    selectedBookingId === conv.booking_id && "bg-accent",
+                    !conv.is_read && "bg-primary/5"
                   )}
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
-                      <p className="font-medium text-sm truncate">
-                        {conv.guest?.full_name ?? "Unknown Guest"}
+                      <p className={cn("text-sm truncate", !conv.is_read ? "font-bold" : "font-medium")}>
+                        {conv.guest_name || "Unknown Guest"}
                       </p>
-                      <p className="text-xs text-muted-foreground truncate mt-0.5">
-                        {conv.property?.nickname || conv.property?.name || "—"}
-                      </p>
+                      {conv.last_message_preview && (
+                        <p className="text-xs text-muted-foreground truncate mt-0.5">
+                          {conv.last_message_preview}
+                        </p>
+                      )}
                       <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
                         <CalendarDays className="h-3 w-3" />
-                        {formatDate(conv.check_in_date)} –{" "}
-                        {formatDate(conv.check_out_date)}
+                        {formatDate(conv.arrival)} –{" "}
+                        {formatDate(conv.departure)}
                       </div>
                     </div>
                     <div className="flex flex-col items-end gap-1">
-                      {lastMessageDates[conv.lodgify_booking_id] ? (
+                      {conv.last_message_date ? (
                         <span className="text-[10px] text-muted-foreground whitespace-nowrap">
-                          {formatDate(lastMessageDates[conv.lodgify_booking_id].slice(0, 10))}
+                          {formatDate(conv.last_message_date.slice(0, 10))}
                         </span>
                       ) : (
                         <Badge
@@ -330,9 +296,9 @@ export default function AdminMessagesPage() {
                           {conv.status}
                         </Badge>
                       )}
-                      {conv.booking_source && (
+                      {conv.source && (
                         <span className="text-[10px] text-muted-foreground">
-                          {cleanSourceName(conv.booking_source)}
+                          {cleanSourceName(conv.source)}
                         </span>
                       )}
                     </div>
@@ -362,19 +328,22 @@ export default function AdminMessagesPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-sm">
-                      {selectedConversation.guest?.full_name ?? "Unknown Guest"}
+                      {selectedConversation.guest_name || "Unknown Guest"}
                     </p>
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <Home className="h-3 w-3" />
-                      {selectedConversation.property?.nickname ||
-                        selectedConversation.property?.name}
-                      <span className="opacity-50">|</span>
-                      {formatDate(selectedConversation.check_in_date)} –{" "}
-                      {formatDate(selectedConversation.check_out_date)}
-                      {selectedConversation.booking_source && (
+                      {selectedConversation.property_name && (
+                        <>
+                          <Home className="h-3 w-3" />
+                          {selectedConversation.property_name}
+                          <span className="opacity-50">|</span>
+                        </>
+                      )}
+                      {formatDate(selectedConversation.arrival)} –{" "}
+                      {formatDate(selectedConversation.departure)}
+                      {selectedConversation.source && (
                         <>
                           <span className="opacity-50">|</span>
-                          {cleanSourceName(selectedConversation.booking_source)}
+                          {cleanSourceName(selectedConversation.source)}
                         </>
                       )}
                     </div>
