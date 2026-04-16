@@ -134,6 +134,62 @@ export async function sendMessage(
   }
 }
 
+/**
+ * Fetch the last message date for multiple bookings in parallel.
+ * Uses concurrency control to avoid overwhelming the Lodgify API.
+ */
+export async function fetchLastMessageDates(
+  bookingIds: number[]
+): Promise<Record<number, string>> {
+  const headers = {
+    "X-ApiKey": getApiKey(),
+    Accept: "application/json",
+  };
+
+  const CONCURRENCY = 10;
+  const results: Record<number, string> = {};
+
+  for (let i = 0; i < bookingIds.length; i += CONCURRENCY) {
+    const batch = bookingIds.slice(i, i + CONCURRENCY);
+    const settled = await Promise.allSettled(
+      batch.map(async (bookingId) => {
+        // Get thread_uid from booking
+        const bookingRes = await fetch(
+          `${LODGIFY_BASE_URL}/v2/reservations/bookings/${bookingId}`,
+          { headers, cache: "no-store" }
+        );
+        if (!bookingRes.ok) return;
+
+        const booking = (await bookingRes.json()) as Record<string, unknown>;
+        const threadUid = booking.thread_uid as string | undefined;
+        if (!threadUid) return;
+
+        // Get thread metadata (last_message_date)
+        const threadRes = await fetch(
+          `${LODGIFY_BASE_URL}/v2/messaging/${threadUid}`,
+          { headers, cache: "no-store" }
+        );
+        if (!threadRes.ok) return;
+
+        const thread = (await threadRes.json()) as Record<string, unknown>;
+        const lastDate = thread.last_message_date as string | undefined;
+        if (lastDate) {
+          results[bookingId] = lastDate;
+        }
+      })
+    );
+
+    // Log any errors
+    settled.forEach((r, idx) => {
+      if (r.status === "rejected") {
+        console.error(`[lodgify-messages] Error fetching thread for booking ${batch[idx]}:`, r.reason);
+      }
+    });
+  }
+
+  return results;
+}
+
 // --- Normalization ---
 
 /* eslint-disable @typescript-eslint/no-explicit-any */

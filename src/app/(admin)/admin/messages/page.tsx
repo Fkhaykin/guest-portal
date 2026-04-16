@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef, useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Input } from "@/components/ui/input";
@@ -33,9 +33,8 @@ type Conversation = {
 export default function AdminMessagesPage() {
   const supabase = createClient();
   const searchParams = useSearchParams();
-  const messagesTopRef = useRef<HTMLDivElement>(null);
-
   const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [lastMessageDates, setLastMessageDates] = useState<Record<number, string>>({});
   const [loadingConversations, setLoadingConversations] = useState(true);
   const [selectedBookingId, setSelectedBookingId] = useState<number | null>(null);
   const [messages, setMessages] = useState<LodgifyMessage[]>([]);
@@ -58,7 +57,23 @@ export default function AdminMessagesPage() {
         .order("check_in_date", { ascending: false });
 
       if (data) {
-        setConversations(data as unknown as Conversation[]);
+        const convs = data as unknown as Conversation[];
+        setConversations(convs);
+
+        // Fetch last message dates from Lodgify to sort by recency
+        const bookingIds = convs.map((c) => c.lodgify_booking_id);
+        if (bookingIds.length > 0) {
+          fetch("/api/admin/messages", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ booking_ids: bookingIds }),
+          })
+            .then((res) => res.json())
+            .then((result) => {
+              if (result.dates) setLastMessageDates(result.dates);
+            })
+            .catch(() => {});
+        }
       }
       setLoadingConversations(false);
     }
@@ -180,8 +195,18 @@ export default function AdminMessagesPage() {
       );
     }
 
+    // Sort by last message date (newest first), fall back to check-in date
+    result = [...result].sort((a, b) => {
+      const dateA = lastMessageDates[a.lodgify_booking_id] || "";
+      const dateB = lastMessageDates[b.lodgify_booking_id] || "";
+      if (dateA && dateB) return dateB.localeCompare(dateA);
+      if (dateA) return -1;
+      if (dateB) return 1;
+      return b.check_in_date.localeCompare(a.check_in_date);
+    });
+
     return result;
-  }, [conversations, searchQuery, timeFilter]);
+  }, [conversations, searchQuery, timeFilter, lastMessageDates]);
 
   const selectedConversation = conversations.find(
     (c) => c.lodgify_booking_id === selectedBookingId
@@ -290,15 +315,21 @@ export default function AdminMessagesPage() {
                       </div>
                     </div>
                     <div className="flex flex-col items-end gap-1">
-                      <Badge
-                        variant="outline"
-                        className={cn(
-                          "text-[10px] px-1.5 py-0",
-                          getStatusColor(conv.status)
-                        )}
-                      >
-                        {conv.status}
-                      </Badge>
+                      {lastMessageDates[conv.lodgify_booking_id] ? (
+                        <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+                          {formatDate(lastMessageDates[conv.lodgify_booking_id].slice(0, 10))}
+                        </span>
+                      ) : (
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            "text-[10px] px-1.5 py-0",
+                            getStatusColor(conv.status)
+                          )}
+                        >
+                          {conv.status}
+                        </Badge>
+                      )}
                       {conv.booking_source && (
                         <span className="text-[10px] text-muted-foreground">
                           {cleanSourceName(conv.booking_source)}
