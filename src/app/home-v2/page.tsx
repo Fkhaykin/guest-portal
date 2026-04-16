@@ -42,139 +42,30 @@ import {
   Tent,
   Menu,
   X,
-  Quote,
   ChevronLeft,
 } from "lucide-react";
+import { REVIEWS, REVIEW_STATS } from "./reviews-data";
 
-/* ------------------------------------------------------------------ */
-/*  Reviews data                                                       */
-/* ------------------------------------------------------------------ */
-
-type Review = {
-  id: number;
-  name: string;
-  date: string;
-  rating: number;
-  text: string;
-  property: string;
-  platform: "Airbnb" | "VRBO" | "Google" | "Direct";
-  avatar?: string;
-};
-
-const REVIEWS: Review[] = [
-  {
-    id: 1,
-    name: "Jessica M.",
-    date: "March 2026",
-    rating: 5,
-    text: "We absolutely loved the home, and the location was perfect. Everything we needed was easily accessible, and the home had so much to offer our family! The lake views from the deck were breathtaking and the hot tub was the perfect way to end each evening.",
-    property: "Lakefront Home w/ Hot Tub, Game Room, Deck, Boats, Fire Pit",
-    platform: "Airbnb",
-  },
-  {
-    id: 2,
-    name: "Michael T.",
-    date: "February 2026",
-    rating: 5,
-    text: "This place exceeded all expectations. The game room kept the kids entertained for hours while the adults relaxed by the fire pit. Feliks was an amazing host — super responsive and made sure we had everything we needed. Already planning our next trip!",
-    property: "Lakeview Chalet w/ Hot Tub, Sauna, Decks, Boats, & Fire Pit!",
-    platform: "VRBO",
-  },
-  {
-    id: 3,
-    name: "Sarah K.",
-    date: "January 2026",
-    rating: 5,
-    text: "Perfect winter getaway! The sauna was incredible after a day of skiing at Camelback. The house was spotless, beautifully decorated, and had every amenity you could think of. The lakefront location is unbeatable — woke up to stunning views every morning.",
-    property: "Lakeview Chalet w/ Hot Tub, Sauna, Decks, Boats, & Fire Pit!",
-    platform: "Airbnb",
-  },
-  {
-    id: 4,
-    name: "David & Lisa R.",
-    date: "December 2025",
-    rating: 5,
-    text: "We hosted our family Christmas here and it was magical. 12 of us fit comfortably with room to spare. The kitchen was fully equipped for our holiday feast, and the kids loved the game room. The fenced yard was perfect for our dog. Can't say enough good things!",
-    property: "Lake Adjacent Home w/ Hot Tub, Game Room, Boats, Fenced Yard",
-    platform: "Airbnb",
-  },
-  {
-    id: 5,
-    name: "Amanda P.",
-    date: "November 2025",
-    rating: 5,
-    text: "Hosted my bachelorette party here and it was PERFECT. The hot tub, the fire pit, the boats — we had the best time. The house is gorgeous and the lake views are absolutely stunning. Feliks went above and beyond to make our weekend special.",
-    property: "Lakefront Mansion w/ 3 Decks, Hot Tub, Boats, & Game Room!",
-    platform: "VRBO",
-  },
-  {
-    id: 6,
-    name: "Chris W.",
-    date: "October 2025",
-    rating: 5,
-    text: "Fall foliage season in the Poconos was spectacular from this property. We spent every morning on the deck with coffee watching the leaves change over the lake. The house was immaculate and had everything we needed. Already booked again for next year!",
-    property: "Cozy Lakefront Home w/ Game Room, Hot Tub, Fire Pit, & Boats",
-    platform: "Airbnb",
-  },
-  {
-    id: 7,
-    name: "Rachel & James H.",
-    date: "September 2025",
-    rating: 5,
-    text: "This luxury chalet is the real deal. From the moment we walked in, we were blown away by the quality of everything. The three decks give you views from every angle, and the hot tub overlooking the lake at night was pure magic. 10/10 would recommend.",
-    property: "Luxury Lakefront Chalet in Poconos 1.5hrs from NYC",
-    platform: "Airbnb",
-  },
-  {
-    id: 8,
-    name: "Nicole F.",
-    date: "August 2025",
-    rating: 5,
-    text: "Best Airbnb we've ever stayed at, hands down. The kayaks and paddleboards were a huge hit with our group. We spent entire days on the lake and came home to the hot tub and fire pit. The host thought of everything — even left us local restaurant recommendations!",
-    property: "Lakefront Home w/ Hot Tub, Game Room, Deck, Boats, Fire Pit",
-    platform: "Airbnb",
-  },
-  {
-    id: 9,
-    name: "Tom B.",
-    date: "July 2025",
-    rating: 5,
-    text: "Brought the whole crew — 10 adults and 4 kids — and there was plenty of space for everyone. The mansion layout is perfect for groups. Multiple decks, tons of seating, and the game room kept everyone happy on the rainy day. Lake access was the cherry on top.",
-    property: "Lakefront Mansion w/ 3 Decks, Hot Tub, Boats, & Game Room!",
-    platform: "VRBO",
-  },
-  {
-    id: 10,
-    name: "Emily S.",
-    date: "June 2025",
-    rating: 5,
-    text: "A true hidden gem in the Poconos! The property is even more beautiful in person than in the photos. Our toddler loved the fenced yard and we felt so safe letting her play while we relaxed. The hot tub with mountain views was the highlight of our trip.",
-    property: "Lake Adjacent Home w/ Hot Tub, Game Room, Boats, Fenced Yard",
-    platform: "Airbnb",
-  },
-  {
-    id: 11,
-    name: "Marcus D.",
-    date: "May 2025",
-    rating: 5,
-    text: "Second time staying here and it just keeps getting better. Feliks has added even more amenities since our last visit. The new sauna was incredible. If you're looking for a lakefront escape that's close to NYC but feels a world away, this is it.",
-    property: "Lakeview Chalet w/ Hot Tub, Sauna, Decks, Boats, & Fire Pit!",
-    platform: "Airbnb",
-  },
-  {
-    id: 12,
-    name: "Priya & Raj L.",
-    date: "April 2025",
-    rating: 5,
-    text: "We celebrated our anniversary here and it was absolutely perfect. The chalet is luxurious, cozy, and romantic all at once. Waking up to lake views every morning was a dream. The attention to detail in this property is remarkable — truly five-star hospitality.",
-    property: "Luxury Lakefront Chalet in Poconos 1.5hrs from NYC",
-    platform: "VRBO",
-  },
-];
+/* Reviews data: 808 real Airbnb reviews imported from ./reviews-data.ts */
 
 /* ------------------------------------------------------------------ */
 /*  Reviews Carousel                                                   */
 /* ------------------------------------------------------------------ */
+
+// Show top 20 five-star reviews in the carousel (diverse property mix)
+const CAROUSEL_REVIEWS = (() => {
+  const fiveStars = REVIEWS.filter((r) => r.rating === 5 && r.text.length > 80);
+  const picked: typeof REVIEWS = [];
+  const propCount: Record<string, number> = {};
+  for (const r of fiveStars) {
+    const c = propCount[r.property] || 0;
+    if (c >= 4) continue; // max 4 per property
+    picked.push(r);
+    propCount[r.property] = c + 1;
+    if (picked.length >= 20) break;
+  }
+  return picked;
+})();
 
 function ReviewsCarousel() {
   const [current, setCurrent] = useState(0);
@@ -182,13 +73,15 @@ function ReviewsCarousel() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval>>(null);
 
+  const reviews = CAROUSEL_REVIEWS;
+
   const startAutoPlay = useCallback(() => {
     if (intervalRef.current) clearInterval(intervalRef.current);
     if (!isAutoPlaying) return;
     intervalRef.current = setInterval(() => {
-      setCurrent((prev) => (prev + 1) % REVIEWS.length);
+      setCurrent((prev) => (prev + 1) % reviews.length);
     }, 5000);
-  }, [isAutoPlaying]);
+  }, [isAutoPlaying, reviews.length]);
 
   useEffect(() => {
     startAutoPlay();
@@ -211,7 +104,7 @@ function ReviewsCarousel() {
   }, [current]);
 
   const go = (dir: -1 | 1) => {
-    setCurrent((prev) => (prev + dir + REVIEWS.length) % REVIEWS.length);
+    setCurrent((prev) => (prev + dir + reviews.length) % reviews.length);
     startAutoPlay();
   };
 
@@ -231,7 +124,7 @@ function ReviewsCarousel() {
             Guest Reviews
           </h2>
           <p className="text-muted-foreground">
-            {REVIEWS.length}+ five-star reviews across Airbnb &amp; VRBO
+            {REVIEW_STATS.totalCount}+ verified guest reviews across all properties
           </p>
         </div>
         <div className="hidden sm:flex items-center gap-2">
@@ -253,7 +146,7 @@ function ReviewsCarousel() {
       {/* Rating summary bar */}
       <div className="flex items-center gap-4 mb-6 flex-wrap">
         <div className="flex items-center gap-1.5">
-          <span className="text-3xl font-bold">5.0</span>
+          <span className="text-3xl font-bold">{REVIEW_STATS.averageRating}</span>
           <div className="flex gap-0.5">
             {Array.from({ length: 5 }, (_, i) => (
               <Star
@@ -265,16 +158,18 @@ function ReviewsCarousel() {
         </div>
         <Separator orientation="vertical" className="h-8 hidden sm:block" />
         <div className="flex gap-2 flex-wrap">
-          {(["Airbnb", "VRBO"] as const).map((platform) => (
-            <Badge
-              key={platform}
-              variant="secondary"
-              className={`${platformColor[platform]} border-0 text-xs font-medium`}
-            >
-              {platform} ·{" "}
-              {REVIEWS.filter((r) => r.platform === platform).length} reviews
-            </Badge>
-          ))}
+          <Badge
+            variant="secondary"
+            className={`${platformColor.Airbnb} border-0 text-xs font-medium`}
+          >
+            Airbnb · {REVIEW_STATS.totalCount} reviews
+          </Badge>
+          <Badge
+            variant="secondary"
+            className="bg-muted text-muted-foreground border-0 text-xs font-medium"
+          >
+            {REVIEW_STATS.propertyCount} properties
+          </Badge>
         </div>
       </div>
 
@@ -292,7 +187,7 @@ function ReviewsCarousel() {
             setIsAutoPlaying(true);
           }}
         >
-          {REVIEWS.map((review) => (
+          {reviews.map((review) => (
             <div
               key={review.id}
               data-review
@@ -360,7 +255,7 @@ function ReviewsCarousel() {
 
       {/* Dots */}
       <div className="flex justify-center gap-1.5 mt-4">
-        {REVIEWS.map((_, i) => (
+        {reviews.map((_, i) => (
           <button
             key={i}
             onClick={() => {
