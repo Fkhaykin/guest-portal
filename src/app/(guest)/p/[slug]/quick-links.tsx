@@ -12,6 +12,7 @@ import {
   PenLine,
   Gift,
   Truck,
+  Camera,
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 
@@ -29,6 +30,12 @@ const baseLinks = [
     description: "Register deliveries and rides",
     href: "/delivery",
     icon: Truck,
+  },
+  {
+    label: "Photo Album",
+    description: "Share photos, earn late check-out",
+    href: "/photos",
+    icon: Camera,
   },
   {
     label: "Services",
