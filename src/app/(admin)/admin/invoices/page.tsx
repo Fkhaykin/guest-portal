@@ -15,6 +15,7 @@ export type AdminInvoiceRow = {
   total: number;
   created_at: string;
   cleaner_name: string;
+  is_bianca: boolean;
 };
 
 export type AdminUnpaidCleaning = {
@@ -266,17 +267,24 @@ export default async function AdminInvoicesPage() {
     return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
   });
 
-  const invoiceRows: AdminInvoiceRow[] = sortedInvoices.map((inv) => ({
-    id: inv.id,
-    invoice_number: inv.invoice_number,
-    status: inv.status as InvoiceStatus,
-    period_start: inv.period_start,
-    period_end: inv.period_end,
-    total: inv.total,
-    created_at: inv.created_at,
-    cleaner_name:
-      (inv.cleaner as { name: string } | null)?.name || "Unknown",
-  }));
+  const invoiceRows: AdminInvoiceRow[] = sortedInvoices.map((inv) => {
+    const items = inv.line_items as InvoiceLineItem[];
+    const isBianca = items.some((item) =>
+      item.description?.toLowerCase().includes("bianca")
+    );
+    return {
+      id: inv.id,
+      invoice_number: inv.invoice_number,
+      status: inv.status as InvoiceStatus,
+      period_start: inv.period_start,
+      period_end: inv.period_end,
+      total: inv.total,
+      created_at: inv.created_at,
+      cleaner_name:
+        (inv.cleaner as { name: string } | null)?.name || "Unknown",
+      is_bianca: isBianca,
+    };
+  });
 
   return (
     <AdminInvoiceTabs

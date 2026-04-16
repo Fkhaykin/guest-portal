@@ -546,6 +546,11 @@ function UnpaidTab({
 function HistoryTab({ invoices }: { invoices: AdminInvoiceRow[] }) {
   const router = useRouter();
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [propertyTab, setPropertyTab] = useState<"summit" | "bianca">("summit");
+
+  const summitInvoices = invoices.filter((inv) => !inv.is_bianca);
+  const biancaInvoices = invoices.filter((inv) => inv.is_bianca);
+  const filtered = propertyTab === "summit" ? summitInvoices : biancaInvoices;
 
   async function deleteInvoice(e: React.MouseEvent, inv: AdminInvoiceRow) {
     e.preventDefault();
@@ -565,53 +570,87 @@ function HistoryTab({ invoices }: { invoices: AdminInvoiceRow[] }) {
     setDeletingId(null);
   }
 
-  if (invoices.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-16 text-center space-y-3">
-        <Receipt className="h-12 w-12 text-muted-foreground/30" />
-        <p className="text-muted-foreground">No invoices yet.</p>
-        <p className="text-xs text-muted-foreground">
-          Invoices are generated automatically every Monday.
-        </p>
-      </div>
-    );
-  }
-
   return (
-    <div className="flex flex-col gap-4">
-      {invoices.map((inv) => (
-        <Link key={inv.id} href={`/admin/invoices/${inv.id}`} className="block">
-          <Card className="hover:bg-accent/50 transition-colors cursor-pointer">
-            <CardContent className="py-4 flex items-center justify-between">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <p className="text-sm font-medium">{inv.invoice_number}</p>
-                  <Badge className={STATUS_STYLES[inv.status]}>
-                    {inv.status}
-                  </Badge>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  {inv.cleaner_name} &middot;{" "}
-                  {formatDateFull(inv.period_start)} &ndash;{" "}
-                  {formatDateFull(inv.period_end)}
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <p className="text-sm font-semibold">{formatCents(inv.total)}</p>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                  onClick={(e) => deleteInvoice(e, inv)}
-                  disabled={deletingId === inv.id}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </Link>
-      ))}
+    <div className="space-y-4">
+      {/* Property sub-tabs */}
+      <div className="flex gap-1 bg-muted/50 rounded-md p-0.5">
+        <button
+          onClick={() => setPropertyTab("summit")}
+          className={`flex-1 px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+            propertyTab === "summit"
+              ? "bg-background text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          Summit
+          {summitInvoices.length > 0 && (
+            <Badge variant="secondary" className="text-[10px] h-5 px-1.5 ml-1.5">
+              {summitInvoices.length}
+            </Badge>
+          )}
+        </button>
+        <button
+          onClick={() => setPropertyTab("bianca")}
+          className={`flex-1 px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+            propertyTab === "bianca"
+              ? "bg-background text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          Bianca
+          {biancaInvoices.length > 0 && (
+            <Badge variant="secondary" className="text-[10px] h-5 px-1.5 ml-1.5">
+              {biancaInvoices.length}
+            </Badge>
+          )}
+        </button>
+      </div>
+
+      {filtered.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-16 text-center space-y-3">
+          <Receipt className="h-12 w-12 text-muted-foreground/30" />
+          <p className="text-muted-foreground">No invoices yet.</p>
+          <p className="text-xs text-muted-foreground">
+            Invoices are generated automatically every Monday.
+          </p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-4">
+          {filtered.map((inv) => (
+            <Link key={inv.id} href={`/admin/invoices/${inv.id}`} className="block">
+              <Card className="hover:bg-accent/50 transition-colors cursor-pointer">
+                <CardContent className="py-4 flex items-center justify-between">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-medium">{inv.invoice_number}</p>
+                      <Badge className={STATUS_STYLES[inv.status]}>
+                        {inv.status}
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {inv.cleaner_name} &middot;{" "}
+                      {formatDateFull(inv.period_start)} &ndash;{" "}
+                      {formatDateFull(inv.period_end)}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-semibold">{formatCents(inv.total)}</p>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                      onClick={(e) => deleteInvoice(e, inv)}
+                      disabled={deletingId === inv.id}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

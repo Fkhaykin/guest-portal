@@ -128,10 +128,22 @@ export function AdminInvoiceDetail({
     setDeleting(false);
   }
 
+  // Group pet fees by registration_id so they can be shown under their reservation
+  const petFeesByRegId = new Map<string, InvoiceLineItem[]>();
+  for (const item of invoice.line_items.filter((l) => l.type === "pet_fee")) {
+    const key = item.registration_id || "__none__";
+    const arr = petFeesByRegId.get(key) || [];
+    arr.push(item);
+    petFeesByRegId.set(key, arr);
+  }
+
+  // Pet fees that couldn't be matched to a reservation
+  const orphanPetFees = petFeesByRegId.get("__none__") || [];
+
   const grouped = {
     monthly_fee: invoice.line_items.filter((l) => l.type === "monthly_fee"),
     cleaning: invoice.line_items.filter((l) => l.type === "cleaning"),
-    pet_fee: invoice.line_items.filter((l) => l.type === "pet_fee"),
+    pet_fee: orphanPetFees,
     extra: invoice.line_items.filter((l) => l.type === "extra"),
     reimbursement: invoice.line_items.filter((l) => l.type === "reimbursement"),
   };
@@ -187,7 +199,14 @@ export function AdminInvoiceDetail({
             const items = grouped[type];
             if (items.length === 0) return null;
             const Icon = TYPE_ICONS[type];
-            const typeTotal = items.reduce((s, l) => s + l.amount, 0);
+            // For cleaning, include associated pet fees in the section total
+            const associatedPetFeeTotal = type === "cleaning"
+              ? items.reduce((s, l) => {
+                  const fees = l.registration_id ? petFeesByRegId.get(l.registration_id) : undefined;
+                  return s + (fees ? fees.reduce((a, f) => a + f.amount, 0) : 0);
+                }, 0)
+              : 0;
+            const typeTotal = items.reduce((s, l) => s + l.amount, 0) + associatedPetFeeTotal;
 
             return (
               <div key={type}>
@@ -201,30 +220,46 @@ export function AdminInvoiceDetail({
                   </span>
                 </div>
                 <div className="space-y-1.5 pl-6">
-                  {items.map((item, i) => (
-                    <div key={i} className="space-y-1 text-sm">
-                      <div className="flex items-center justify-between gap-3">
-                        <span className="text-muted-foreground truncate">
-                          {item.description}
-                        </span>
-                        <span className="font-medium">
-                          {formatCents(item.amount)}
-                        </span>
-                      </div>
-                      {item.registration_id && (
-                        <div className="text-xs text-muted-foreground">
-                          <span>Booking ID: {item.registration_id}</span>
-                          <br />
-                          <Link
-                            href={`/admin/reservations/${item.registration_id}`}
-                            className="text-primary hover:underline"
-                          >
-                            View reservation
-                          </Link>
+                  {items.map((item, i) => {
+                    const relatedPetFees = type === "cleaning" && item.registration_id
+                      ? petFeesByRegId.get(item.registration_id) || []
+                      : [];
+                    return (
+                      <div key={i} className="space-y-1 text-sm">
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="text-muted-foreground truncate">
+                            {item.description}
+                          </span>
+                          <span className="font-medium">
+                            {formatCents(item.amount)}
+                          </span>
                         </div>
-                      )}
-                    </div>
-                  ))}
+                        {relatedPetFees.map((pf, j) => (
+                          <div key={`pf-${j}`} className="flex items-center justify-between gap-3 pl-2">
+                            <span className="text-muted-foreground truncate flex items-center gap-1.5">
+                              <PawPrint className="h-3 w-3 shrink-0" />
+                              {pf.description}
+                            </span>
+                            <span className="font-medium">
+                              {formatCents(pf.amount)}
+                            </span>
+                          </div>
+                        ))}
+                        {item.registration_id && (
+                          <div className="text-xs text-muted-foreground">
+                            <span>Booking ID: {item.registration_id}</span>
+                            <br />
+                            <Link
+                              href={`/admin/reservations/${item.registration_id}`}
+                              className="text-primary hover:underline"
+                            >
+                              View reservation
+                            </Link>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
                 <Separator className="mt-3" />
               </div>
