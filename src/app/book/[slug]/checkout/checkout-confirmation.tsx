@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { CheckCircle2, Loader2 } from "lucide-react";
+import { SiteNav } from "@/components/site-nav";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -40,17 +40,8 @@ export function CheckoutConfirmation({
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b">
-        <div className="max-w-5xl mx-auto flex items-center justify-center px-4 sm:px-6 h-14">
-          <Image
-            src="/logo.png"
-            alt="Summit Lakeside Rentals"
-            width={120}
-            height={60}
-            className="h-8 w-auto invert dark:invert-0"
-          />
-        </div>
-      </header>
+      <SiteNav />
+      <div className="h-16" />
 
       <div className="max-w-lg mx-auto px-4 py-16">
         {loading ? (

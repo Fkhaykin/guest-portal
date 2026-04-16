@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useCallback, Suspense } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,12 +16,11 @@ import {
   Calendar,
   Users,
   Mountain,
-  ArrowLeft,
   Loader2,
   Map as MapIcon,
   List,
-  Home,
 } from "lucide-react";
+import { SiteNav } from "@/components/site-nav";
 import { useSearchParams, useRouter } from "next/navigation";
 import {
   GoogleMap,
@@ -399,45 +397,28 @@ function SearchPageInner() {
 
   return (
     <div className="h-screen flex flex-col overflow-hidden">
-      {/* Header */}
-      <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="flex items-center gap-4 px-4 sm:px-6 h-14">
-          <Link
-            href="/"
-            className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+      <SiteNav />
+      <div className="h-16" />
+
+      {/* Map toggle (mobile) */}
+      {hasMapKey && displayProperties && displayProperties.length > 0 && (
+        <div className="flex justify-end px-4 sm:px-6 py-2 border-b bg-background">
+          <button
+            className="lg:hidden flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            onClick={() => setShowMap(!showMap)}
           >
-            <ArrowLeft className="h-4 w-4" />
-            Back
-          </Link>
-          <div className="flex-1 flex justify-center">
-            <Image
-              src="/logo.png"
-              alt="Summit Lakeside Rentals"
-              width={120}
-              height={60}
-              className="h-8 w-auto invert dark:invert-0"
-            />
-          </div>
-          {/* Mobile map toggle */}
-          {hasMapKey && displayProperties && displayProperties.length > 0 && (
-            <button
-              className="lg:hidden flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-              onClick={() => setShowMap(!showMap)}
-            >
-              {showMap ? (
-                <>
-                  <List className="h-4 w-4" /> List
-                </>
-              ) : (
-                <>
-                  <MapIcon className="h-4 w-4" /> Map
-                </>
-              )}
-            </button>
-          )}
-          {!(hasMapKey && displayProperties && displayProperties.length > 0) && <div className="w-14" />}
+            {showMap ? (
+              <>
+                <List className="h-4 w-4" /> List
+              </>
+            ) : (
+              <>
+                <MapIcon className="h-4 w-4" /> Map
+              </>
+            )}
+          </button>
         </div>
-      </header>
+      )}
 
       {/* Search bar */}
       <div className="border-b bg-background px-4 sm:px-6 py-3">

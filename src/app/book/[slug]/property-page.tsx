@@ -3,8 +3,8 @@
 import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { SiteNav } from "@/components/site-nav";
 import {
-  ArrowLeft,
   Users,
   BedDouble,
   Bath,
@@ -273,31 +273,8 @@ export function PropertyPage({
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
-      {/* Header */}
-      <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur">
-        <div className="max-w-6xl mx-auto flex items-center gap-4 px-4 sm:px-6 h-14">
-          <Link
-            href="/"
-            className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back
-          </Link>
-          <div className="flex-1 flex justify-center">
-            <Link href="/">
-              <Image
-                src="/logo.png"
-                alt="Summit Lakeside Rentals"
-                width={120}
-                height={60}
-                className="h-8 w-auto invert dark:invert-0"
-              />
-            </Link>
-          </div>
-          {/* Spacer to keep logo centered */}
-          <div className="w-[52px]" />
-        </div>
-      </header>
+      <SiteNav />
+      <div className="h-16" />
 
       <div className="max-w-5xl mx-auto w-full px-4 sm:px-6 pt-0 pb-6 sm:py-6 space-y-8">
         {/* Photo gallery */}

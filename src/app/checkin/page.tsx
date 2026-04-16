@@ -56,6 +56,7 @@ const GettingHereMap = dynamic(
 import { PropertyHeader } from "@/components/guest/guest-header";
 import { GuestNav } from "@/components/guest/guest-nav";
 import { LandingPage } from "@/components/guest/landing-page";
+import { SiteNav } from "@/components/site-nav";
 
 type GuestBreakdown = {
   adults: number;
@@ -767,6 +768,9 @@ export default function HomePage() {
           />
         </>
       ) : (
+        <>
+        <SiteNav />
+        <div className="h-16" />
         <LandingPage
           onFound={({ guestName: name, reservation: res, guestToken }) => {
             setGuestName(name);
@@ -780,6 +784,7 @@ export default function HomePage() {
             }
           }}
         />
+        </>
       )}
     </>
   );

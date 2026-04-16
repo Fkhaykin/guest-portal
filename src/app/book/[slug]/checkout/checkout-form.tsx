@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Image from "next/image";
 import Link from "next/link";
-import { ArrowLeft, Loader2, Tag, Check } from "lucide-react";
+import { Loader2, Tag, Check } from "lucide-react";
+import { SiteNav } from "@/components/site-nav";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -203,28 +203,8 @@ export function CheckoutForm({
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur">
-        <div className="max-w-5xl mx-auto flex items-center gap-4 px-4 sm:px-6 h-14">
-          <Link
-            href={`/book/${property.slug}?check_in=${checkIn}&check_out=${checkOut}&guests=${guests}&pets=${pets}`}
-            className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back
-          </Link>
-          <div className="flex-1 flex justify-center">
-            <Image
-              src="/logo.png"
-              alt="Summit Lakeside Rentals"
-              width={120}
-              height={60}
-              className="h-8 w-auto invert dark:invert-0"
-            />
-          </div>
-          <div className="w-14" />
-        </div>
-      </header>
+      <SiteNav />
+      <div className="h-16" />
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
         <h1 className="text-2xl font-bold mb-6">Complete Your Booking</h1>

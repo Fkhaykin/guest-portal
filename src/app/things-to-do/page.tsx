@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { SiteNav } from "@/components/site-nav";
 import {
   ArrowLeft,
   MapPin,
@@ -683,6 +684,7 @@ export default function ThingsToDoPage() {
 
   return (
     <div className="min-h-screen bg-black text-white">
+      <SiteNav variant="transparent" />
       {/* ============================================================ */}
       {/*  HERO                                                         */}
       {/* ============================================================ */}
@@ -693,19 +695,6 @@ export default function ThingsToDoPage() {
           className="absolute inset-0 w-full h-full object-cover"
         />
         <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/30 to-black" />
-
-        {/* Back button */}
-        <div className="absolute top-0 left-0 right-0 z-10">
-          <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-5">
-            <Link
-              href="/"
-              className="inline-flex items-center gap-2 text-sm text-white/70 hover:text-white transition-colors"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Back to Home
-            </Link>
-          </div>
-        </div>
 
         {/* Hero content */}
         <div className="absolute inset-0 flex items-end">
