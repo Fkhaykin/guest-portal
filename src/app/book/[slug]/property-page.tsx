@@ -29,6 +29,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { BookingCalendar } from "./booking-widget";
+import { GuestPhotoCarousel } from "@/components/guest/guest-photo-carousel";
+import { ReviewsCarousel } from "@/components/guest/reviews-carousel";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -117,7 +119,7 @@ function PhotoGallery({ images }: { images: { url: string }[] }) {
   return (
     <>
       {/* Hero carousel — full width, fade at bottom, floating thumbnails */}
-      <div className="relative group -mx-4 sm:-mx-6">
+      <div className="relative group">
         {/* Main image */}
         <div className="relative w-full aspect-video sm:aspect-21/9 overflow-hidden">
           {images.map((img, i) => (
@@ -154,7 +156,7 @@ function PhotoGallery({ images }: { images: { url: string }[] }) {
 
           {/* Floating thumbnail strip — positioned over the fade area */}
           {images.length > 1 && (
-            <div className="absolute bottom-2 inset-x-0 flex justify-center px-4 z-10">
+            <div className="absolute bottom-6 inset-x-0 flex justify-center px-4 z-10">
               <div
                 ref={thumbRef}
                 className="flex gap-2 overflow-x-auto py-1 px-1 max-w-full rounded-xl bg-black/30 backdrop-blur-md"
@@ -274,11 +276,11 @@ export function PropertyPage({
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <SiteNav />
-      <div className="h-16" />
+
+      {/* Photo gallery — full width, no spacer above */}
+      {images.length > 0 && <PhotoGallery images={images} />}
 
       <div className="max-w-5xl mx-auto w-full px-4 sm:px-6 pt-0 pb-6 sm:py-6 space-y-8">
-        {/* Photo gallery */}
-        {images.length > 0 && <PhotoGallery images={images} />}
 
         {/* Title + quick facts */}
         <div className="space-y-3">
@@ -439,9 +441,16 @@ export function PropertyPage({
           />
         </div>
 
-        {/* Spacer */}
-        <div className="h-8" />
       </div>
+
+      {/* Guest Photos */}
+      <GuestPhotoCarousel propertyId={property.id} />
+
+      {/* Reviews */}
+      <ReviewsCarousel />
+
+      {/* Spacer */}
+      <div className="h-8" />
 
       {/* Footer */}
       <footer className="mt-auto border-t py-6 text-center text-xs text-muted-foreground">
