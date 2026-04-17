@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getAirbnbPhotos } from "@/lib/airbnb-photos";
 
 const LODGIFY_API_KEY = process.env.LODGIFY_API_KEY;
 
@@ -103,9 +104,10 @@ export async function GET(request: Request) {
         pets_allowed: room?.pets_allowed || false,
         has_parking: room?.has_parking || false,
         has_wifi: room?.has_wifi || false,
-        images: (room?.images || []).map((img) => ({
-          url: img.url.startsWith("//") ? `https:${img.url}` : img.url,
-        })),
+        images: getAirbnbPhotos(property.name)?.map((url) => ({ url })) ??
+          (room?.images || []).map((img) => ({
+            url: img.url.startsWith("//") ? `https:${img.url}` : img.url,
+          })),
         amenities: room?.amenities || {},
       },
     });

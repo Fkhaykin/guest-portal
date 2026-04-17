@@ -143,36 +143,36 @@ function loadSession(): {
 
 const HERO_IMAGES = [
   {
-    url: "https://l.icdbcdn.com/oh/50c22370-10d6-4d03-a5de-32850450a9cc.jpg?w=2080",
-    alt: "Summit Lakeside lakefront home",
+    url: "https://a0.muscache.com/im/pictures/f5f31bab-faec-4b26-b3c9-cb356293126a.jpg?im_w=1200",
+    alt: "Lakefront Mansion — exterior",
   },
   {
-    url: "https://l.icdbcdn.com/oh/a76e1fe4-7e5a-4132-930b-9590e921f4b6.jpg?w=2080",
-    alt: "Lakeside deck with mountain views",
+    url: "https://a0.muscache.com/im/pictures/6e8e7f2f-dd7b-4e29-8719-6e0d6ab78688.jpg?im_w=1200",
+    alt: "Lakefront Home — exterior",
   },
   {
-    url: "https://l.icdbcdn.com/oh/311087b3-8e1e-4f24-a0a9-369f403bae88.jpg?w=2080",
-    alt: "Cozy cabin interior",
+    url: "https://a0.muscache.com/im/pictures/ca104183-2a19-4800-99d2-4b34ba9ea23c.jpg?im_w=1200",
+    alt: "Cozy Lakehouse — exterior",
   },
   {
-    url: "https://l.icdbcdn.com/oh/dbdc55c3-eefe-4dc5-a935-f87a24f8bd15.jpg?w=2080",
-    alt: "Hot tub with lake views",
+    url: "https://a0.muscache.com/im/pictures/2a8bbc05-e02f-48e0-93b9-fe37adeaee3a.jpg?im_w=1200",
+    alt: "Pet Friendly Lakeview — exterior",
   },
   {
-    url: "https://l.icdbcdn.com/oh/d6286b3e-1cc0-4a50-ac1e-0a1391fbd148.jpg?w=2080",
-    alt: "Pocono Mountains lakefront property",
+    url: "https://a0.muscache.com/im/pictures/bb8633bf-fe15-4b03-84a4-d5174bea0515.jpg?im_w=1200",
+    alt: "Luxury Lakeview Cabin — exterior",
   },
   {
-    url: "https://l.icdbcdn.com/oh/00f0a1c3-98a8-4809-a307-bf9fed4b0f32.jpg?w=2080",
-    alt: "Firepit by the lake at sunset",
+    url: "https://a0.muscache.com/im/pictures/1f3f8cb2-8db6-450c-93de-1404b66853df.jpg?im_w=1200",
+    alt: "Lakefront Mansion — lakeside view",
   },
   {
-    url: "https://l.icdbcdn.com/oh/70c85f21-ddb7-48b6-a074-d6531fcc2a5a.jpg?w=2080",
-    alt: "Mountain retreat exterior",
+    url: "https://a0.muscache.com/im/pictures/a6f5d463-483e-4670-98c7-248dde3c46b5.jpg?im_w=1200",
+    alt: "Cozy Lakehouse — lake view",
   },
   {
-    url: "https://l.icdbcdn.com/oh/378c067c-9ea7-479f-b0fa-ec12927f112e.jpg?w=2080",
-    alt: "Lakeside living room with panoramic views",
+    url: "https://a0.muscache.com/im/pictures/5e71465d-8c6e-426b-9717-3bc0b117bdbf.jpg?im_w=1200",
+    alt: "Pet Friendly Lakeview — interior",
   },
 ];
 
@@ -992,7 +992,7 @@ export default function HomeV2Page() {
 
           <div className="relative w-full aspect-4/5 rounded-lg overflow-hidden">
             <img
-              src="https://l.icdbcdn.com/oh/a76e1fe4-7e5a-4132-930b-9590e921f4b6.jpg?w=1200"
+              src="https://a0.muscache.com/im/pictures/0f3c2d87-7cd0-45bc-bf57-efdcbda6ac7e.jpg?im_w=1200"
               alt="Luxury bathroom with freestanding tub"
               className="absolute inset-0 w-full h-full object-cover"
             />
@@ -1006,7 +1006,7 @@ export default function HomeV2Page() {
       <section className="px-4 sm:px-6 max-w-6xl mx-auto w-full">
         <div className="relative w-full aspect-16/7 min-h-80 rounded-xl overflow-hidden">
           <img
-            src="https://l.icdbcdn.com/oh/dbdc55c3-eefe-4dc5-a935-f87a24f8bd15.jpg?w=2080"
+            src="https://a0.muscache.com/im/pictures/370a991e-fefb-4218-8083-a52775bc931a.jpg?im_w=1200"
             alt="Pet friendly lakefront property"
             className="absolute inset-0 w-full h-full object-cover"
           />
