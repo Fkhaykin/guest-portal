@@ -14,7 +14,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Building2, Save, Phone, PenLine, Undo2, Link2, Plus, Trash2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Building2, Save, Phone, PenLine, Undo2, Link2, Plus, Trash2, X } from "lucide-react";
 
 export default function OwnerSettingsPage({
   params,
@@ -37,7 +38,8 @@ export default function OwnerSettingsPage({
   const [ownerPhone, setOwnerPhone] = useState("");
   const [ownerEmail, setOwnerEmail] = useState("");
   const [lotSection, setLotSection] = useState("");
-  const [hoaSubmissionEmail, setHoaSubmissionEmail] = useState("");
+  const [hoaEmails, setHoaEmails] = useState<string[]>([]);
+  const [hoaEmailInput, setHoaEmailInput] = useState("");
 
   // BMLC-specific fields
   const [emergencyContactName, setEmergencyContactName] = useState("");
@@ -79,7 +81,11 @@ export default function OwnerSettingsPage({
       setOwnerPhone(data.owner_phone || "");
       setOwnerEmail(data.owner_email || "");
       setLotSection(data.lot_section || "");
-      setHoaSubmissionEmail(data.hoa_submission_email || "");
+      setHoaEmails(
+        data.hoa_submission_email
+          ? data.hoa_submission_email.split(",").map((e: string) => e.trim()).filter(Boolean)
+          : []
+      );
       setEmergencyContactName(data.emergency_contact_name || "");
       setEmergencyContactRelationship(data.emergency_contact_relationship || "");
       setEmergencyContactPhone(data.emergency_contact_phone || "");
@@ -122,7 +128,7 @@ export default function OwnerSettingsPage({
       owner_phone: ownerPhone.trim() || null,
       owner_email: ownerEmail.trim().toLowerCase() || null,
       lot_section: lotSection.trim() || null,
-      hoa_submission_email: hoaSubmissionEmail.trim().toLowerCase() || null,
+      hoa_submission_email: hoaEmails.length > 0 ? hoaEmails.join(", ") : null,
       emergency_contact_name: emergencyContactName.trim() || null,
       emergency_contact_relationship: emergencyContactRelationship.trim() || null,
       emergency_contact_phone: emergencyContactPhone.trim() || null,
@@ -314,10 +320,58 @@ export default function OwnerSettingsPage({
               <Input value={lotSection} onChange={(e) => setLotSection(e.target.value)} placeholder="e.g. 88C" />
             </div>
             <div className="space-y-1">
-              <Label>HOA Submission Email</Label>
-              <Input type="email" value={hoaSubmissionEmail} onChange={(e) => setHoaSubmissionEmail(e.target.value)} placeholder="office@pepoa.org" />
+              <Label>HOA Submission Emails</Label>
+              {hoaEmails.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {hoaEmails.map((email, idx) => (
+                    <Badge key={idx} variant="secondary" className="gap-1 pr-1">
+                      {email}
+                      <button
+                        type="button"
+                        onClick={() => setHoaEmails(hoaEmails.filter((_, i) => i !== idx))}
+                        className="rounded-full hover:bg-muted p-0.5"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
+              )}
+              <div className="flex gap-2">
+                <Input
+                  type="text"
+                  inputMode="email"
+                  value={hoaEmailInput}
+                  onChange={(e) => setHoaEmailInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === ",") {
+                      e.preventDefault();
+                      const val = hoaEmailInput.trim().toLowerCase();
+                      if (val && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val) && !hoaEmails.includes(val)) {
+                        setHoaEmails([...hoaEmails, val]);
+                        setHoaEmailInput("");
+                      }
+                    }
+                  }}
+                  placeholder="office@pepoa.org"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const val = hoaEmailInput.trim().toLowerCase();
+                    if (val && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val) && !hoaEmails.includes(val)) {
+                      setHoaEmails([...hoaEmails, val]);
+                      setHoaEmailInput("");
+                    }
+                  }}
+                >
+                  <Plus className="h-4 w-4 mr-1" /> Add
+                </Button>
+              </div>
               <p className="text-xs text-muted-foreground">
-                The generated PDF will be emailed to this address after each guest registration or update
+                The generated PDF will be emailed to all addresses after each guest registration or update. Press Enter or comma to add.
               </p>
             </div>
           </CardContent>

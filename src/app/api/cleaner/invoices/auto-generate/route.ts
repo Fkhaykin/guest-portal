@@ -84,7 +84,7 @@ export async function POST(request: Request) {
 
     const { data: properties } = await supabase
       .from("property")
-      .select("id, name, cleaning_fee_cents")
+      .select("id, name, nickname, cleaning_fee_cents")
       .in("id", propertyIds);
 
     const propMap = new Map((properties || []).map((p) => [p.id, p]));
@@ -101,9 +101,10 @@ export async function POST(request: Request) {
       const cleaningFee = prop.cleaning_fee_cents ?? 0;
       if (cleaningFee > 0) {
         lineItems.push({
-          description: `Cleaning — ${prop.name} (checkout ${reg.check_out_date})`,
+          description: `Cleaning — ${prop.nickname || prop.name} (checkout ${reg.check_out_date})`,
           type: "cleaning",
           property_name: prop.name,
+          property_nickname: prop.nickname ?? undefined,
           registration_id: reg.id,
           amount: cleaningFee,
         });
@@ -115,9 +116,10 @@ export async function POST(request: Request) {
       const petFee = cleaner.pet_fee_cents ?? 0;
       if (hasPets && petFee > 0) {
         lineItems.push({
-          description: `Pet fee — ${prop.name} (checkout ${reg.check_out_date})`,
+          description: `Pet fee — ${prop.nickname || prop.name} (checkout ${reg.check_out_date})`,
           type: "pet_fee",
           property_name: prop.name,
+          property_nickname: prop.nickname ?? undefined,
           registration_id: reg.id,
           amount: petFee,
         });

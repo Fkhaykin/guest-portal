@@ -135,12 +135,19 @@ export function InvoiceDetail({
                   {items.map((item, i) => (
                     <div
                       key={i}
-                      className="flex items-center justify-between text-sm"
+                      className="flex items-center justify-between text-sm gap-3"
                     >
-                      <span className="text-muted-foreground">
-                        {item.description}
-                      </span>
-                      <span className="font-medium">{formatCents(item.amount)}</span>
+                      <div className="truncate">
+                        <span className="text-muted-foreground">
+                          {item.description}
+                        </span>
+                        {item.property_nickname && (
+                          <span className="ml-1.5 text-xs text-muted-foreground/70">
+                            ({item.property_nickname})
+                          </span>
+                        )}
+                      </div>
+                      <span className="font-medium shrink-0">{formatCents(item.amount)}</span>
                     </div>
                   ))}
                 </div>

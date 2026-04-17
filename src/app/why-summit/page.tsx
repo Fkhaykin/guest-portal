@@ -123,7 +123,7 @@ const COMMITMENTS = [
 
 export default function WhySummitPage() {
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col font-(family-name:--font-plus-jakarta)">
       <SiteNav />
 
       {/* Hero */}

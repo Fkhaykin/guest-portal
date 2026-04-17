@@ -402,8 +402,10 @@ function InvoiceModal({
                   <div className="flex items-center justify-between gap-3 min-w-0">
                     <div className="min-w-0">
                       <p className="truncate">{item.description}</p>
-                      {item.property_name && (
-                        <p className="text-xs text-muted-foreground">{item.property_name}</p>
+                      {(item.property_nickname || item.property_name) && (
+                        <p className="text-xs text-muted-foreground">
+                          {item.property_nickname || item.property_name}
+                        </p>
                       )}
                     </div>
                     <span className="shrink-0 font-medium">{formatCents(item.amount)}</span>

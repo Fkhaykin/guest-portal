@@ -9,7 +9,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 const NAV_LINKS = [
   { label: "Home", href: "/" },
   { label: "Visit Poconos", href: "/things-to-do" },
-  { label: "Why Summit?", href: "/#why-summit" },
+  { label: "Why Summit?", href: "/why-summit" },
   { label: "Contact Us", href: "/#contact" },
 ];
 
