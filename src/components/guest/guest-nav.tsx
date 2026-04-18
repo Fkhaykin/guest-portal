@@ -34,11 +34,11 @@ export function GuestNav({ slug: slugProp }: { slug?: string } = {}) {
   }, []);
 
   const navItems = [
-    { label: "Home", href: "/", icon: Home, absolute: true },
     isRegistered
       ? { label: "Manage Stay", href: "/update", icon: PenLine }
       : { label: "Register", href: "/register", icon: ClipboardList },
     { label: "Promotions", href: "/promotions", icon: Tag },
+    { label: "Home", href: "/", icon: Home, absolute: true },
     { label: "Explore", href: "/recommendations", icon: MapPin },
     { label: "FAQ", href: "/faq", icon: HelpCircle },
   ];
