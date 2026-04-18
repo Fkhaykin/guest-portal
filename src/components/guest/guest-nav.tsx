@@ -35,7 +35,7 @@ export function GuestNav({ slug: slugProp }: { slug?: string } = {}) {
 
   const navItems = [
     isRegistered
-      ? { label: "Manage Stay", href: "/update", icon: PenLine }
+      ? { label: "Manage", href: "/update", icon: PenLine }
       : { label: "Register", href: "/register", icon: ClipboardList },
     { label: "Promotions", href: "/promotions", icon: Tag },
     { label: "Home", href: "/", icon: Home, absolute: true },
@@ -45,7 +45,7 @@ export function GuestNav({ slug: slugProp }: { slug?: string } = {}) {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-background border-t md:relative md:border-t-0 md:border-b">
-      <div className="flex items-center justify-around md:justify-center md:gap-6 px-2 py-2 max-w-4xl mx-auto overflow-x-auto">
+      <div className="grid grid-cols-5 md:flex md:items-center md:justify-center md:gap-6 px-2 py-2 max-w-4xl mx-auto">
         {navItems.map((item) => {
           const href = "absolute" in item ? item.href : `${base}${item.href}`;
           const isActive =
@@ -56,7 +56,7 @@ export function GuestNav({ slug: slugProp }: { slug?: string } = {}) {
             <Link
               key={item.label}
               href={href}
-              className={`flex flex-col items-center gap-1 px-2 py-1 transition-colors min-w-[4rem] ${
+              className={`flex flex-col items-center gap-1 px-2 py-1 transition-colors md:min-w-[4rem] ${
                 isActive
                   ? "text-foreground font-medium"
                   : "text-muted-foreground hover:text-foreground"
