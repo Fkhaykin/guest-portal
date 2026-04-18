@@ -619,7 +619,7 @@ function GuestDashboard({
               { label: "Property Home", href: `/p/${reservation.property.slug}`, icon: "home" },
               { label: "Services", href: `/p/${reservation.property.slug}/services`, icon: "services" },
               { label: "FAQ", href: `/p/${reservation.property.slug}/faq`, icon: "faq" },
-              { label: "Recommendations", href: `/p/${reservation.property.slug}/recommendations`, icon: "recs" },
+              { label: "Things to Do", href: `/things-to-do`, icon: "recs" },
               { label: "Videos", href: `/p/${reservation.property.slug}/videos`, icon: "videos" },
               { label: "Promotions", href: `/p/${reservation.property.slug}/promotions`, icon: "promos" },
             ].map((item) => (

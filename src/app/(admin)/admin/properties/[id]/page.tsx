@@ -7,7 +7,6 @@ import {
   ShoppingBag,
   Tag,
   Ticket,
-  MapPin,
   HelpCircle,
   Video,
   QrCode,
@@ -40,12 +39,6 @@ const sections = [
     description: "Manage discount codes for checkout",
     href: "/promo-codes",
     icon: Ticket,
-  },
-  {
-    label: "Recommendations",
-    description: "Curate local restaurants and attractions",
-    href: "/recommendations",
-    icon: MapPin,
   },
   {
     label: "FAQs",

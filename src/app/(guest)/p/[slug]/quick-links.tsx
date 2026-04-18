@@ -51,9 +51,10 @@ const baseLinks = [
   },
   {
     label: "Explore",
-    description: "Restaurants & attractions",
-    href: "/recommendations",
+    description: "Things to do in the Poconos",
+    href: "/things-to-do",
     icon: MapPin,
+    absolute: true,
   },
   {
     label: "FAQ",
@@ -103,7 +104,7 @@ export function QuickLinks({ slug }: { slug: string }) {
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
       {quickLinks.map((item) => (
-        <Link key={item.label} href={`/p/${slug}${item.href}`}>
+        <Link key={item.label} href={"absolute" in item && item.absolute ? item.href : `/p/${slug}${item.href}`}>
           <Card className="h-full hover:bg-accent transition-colors cursor-pointer">
             <CardHeader className="flex flex-col items-center text-center p-4 gap-2">
               <item.icon className="h-8 w-8 text-primary" />
