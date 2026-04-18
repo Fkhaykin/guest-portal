@@ -10,12 +10,22 @@ export async function sendAircoverClaimEmail({
   propertyName,
   claimType,
   claimId,
+  guestName,
+  checkInDate,
+  checkOutDate,
+  portalBookingUrl,
+  airbnbUrl,
 }: {
   to: string;
   hostName: string;
   propertyName: string;
   claimType: string;
   claimId: string;
+  guestName?: string;
+  checkInDate?: string;
+  checkOutDate?: string;
+  portalBookingUrl?: string;
+  airbnbUrl?: string | null;
 }) {
   const typeLabel =
     claimType === "damage" ? "Damage Report" : "Pet Discrepancy";
@@ -30,10 +40,26 @@ export async function sendAircoverClaimEmail({
     `Claim Type: ${typeLabel}`,
     `Claim ID: ${claimId}`,
     "",
+    "--- Booking Details ---",
+    `Guest: ${guestName || "Unknown"}`,
+    `Property: ${propertyName}`,
+    `Check-in: ${checkInDate || "N/A"}`,
+    `Check-out: ${checkOutDate || "N/A"}`,
+  ];
+
+  if (portalBookingUrl) {
+    bodyLines.push(`Portal: ${portalBookingUrl}`);
+  }
+  if (airbnbUrl) {
+    bodyLines.push(`Airbnb Listing: ${airbnbUrl}`);
+  }
+
+  bodyLines.push(
+    "",
     "Please review this claim in your admin dashboard under AirCover Claims.",
     "",
     "— Summit Lakeside",
-  ];
+  );
 
   const resend = getResend();
   const { error } = await resend.emails.send({

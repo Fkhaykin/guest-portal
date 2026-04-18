@@ -55,7 +55,7 @@ export async function POST(request: Request) {
 
   const { data: reg } = await supabase
     .from("registration")
-    .select("id, property_id, check_out_date")
+    .select("id, property_id, check_in_date, check_out_date, lodgify_booking_id, guest:guest_id(full_name)")
     .eq("id", registration_id)
     .in("property_id", propertyIds)
     .single();
@@ -163,7 +163,7 @@ export async function POST(request: Request) {
       try {
         const { data: property } = await supabase
           .from("property")
-          .select("name, host_id")
+          .select("name, host_id, slug, listing_urls")
           .eq("id", reg.property_id)
           .single();
 
@@ -176,6 +176,11 @@ export async function POST(request: Request) {
 
           if (host?.email) {
             const { sendAircoverClaimEmail } = await import("@/lib/email/send-aircover-claim");
+            const guestName = (reg.guest as unknown as { full_name: string })?.full_name ?? "Unknown Guest";
+            const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://guest.summitlakeside.com";
+            const portalBookingUrl = `${appUrl}/p/${property.slug}/register`;
+            const airbnbUrl = (property.listing_urls as Record<string, string>)?.airbnb || null;
+
             for (const claim of createdClaims) {
               await sendAircoverClaimEmail({
                 to: host.email,
@@ -183,6 +188,11 @@ export async function POST(request: Request) {
                 propertyName: property.name,
                 claimType: claim.claim_type,
                 claimId: claim.id,
+                guestName,
+                checkInDate: reg.check_in_date,
+                checkOutDate: reg.check_out_date,
+                portalBookingUrl,
+                airbnbUrl,
               }).catch((err) => {
                 console.error("Failed to send aircover claim email:", err);
               });
