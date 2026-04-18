@@ -29,6 +29,7 @@ type NightlyRate = {
 type PricingData = {
   nightly_rates: NightlyRate[];
   nights: number;
+  min_stay_nights: number;
   room_rate_cents: number;
   cleaning_fee_cents: number;
   pet_fee_cents: number;
@@ -362,11 +363,12 @@ export function CheckoutForm({
                       <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                     </div>
                   ) : belowMinStay ? (
-                    <div className="rounded-lg bg-amber-50 border border-amber-200 p-4 text-sm space-y-1">
-                      <p className="font-semibold text-amber-800">Stay is too short</p>
+                    <div className="rounded-lg bg-amber-50 border border-amber-200 p-4 text-sm space-y-2">
+                      <p className="font-semibold text-amber-800">
+                        Extend by {pricing!.min_stay_nights - nights} night{pricing!.min_stay_nights - nights !== 1 ? "s" : ""} to book
+                      </p>
                       <p className="text-amber-700">
-                        This property requires a longer minimum stay for your selected dates.
-                        Please choose a longer date range to book.
+                        Min stay: {pricing!.min_stay_nights} night{pricing!.min_stay_nights !== 1 ? "s" : ""}
                       </p>
                     </div>
                   ) : pricing ? (

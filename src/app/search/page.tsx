@@ -98,7 +98,7 @@ function ResultsMap({
   checkIn: string;
   checkOut: string;
   guests: number;
-  pricingMap: Record<string, { total_cents: number; room_rate_cents: number } | null>;
+  pricingMap: Record<string, { total_cents: number; room_rate_cents: number; min_stay_nights: number } | null>;
 }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const selected = properties.find((p) => p.id === selectedId);
@@ -235,7 +235,7 @@ function SearchPageInner() {
   const [error, setError] = useState<string | null>(null);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [showMap, setShowMap] = useState(false); // mobile map toggle
-  const [pricingMap, setPricingMap] = useState<Record<string, { total_cents: number; room_rate_cents: number } | null>>({});
+  const [pricingMap, setPricingMap] = useState<Record<string, { total_cents: number; room_rate_cents: number; min_stay_nights: number } | null>>({});
   const [browseAll, setBrowseAll] = useState<AvailableProperty[] | null>(null);
 
   const today = new Date().toISOString().split("T")[0];
@@ -317,7 +317,7 @@ function SearchPageInner() {
     let cancelled = false;
 
     async function fetchPricing() {
-      const entries: Record<string, { total_cents: number; room_rate_cents: number } | null> = {};
+      const entries: Record<string, { total_cents: number; room_rate_cents: number; min_stay_nights: number } | null> = {};
       await Promise.all(
         results!.map(async (p) => {
           try {
@@ -331,7 +331,7 @@ function SearchPageInner() {
             const res = await fetch(`/api/checkout/pricing?${params}`);
             if (res.ok) {
               const data = await res.json();
-              entries[p.id] = { total_cents: data.total_cents, room_rate_cents: data.room_rate_cents };
+              entries[p.id] = { total_cents: data.total_cents, room_rate_cents: data.room_rate_cents, min_stay_nights: data.min_stay_nights };
             } else {
               entries[p.id] = null;
             }
@@ -618,8 +618,10 @@ function SearchPageInner() {
                                   <Calendar className="h-3.5 w-3.5" />
                                 </span>
                               ) : (
-                                <span className="text-xs font-medium text-amber-600">
-                                  Min. stay not met
+                                <span className="text-xs font-medium text-amber-600 text-right leading-tight">
+                                  Extend by {pricingMap[property.id]!.min_stay_nights - nights!} night{pricingMap[property.id]!.min_stay_nights - nights! !== 1 ? "s" : ""}
+                                  <br />
+                                  <span className="text-[11px] text-amber-500">Min stay: {pricingMap[property.id]!.min_stay_nights} nights</span>
                                 </span>
                               )
                             ) : (

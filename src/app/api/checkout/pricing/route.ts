@@ -93,6 +93,9 @@ export async function GET(request: Request) {
     }
   }
 
+  // Compute the effective min-stay (highest min_stay across all nights)
+  const minStayNights = nightlyRates.reduce((max, r) => Math.max(max, r.min_stay), 1);
+
   const cleaningFeeCents = property.guest_cleaning_fee_cents || 0;
   const petFeeCents = property.guest_pet_fee_cents || 0;
   const petFeeTotalCents = pets * petFeeCents;
@@ -104,6 +107,7 @@ export async function GET(request: Request) {
   return NextResponse.json({
     nightly_rates: nightlyRates,
     nights,
+    min_stay_nights: minStayNights,
     room_rate_cents: roomRateCents,
     cleaning_fee_cents: cleaningFeeCents,
     pet_fee_cents: petFeeCents,
