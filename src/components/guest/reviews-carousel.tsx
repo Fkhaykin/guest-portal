@@ -102,8 +102,8 @@ function ReviewCard({ review }: { review: Review }) {
           ))}
         </div>
 
-        {/* Review text — truncated to 3 lines */}
-        <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3">
+        {/* Review text */}
+        <p className="text-sm text-muted-foreground leading-relaxed">
           &ldquo;{review.text}&rdquo;
         </p>
 
