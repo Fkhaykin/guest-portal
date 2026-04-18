@@ -717,7 +717,7 @@ export default function UpdateRegistrationPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               <div className="space-y-1">
                 <Label>License Plate</Label>
                 <Input value={newDriver.license_plate} onChange={(e) => setNewDriver({ ...newDriver, license_plate: e.target.value })} placeholder="ABC-1234" />
@@ -898,7 +898,7 @@ export default function UpdateRegistrationPage() {
         )}
 
         {deliveryStep === 2 && deliveryCategory === "food_grocery" && (
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             {FOOD_PROVIDERS.map((p) => (
               <Card
                 key={p.id}
@@ -1079,78 +1079,78 @@ export default function UpdateRegistrationPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         <Card className="cursor-pointer hover:bg-accent transition-colors" onClick={() => setView("add-guest")}>
-          <CardContent className="flex flex-col items-center text-center gap-3 p-5">
+          <CardContent className="flex flex-col items-center text-center gap-3 p-4 sm:p-5">
             <div className="rounded-full bg-primary/10 p-3">
               <Users className="h-6 w-6 text-primary" />
             </div>
             <div>
               <CardTitle className="text-sm font-semibold">Add a Guest</CardTitle>
-              <CardDescription className="text-xs mt-1">Register a new guest</CardDescription>
+              <CardDescription className="text-xs mt-1 hidden sm:block">Register a new guest</CardDescription>
             </div>
           </CardContent>
         </Card>
 
         <Card className="cursor-pointer hover:bg-accent transition-colors" onClick={() => setView("add-driver")}>
-          <CardContent className="flex flex-col items-center text-center gap-3 p-5">
+          <CardContent className="flex flex-col items-center text-center gap-3 p-4 sm:p-5">
             <div className="rounded-full bg-primary/10 p-3">
               <Car className="h-6 w-6 text-primary" />
             </div>
             <div>
               <CardTitle className="text-sm font-semibold">Add a Driver</CardTitle>
-              <CardDescription className="text-xs mt-1">Register a vehicle</CardDescription>
+              <CardDescription className="text-xs mt-1 hidden sm:block">Register a vehicle</CardDescription>
             </div>
           </CardContent>
         </Card>
 
         <Card className="cursor-pointer hover:bg-accent transition-colors" onClick={() => setView("add-pet")}>
-          <CardContent className="flex flex-col items-center text-center gap-3 p-5">
+          <CardContent className="flex flex-col items-center text-center gap-3 p-4 sm:p-5">
             <div className="rounded-full bg-primary/10 p-3">
               <PawPrint className="h-6 w-6 text-primary" />
             </div>
             <div>
               <CardTitle className="text-sm font-semibold">Add a Pet</CardTitle>
-              <CardDescription className="text-xs mt-1">{petFeeCents > 0 && existingPets.length >= lodgifyNumPets ? `$${(petFeeCents / 100).toFixed(petFeeCents % 100 === 0 ? 0 : 2)} fee` : "Register a pet"}</CardDescription>
+              <CardDescription className="text-xs mt-1 hidden sm:block">{petFeeCents > 0 && existingPets.length >= lodgifyNumPets ? `$${(petFeeCents / 100).toFixed(petFeeCents % 100 === 0 ? 0 : 2)} fee` : "Register a pet"}</CardDescription>
             </div>
           </CardContent>
         </Card>
 
         <Card className="cursor-pointer hover:bg-accent transition-colors" onClick={() => { resetDeliveryForm(); setView("delivery"); }}>
-          <CardContent className="flex flex-col items-center text-center gap-3 p-5">
+          <CardContent className="flex flex-col items-center text-center gap-3 p-4 sm:p-5">
             <div className="rounded-full bg-primary/10 p-3">
               <Truck className="h-6 w-6 text-primary" />
             </div>
             <div>
-              <CardTitle className="text-sm font-semibold">Delivery / Rideshare</CardTitle>
-              <CardDescription className="text-xs mt-1">Register an arrival</CardDescription>
+              <CardTitle className="text-sm font-semibold leading-tight">Delivery / Rideshare</CardTitle>
+              <CardDescription className="text-xs mt-1 hidden sm:block">Register an arrival</CardDescription>
             </div>
           </CardContent>
         </Card>
 
         <Link href={`/p/${property.slug}/photos`}>
-          <Card className="cursor-pointer hover:bg-accent transition-colors">
-            <CardContent className="flex flex-col items-center text-center gap-3 p-5">
+          <Card className="cursor-pointer hover:bg-accent transition-colors h-full">
+            <CardContent className="flex flex-col items-center text-center gap-3 p-4 sm:p-5">
               <div className="rounded-full bg-primary/10 p-3">
                 <Camera className="h-6 w-6 text-primary" />
               </div>
               <div>
                 <CardTitle className="text-sm font-semibold">Photo Album</CardTitle>
-                <CardDescription className="text-xs mt-1">Share photos, earn late check-out</CardDescription>
+                <CardDescription className="text-xs mt-1 hidden sm:block">Share photos, earn late check-out</CardDescription>
               </div>
             </CardContent>
           </Card>
         </Link>
 
-        <Link href={`/p/${property.slug}/add-ons`} className="col-span-2">
-          <Card className="cursor-pointer hover:bg-accent transition-colors">
-            <CardContent className="flex flex-col items-center text-center gap-3 p-5">
+        <Link href={`/p/${property.slug}/add-ons`} className="md:col-span-1">
+          <Card className="cursor-pointer hover:bg-accent transition-colors h-full">
+            <CardContent className="flex flex-col items-center text-center gap-3 p-4 sm:p-5">
               <div className="rounded-full bg-primary/10 p-3">
                 <Sparkles className="h-6 w-6 text-primary" />
               </div>
               <div>
                 <CardTitle className="text-sm font-semibold">Browse Upgrades</CardTitle>
-                <CardDescription className="text-xs mt-1">Extras and experiences for your stay</CardDescription>
+                <CardDescription className="text-xs mt-1 hidden sm:block">Extras and experiences</CardDescription>
               </div>
             </CardContent>
           </Card>
