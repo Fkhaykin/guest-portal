@@ -596,7 +596,7 @@ function PropertyCard({
 
   return (
     <Link href={bookUrl} className="block">
-      <Card className="overflow-hidden group hover:shadow-lg transition-shadow">
+      <Card className="pt-0 overflow-hidden group hover:shadow-lg transition-shadow">
         <div className="relative h-48 sm:h-56">
           {property.cover_image_url ? (
             <img
