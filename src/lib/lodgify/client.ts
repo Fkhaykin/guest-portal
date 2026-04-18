@@ -311,6 +311,67 @@ export async function getBookingById(bookingId: number): Promise<LodgifyBooking>
   };
 }
 
+// --- Webhook management (Lodgify public API v1) ---
+// Docs: https://docs.lodgify.com/reference/webhooks
+// Endpoints:
+//   POST /webhooks/v1/subscribe     { target_url, event }      → { id }
+//   POST /webhooks/v1/unsubscribe   { id }                      → {}
+//   GET  /webhooks/v1/list                                      → [{ id, event, target_url }]
+
+export type LodgifyWebhookEvent =
+  | "booking_new_any_status"
+  | "booking_new_status_booked"
+  | "booking_change"
+  | "booking_status_change"
+  | "rate_change"
+  | "availability_change"
+  | "guest_message_received";
+
+export interface LodgifySubscription {
+  id: number | string;
+  event: string;
+  target_url: string;
+}
+
+async function lodgifyPost<T>(path: string, body: Record<string, unknown>): Promise<T> {
+  const res = await fetch(`${LODGIFY_BASE_URL}${path}`, {
+    method: "POST",
+    headers: {
+      "X-ApiKey": getApiKey(),
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Lodgify API error ${res.status}: ${text}`);
+  }
+  const text = await res.text();
+  return (text ? JSON.parse(text) : {}) as T;
+}
+
+export async function listWebhookSubscriptions(): Promise<LodgifySubscription[]> {
+  const data = await lodgifyFetch<LodgifySubscription[] | { items: LodgifySubscription[] }>(
+    "/webhooks/v1/list"
+  );
+  return Array.isArray(data) ? data : data.items ?? [];
+}
+
+export async function subscribeWebhook(params: {
+  event: LodgifyWebhookEvent | string;
+  target_url: string;
+}): Promise<{ id: number | string; secret?: string }> {
+  return lodgifyPost<{ id: number | string; secret?: string }>("/webhooks/v1/subscribe", {
+    event: params.event,
+    target_url: params.target_url,
+  });
+}
+
+export async function unsubscribeWebhook(id: number | string): Promise<void> {
+  await lodgifyPost("/webhooks/v1/unsubscribe", { id });
+}
+
 /**
  * Create a booking on Lodgify via the v1 API.
  * Returns the Lodgify booking ID on success.

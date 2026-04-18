@@ -13,6 +13,7 @@ import {
   SprayCan,
   Receipt,
   ShieldAlert,
+  Webhook,
   LogOut,
   Menu,
   X,
@@ -31,6 +32,7 @@ const navItems = [
   { label: "Cleaners", href: "/admin/cleaners", icon: SprayCan },
   { label: "AirCover Claims", href: "/admin/aircover-claims", icon: ShieldAlert },
   { label: "Invoices", href: "/admin/invoices", icon: Receipt },
+  { label: "Lodgify Webhooks", href: "/admin/lodgify-webhooks", icon: Webhook },
   { label: "Settings", href: "/admin/settings", icon: Settings },
 ];
 
