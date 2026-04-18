@@ -141,11 +141,6 @@ export function InvoiceDetail({
                         <span className="text-muted-foreground">
                           {item.description}
                         </span>
-                        {item.property_nickname && (
-                          <span className="ml-1.5 text-xs text-muted-foreground/70">
-                            ({item.property_nickname})
-                          </span>
-                        )}
                       </div>
                       <span className="font-medium shrink-0">{formatCents(item.amount)}</span>
                     </div>
