@@ -73,12 +73,12 @@ function EmptyState({ propertySlug }: { propertySlug?: string }) {
                 </Button>
               </Link>
             ) : (
-              <Link href="/">
+              <a href="https://www.summitlakeside.com/checkin">
                 <Button size="lg" variant="outline" className="mt-2">
                   <Search className="h-4 w-4 mr-2" />
                   Find My Booking
                 </Button>
-              </Link>
+              </a>
             )
           )}
         </CardContent>
