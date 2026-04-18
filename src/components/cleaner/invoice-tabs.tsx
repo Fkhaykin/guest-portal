@@ -34,6 +34,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ReimbursementModal } from "@/components/cleaner/reimbursement-form";
+import { OneOffInvoiceModal } from "@/components/cleaner/one-off-invoice-form";
 import type { InvoiceRow, UnpaidCleaning, RecentBooking } from "@/app/(cleaner)/cleaner/(protected)/invoices/page";
 import type { InvoiceLineItem } from "@/types/database";
 
@@ -102,6 +103,7 @@ export function InvoiceTabs({
   const [tab, setTab] = useState<"unpaid" | "history">("unpaid");
   const [selectedInvoice, setSelectedInvoice] = useState<InvoiceRow | null>(null);
   const [showReimbursement, setShowReimbursement] = useState(false);
+  const [showOneOff, setShowOneOff] = useState(false);
 
   const totalUnpaid = unpaidCleanings.reduce((s, c) => s + c.totalFee, 0);
 
@@ -109,14 +111,24 @@ export function InvoiceTabs({
     <div className="space-y-4 max-w-3xl mx-auto">
       <div className="flex items-center justify-between">
         <h1 className="text-lg font-semibold">Invoices</h1>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setShowReimbursement(true)}
-        >
-          <ReceiptText className="h-4 w-4 mr-1.5" />
-          Reimbursement Request
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowOneOff(true)}
+          >
+            <Sparkles className="h-4 w-4 mr-1.5" />
+            One-Off Invoice
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowReimbursement(true)}
+          >
+            <ReceiptText className="h-4 w-4 mr-1.5" />
+            Reimbursement
+          </Button>
+        </div>
       </div>
 
       {/* Tab bar */}
@@ -171,6 +183,14 @@ export function InvoiceTabs({
       <ReimbursementModal
         open={showReimbursement}
         onClose={() => setShowReimbursement(false)}
+        properties={properties}
+        recentBookings={recentBookings}
+      />
+
+      {/* One-off invoice modal */}
+      <OneOffInvoiceModal
+        open={showOneOff}
+        onClose={() => setShowOneOff(false)}
         properties={properties}
         recentBookings={recentBookings}
       />
