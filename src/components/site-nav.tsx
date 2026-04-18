@@ -10,12 +10,12 @@ const NAV_LINKS = [
   { label: "Home", href: "/" },
   { label: "Visit Poconos", href: "/things-to-do" },
   { label: "Why Summit?", href: "/why-summit" },
-  { label: "Contact Us", href: "/#contact" },
+  { label: "Contact Us", href: "/contact" },
 ];
 
 const RESOURCES_LINKS = [
   { label: "Rental Policies", href: "#" },
-  { label: "Management Service", href: "#" },
+  { label: "Management Service", href: "/management-services" },
   { label: "Rental Agreement", href: "#" },
 ];
 

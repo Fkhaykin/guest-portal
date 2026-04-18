@@ -497,7 +497,7 @@ export default function WhySummitPage() {
                 size="lg"
                 variant="outline"
                 className="border-white/40 bg-transparent text-white hover:bg-white/10 hover:text-white px-8"
-                render={<Link href="/#contact" />}
+                render={<Link href="/contact" />}
               >
                 Talk to a real person
               </Button>
