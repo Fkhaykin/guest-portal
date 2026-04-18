@@ -577,6 +577,7 @@ export default function RegisterPage() {
   }
 
   function addVehicle() {
+    if (vehicles.length >= property.max_vehicles) return;
     setVehicles([
       ...vehicles,
       { make: "", model: "", color: "", license_plate: "", state_or_region: "", year: "", driver_name: "" },
@@ -1310,7 +1311,13 @@ export default function RegisterPage() {
                   Register your vehicles for community parking
                 </CardDescription>
               </div>
-              <Button type="button" variant="outline" size="sm" onClick={addVehicle}>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={addVehicle}
+                disabled={vehicles.length >= property.max_vehicles}
+              >
                 <Plus className="h-4 w-4 mr-1" /> Add
               </Button>
             </CardHeader>
@@ -1318,6 +1325,11 @@ export default function RegisterPage() {
               <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm text-amber-900">
                 All vehicles must be registered prior to arrival. Unregistered vehicles may experience delays at the community security gate.
               </div>
+              {vehicles.length >= property.max_vehicles && (
+                <div className="rounded-lg bg-muted/50 border p-3 text-sm text-muted-foreground">
+                  This property allows a maximum of {property.max_vehicles} vehicle{property.max_vehicles !== 1 ? "s" : ""}.
+                </div>
+              )}
 
               {vehicles.length === 0 ? (
                 <div className="text-center py-6 text-muted-foreground">

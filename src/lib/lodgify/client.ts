@@ -369,7 +369,19 @@ export async function subscribeWebhook(params: {
 }
 
 export async function unsubscribeWebhook(id: number | string): Promise<void> {
-  await lodgifyPost("/webhooks/v1/unsubscribe", { id });
+  const res = await fetch(`${LODGIFY_BASE_URL}/webhooks/v1/unsubscribe`, {
+    method: "DELETE",
+    headers: {
+      "X-ApiKey": getApiKey(),
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify({ id }),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Lodgify API error ${res.status}: ${text}`);
+  }
 }
 
 /**

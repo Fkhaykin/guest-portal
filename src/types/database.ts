@@ -172,6 +172,7 @@ export type Database = {
           rental_agency_contact: string | null;
           owner_signature_url: string | null;
           max_guests: number;
+          max_vehicles: number;
           nickname: string | null;
           cleaning_fee_cents: number;
           pet_fee_cents: number;
@@ -210,6 +211,7 @@ export type Database = {
           rental_agency_contact?: string | null;
           owner_signature_url?: string | null;
           max_guests?: number;
+          max_vehicles?: number;
           nickname?: string | null;
           cleaning_fee_cents?: number;
           pet_fee_cents?: number;
@@ -248,6 +250,7 @@ export type Database = {
           rental_agency_contact?: string | null;
           owner_signature_url?: string | null;
           max_guests?: number;
+          max_vehicles?: number;
           nickname?: string | null;
           cleaning_fee_cents?: number;
           pet_fee_cents?: number;

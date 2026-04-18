@@ -17,16 +17,16 @@ import {
 /*  Imagery — pulled from real listing photography                     */
 /* ------------------------------------------------------------------ */
 
-const IMG = (id: string, w = 1600) =>
+const IMG = (id: string, w: 720 | 1200 | 1920 = 1200) =>
   `https://a0.muscache.com/im/pictures/${id}.jpg?im_w=${w}`;
 
-const HERO = IMG("ec9df551-d43c-4294-ad20-7d1ba43b4840", 2000);
+const HERO = IMG("ec9df551-d43c-4294-ad20-7d1ba43b4840", 1920);
 const ORIGIN = IMG("f5f31bab-faec-4b26-b3c9-cb356293126a");
-const PULLQUOTE_BG = IMG("0f3c2d87-7cd0-45bc-bf57-efdcbda6ac7e", 2000);
+const PULLQUOTE_BG = IMG("0f3c2d87-7cd0-45bc-bf57-efdcbda6ac7e", 1920);
 const HOSPITALITY_A = IMG("19bc7783-e053-41be-baf7-5588ee941de9");
 const HOSPITALITY_B = IMG("86f5afc5-cfd5-4a5e-8dad-b9585d9d38a6");
-const HOMEPLACE = IMG("5ce084b8-38ea-4bd9-9bbd-d16629eb6a21", 2000);
-const CLOSING = IMG("11d2c493-87e1-4534-acdc-e1ff0f1f5832", 2000);
+const HOMEPLACE = IMG("5ce084b8-38ea-4bd9-9bbd-d16629eb6a21", 1920);
+const CLOSING = IMG("11d2c493-87e1-4534-acdc-e1ff0f1f5832", 1920);
 
 const COLLECTION = [
   IMG("2a8bbc05-e02f-48e0-93b9-fe37adeaee3a"),

@@ -29,6 +29,7 @@ export default function PropertySettingsPage({
   const [guestCleaningFee, setGuestCleaningFee] = useState("");
   const [guestPetFee, setGuestPetFee] = useState("");
   const [maxOccupancy, setMaxOccupancy] = useState("12");
+  const [maxVehicles, setMaxVehicles] = useState("6");
   const [photoAreas, setPhotoAreas] = useState<string[]>([]);
   const [newArea, setNewArea] = useState("");
 
@@ -38,7 +39,7 @@ export default function PropertySettingsPage({
     async function load() {
       const { data } = await supabase
         .from("property")
-        .select("name, nickname, address, description, cleaning_fee_cents, pet_fee_cents, guest_cleaning_fee_cents, guest_pet_fee_cents, max_guests, cleaning_photo_areas")
+        .select("name, nickname, address, description, cleaning_fee_cents, pet_fee_cents, guest_cleaning_fee_cents, guest_pet_fee_cents, max_guests, max_vehicles, cleaning_photo_areas")
         .eq("id", id)
         .single();
 
@@ -52,6 +53,7 @@ export default function PropertySettingsPage({
         setGuestCleaningFee(data.guest_cleaning_fee_cents ? (data.guest_cleaning_fee_cents / 100).toFixed(2) : "");
         setGuestPetFee(data.guest_pet_fee_cents ? (data.guest_pet_fee_cents / 100).toFixed(2) : "");
         setMaxOccupancy(String(data.max_guests ?? 12));
+        setMaxVehicles(String(data.max_vehicles ?? 6));
         setPhotoAreas(data.cleaning_photo_areas || []);
       }
       setLoading(false);
@@ -77,6 +79,7 @@ export default function PropertySettingsPage({
         guest_cleaning_fee_cents: guestCleaningFee ? Math.round(parseFloat(guestCleaningFee) * 100) : 0,
         guest_pet_fee_cents: guestPetFee ? Math.round(parseFloat(guestPetFee) * 100) : 0,
         max_guests: parseInt(maxOccupancy) || 12,
+        max_vehicles: parseInt(maxVehicles) || 6,
         cleaning_photo_areas: photoAreas,
       })
       .eq("id", id);
@@ -168,6 +171,19 @@ export default function PropertySettingsPage({
               />
               <p className="text-xs text-muted-foreground">
                 Maximum number of guests allowed during registration.
+              </p>
+            </div>
+            <div className="space-y-1">
+              <Label>Max Vehicles</Label>
+              <Input
+                type="number"
+                min="1"
+                value={maxVehicles}
+                onChange={(e) => setMaxVehicles(e.target.value)}
+                placeholder="6"
+              />
+              <p className="text-xs text-muted-foreground">
+                Maximum number of vehicles guests may register for this property.
               </p>
             </div>
           </CardContent>

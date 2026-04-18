@@ -125,6 +125,22 @@ export async function POST(request: Request) {
       new_data: { pets: validPets } as Record<string, unknown>,
     });
   } else if (section === "vehicles" && body.vehicles) {
+    // Enforce property vehicle cap
+    const { data: property } = await supabase
+      .from("property")
+      .select("max_vehicles")
+      .eq("id", reg.property_id)
+      .single();
+
+    const maxVehicles = property?.max_vehicles ?? 6;
+    const validVehicles = body.vehicles.filter((v) => v.license_plate.trim());
+    if (validVehicles.length > maxVehicles) {
+      return NextResponse.json(
+        { error: `Vehicle list exceeds property limit of ${maxVehicles}` },
+        { status: 400 }
+      );
+    }
+
     // Fetch current vehicles for snapshot
     const { data: currentVehicles } = await supabase
       .from("vehicle")
@@ -134,8 +150,7 @@ export async function POST(request: Request) {
     // Delete and re-insert
     await supabase.from("vehicle").delete().eq("registration_id", registration_id);
 
-    const vehicleRows = body.vehicles
-      .filter((v) => v.license_plate.trim())
+    const vehicleRows = validVehicles
       .map((v) => ({
         registration_id,
         make: v.make?.trim() || null,

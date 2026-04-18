@@ -144,11 +144,20 @@ export async function POST(request: Request) {
   // Check occupancy limit
   const { data: property } = await supabase
     .from("property")
-    .select("max_guests")
+    .select("max_guests, max_vehicles")
     .eq("id", reg.property_id)
     .single();
 
   const maxGuests = property?.max_guests ?? 12;
+  const maxVehicles = property?.max_vehicles ?? 6;
+
+  const submittedVehicles = (vehicles || []).filter((v) => v.license_plate.trim());
+  if (submittedVehicles.length > maxVehicles) {
+    return NextResponse.json(
+      { error: `Vehicle list exceeds the maximum of ${maxVehicles} for this property` },
+      { status: 400 }
+    );
+  }
 
   // Update registration details with guest list
   const validGuests = (guestList || []).filter((g) => g.first_name.trim() && g.last_name.trim());
@@ -213,8 +222,7 @@ export async function POST(request: Request) {
       .delete()
       .eq("registration_id", reg.id);
 
-    const vehicleRows = vehicles
-      .filter((v) => v.license_plate.trim())
+    const vehicleRows = submittedVehicles
       .map((v) => ({
         registration_id: reg.id,
         make: v.make?.trim() || null,

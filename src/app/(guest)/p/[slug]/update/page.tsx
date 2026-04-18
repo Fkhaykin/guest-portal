@@ -298,6 +298,7 @@ export default function UpdateRegistrationPage() {
 
   async function handleAddDriver() {
     if (!registrationId || !newDriver.driver_name.trim() || !newDriver.license_plate.trim()) return;
+    if (existingVehicles.length >= property.max_vehicles) return;
     setSavingDriver(true);
 
     const updatedVehicles = [...existingVehicles, newDriver];
@@ -751,9 +752,15 @@ export default function UpdateRegistrationPage() {
           </div>
         )}
 
+        {existingVehicles.length >= property.max_vehicles && (
+          <div className="rounded-lg bg-muted/50 border p-3 text-sm text-muted-foreground">
+            This property allows a maximum of {property.max_vehicles} vehicle{property.max_vehicles !== 1 ? "s" : ""}.
+          </div>
+        )}
+
         <Button
           className="w-full"
-          disabled={savingDriver || !newDriver.driver_name.trim() || !newDriver.license_plate.trim()}
+          disabled={savingDriver || !newDriver.driver_name.trim() || !newDriver.license_plate.trim() || existingVehicles.length >= property.max_vehicles}
           onClick={handleAddDriver}
         >
           <Plus className="h-4 w-4 mr-2" />

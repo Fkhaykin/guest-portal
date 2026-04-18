@@ -134,7 +134,7 @@ const CATEGORIES: Category[] = [
         name: "Lehigh River Rafting",
         description:
           "Class II-III whitewater rafting through a spectacular gorge. Multiple outfitters offer guided trips — spring dam releases create the best rapids.",
-        image: img("photo-1530866828621-f158b4abb1f0"),
+        image: img("photo-1504196606672-aef5c9cefc92"),
         distance: "35 min",
         tags: ["Adventure", "Rafting", "Seasonal"],
         website: "https://www.poconowhitewater.com",
@@ -153,7 +153,7 @@ const CATEGORIES: Category[] = [
         name: "Fishing the Poconos",
         description:
           "World-class trout streams, bass-filled lakes, and walleye in the bigger reservoirs. Brodhead Creek and the Lehigh River are local favorites. PA fishing license required.",
-        image: img("photo-1545025002-59134f2dfa8b"),
+        image: img("photo-1504309092620-4d0ec726efa4"),
         tags: ["Fishing", "Relaxing", "Year-Round"],
         mapQuery: "Brodhead Creek East Stroudsburg PA",
       },
@@ -229,7 +229,7 @@ const CATEGORIES: Category[] = [
         name: "Claws 'N' Paws Wild Animal Park",
         description:
           "An interactive zoo with over 120 species — feed giraffes, hold parrots, and watch live animal shows. A hit with kids of all ages.",
-        image: img("photo-1474511320723-9a56873571b7"),
+        image: img("photo-1547721064-da6cfb341d50"),
         distance: "40 min",
         tags: ["Family", "Animals", "Interactive"],
         website: "https://www.clawsnpaws.com",
@@ -277,7 +277,7 @@ const CATEGORIES: Category[] = [
         name: "Garlic",
         description:
           "Upscale Mediterranean-inspired fine dining. Creative seasonal menu, extensive wine list, and a sleek atmosphere. Perfect for a special night out.",
-        image: img("photo-1485872299712-a92e32c6b98d"),
+        image: img("photo-1551218808-94e220e084d2"),
         distance: "20 min",
         tags: ["Fine Dining", "Date Night", "Wine"],
         website: "https://www.gaborgarlic.com",
@@ -384,7 +384,7 @@ const CATEGORIES: Category[] = [
         name: "Kalahari Resort Waterpark",
         description:
           "America's largest indoor waterpark — 220,000 sq ft of slides, lazy rivers, and wave pools. Also features an arcade, escape rooms, mini golf, and restaurants.",
-        image: img("photo-1559628233-eb1661f7ceff"),
+        image: img("photo-1581873372796-635b67ca2008"),
         distance: "30 min",
         tags: ["Waterpark", "Family", "Massive"],
         website: "https://www.kalahariresorts.com/poconos",
@@ -489,15 +489,16 @@ function SmartImage({
   className,
   fallback,
   style,
+  priority = false,
 }: {
   src: string;
   alt: string;
   className?: string;
   fallback: string;
   style?: React.CSSProperties;
+  priority?: boolean;
 }) {
   const [errored, setErrored] = useState(false);
-  const [loaded, setLoaded] = useState(false);
 
   if (errored) {
     return (
@@ -511,22 +512,15 @@ function SmartImage({
   }
 
   return (
-    <>
-      <div
-        className={`${className ?? ""} bg-linear-to-br ${fallback} ${loaded ? "opacity-0" : "opacity-100"} transition-opacity duration-500`}
-        style={style}
-        aria-hidden
-      />
-      <img
-        src={src}
-        alt={alt}
-        loading="lazy"
-        onLoad={() => setLoaded(true)}
-        onError={() => setErrored(true)}
-        className={`${className ?? ""} ${loaded ? "opacity-100" : "opacity-0"} transition-opacity duration-700`}
-        style={style}
-      />
-    </>
+    <img
+      src={src}
+      alt={alt}
+      loading={priority ? "eager" : "lazy"}
+      decoding="async"
+      onError={() => setErrored(true)}
+      className={className}
+      style={style}
+    />
   );
 }
 
@@ -875,13 +869,19 @@ function QuickNav({
 }) {
   const scrollerRef = useRef<HTMLDivElement | null>(null);
 
-  // Keep the active chip visible in the horizontal scroller.
+  // Keep the active chip centered in the horizontal scroller.
+  // Use direct scrollLeft instead of scrollIntoView — the latter reaches up
+  // to the document scroller and jerks the whole page inside a sticky nav.
   useEffect(() => {
     if (!active || !scrollerRef.current) return;
-    const btn = scrollerRef.current.querySelector<HTMLButtonElement>(
+    const scroller = scrollerRef.current;
+    const btn = scroller.querySelector<HTMLButtonElement>(
       `button[data-key="${active}"]`,
     );
-    btn?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+    if (!btn) return;
+    const target =
+      btn.offsetLeft - scroller.clientWidth / 2 + btn.offsetWidth / 2;
+    scroller.scrollTo({ left: target, behavior: "smooth" });
   }, [active]);
 
   return (
@@ -996,8 +996,9 @@ export default function ThingsToDoPage() {
           <SmartImage
             src={img("photo-1506905925346-21bda4d32df4", 2400)}
             alt="Pocono Mountains at golden hour"
-            className="absolute inset-0 w-full h-full object-cover animate-[kenburns_30s_ease-in-out_infinite_alternate]"
+            className="absolute inset-0 w-full h-full object-cover"
             fallback="from-emerald-900 via-emerald-600 to-sky-400"
+            priority
           />
         </div>
 
@@ -1129,19 +1130,6 @@ export default function ThingsToDoPage() {
         </div>
       </div>
 
-      {/* Keyframes (one-off) */}
-      <style jsx global>{`
-        @keyframes kenburns {
-          0% {
-            transform: scale(1);
-            transform-origin: 50% 50%;
-          }
-          100% {
-            transform: scale(1.08);
-            transform-origin: 50% 40%;
-          }
-        }
-      `}</style>
     </div>
   );
 }

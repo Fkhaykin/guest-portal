@@ -86,13 +86,22 @@ export async function POST(request: Request) {
     headers,
   };
 
-  // Try to parse payload upfront so we can log it even if signature check fails
-  let parsed: { action?: string; event?: string; booking_id?: number; booking?: { id?: number } } | null = null;
+  // Try to parse payload upfront so we can log it even if signature check fails.
+  // Lodgify sends events as an array: [{ action, booking: { id }, guest, ... }]
+  type LodgifyEvent = {
+    action?: string;
+    event?: string;
+    booking_id?: number;
+    booking?: { id?: number };
+  };
+  let parsed: LodgifyEvent | LodgifyEvent[] | null = null;
+  let firstEvent: LodgifyEvent | null = null;
   try {
     parsed = rawBody ? JSON.parse(rawBody) : null;
     log.raw_payload = parsed;
-    log.action = parsed?.action ?? parsed?.event ?? null;
-    log.lodgify_booking_id = parsed?.booking?.id ?? parsed?.booking_id ?? null;
+    firstEvent = Array.isArray(parsed) ? parsed[0] ?? null : parsed;
+    log.action = firstEvent?.action ?? firstEvent?.event ?? null;
+    log.lodgify_booking_id = firstEvent?.booking?.id ?? firstEvent?.booking_id ?? null;
   } catch {
     log.raw_payload = { _parse_error: true, _body_preview: rawBody.slice(0, 500) };
   }
