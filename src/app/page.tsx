@@ -143,10 +143,6 @@ function loadSession(): {
 
 const HERO_IMAGES = [
   {
-    url: "https://a0.muscache.com/im/pictures/f5f31bab-faec-4b26-b3c9-cb356293126a.jpg?im_w=1200",
-    alt: "Lakefront Mansion — exterior",
-  },
-  {
     url: "/videos/fire.mp4",
     alt: "Fire pit",
     type: "video" as const,
@@ -177,18 +173,16 @@ const HERO_IMAGES = [
     poster: "/videos/sauna-swing.jpg",
   },
   {
-    url: "https://a0.muscache.com/im/pictures/1f3f8cb2-8db6-450c-93de-1404b66853df.jpg?im_w=1200",
-    alt: "Lakefront Mansion — lakeside view",
-  },
-  {
     url: "/videos/boatlake.mp4",
     alt: "Boat on the lake",
     type: "video" as const,
     poster: "/videos/boatlake.jpg",
   },
   {
-    url: "https://a0.muscache.com/im/pictures/5e71465d-8c6e-426b-9717-3bc0b117bdbf.jpg?im_w=1200",
-    alt: "Pet Friendly Lakeview — interior",
+    url: "/videos/biancas.mp4",
+    alt: "Bianca's",
+    type: "video" as const,
+    poster: "/videos/biancas.jpg",
   },
 ];
 
