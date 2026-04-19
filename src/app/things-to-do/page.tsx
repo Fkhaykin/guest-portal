@@ -1349,8 +1349,8 @@ function CommunitySection({ communities }: { communities: Community[] }) {
         </div>
       </Reveal>
 
-      <Tabs defaultValue={communities[0]?.id} className="gap-4">
-        <div className="sticky top-30 z-30 -mx-4 sm:-mx-6 px-4 sm:px-6 py-2 bg-background/80 backdrop-blur-xl border-b border-border/40">
+      <Reveal delay={60}>
+        <Tabs defaultValue={communities[0]?.id} className="gap-4">
           <TabsList className="w-full sm:w-fit h-auto p-1">
             {communities.map((c) => (
               <TabsTrigger
@@ -1362,14 +1362,14 @@ function CommunitySection({ communities }: { communities: Community[] }) {
               </TabsTrigger>
             ))}
           </TabsList>
-        </div>
 
-        {communities.map((c) => (
-          <TabsContent key={c.id} value={c.id}>
-            <CommunityPanel community={c} />
-          </TabsContent>
-        ))}
-      </Tabs>
+          {communities.map((c) => (
+            <TabsContent key={c.id} value={c.id}>
+              <CommunityPanel community={c} />
+            </TabsContent>
+          ))}
+        </Tabs>
+      </Reveal>
     </section>
   );
 }
