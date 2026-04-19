@@ -787,11 +787,16 @@ export default function HomeV2Page() {
     return () => clearTimeout(timer);
   }, [heroIndex]);
 
-  // Play the active video, pause + rewind the others
+  // Skip the active video on first run — autoPlay handles it; a programmatic
+  // seek + .play() during the autoplay hand-off breaks mobile Safari.
+  const didMountRef = useRef(false);
   useEffect(() => {
+    const isFirstRun = !didMountRef.current;
+    didMountRef.current = true;
     videoRefs.current.forEach((video, i) => {
       if (!video) return;
       if (i === heroIndex) {
+        if (isFirstRun) return;
         video.currentTime = 0;
         video.play().catch(() => {});
       } else {
