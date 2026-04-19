@@ -164,6 +164,11 @@ const HERO_IMAGES = [
     type: "video" as const,
   },
   {
+    url: "/videos/sauna-swing.mp4",
+    alt: "Sauna and swing",
+    type: "video" as const,
+  },
+  {
     url: "https://a0.muscache.com/im/pictures/1f3f8cb2-8db6-450c-93de-1404b66853df.jpg?im_w=1200",
     alt: "Lakefront Mansion — lakeside view",
   },
@@ -767,13 +772,15 @@ export default function HomeV2Page() {
   const [promotions, setPromotions] = useState<Promotion[]>([]);
   const [loaded, setLoaded] = useState(false);
 
-  // Rotate hero images
+  // Rotate hero slides — images advance on a timer, videos advance on ended
   useEffect(() => {
-    const timer = setInterval(() => {
+    const current = HERO_IMAGES[heroIndex];
+    if ("type" in current && current.type === "video") return;
+    const timer = setTimeout(() => {
       setHeroIndex((prev) => (prev + 1) % HERO_IMAGES.length);
     }, 6000);
-    return () => clearInterval(timer);
-  }, []);
+    return () => clearTimeout(timer);
+  }, [heroIndex]);
 
   // Load session + fetch data
   useEffect(() => {
@@ -838,10 +845,12 @@ export default function HomeV2Page() {
             {"type" in img && img.type === "video" ? (
               <video
                 src={img.url}
-                autoPlay
-                loop
+                autoPlay={i === heroIndex}
                 muted
                 playsInline
+                onEnded={() =>
+                  setHeroIndex((prev) => (prev + 1) % HERO_IMAGES.length)
+                }
                 className="w-full h-full object-cover"
               />
             ) : (
