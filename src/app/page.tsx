@@ -147,16 +147,22 @@ const HERO_IMAGES = [
     alt: "Lakefront Mansion — exterior",
   },
   {
-    url: "https://a0.muscache.com/im/pictures/6e8e7f2f-dd7b-4e29-8719-6e0d6ab78688.jpg?im_w=1200",
-    alt: "Lakefront Home — exterior",
+    url: "/videos/fire.mp4",
+    alt: "Fire pit",
+    type: "video" as const,
+    poster: "/videos/fire.jpg",
   },
   {
-    url: "https://a0.muscache.com/im/pictures/ca104183-2a19-4800-99d2-4b34ba9ea23c.jpg?im_w=1200",
-    alt: "Cozy Lakehouse — exterior",
+    url: "/videos/interior.mp4",
+    alt: "Interior",
+    type: "video" as const,
+    poster: "/videos/interior.jpg",
   },
   {
-    url: "https://a0.muscache.com/im/pictures/2a8bbc05-e02f-48e0-93b9-fe37adeaee3a.jpg?im_w=1200",
-    alt: "Pet Friendly Lakeview — exterior",
+    url: "/videos/bml.mp4",
+    alt: "Big Bass Lake",
+    type: "video" as const,
+    poster: "/videos/bml.jpg",
   },
   {
     url: "/videos/bushkill-falls.mp4",
@@ -175,8 +181,10 @@ const HERO_IMAGES = [
     alt: "Lakefront Mansion — lakeside view",
   },
   {
-    url: "https://a0.muscache.com/im/pictures/a6f5d463-483e-4670-98c7-248dde3c46b5.jpg?im_w=1200",
-    alt: "Cozy Lakehouse — lake view",
+    url: "/videos/boatlake.mp4",
+    alt: "Boat on the lake",
+    type: "video" as const,
+    poster: "/videos/boatlake.jpg",
   },
   {
     url: "https://a0.muscache.com/im/pictures/5e71465d-8c6e-426b-9717-3bc0b117bdbf.jpg?im_w=1200",
