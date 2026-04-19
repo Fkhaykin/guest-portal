@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { SiteNav } from "@/components/site-nav";
+import { SiteFooter } from "@/components/site-footer";
 import {
   Heart,
   Sparkles,
@@ -505,6 +506,7 @@ export default function WhySummitPage() {
           </div>
         </div>
       </section>
+      <SiteFooter />
     </div>
   );
 }

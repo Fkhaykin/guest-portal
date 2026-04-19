@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Loader2, Tag, Check } from "lucide-react";
 import { SiteNav } from "@/components/site-nav";
+import { SiteFooter } from "@/components/site-footer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -203,7 +204,7 @@ export function CheckoutForm({
   const dateOpts: Intl.DateTimeFormatOptions = { month: "short", day: "numeric", year: "numeric" };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen flex flex-col bg-background">
       <SiteNav />
       <div className="h-16" />
 
@@ -473,6 +474,7 @@ export function CheckoutForm({
           </div>
         </div>
       </div>
+      <SiteFooter />
     </div>
   );
 }

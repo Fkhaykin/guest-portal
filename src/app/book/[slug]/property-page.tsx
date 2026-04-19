@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { SiteNav } from "@/components/site-nav";
+import { SiteFooter } from "@/components/site-footer";
 import {
   Users,
   BedDouble,
@@ -452,11 +453,7 @@ export function PropertyPage({
       {/* Spacer */}
       <div className="h-8" />
 
-      {/* Footer */}
-      <footer className="mt-auto border-t py-6 text-center text-xs text-muted-foreground">
-        &copy; {new Date().getFullYear()} Summit Lakeside Rentals. All rights
-        reserved.
-      </footer>
+      <SiteFooter />
     </div>
   );
 }

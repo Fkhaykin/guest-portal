@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { SiteNav } from "@/components/site-nav";
+import { SiteFooter } from "@/components/site-footer";
 import {
   Mail,
   MessageCircle,
@@ -400,7 +401,7 @@ export default function ContactPage() {
               <Button
                 variant="outline"
                 className="w-full gap-2"
-                render={<Link href="/" />}
+                render={<Link href="/checkin" />}
               >
                 Find my booking
                 <ArrowRight className="h-4 w-4" />
@@ -409,6 +410,7 @@ export default function ContactPage() {
           </div>
         </div>
       </section>
+      <SiteFooter />
     </div>
   );
 }

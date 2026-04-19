@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { SiteNav } from "@/components/site-nav";
+import { SiteFooter } from "@/components/site-footer";
 import {
   MapPin,
   ExternalLink,
@@ -1130,6 +1131,7 @@ export default function ThingsToDoPage() {
         </div>
       </div>
 
+      <SiteFooter />
     </div>
   );
 }

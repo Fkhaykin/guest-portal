@@ -57,6 +57,7 @@ import { PropertyHeader } from "@/components/guest/guest-header";
 import { GuestNav } from "@/components/guest/guest-nav";
 import { LandingPage } from "@/components/guest/landing-page";
 import { SiteNav } from "@/components/site-nav";
+import { SiteFooter } from "@/components/site-footer";
 
 type GuestBreakdown = {
   adults: number;
@@ -768,7 +769,7 @@ export default function HomePage() {
           />
         </>
       ) : (
-        <>
+        <div className="min-h-screen flex flex-col">
         <SiteNav />
         <div className="h-16" />
         <LandingPage
@@ -784,7 +785,8 @@ export default function HomePage() {
             }
           }}
         />
-        </>
+        <SiteFooter />
+        </div>
       )}
     </>
   );

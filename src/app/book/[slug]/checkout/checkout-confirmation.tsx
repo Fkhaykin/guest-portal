@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { CheckCircle2, Loader2 } from "lucide-react";
 import { SiteNav } from "@/components/site-nav";
+import { SiteFooter } from "@/components/site-footer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -39,7 +40,7 @@ export function CheckoutConfirmation({
   }, [sessionId]);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen flex flex-col bg-background">
       <SiteNav />
       <div className="h-16" />
 
@@ -111,6 +112,7 @@ export function CheckoutConfirmation({
           </Card>
         )}
       </div>
+      <SiteFooter />
     </div>
   );
 }

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { SiteNav } from "@/components/site-nav";
+import { SiteFooter } from "@/components/site-footer";
 import {
   ArrowRight,
   Sparkles,
@@ -785,6 +786,7 @@ export default function ManagementServicesPage() {
           </div>
         </div>
       </section>
+      <SiteFooter />
     </div>
   );
 }

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,6 +21,7 @@ import { ReviewsCarousel } from "@/components/guest/reviews-carousel";
 import { REVIEWS } from "@/lib/reviews-data";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { SiteNav } from "@/components/site-nav";
+import { SiteFooter } from "@/components/site-footer";
 import {
   Search,
   MapPin,
@@ -1094,56 +1094,7 @@ export default function HomeV2Page() {
         </>
       )}
 
-      {/* ============================================================ */}
-      {/*  FOOTER                                                       */}
-      {/* ============================================================ */}
-      <footer className="mt-auto border-t bg-muted/30">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-8">
-            <div className="space-y-3">
-              <Image
-                src="/logo.png"
-                alt="Summit Lakeside Rentals"
-                width={140}
-                height={70}
-                className="h-10 w-auto invert dark:invert-0"
-              />
-              <p className="text-sm text-muted-foreground">
-                Premium lakefront vacation homes in the Pocono Mountains of
-                Pennsylvania.
-              </p>
-            </div>
-            <div className="space-y-3">
-              <h4 className="font-semibold text-sm">Quick Links</h4>
-              <nav className="flex flex-col gap-2 text-sm text-muted-foreground">
-                <Link href="/checkin" className="hover:text-foreground transition-colors">
-                  Find My Booking
-                </Link>
-                <a
-                  href="https://summitlakeside.com"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="hover:text-foreground transition-colors"
-                >
-                  Visit Our Website
-                </a>
-              </nav>
-            </div>
-            <div className="space-y-3">
-              <h4 className="font-semibold text-sm">Contact</h4>
-              <div className="text-sm text-muted-foreground space-y-1">
-                <p>East Stroudsburg, PA</p>
-                <p>Pocono Mountains, Pennsylvania</p>
-              </div>
-            </div>
-          </div>
-          <Separator className="my-6" />
-          <p className="text-xs text-muted-foreground text-center">
-            &copy; {new Date().getFullYear()} Summit Lakeside Rentals. All
-            rights reserved.
-          </p>
-        </div>
-      </footer>
+      <SiteFooter />
     </div>
   );
 }
