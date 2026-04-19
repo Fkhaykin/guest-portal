@@ -14,7 +14,7 @@ const NAV_LINKS = [
 ];
 
 const RESOURCES_LINKS = [
-  { label: "Rental Policies", href: "#" },
+  { label: "Rental Policies", href: "/rental-policies" },
   { label: "Management Service", href: "/management-services" },
   { label: "Rental Agreement", href: "#" },
 ];
