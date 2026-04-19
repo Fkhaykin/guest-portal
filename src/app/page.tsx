@@ -159,8 +159,9 @@ const HERO_IMAGES = [
     alt: "Pet Friendly Lakeview — exterior",
   },
   {
-    url: "https://a0.muscache.com/im/pictures/bb8633bf-fe15-4b03-84a4-d5174bea0515.jpg?im_w=1200",
-    alt: "Luxury Lakeview Cabin — exterior",
+    url: "/videos/bushkill-falls.mp4",
+    alt: "Bushkill Falls",
+    type: "video" as const,
   },
   {
     url: "https://a0.muscache.com/im/pictures/1f3f8cb2-8db6-450c-93de-1404b66853df.jpg?im_w=1200",
@@ -834,11 +835,22 @@ export default function HomeV2Page() {
             className="absolute inset-0 transition-opacity duration-1000"
             style={{ opacity: i === heroIndex ? 1 : 0 }}
           >
-            <img
-              src={img.url}
-              alt={img.alt}
-              className="w-full h-full object-cover"
-            />
+            {"type" in img && img.type === "video" ? (
+              <video
+                src={img.url}
+                autoPlay
+                loop
+                muted
+                playsInline
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <img
+                src={img.url}
+                alt={img.alt}
+                className="w-full h-full object-cover"
+              />
+            )}
           </div>
         ))}
         <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/40 to-black/70" />
