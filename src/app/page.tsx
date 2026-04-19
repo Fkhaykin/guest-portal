@@ -774,6 +774,7 @@ function OfferCard({ promotion }: { promotion: Promotion }) {
 export default function HomeV2Page() {
   const [heroIndex, setHeroIndex] = useState(0);
   const heroTouchStart = useRef<number | null>(null);
+  const videoRefs = useRef<Array<HTMLVideoElement | null>>([]);
   const [session, setSession] = useState<{
     guestName: string;
     reservation: Reservation;
@@ -790,6 +791,19 @@ export default function HomeV2Page() {
       setHeroIndex((prev) => (prev + 1) % HERO_IMAGES.length);
     }, 6000);
     return () => clearTimeout(timer);
+  }, [heroIndex]);
+
+  // Play the active video, pause + rewind the others
+  useEffect(() => {
+    videoRefs.current.forEach((video, i) => {
+      if (!video) return;
+      if (i === heroIndex) {
+        video.currentTime = 0;
+        video.play().catch(() => {});
+      } else {
+        video.pause();
+      }
+    });
   }, [heroIndex]);
 
   // Load session + fetch data
@@ -854,9 +868,11 @@ export default function HomeV2Page() {
           >
             {"type" in img && img.type === "video" ? (
               <video
+                ref={(el) => {
+                  videoRefs.current[i] = el;
+                }}
                 src={img.url}
                 poster={img.poster}
-                autoPlay={i === heroIndex}
                 muted
                 playsInline
                 preload={
