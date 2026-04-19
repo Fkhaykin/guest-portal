@@ -162,11 +162,13 @@ const HERO_IMAGES = [
     url: "/videos/bushkill-falls.mp4",
     alt: "Bushkill Falls",
     type: "video" as const,
+    poster: "/videos/bushkill-falls.jpg",
   },
   {
     url: "/videos/sauna-swing.mp4",
     alt: "Sauna and swing",
     type: "video" as const,
+    poster: "/videos/sauna-swing.jpg",
   },
   {
     url: "https://a0.muscache.com/im/pictures/1f3f8cb2-8db6-450c-93de-1404b66853df.jpg?im_w=1200",
@@ -845,9 +847,15 @@ export default function HomeV2Page() {
             {"type" in img && img.type === "video" ? (
               <video
                 src={img.url}
+                poster={img.poster}
                 autoPlay={i === heroIndex}
                 muted
                 playsInline
+                preload={
+                  i === heroIndex || i === (heroIndex + 1) % HERO_IMAGES.length
+                    ? "auto"
+                    : "none"
+                }
                 onEnded={() =>
                   setHeroIndex((prev) => (prev + 1) % HERO_IMAGES.length)
                 }
