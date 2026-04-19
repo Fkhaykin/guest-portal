@@ -469,6 +469,7 @@ type CommunityGroup = {
   icon: React.ComponentType<{ className?: string }>;
   note?: string;
   items: CommunityAmenity[];
+  fullWidth?: boolean;
 };
 
 type Community = {
@@ -545,6 +546,7 @@ const COMMUNITIES: Community[] = [
         subtitle: "Three lakes, three different moods",
         icon: Waves,
         note: "All three community lakes are stocked — catch and release only.",
+        fullWidth: true,
         items: [
           {
             name: "Hyland Lake",
@@ -1206,13 +1208,22 @@ function CommunityGroupSection({
         </div>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+      <div
+        className={
+          group.fullWidth
+            ? "grid grid-cols-1 gap-5"
+            : "grid grid-cols-1 sm:grid-cols-2 gap-5"
+        }
+      >
         {group.items.map((item, i) => (
           <Reveal key={item.name} delay={i * 50} y={24}>
             <AmenityCard
               amenity={item}
               fallback={fallback}
-              large={item.featured && group.items.length > 1}
+              large={
+                group.fullWidth ||
+                (item.featured && group.items.length > 1)
+              }
             />
           </Reveal>
         ))}
@@ -1338,8 +1349,8 @@ function CommunitySection({ communities }: { communities: Community[] }) {
         </div>
       </Reveal>
 
-      <Reveal delay={60}>
-        <Tabs defaultValue={communities[0]?.id} className="gap-4">
+      <Tabs defaultValue={communities[0]?.id} className="gap-4">
+        <div className="sticky top-30 z-30 -mx-4 sm:-mx-6 px-4 sm:px-6 py-2 bg-background/80 backdrop-blur-xl border-b border-border/40">
           <TabsList className="w-full sm:w-fit h-auto p-1">
             {communities.map((c) => (
               <TabsTrigger
@@ -1351,14 +1362,14 @@ function CommunitySection({ communities }: { communities: Community[] }) {
               </TabsTrigger>
             ))}
           </TabsList>
+        </div>
 
-          {communities.map((c) => (
-            <TabsContent key={c.id} value={c.id}>
-              <CommunityPanel community={c} />
-            </TabsContent>
-          ))}
-        </Tabs>
-      </Reveal>
+        {communities.map((c) => (
+          <TabsContent key={c.id} value={c.id}>
+            <CommunityPanel community={c} />
+          </TabsContent>
+        ))}
+      </Tabs>
     </section>
   );
 }
