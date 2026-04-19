@@ -731,7 +731,7 @@ function ActivityCard({
   fallback: string;
 }) {
   return (
-    <Card className="overflow-hidden group border-border/60 hover:border-border hover:shadow-[0_20px_50px_-15px_rgba(0,0,0,0.25)] hover:-translate-y-1 transition-all duration-500 will-change-transform">
+    <Card className="overflow-hidden group border-border/60 hover:border-border hover:shadow-[0_20px_50px_-15px_rgba(0,0,0,0.25)] hover:-translate-y-1 transition-all duration-500 will-change-transform py-0 gap-0">
       <div className="relative h-56 w-full overflow-hidden bg-muted">
         <SmartImage
           src={activity.image}
