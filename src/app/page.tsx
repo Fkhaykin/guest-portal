@@ -868,6 +868,7 @@ export default function HomeV2Page() {
                 src={img.url}
                 poster={img.poster}
                 muted
+                autoPlay
                 playsInline
                 preload={
                   i === heroIndex || i === (heroIndex + 1) % HERO_IMAGES.length
