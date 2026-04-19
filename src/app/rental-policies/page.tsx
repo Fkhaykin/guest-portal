@@ -65,7 +65,7 @@ const SECTIONS: PolicySection[] = [
     number: "03",
     title: "Eligibility, Age, and Identity Requirements",
     paragraphs: [
-      "The Primary Guest must be at least twenty-five (25) years of age at the time of booking and must remain physically present at the Property throughout the entirety of the Rental Period. Reservations made on behalf of a person who will not personally occupy the Property, or made by a person under the age of twenty-five, are strictly prohibited and may be cancelled without refund upon discovery.",
+      "The Primary Guest must be at least twenty-one (21) years of age at the time of booking and must remain physically present at the Property throughout the entirety of the Rental Period. Reservations made on behalf of a person who will not personally occupy the Property, or made by a person under the age of twenty-one, are strictly prohibited and may be cancelled without refund upon discovery.",
       "The Primary Guest must provide a valid government-issued photo identification (driver's license, passport, or state-issued ID), a functional phone number, a functional email address, and a valid payment method in the Primary Guest's own name. We may require additional verification, including selfie verification, address verification, or a credit-card pre-authorization, prior to releasing access credentials to the Property.",
       "Providing false, incomplete, or misleading information (including but not limited to age, identity, guest count, the purpose of the stay, or the presence of pets) is a material breach of this Agreement and will result in immediate termination of the reservation without refund and, where appropriate, referral to law enforcement.",
     ],
@@ -85,14 +85,13 @@ const SECTIONS: PolicySection[] = [
     number: "05",
     title: "Payment Schedule and Accepted Methods",
     paragraphs: [
-      "Unless otherwise specified in writing, the following payment schedule applies to all direct bookings:",
+      "Unless otherwise specified in writing, the following payment terms apply to all direct bookings:",
     ],
     items: [
-      { label: "Deposit", body: "Fifty percent (50%) of the total Rental Fee is due at the time of booking and is charged immediately to the Guest's payment method. Until this amount clears, the reservation is tentative only." },
-      { label: "Balance", body: "The remaining fifty percent (50%) of the total Rental Fee is due no later than thirty (30) days prior to the scheduled check-in date. For reservations made within thirty days of arrival, the full Rental Fee is due at the time of booking." },
-      { label: "Late Payment", body: "Failure to pay the balance in full by the due date constitutes a cancellation by the Guest and is subject to the cancellation terms set forth below. We are not obligated to send reminders prior to cancellation." },
+      { label: "Full Payment at Booking", body: "The entire Rental Fee, including all taxes and fees, is due in full at the time of booking and is charged immediately to the Guest's payment method. A reservation is not confirmed until the full amount has successfully cleared; until then, the reservation is tentative only. We do not offer partial deposits, installment plans, or pay-at-check-in arrangements." },
+      { label: "Authorization Failures", body: "If the Guest's payment method is declined, reversed, or insufficient to cover the full Rental Fee, the reservation will not be held and may be released to other guests without notice." },
       { label: "Accepted Payment Methods", body: "Major credit and debit cards (Visa, MasterCard, American Express, Discover), Apple Pay, Google Pay, and, for long-term bookings of thirty nights or more, ACH bank transfer. Cash, personal checks, cashier's checks, money orders, gift cards, cryptocurrency, and wire transfers from foreign banks are not accepted." },
-      { label: "Declines & Chargebacks", body: "If a payment is declined, reversed, or charged back, the Guest agrees to pay a processing fee of fifty dollars ($50) per incident in addition to the original amount owed and any collection costs, attorneys' fees, and interest at the maximum rate permitted by law." },
+      { label: "Declines & Chargebacks", body: "If a payment is later reversed or charged back, the Guest agrees to pay a processing fee of fifty dollars ($50) per incident in addition to the original amount owed and any collection costs, attorneys' fees, and interest at the maximum rate permitted by law." },
       { label: "Third-Party Platforms", body: "Reservations made through Airbnb, Vrbo, Booking.com, or other third-party platforms are also governed by that platform's payment terms, which control to the extent they differ from this Section 5." },
     ],
   },
@@ -115,7 +114,7 @@ const SECTIONS: PolicySection[] = [
       "Our standard cancellation policy is set forth below. This policy applies to cancellations initiated by the Guest. Stricter, non-refundable, or peak-season terms may apply to specific Properties, holiday weeks, or promotional rates; these stricter terms are disclosed at the time of booking and supersede the general policy in this Section.",
     ],
     items: [
-      { label: "60+ days before check-in", body: "Full refund of all amounts paid, less a non-refundable booking processing fee of one hundred dollars ($100) per reservation." },
+      { label: "60+ days before check-in", body: "Full refund of all amounts paid, less a non-refundable processing fee equal to five percent (5%) of the total Rental Fee." },
       { label: "30–59 days before check-in", body: "Fifty percent (50%) refund of the total Rental Fee. Cleaning fees and taxes attributable to the cancelled portion are fully refunded." },
       { label: "14–29 days before check-in", body: "No refund of the Rental Fee. A future-stay credit equal to fifty percent (50%) of the Rental Fee, valid for twelve (12) months, may be issued in our sole discretion." },
       { label: "Less than 14 days before check-in, or no-show", body: "No refund and no future-stay credit. The full Rental Fee is forfeited." },
@@ -137,10 +136,11 @@ const SECTIONS: PolicySection[] = [
     number: "09",
     title: "Check-In, Check-Out, and Access",
     paragraphs: [
-      "Standard check-in time is four o'clock in the afternoon (4:00 PM) local time on the arrival date. Standard check-out time is ten o'clock in the morning (10:00 AM) local time on the departure date. These times are strict and are necessary to allow our cleaning team to prepare the Property for the next guest.",
-      "Early check-in and late check-out may be available for an additional fee, but only when expressly approved in writing by Summit Lakeside in advance. Unapproved early arrivals will not be granted access. Unapproved late departures are charged at a minimum rate of one hundred dollars ($100) per hour, and, after 1:00 PM on the departure date, at the full nightly rate.",
+      "Standard check-in time is four o'clock in the afternoon (4:00 PM) local time on the arrival date. Standard check-out time is eleven o'clock in the morning (11:00 AM) local time on the departure date. These times are strict and are necessary to allow our cleaning team to prepare the Property for the next guest.",
+      "Early check-in and late check-out may be available for an additional fee, but only when expressly approved in writing by Summit Lakeside in advance. Unapproved early arrivals will not be granted access. Unapproved late departures are charged at a minimum rate of one hundred dollars ($100) per hour, and, after 2:00 PM on the departure date, at the full nightly rate.",
       "Access is provided primarily by smart lock, lockbox, or keypad code, with credentials transmitted by email and/or text message no earlier than forty-eight (48) hours prior to check-in. The Guest is solely responsible for safeguarding access credentials and for notifying Summit Lakeside immediately if a credential is lost, shared, or compromised. Costs associated with reissuing codes, rekeying locks, or dispatching emergency access personnel as a result of Guest misuse may be deducted from the Security Deposit.",
       "The Guest agrees not to duplicate any physical key, share any access code with any non-Authorized Occupant, or disclose any access code on social media or any other public forum. Unreturned keys or key fobs at check-out are subject to a replacement charge of one hundred dollars ($100) each.",
+      "Each Property is provided with a set of HOA-issued community amenity badges (for access to pools, beaches, gates, and other shared facilities). The exact number of badges issued to the Guest is disclosed at check-in and must be returned in full at check-out. Lost, damaged, or unreturned amenity badges are assessed a replacement fee of one hundred dollars ($100) per badge, which is charged by the HOA and passed through to the Guest without markup.",
     ],
   },
   {
@@ -158,9 +158,10 @@ const SECTIONS: PolicySection[] = [
     number: "11",
     title: "Visitors, Day Guests, and Unregistered Persons",
     paragraphs: [
-      "Day visitors (non-overnight guests invited by an Authorized Occupant) are permitted only in limited numbers and only with the Guest's prior notification to Summit Lakeside. The total number of persons on the Property at any time, including day visitors, may not exceed one hundred twenty-five percent (125%) of the maximum overnight occupancy, and in no case may exceed the occupancy limit set by the HOA or local ordinance, where applicable.",
-      "All visitors must depart the Property by ten o'clock in the evening (10:00 PM) unless a later time is approved in writing. Day visitors may not occupy bedrooms, use bedrooms for storage, use pools or hot tubs in excess of posted capacity, or remain on the Property unaccompanied by an Authorized Occupant.",
-      "The Guest is fully responsible for the conduct of all visitors and for any damage, rule violation, HOA fine, or injury they cause. Commercial visitors (photographers, caterers, event planners, entertainers, rental-equipment vendors, and similar) are not permitted without express written authorization from Summit Lakeside, which may be conditioned on additional insurance and fees.",
+      "Important: for purposes of occupancy, HOA amenity access, and township short-term-rental licensing, a day visitor is treated identically to an overnight guest. The township and the HOA do not distinguish between daytime and overnight visitors — every person on the Property counts the same against the posted maximum occupancy and against any community-issued pass allotment. There is no separate \"day visitor\" allowance.",
+      "As a result, the total number of persons on the Property at any time — including every day visitor, friend, relative, or dropping-by acquaintance — may not exceed the maximum occupancy posted on the listing and in the confirmation email. Each visitor must also be covered by a valid amenity badge or guest pass if they intend to use any community amenity, and they are subject to the same registration, conduct, and quiet-hour requirements as overnight occupants.",
+      "Visitors who remain past ten o'clock in the evening (10:00 PM) without prior written approval, or who arrive in numbers that cause the Property to exceed its maximum occupancy at any point during the day, trigger the unauthorized-occupant charges set forth in Section 10. The Guest is fully responsible for the conduct of all visitors and for any damage, rule violation, HOA fine, township citation, or injury they cause.",
+      "Commercial visitors (photographers, caterers, event planners, entertainers, rental-equipment vendors, and similar) are not permitted without express written authorization from Summit Lakeside, which may be conditioned on additional insurance and fees.",
     ],
   },
   {
@@ -234,13 +235,13 @@ const SECTIONS: PolicySection[] = [
     number: "19",
     title: "Pet Policy",
     paragraphs: [
-      "Some Properties permit pets; many do not. The specific pet policy for each Property is posted on the listing page and must be confirmed in writing at the time of booking. Bringing any pet to a Property designated pet-free, or bringing an undisclosed pet to a pet-friendly Property, is a material breach of this Agreement and is subject to an unauthorized-pet fee of not less than five hundred dollars ($500) per pet per stay, plus actual cleaning costs.",
+      "Some Properties permit pets; many do not. The specific pet policy for each Property is posted on the listing page and must be confirmed in writing at the time of booking. Bringing any pet to a Property designated pet-free, or bringing an undisclosed pet to a pet-friendly Property, is a material breach of this Agreement and is subject to an unauthorized-pet fee of one hundred dollars ($100) per pet, plus actual cleaning costs and any additional damages.",
     ],
     items: [
       { label: "Approved Pets", body: "Only the specific pets named in the reservation are permitted. Substitutions, additions, and \"just-for-a-night\" exceptions are not allowed and are treated as unauthorized pets." },
-      { label: "Pet Fee", body: "A non-refundable pet cleaning fee applies per pet per stay, typically between seventy-five dollars ($75) and one hundred fifty dollars ($150), disclosed at booking." },
-      { label: "Species & Breed Restrictions", body: "Dogs and cats only. Exotic animals (reptiles, rodents, birds, primates), large livestock, and dogs that insurers categorize as restricted breeds are not permitted without an express written exception." },
-      { label: "Size & Count", body: "A maximum of two (2) pets per Property, each under seventy-five (75) pounds, unless otherwise approved in writing." },
+      { label: "Pet Fee", body: "A non-refundable pet fee of one hundred dollars ($100) per pet per stay applies to every approved pet." },
+      { label: "Species Restrictions \u2014 Dogs Only", body: "Dogs are the only pet species permitted at any Summit Lakeside Property. Cats are not allowed under any circumstances, including short visits, due to allergen persistence in soft furnishings. Exotic animals (reptiles, rodents, birds, primates), livestock, and any non-canine companion animal are likewise prohibited. Dogs that insurers categorize as restricted breeds are not permitted without an express written exception." },
+      { label: "Size & Count", body: "A maximum of two (2) dogs per Property, each under seventy-five (75) pounds, unless otherwise approved in writing." },
       { label: "Documentation", body: "The Guest must provide current proof of rabies vaccination and, where required by the Property or HOA, proof of general vaccination and flea/tick prevention. The Host's registration system supports uploading these documents." },
       { label: "Supervision", body: "Pets must never be left unattended indoors for more than four (4) hours and must not be left unattended in outdoor spaces at any time. Pets may not be left crated unattended overnight in any common area." },
       { label: "Furniture", body: "Pets are not permitted on beds, upholstered furniture, or inside hot tubs or pools. Pet hair on upholstered furniture or bedding will be treated as a cleaning violation." },
@@ -269,10 +270,11 @@ const SECTIONS: PolicySection[] = [
     items: [
       { label: "Supervision", body: "No lifeguard is on duty at any Property. Children under fourteen (14) must be under direct adult supervision at all times when using any pool, hot tub, or water feature. Non-swimmers must wear an approved flotation device." },
       { label: "Hot Tub & Pool Hygiene", body: "Do not enter a hot tub or pool while visibly dirty, oily, bleeding, or while wearing street clothing. Do not add bubble bath, soap, oils, dyes, or foreign objects. Unauthorized chemical additions may render the hot tub inoperable and will be assessed a drain-and-refill fee of not less than three hundred dollars ($300)." },
-      { label: "Safety Covers", body: "Replace hot tub and pool covers securely when the amenity is not in use. Failure to do so may result in damage to the cover (replacement cost up to $800) and significant additional heating cost." },
+      { label: "No Food or Drink in the Hot Tub", body: "Food and beverages are not permitted inside the hot tub or on the hot tub cover. Crumbs, fruit, bottles, cans, and spilled drinks foul the water chemistry and clog the filtration system. A cleaning fee of one hundred dollars ($100) is assessed for any food found in or around the hot tub water." },
+      { label: "Closing the Hot Tub Cover", body: "The hot tub cover must be fully closed, secured, and latched whenever the tub is not in active use. Leaving the cover open or partially off causes heat loss, water contamination from debris, and, over time, damage to the shell and heater. A fine of one hundred dollars ($100) per occurrence is assessed for a hot tub found left open and unused, in addition to any cost for replacement of a damaged cover (up to $800)." },
       { label: "Fire Pits & Outdoor Fires", body: "Use only the wood, pellets, or fuel provided or expressly approved. Fires must be attended at all times, fully extinguished before the Guest leaves the area or goes to sleep, and must comply with any burn ban in effect. The Guest is strictly liable for any fire damage traceable to their use of a fire pit or grill." },
       { label: "Grills", body: "Clean grills after each use. Return propane tanks to the closed position. Never operate grills indoors, in a garage, or under a roof overhang. Damage to grills beyond normal wear is the Guest's responsibility." },
-      { label: "Saunas", body: "Do not pour liquids on the heater unless the sauna is an expressly wet-rated model. Do not modify controls. Never leave a sauna operating unattended." },
+      { label: "Saunas \u2014 No Shoes", body: "Street shoes are not permitted inside any sauna. Dirt, grit, and trail debris tracked onto sauna benches or floors damage the wood, require specialty cleaning, and expose subsequent guests to contaminated surfaces. A cleaning fee of one hundred dollars ($100) is assessed for any evidence of shoes worn inside the sauna. Do not pour liquids on the heater unless the sauna is an expressly wet-rated model. Do not modify controls. Never leave a sauna operating unattended." },
     ],
   },
   {
@@ -280,7 +282,8 @@ const SECTIONS: PolicySection[] = [
     number: "22",
     title: "Watercraft, Docks, and Lake Safety",
     paragraphs: [
-      "Canoes, kayaks, paddleboards, rowboats, and similar non-motorized watercraft are provided at certain Properties for the Guest's use at the Guest's own risk. Personal flotation devices (PFDs) must be worn at all times by every user, regardless of age or swimming ability, and the Guest must comply with all Pennsylvania Fish and Boat Commission regulations.",
+      "Canoes, kayaks, paddleboards, rowboats, pedal boats, and similar non-motorized watercraft are provided at certain Properties for the Guest's use at the Guest's own risk. Personal flotation devices (PFDs) must be worn at all times by every user, regardless of age or swimming ability, and the Guest must comply with all Pennsylvania Fish and Boat Commission regulations.",
+      "After every use, canoes, kayaks, pedal boats, and any similar hull must be pulled fully out of the water, overturned (flipped upside-down), and placed on the rack or shoreline provided. This is a strict requirement. Watercraft left right-side-up collect rainwater and, once full, become impossible for our cleaning staff to lift or drain without heavy equipment. A fine of two hundred dollars ($200) per hull is assessed when any watercraft is found right-side-up at departure or after a rain event during the stay, in addition to any cost to remediate cracked or warped hulls.",
       "Motorized watercraft are not provided. The use of personal motorized watercraft at the Property is subject to HOA and lake-association rules, available upon request. The Guest is responsible for insuring, licensing, and properly operating any personal watercraft, and for any damage caused to the Property's dock, shoreline, or neighboring property.",
       "Swimming in any lake is at the Guest's own risk. Lake bottoms may be uneven, rocky, or contain submerged hazards. Water quality, wildlife presence, weather, and seasonal advisories are beyond our control. Diving from docks, boats, rocks, or cliffs is strictly prohibited.",
     ],
@@ -295,12 +298,10 @@ const SECTIONS: PolicySection[] = [
     items: [
       { body: "Starting the dishwasher with any used dishes, or washing used dishes by hand and returning them to cabinets." },
       { body: "Disposing of all trash in the appropriate outdoor receptacle, with bags closed." },
-      { body: "Returning furniture (indoor and outdoor) to its original location." },
+      { label: "Returning furniture to its original location", body: "All indoor and outdoor furniture must be returned to the exact placement shown on arrival. Rearranging a room, dragging outdoor furniture across the yard or dock, moving beds or couches between rooms, or leaving furniture askew creates significant additional work for our turnover team and often requires multiple staff to reset. A fine of five hundred dollars ($500) is assessed where furniture has been materially moved and not restored before check-out." },
       { body: "Removing all personal belongings, food, and beverages, including items in refrigerators, freezers, and pantries." },
-      { body: "Leaving used linens on the floor or in the laundry room as instructed; do not attempt to launder linens." },
       { body: "Closing and locking all windows, doors, and garages, and setting the thermostat to the posted departure temperature." },
     ],
-    // second paragraph addition below as paragraph
   },
   {
     id: "excess-cleaning",
@@ -319,7 +320,8 @@ const SECTIONS: PolicySection[] = [
     paragraphs: [
       "The Guest agrees to notify Summit Lakeside promptly of any maintenance issue, including but not limited to water leaks, power outages, malfunctioning appliances, HVAC failure, hot tub or pool equipment problems, smoke or carbon-monoxide alarms, pest sightings, or broken fixtures. We will use reasonable efforts to respond quickly, and to dispatch service providers as needed.",
       "Some issues are not always resolvable during a Rental Period (e.g., specialty parts on order, weather-related utility outages, service-provider availability on holidays). No refund, partial refund, rate adjustment, or compensation is owed for temporary amenity interruptions, for outages of third-party services such as internet or cable, or for issues that the Guest fails to report during the Rental Period.",
-      "Service calls triggered by Guest error — including lockouts, tripped breakers caused by overloading circuits, thermostat misconfiguration, or nuisance alarms — are assessed a service-call fee of seventy-five dollars ($75) during business hours and one hundred fifty dollars ($150) outside business hours.",
+      "Service calls triggered by Guest error — for example, lockouts or nuisance alarms caused by disabled smoke detectors — are assessed a service-call fee of seventy-five dollars ($75) during business hours and one hundred fifty dollars ($150) outside business hours. Routine assistance with tripped breakers, thermostat settings, and other ordinary troubleshooting is included at no charge; please call us whenever something is not working as expected.",
+      "Shower strainer cups (for stays of more than three nights). Many of our Properties use strainer cups in the shower drains to catch hair and prevent plumbing clogs. For any stay longer than three (3) nights, the Guest is required to empty the shower strainer cups at least once during the stay and to keep them clean thereafter. Strainer cups left full can back up, overflow, and flood the bathroom and adjacent rooms. Where failure to empty the strainers results in water backup, overflow, or flooding, the Guest is responsible for the full repair cost, including plumbing service, drywall, flooring, subfloor, and any lost-revenue compensation for displaced subsequent guests.",
     ],
   },
   {
@@ -329,6 +331,7 @@ const SECTIONS: PolicySection[] = [
     paragraphs: [
       "The Guest is financially responsible for any damage to the Property, its contents, the land, landscaping, dock, waterfront, shared community amenities, or neighboring property that occurs during the Rental Period and that exceeds ordinary wear and tear. Damage includes, without limitation, burns, stains, tears, breakage, scratches, water damage, pet damage, smoke damage, pest introduction, and theft.",
       "We reserve the right to charge the Guest's payment method on file for the repair or replacement cost of damaged items, at our actual cost plus a reasonable administrative fee, without further notice. Where repair is not practical, replacement will be on a like-for-like basis with comparable quality; we are not obligated to accept depreciated value for irreplaceable items.",
+      "Catch-all. The specific dollar fines identified throughout this Agreement (for smoking, unauthorized pets, hot tub misuse, sauna misuse, furniture relocation, watercraft left right-side-up, HOA infractions, and so forth) are the minimums for their respective categories. Any damage, misuse, loss, or violation not covered by a specific fine is billed to the Guest at its incurred cost, plus the administrative fee described above. Incurred cost includes parts, labor, professional services, HOA and municipal pass-throughs, and, where applicable, lost-revenue compensation for displaced subsequent guests.",
       "The Guest is encouraged to report any pre-existing damage within two (2) hours of check-in by text message or email. Damage not reported within that window is presumed to have occurred during the Rental Period.",
     ],
   },
@@ -376,7 +379,14 @@ const SECTIONS: PolicySection[] = [
     paragraphs: [
       "Most Summit Lakeside Properties are located within homeowners' associations, including but not limited to the Pocono East Property Owners Association (\"PEPOA\") and neighboring community associations. The Guest agrees to comply with all applicable HOA rules, including those relating to amenity access, guest passes, pool hours, beach hours, gate codes, noise, pets, parking, fires, fishing, and boating.",
       "Prior to arrival, the Guest may be required to complete a registration form (the \"PEPOA Registration\" or equivalent) that lists all occupants, vehicles, pets, and emergency contact information. Submission of this form is a condition of entry into the community and of receiving amenity credentials.",
-      "Any fine, penalty, or assessment imposed by the HOA as a result of the Guest's conduct (including visitor conduct) is the Guest's sole responsibility and will be charged to the payment method on file.",
+      "The HOA enforces strict community driving and access rules, patrolled by community security officers with authority to issue citations. The following fine schedule is set by the HOA and passed through to the Guest without markup. Any such fine assessed as a result of the Guest's conduct (or the conduct of any Authorized Occupant or visitor) is the Guest's sole responsibility and will be charged to the payment method on file:",
+    ],
+    items: [
+      { label: "Speeding", body: "Fifty dollars ($50) per violation. Posted speed limits in the community are strictly enforced." },
+      { label: "Sharing a gate pass", body: "Two hundred fifty dollars ($250) per violation. Gate passes are non-transferable and may not be handed off to another driver, relative, visitor, or vehicle." },
+      { label: "Parking on the street", body: "Thirty-five dollars ($35) per violation. Parking is permitted only in the designated driveway and approved spaces for the Property." },
+      { label: "Evading a security officer", body: "One hundred dollars ($100) per violation. Guests must stop and comply with any lawful instruction from community security personnel." },
+      { label: "Failure to stop at a stop sign", body: "Fifty dollars ($50) per violation. Every posted stop sign requires a complete stop." },
     ],
   },
   {
@@ -411,8 +421,9 @@ const SECTIONS: PolicySection[] = [
     number: "35",
     title: "Weather, Force Majeure, and Acts of God",
     paragraphs: [
-      "Neither party is liable for any failure or delay in performance under this Agreement caused by an event beyond that party's reasonable control, including but not limited to: severe weather, snowstorms, ice storms, hurricanes, tornadoes, flooding, drought, wildfires, power or utility outages, water-system failures, pandemic, epidemic, quarantine, government order or closure, evacuation order, road closure, civil unrest, strike, supply-chain failure, terrorism, or war (each, a \"Force Majeure Event\").",
-      "In the event a Force Majeure Event prevents the Guest from traveling to the Property or from occupying the Property, Summit Lakeside's obligation is limited to (a) rescheduling the Rental Period to a mutually agreed date of equal value within twelve (12) months, subject to availability and any seasonal rate differences; or (b) where rescheduling is not possible, refunding amounts paid for the affected nights, less non-recoverable third-party costs already incurred on the Guest's behalf. We strongly recommend the Guest carry travel insurance to cover additional costs not refundable under this Section.",
+      "Neither party is liable for any failure or delay in performance under this Agreement caused by a true event beyond that party's reasonable control, including but not limited to: hurricanes, tornadoes, major flooding, wildfires, extended power or utility outages, water-system failures, pandemic, epidemic, quarantine, government order or closure, evacuation order, road closure, civil unrest, strike, supply-chain failure, terrorism, or war (each, a \"Force Majeure Event\").",
+      "No refund, credit, rescheduling, or other accommodation is offered for winter weather, including snowstorms, ice events, cold temperatures, or snow-related travel inconvenience. The Poconos are a year-round mountain destination, and a substantial portion of our guests specifically book to experience winter conditions — skiing, snowboarding, snowmobiling, snowshoeing, fireside weekends, and the like. Snow is an expected, recurring, and foreseeable part of the stay, not a Force Majeure Event. Guests who are concerned about winter travel are strongly encouraged to purchase travel insurance; we do not issue refunds or credits on account of weather, road conditions, flight disruption, school delay, personal transportation choice, or any similar weather-adjacent reason.",
+      "In the narrow circumstance that a genuine Force Majeure Event as listed above — not weather generally — renders the Property itself uninhabitable during the Rental Period, Summit Lakeside will, at its sole discretion and where feasible, either relocate the Guest to a comparable Property or refund amounts paid for the affected nights, less non-recoverable third-party costs already incurred on the Guest's behalf.",
     ],
   },
   {
@@ -548,7 +559,7 @@ export default function RentalPoliciesPage() {
               them.
             </p>
             <p className="text-sm text-white/60 mt-4">
-              Last updated: April 18, 2026
+              Last updated: April 19, 2026
             </p>
           </div>
         </div>
