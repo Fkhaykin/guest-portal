@@ -105,7 +105,7 @@ export default function DeliveryPage() {
             <p className="text-muted-foreground">
               Please find your booking first to register a delivery or rideshare.
             </p>
-            <Button onClick={() => router.push("/")} className="w-full">
+            <Button onClick={() => router.push("/checkin")} className="w-full">
               Find My Booking
             </Button>
           </CardContent>
