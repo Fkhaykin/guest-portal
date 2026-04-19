@@ -1647,30 +1647,30 @@ export default function ThingsToDoPage() {
         </div>
       </div>
 
-      {/* Quick nav */}
+      {/* Quick nav + all sections share a parent so sticky works across scroll */}
       <div className="max-w-6xl mx-auto w-full px-4 sm:px-6">
         <QuickNav active={activeSection} onSelect={scrollToSection} />
-      </div>
 
-      {/* Community section (on-property amenities) */}
-      <div className="max-w-6xl mx-auto w-full px-4 sm:px-6 pt-12 sm:pt-16">
-        <div id="section-community">
-          <CommunitySection communities={COMMUNITIES} />
+        {/* Community section (on-property amenities) */}
+        <div className="pt-12 sm:pt-16">
+          <div id="section-community">
+            <CommunitySection communities={COMMUNITIES} />
+          </div>
         </div>
-      </div>
 
-      {/* Category sections + parallax dividers */}
-      <div className="max-w-6xl mx-auto w-full px-4 sm:px-6 py-12 sm:py-16 space-y-16 sm:space-y-20">
-        {interleaved.map((item, i) => {
-          if (item.type === "category") {
-            return (
-              <div key={item.cat.key} id={`section-${item.cat.key}`}>
-                <CategorySection category={item.cat} />
-              </div>
-            );
-          }
-          return <ParallaxDivider key={`div-${i}`} divider={item.div} />;
-        })}
+        {/* Category sections + parallax dividers */}
+        <div className="py-12 sm:py-16 space-y-16 sm:space-y-20">
+          {interleaved.map((item, i) => {
+            if (item.type === "category") {
+              return (
+                <div key={item.cat.key} id={`section-${item.cat.key}`}>
+                  <CategorySection category={item.cat} />
+                </div>
+              );
+            }
+            return <ParallaxDivider key={`div-${i}`} divider={item.div} />;
+          })}
+        </div>
       </div>
 
       {/* Footer CTA */}
