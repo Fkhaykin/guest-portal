@@ -424,8 +424,8 @@ function AvailabilitySearch() {
     <form onSubmit={handleSubmit} className="space-y-3">
       <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_6rem_5rem_auto] rounded-2xl overflow-hidden bg-white/10 backdrop-blur-xl border border-white/20 shadow-2xl shadow-black/20">
         <div className="grid grid-cols-2 sm:contents border-b sm:border-b-0 border-white/15">
-        <div className="px-4 sm:px-6 py-4 sm:py-5 border-r border-white/15 hover:bg-white/5 transition-colors">
-          <label htmlFor="v2-checkin" className="block text-xs font-semibold text-white/60 mb-1 tracking-wide text-center sm:text-left">
+        <div className="px-4 sm:px-6 py-2.5 sm:py-5 border-r border-white/15 hover:bg-white/5 transition-colors">
+          <label htmlFor="v2-checkin" className="block text-xs font-semibold text-white/60 mb-0 sm:mb-1 tracking-wide text-center sm:text-left">
             Check-in
           </label>
           <input
@@ -441,8 +441,8 @@ function AvailabilitySearch() {
             required
           />
         </div>
-        <div className="px-4 sm:px-6 py-4 sm:py-5 sm:border-r border-white/15 hover:bg-white/5 transition-colors">
-          <label htmlFor="v2-checkout" className="block text-xs font-semibold text-white/60 mb-1 tracking-wide text-center sm:text-left">
+        <div className="px-4 sm:px-6 py-2.5 sm:py-5 sm:border-r border-white/15 hover:bg-white/5 transition-colors">
+          <label htmlFor="v2-checkout" className="block text-xs font-semibold text-white/60 mb-0 sm:mb-1 tracking-wide text-center sm:text-left">
             Check-out
           </label>
           <input
@@ -461,8 +461,8 @@ function AvailabilitySearch() {
         </div>
         </div>
         <div className="grid grid-cols-[1fr_1fr_auto] sm:contents border-white/15">
-        <div className="px-4 sm:px-6 py-4 sm:py-5 border-r border-white/15 hover:bg-white/5 transition-colors">
-          <label htmlFor="v2-guests" className="block text-xs font-semibold text-white/60 mb-1 tracking-wide text-center sm:text-left">
+        <div className="px-4 sm:px-6 py-2.5 sm:py-5 border-r border-white/15 hover:bg-white/5 transition-colors">
+          <label htmlFor="v2-guests" className="block text-xs font-semibold text-white/60 mb-0 sm:mb-1 tracking-wide text-center sm:text-left">
             Guests
           </label>
           <input
@@ -475,8 +475,8 @@ function AvailabilitySearch() {
             className="w-full bg-transparent text-white text-base sm:text-lg font-medium outline-none scheme-dark text-center sm:text-left"
           />
         </div>
-        <div className="px-4 sm:px-6 py-4 sm:py-5 border-r border-white/15 hover:bg-white/5 transition-colors">
-          <label htmlFor="v2-pets" className="block text-xs font-semibold text-white/60 mb-1 tracking-wide text-center sm:text-left">
+        <div className="px-4 sm:px-6 py-2.5 sm:py-5 border-r border-white/15 hover:bg-white/5 transition-colors">
+          <label htmlFor="v2-pets" className="block text-xs font-semibold text-white/60 mb-0 sm:mb-1 tracking-wide text-center sm:text-left">
             Pets
           </label>
           <input
