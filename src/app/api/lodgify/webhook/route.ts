@@ -4,16 +4,15 @@ import { syncBookingById } from "@/lib/lodgify/sync";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 function verifySignature(rawBody: string, signature: string, secrets: string[]): boolean {
-  // signature format: "sha256=<hex>"
+  // Lodgify sends signatures as "sha256=<UPPERCASE hex>". createHmac emits
+  // lowercase, so we normalize before constant-time comparison.
+  const received = Buffer.from(signature.toLowerCase());
   for (const secret of secrets) {
-    const computed = "sha256=" + createHmac("sha256", secret).update(rawBody).digest("hex");
-    try {
-      if (timingSafeEqual(Buffer.from(computed), Buffer.from(signature))) {
-        return true;
-      }
-    } catch {
-      // length mismatch — skip
-    }
+    const expected = Buffer.from(
+      "sha256=" + createHmac("sha256", secret).update(rawBody).digest("hex")
+    );
+    if (expected.length !== received.length) continue;
+    if (timingSafeEqual(expected, received)) return true;
   }
   return false;
 }
