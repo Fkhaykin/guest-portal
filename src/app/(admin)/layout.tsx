@@ -30,7 +30,7 @@ export default async function AdminLayout({
   return (
     <div className="flex min-h-full">
       <AdminSidebar hostName={host.full_name} hostEmail={host.email} />
-      <main className="flex-1 p-6 md:p-8 overflow-auto">{children}</main>
+      <main className="flex-1 p-6 pt-16 md:p-8 overflow-auto">{children}</main>
     </div>
   );
 }
