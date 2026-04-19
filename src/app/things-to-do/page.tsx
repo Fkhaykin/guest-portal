@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { SiteNav } from "@/components/site-nav";
 import { SiteFooter } from "@/components/site-footer";
 import {
@@ -23,6 +24,11 @@ import {
   Compass,
   ArrowLeft,
   ArrowRight,
+  Home,
+  Trophy,
+  Droplets,
+  Store,
+  Fish,
 } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
@@ -443,6 +449,250 @@ const CATEGORIES: Category[] = [
   },
 ];
 
+/* ------------------------------------------------------------------ */
+/*  Community (on-property amenities) data                             */
+/* ------------------------------------------------------------------ */
+
+type CommunityAmenity = {
+  name: string;
+  description?: string;
+  image: string;
+  tags?: string[];
+  mapQuery?: string;
+  featured?: boolean;
+};
+
+type CommunityGroup = {
+  key: string;
+  title: string;
+  subtitle?: string;
+  icon: React.ComponentType<{ className?: string }>;
+  note?: string;
+  items: CommunityAmenity[];
+};
+
+type Community = {
+  id: string;
+  name: string;
+  tagline: string;
+  description: string;
+  hero: string;
+  gradient: string;
+  mapQuery: string;
+  stats: { num: string; label: string }[];
+  groups: CommunityGroup[];
+};
+
+const COMMUNITIES: Community[] = [
+  {
+    id: "penn-estates",
+    name: "Penn Estates",
+    tagline: "Our home community",
+    description:
+      "A gated, 1,200-acre community in the heart of the Poconos — three lakes, two Olympic pools, and courts for every sport a few steps from your door.",
+    hero: img("photo-1500534623283-312aade485b7", 2000),
+    gradient: "from-emerald-900 via-teal-700 to-green-400",
+    mapQuery: "Penn Estates East Stroudsburg PA",
+    stats: [
+      { num: "3", label: "Community lakes" },
+      { num: "2", label: "Olympic pools" },
+      { num: "4", label: "Sports courts" },
+    ],
+    groups: [
+      {
+        key: "sports",
+        title: "Sports Courts",
+        subtitle: "Match point, half-court, and everything between",
+        icon: Trophy,
+        items: [
+          {
+            name: "Tennis Courts",
+            description:
+              "Well-maintained hard courts open to residents and guests. Great for a morning rally before the heat sets in.",
+            image: img("photo-1622279457486-62dcc4a431d6"),
+            tags: ["Hard Court", "All Ages"],
+            mapQuery: "Penn Estates tennis court East Stroudsburg PA",
+          },
+          {
+            name: "Basketball Courts",
+            description:
+              "Full outdoor courts for pickup games. Bring a ball — the backboards and hoops are always ready.",
+            image: img("photo-1546519638-68e109498ffc"),
+            tags: ["Pickup", "Outdoor"],
+            mapQuery: "Penn Estates basketball court East Stroudsburg PA",
+          },
+          {
+            name: "Soccer Field",
+            description:
+              "Open-play grass field that also doubles as frisbee, flag-football, and running space.",
+            image: img("photo-1459865264687-595d652de67e"),
+            tags: ["Open Play", "Grass"],
+            mapQuery: "Penn Estates soccer field East Stroudsburg PA",
+          },
+          {
+            name: "Volleyball Field",
+            description:
+              "Sand-court volleyball for a sunset match with the group. Nets up all summer.",
+            image: img("photo-1612872087720-bb876e2e67d1"),
+            tags: ["Sand", "Groups"],
+            mapQuery: "Penn Estates volleyball East Stroudsburg PA",
+          },
+        ],
+      },
+      {
+        key: "lakes",
+        title: "The Lakes",
+        subtitle: "Three lakes, three different moods",
+        icon: Waves,
+        note: "All three community lakes are stocked — catch and release only.",
+        items: [
+          {
+            name: "Hyland Lake",
+            description:
+              "The social lake. A sandy swimming beach, dancing fountains on the water, and a picnic area with BBQ grills — bring the charcoal and make a day of it.",
+            image: img("photo-1500964757637-c85e8a162699"),
+            tags: ["Swimming", "Beach", "BBQ Grills", "Picnic"],
+            mapQuery: "Hyland Lake Penn Estates East Stroudsburg PA",
+            featured: true,
+          },
+          {
+            name: "Upper Twin Lake",
+            description:
+              "The quiet one. A picnic area tucked into the trees — great for a packed lunch or an early-morning coffee.",
+            image: img("photo-1437750769465-301382cdf094"),
+            tags: ["Picnic", "Quiet"],
+            mapQuery: "Upper Twin Lake Penn Estates PA",
+          },
+          {
+            name: "Lower Twin Lake",
+            description:
+              "Our lake. Every one of our houses sits on the water here — and it's where we keep the boats. Step out the back door and you're on the dock.",
+            image: img("photo-1530541930197-ff16ac917b0e"),
+            tags: ["Our Houses", "Boats", "Dock"],
+            mapQuery: "Lower Twin Lake Penn Estates PA",
+            featured: true,
+          },
+        ],
+      },
+      {
+        key: "pools",
+        title: "Pools",
+        subtitle: "Summer headquarters",
+        icon: Droplets,
+        items: [
+          {
+            name: "Two Olympic-Size Pools",
+            description:
+              "Full-length lap lanes and plenty of deck for a lazy afternoon. Open Memorial Day through Labor Day.",
+            image: img("photo-1540541338287-41700207dee6"),
+            tags: ["Memorial Day → Labor Day", "Lap Lanes"],
+            mapQuery: "Penn Estates pool East Stroudsburg PA",
+          },
+        ],
+      },
+      {
+        key: "store",
+        title: "The Store",
+        subtitle: "Forgot something? We've got you.",
+        icon: Store,
+        items: [
+          {
+            name: "Archie's Corner",
+            description:
+              "The community store and sandwich shop rolled into one. Grab-and-go lunches, cold drinks, firewood for the pit, and every last-minute supply you forgot to pack.",
+            image: img("photo-1578916171728-46686eac8d58"),
+            tags: ["Sandwiches", "Snacks", "Firewood", "Supplies"],
+            mapQuery: "Archie's Corner Penn Estates East Stroudsburg PA",
+            featured: true,
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: "blue-mountain-lake",
+    name: "Blue Mountain Lake",
+    tagline: "Paddle, swim, play",
+    description:
+      "A quieter sister community built around a paddle-only lake. Same caliber of pools and courts as Penn Estates — with kayaks, canoes, and pedal boats free to borrow.",
+    hero: img("photo-1502900829763-e9f1a3c3a4da", 2000),
+    gradient: "from-sky-900 via-blue-700 to-cyan-400",
+    mapQuery: "Blue Mountain Lake community East Stroudsburg PA",
+    stats: [
+      { num: "1", label: "Paddle-only lake" },
+      { num: "2", label: "Olympic pools" },
+      { num: "4", label: "Sports courts" },
+    ],
+    groups: [
+      {
+        key: "amenities",
+        title: "Amenities",
+        subtitle: "The full spread — courts, field, and the lake",
+        icon: Trophy,
+        items: [
+          {
+            name: "Tennis Courts",
+            description:
+              "Hard-surface courts open throughout the season. Rackets up and away you go.",
+            image: img("photo-1622279457486-62dcc4a431d6"),
+            tags: ["Hard Court"],
+            mapQuery: "Blue Mountain Lake tennis East Stroudsburg PA",
+          },
+          {
+            name: "Basketball Courts",
+            description:
+              "Full-size outdoor courts for pickup games and shoot-around sessions.",
+            image: img("photo-1546519638-68e109498ffc"),
+            tags: ["Pickup"],
+            mapQuery: "Blue Mountain Lake basketball court East Stroudsburg PA",
+          },
+          {
+            name: "Soccer Field",
+            description:
+              "A wide-open grass field — perfect for pickup games and long afternoons with the kids.",
+            image: img("photo-1459865264687-595d652de67e"),
+            tags: ["Open Play"],
+            mapQuery: "Blue Mountain Lake soccer field East Stroudsburg PA",
+          },
+          {
+            name: "Volleyball Field",
+            description:
+              "Sand-court volleyball for the competitive crew. Nets stay up all summer.",
+            image: img("photo-1612872087720-bb876e2e67d1"),
+            tags: ["Sand"],
+            mapQuery: "Blue Mountain Lake volleyball East Stroudsburg PA",
+          },
+          {
+            name: "The Lake",
+            description:
+              "No swimming, but that's not the point — kayaks, canoes, and pedal boats are all provided. Stocked with fish (catch and release only) for the anglers.",
+            image: img("photo-1502900829763-e9f1a3c3a4da"),
+            tags: ["Kayaks", "Canoes", "Pedal Boats", "Catch & Release"],
+            mapQuery: "Blue Mountain Lake East Stroudsburg PA",
+            featured: true,
+          },
+        ],
+      },
+      {
+        key: "pools",
+        title: "Pools",
+        subtitle: "Summer headquarters",
+        icon: Droplets,
+        items: [
+          {
+            name: "Two Olympic-Size Pools",
+            description:
+              "Full-length lap lanes and plenty of deck. Open Memorial Day through Labor Day.",
+            image: img("photo-1540541338287-41700207dee6"),
+            tags: ["Memorial Day → Labor Day", "Lap Lanes"],
+            mapQuery: "Blue Mountain Lake pool East Stroudsburg PA",
+          },
+        ],
+      },
+    ],
+  },
+];
+
 /* Full-bleed parallax dividers between categories */
 type Divider = {
   afterKey: string;
@@ -820,6 +1070,300 @@ function ActivityCard({
 }
 
 /* ------------------------------------------------------------------ */
+/*  Community amenity card                                             */
+/* ------------------------------------------------------------------ */
+
+function AmenityCard({
+  amenity,
+  fallback,
+  large = false,
+}: {
+  amenity: CommunityAmenity;
+  fallback: string;
+  large?: boolean;
+}) {
+  return (
+    <Card
+      className={`overflow-hidden group border-border/60 hover:border-border hover:shadow-[0_20px_50px_-15px_rgba(0,0,0,0.25)] hover:-translate-y-1 transition-all duration-500 will-change-transform py-0 gap-0 ${
+        large ? "sm:col-span-2" : ""
+      }`}
+    >
+      <div
+        className={`relative w-full overflow-hidden bg-muted ${
+          large ? "h-72 sm:h-96" : "h-56"
+        }`}
+      >
+        <SmartImage
+          src={amenity.image}
+          alt={amenity.name}
+          fallback={fallback}
+          className="absolute inset-0 w-full h-full object-cover scale-105 group-hover:scale-115 transition-transform duration-1200 ease-out"
+        />
+        <div className="absolute inset-0 bg-linear-to-t from-black/80 via-black/20 to-transparent" />
+        <div className="absolute inset-0 bg-linear-to-br from-transparent via-transparent to-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+
+        {amenity.featured && (
+          <div className="absolute top-3 left-3">
+            <Badge className="bg-white/95 text-black border-0 backdrop-blur-md gap-1.5 text-[10px] font-semibold uppercase tracking-wider shadow-lg">
+              <Sparkles className="h-3 w-3" />
+              Highlight
+            </Badge>
+          </div>
+        )}
+
+        <div className="absolute bottom-0 left-0 right-0 p-4 translate-y-0 group-hover:-translate-y-1 transition-transform duration-500">
+          <h4
+            className={`font-bold text-white leading-tight drop-shadow-lg tracking-tight ${
+              large ? "text-2xl sm:text-3xl" : "text-xl"
+            }`}
+          >
+            {amenity.name}
+          </h4>
+        </div>
+      </div>
+
+      <CardContent className="p-5 space-y-3">
+        {amenity.description && (
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            {amenity.description}
+          </p>
+        )}
+
+        {amenity.tags && (
+          <div className="flex flex-wrap gap-1.5">
+            {amenity.tags.map((tag) => (
+              <Badge
+                key={tag}
+                variant="secondary"
+                className="text-[11px] font-medium"
+              >
+                {tag}
+              </Badge>
+            ))}
+          </div>
+        )}
+
+        {amenity.mapQuery && (
+          <div className="pt-1">
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+              render={
+                <a
+                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(amenity.mapQuery)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                />
+              }
+            >
+              <MapPin className="h-3.5 w-3.5" />
+              Open in Maps
+            </Button>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Community group (sub-section within a community tab)               */
+/* ------------------------------------------------------------------ */
+
+function CommunityGroupSection({
+  group,
+  fallback,
+}: {
+  group: CommunityGroup;
+  fallback: string;
+}) {
+  const Icon = group.icon;
+  return (
+    <div className="space-y-5">
+      <div className="flex items-start gap-3 pt-2">
+        <div
+          className={`flex items-center justify-center h-11 w-11 rounded-xl bg-linear-to-br ${fallback} shadow-md shadow-black/10 shrink-0`}
+        >
+          <Icon className="h-5 w-5 text-white drop-shadow" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <h3 className="text-xl sm:text-2xl font-bold tracking-tight">
+            {group.title}
+          </h3>
+          {group.subtitle && (
+            <p className="text-muted-foreground text-sm">{group.subtitle}</p>
+          )}
+        </div>
+      </div>
+
+      {group.note && (
+        <div className="flex gap-2 items-start rounded-lg border border-border/60 bg-muted/40 px-4 py-3">
+          <Fish className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            {group.note}
+          </p>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+        {group.items.map((item, i) => (
+          <Reveal key={item.name} delay={i * 50} y={24}>
+            <AmenityCard
+              amenity={item}
+              fallback={fallback}
+              large={item.featured && group.items.length > 1}
+            />
+          </Reveal>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Community tab panel — hero banner + groups + map                   */
+/* ------------------------------------------------------------------ */
+
+function CommunityPanel({ community }: { community: Community }) {
+  const mapEmbed = `https://www.google.com/maps?q=${encodeURIComponent(
+    community.mapQuery,
+  )}&output=embed`;
+
+  return (
+    <div className="space-y-10 pt-6">
+      {/* Hero banner */}
+      <div className="relative w-full h-64 sm:h-80 rounded-3xl overflow-hidden shadow-xl">
+        <SmartImage
+          src={community.hero}
+          alt={community.name}
+          className="absolute inset-0 w-full h-full object-cover"
+          fallback={community.gradient}
+          priority
+        />
+        <div className="absolute inset-0 bg-linear-to-t from-black/85 via-black/30 to-black/40" />
+        <div
+          className={`absolute inset-0 bg-linear-to-br ${community.gradient} mix-blend-multiply opacity-30`}
+        />
+
+        <div className="relative h-full flex flex-col justify-end p-6 sm:p-10">
+          <Badge className="w-fit mb-3 gap-1.5 bg-white/20 text-white border-white/30 backdrop-blur-md text-xs">
+            <MapPin className="h-3 w-3" />
+            {community.tagline}
+          </Badge>
+          <h3 className="text-3xl sm:text-5xl font-bold text-white tracking-tight drop-shadow-lg">
+            {community.name}
+          </h3>
+          <p className="text-sm sm:text-base text-white/85 mt-3 max-w-2xl leading-relaxed">
+            {community.description}
+          </p>
+
+          <div className="mt-5 flex flex-wrap gap-5">
+            {community.stats.map((s) => (
+              <div key={s.label} className="flex flex-col">
+                <span className="text-xl sm:text-2xl font-bold text-white">
+                  {s.num}
+                </span>
+                <span className="text-[10px] uppercase tracking-widest text-white/70">
+                  {s.label}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Amenity groups */}
+      <div className="space-y-12">
+        {community.groups.map((group) => (
+          <CommunityGroupSection
+            key={group.key}
+            group={group}
+            fallback={community.gradient}
+          />
+        ))}
+      </div>
+
+      {/* Embedded map */}
+      <div className="space-y-4">
+        <div className="flex items-start gap-3">
+          <div
+            className={`flex items-center justify-center h-11 w-11 rounded-xl bg-linear-to-br ${community.gradient} shadow-md shadow-black/10 shrink-0`}
+          >
+            <MapPin className="h-5 w-5 text-white drop-shadow" />
+          </div>
+          <div className="flex-1">
+            <h3 className="text-xl sm:text-2xl font-bold tracking-tight">
+              Find it on the map
+            </h3>
+            <p className="text-muted-foreground text-sm">
+              {community.name}, East Stroudsburg, PA
+            </p>
+          </div>
+        </div>
+        <div className="relative w-full h-72 sm:h-96 rounded-2xl overflow-hidden border border-border/60 shadow-md bg-muted">
+          <iframe
+            src={mapEmbed}
+            className="absolute inset-0 w-full h-full"
+            loading="lazy"
+            referrerPolicy="no-referrer-when-downgrade"
+            title={`Map of ${community.name}`}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Community section — tabs + panels                                  */
+/* ------------------------------------------------------------------ */
+
+function CommunitySection({ communities }: { communities: Community[] }) {
+  return (
+    <section className="space-y-8">
+      <Reveal>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center justify-center h-14 w-14 rounded-2xl bg-linear-to-br from-emerald-900 via-teal-700 to-green-400 shadow-lg shadow-black/10">
+            <Home className="h-6 w-6 text-white drop-shadow" />
+          </div>
+          <div>
+            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">
+              In the Community
+            </h2>
+            <p className="text-muted-foreground text-sm sm:text-base">
+              Amenities right here on the property — before you even pick up the keys.
+            </p>
+          </div>
+        </div>
+      </Reveal>
+
+      <Reveal delay={60}>
+        <Tabs defaultValue={communities[0]?.id} className="gap-4">
+          <TabsList className="w-full sm:w-fit h-auto p-1">
+            {communities.map((c) => (
+              <TabsTrigger
+                key={c.id}
+                value={c.id}
+                className="px-4 py-2 text-sm sm:text-base"
+              >
+                {c.name}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+
+          {communities.map((c) => (
+            <TabsContent key={c.id} value={c.id}>
+              <CommunityPanel community={c} />
+            </TabsContent>
+          ))}
+        </Tabs>
+      </Reveal>
+    </section>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  Category section                                                   */
 /* ------------------------------------------------------------------ */
 
@@ -858,6 +1402,34 @@ function CategorySection({ category }: { category: Category }) {
 }
 
 /* ------------------------------------------------------------------ */
+/*  Nav item list (community + categories)                             */
+/* ------------------------------------------------------------------ */
+
+type NavItem = {
+  key: string;
+  title: string;
+  icon: React.ComponentType<{ className?: string }>;
+  gradient: string;
+};
+
+const COMMUNITY_NAV_ITEM: NavItem = {
+  key: "community",
+  title: "In the Community",
+  icon: Home,
+  gradient: "from-emerald-900 via-teal-700 to-green-400",
+};
+
+const NAV_ITEMS: NavItem[] = [
+  COMMUNITY_NAV_ITEM,
+  ...CATEGORIES.map((c) => ({
+    key: c.key,
+    title: c.title,
+    icon: c.icon,
+    gradient: c.gradient,
+  })),
+];
+
+/* ------------------------------------------------------------------ */
 /*  Quick-jump nav                                                     */
 /* ------------------------------------------------------------------ */
 
@@ -892,22 +1464,22 @@ function QuickNav({
         className="flex gap-2 overflow-x-auto"
         style={{ scrollbarWidth: "none" }}
       >
-        {CATEGORIES.map((cat) => {
-          const Icon = cat.icon;
-          const isActive = active === cat.key;
+        {NAV_ITEMS.map((item) => {
+          const Icon = item.icon;
+          const isActive = active === item.key;
           return (
             <button
-              key={cat.key}
-              data-key={cat.key}
-              onClick={() => onSelect(cat.key)}
+              key={item.key}
+              data-key={item.key}
+              onClick={() => onSelect(item.key)}
               className={`flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-medium whitespace-nowrap transition-all duration-300 ${
                 isActive
-                  ? `bg-linear-to-br ${cat.gradient} text-white shadow-md scale-105`
+                  ? `bg-linear-to-br ${item.gradient} text-white shadow-md scale-105`
                   : "bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground"
               }`}
             >
               <Icon className="h-3.5 w-3.5" />
-              {cat.title}
+              {item.title}
             </button>
           );
         })}
@@ -922,14 +1494,14 @@ function QuickNav({
 
 export default function ThingsToDoPage() {
   const [activeSection, setActiveSection] = useState<string | null>(
-    CATEGORIES[0]?.key ?? null,
+    NAV_ITEMS[0]?.key ?? null,
   );
   const scrollY = useScrollY();
   const progress = useScrollProgress();
 
   // Auto-highlight active section based on what's in the middle of the viewport.
   useEffect(() => {
-    const ids = CATEGORIES.map((c) => c.key);
+    const ids = NAV_ITEMS.map((c) => c.key);
     const nodes = ids
       .map((k) => document.getElementById(`section-${k}`))
       .filter((n): n is HTMLElement => !!n);
@@ -1067,6 +1639,13 @@ export default function ThingsToDoPage() {
       {/* Quick nav */}
       <div className="max-w-6xl mx-auto w-full px-4 sm:px-6">
         <QuickNav active={activeSection} onSelect={scrollToSection} />
+      </div>
+
+      {/* Community section (on-property amenities) */}
+      <div className="max-w-6xl mx-auto w-full px-4 sm:px-6 pt-12 sm:pt-16">
+        <div id="section-community">
+          <CommunitySection communities={COMMUNITIES} />
+        </div>
       </div>
 
       {/* Category sections + parallax dividers */}
