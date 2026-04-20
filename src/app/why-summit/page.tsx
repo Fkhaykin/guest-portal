@@ -45,7 +45,7 @@ const VALUES = [
   {
     title: "Thoughtfulness in every detail",
     body:
-      "From the linens on the beds to the firewood stacked by the pit, we sweat the small stuff so you don't have to think about it.",
+      "From the linens on the beds to the board games on the shelf, we sweat the small stuff so you don't have to think about it.",
     image: IMG("5a38ed1b-c546-4f5b-963c-10f1e60dd5ab"),
   },
   {
@@ -57,7 +57,7 @@ const VALUES = [
   {
     title: "Hospitality, not just hosting",
     body:
-      "There's a difference between renting a house and welcoming someone into one. We answer at 10pm, leave local notes, and actually want to hear how it went.",
+      "There's a difference between renting a house and welcoming someone into one. We answer at 10pm, know your name before you arrive, and actually want to hear how it went.",
     image: IMG("3b7adad4-1ede-468d-9b72-e09b20428a06"),
   },
   {
@@ -91,7 +91,7 @@ const PROMISES = [
   },
   {
     title: "Stocked and ready",
-    body: "Coffee, essentials, firewood, board games, and a real local guide waiting.",
+    body: "Coffee, essentials, board games, and a real local guide waiting.",
   },
   {
     title: "Personal touches",
@@ -190,18 +190,17 @@ export default function WhySummitPage() {
             </h2>
             <div className="space-y-5 text-lg text-muted-foreground leading-relaxed">
               <p>
-                Years ago, our family bought a small lakefront place in the
-                Poconos. Not as an investment — as a refuge. Somewhere to leave
-                the city behind, watch the kids learn to fish, and end every
-                night around the firepit.
+                When we built out our first Poconos property, the standard was
+                simple: would we actually want to stay here? Not someday —
+                this weekend.
               </p>
               <p>
-                Friends started asking if they could borrow it. Then friends of
-                friends. Pretty soon we realized we weren't just sharing a
-                house — we were sharing a feeling.
+                We've held that test for every house since. The right layout,
+                the right beds, the right view from the right window. We stay
+                in these homes ourselves, and we notice everything.
               </p>
               <p className="text-foreground font-medium">
-                That feeling is what Summit Lakeside is built around.
+                That firsthand standard is what Summit Lakeside is built around.
               </p>
             </div>
           </div>
@@ -221,8 +220,8 @@ export default function WhySummitPage() {
             <div className="max-w-2xl">
               <Quote className="h-12 w-12 text-white/40 mb-6" />
               <p className="text-3xl sm:text-4xl lg:text-5xl font-medium text-white leading-tight">
-                Every house we run, we run like it's our own. Because at one
-                point, every one of them was.
+                Every house we run, we design the way we'd want to stay in it
+                ourselves. Because we do.
               </p>
               <p className="text-white/70 mt-8 text-xs tracking-[0.3em] uppercase">
                 — The Summit Lakeside team
@@ -338,9 +337,8 @@ export default function WhySummitPage() {
               </p>
               <p>
                 You'll text a real person. You'll get a real reply. The
-                espresso machine will already be set up, the firewood will
-                already be split, and the note on the counter will already
-                know your name.
+                espresso machine will already be set up, the house guide
+                will be on the counter, and we'll already know your name.
               </p>
               <p>
                 It's not magic. It's just hospitality, done by people who
