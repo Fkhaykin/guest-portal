@@ -489,10 +489,11 @@ function AvailabilitySearch() {
             className="w-full bg-transparent text-white text-base sm:text-lg font-medium outline-none scheme-dark text-center sm:text-left"
           />
         </div>
-        <div className="flex items-center justify-center px-3">
+        <div className="flex items-stretch p-2">
           <button
             type="submit"
-            className="h-12 w-12 rounded-xl bg-white/15 text-white hover:bg-white/25 transition-colors flex items-center justify-center shrink-0 border border-white/20"
+            aria-label="Search"
+            className="rounded-xl bg-white/15 text-white hover:bg-white/25 transition-colors flex items-center justify-center shrink-0 border border-white/20 w-14 sm:w-16"
           >
             <Search className="h-5 w-5" />
           </button>
