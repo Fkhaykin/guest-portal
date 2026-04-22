@@ -169,7 +169,8 @@ export async function POST(request: Request) {
     }
 
     reg = registrations[0];
-    guestName = matchedGuests[0].full_name;
+    const guest = reg.guest as { id: string; full_name: string } | null;
+    guestName = guest?.full_name ?? null;
   }
 
   // Remove guest join from response (not needed downstream)
