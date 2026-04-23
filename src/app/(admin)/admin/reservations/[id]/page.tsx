@@ -994,7 +994,7 @@ export default function ReservationDetailPage() {
                         {log.new_data && Object.keys(log.new_data).length > 0 && (
                           <div className="mt-2">
                             <p className="text-xs font-medium text-muted-foreground">New data</p>
-                            <pre className="mt-1 text-xs bg-muted p-2 rounded overflow-x-auto">
+                            <pre className="mt-1 text-xs bg-muted p-2 rounded overflow-x-auto max-w-full">
                               {JSON.stringify(log.new_data, null, 2)}
                             </pre>
                           </div>
@@ -1004,7 +1004,7 @@ export default function ReservationDetailPage() {
                             <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground">
                               Previous data
                             </summary>
-                            <pre className="mt-1 text-xs bg-muted p-2 rounded overflow-x-auto">
+                            <pre className="mt-1 text-xs bg-muted p-2 rounded overflow-x-auto max-w-full">
                               {JSON.stringify(log.previous_data, null, 2)}
                             </pre>
                           </details>
