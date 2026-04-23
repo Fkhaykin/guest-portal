@@ -376,8 +376,8 @@ export function AdminInvoiceDetail({
                       : [];
                     return (
                       <div key={i} className="space-y-1 text-sm">
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="truncate">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
                             <span className="text-muted-foreground">
                               {item.description}
                             </span>
@@ -387,8 +387,8 @@ export function AdminInvoiceDetail({
                           </span>
                         </div>
                         {relatedPetFees.map((pf, j) => (
-                          <div key={`pf-${j}`} className="flex items-center justify-between gap-3 pl-2">
-                            <span className="text-muted-foreground truncate flex items-center gap-1.5">
+                          <div key={`pf-${j}`} className="flex items-start justify-between gap-3 pl-2">
+                            <span className="text-muted-foreground min-w-0 flex items-center gap-1.5">
                               <PawPrint className="h-3 w-3 shrink-0" />
                               {pf.description}
                             </span>
