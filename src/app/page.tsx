@@ -451,7 +451,7 @@ function AvailabilitySearch() {
     <form onSubmit={handleSubmit} className="space-y-3">
       <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_6rem_5rem_auto] rounded-2xl overflow-hidden bg-white/10 backdrop-blur-xl border border-white/20 shadow-2xl shadow-black/20">
         <div className="grid grid-cols-2 sm:contents border-b sm:border-b-0 border-white/15">
-        <div className="px-4 sm:px-6 py-2.5 sm:py-5 border-r border-white/15 hover:bg-white/5 transition-colors">
+        <div className="px-4 sm:px-6 py-2.5 sm:py-3.5 border-r border-white/15 hover:bg-white/5 transition-colors">
           <label htmlFor="v2-checkin" className="block text-xs font-semibold text-white/60 mb-0 sm:mb-1 tracking-wide text-center sm:text-left">
             Check-in
           </label>
@@ -468,7 +468,7 @@ function AvailabilitySearch() {
             required
           />
         </div>
-        <div className="px-4 sm:px-6 py-2.5 sm:py-5 sm:border-r border-white/15 hover:bg-white/5 transition-colors">
+        <div className="px-4 sm:px-6 py-2.5 sm:py-3.5 sm:border-r border-white/15 hover:bg-white/5 transition-colors">
           <label htmlFor="v2-checkout" className="block text-xs font-semibold text-white/60 mb-0 sm:mb-1 tracking-wide text-center sm:text-left">
             Check-out
           </label>
@@ -488,7 +488,7 @@ function AvailabilitySearch() {
         </div>
         </div>
         <div className="grid grid-cols-[1fr_1fr_auto] sm:contents border-white/15">
-        <div className="px-4 sm:px-6 py-2.5 sm:py-5 border-r border-white/15 hover:bg-white/5 transition-colors">
+        <div className="px-4 sm:px-6 py-2.5 sm:py-3.5 border-r border-white/15 hover:bg-white/5 transition-colors">
           <label htmlFor="v2-guests" className="block text-xs font-semibold text-white/60 mb-0 sm:mb-1 tracking-wide text-center sm:text-left">
             Guests
           </label>
@@ -502,7 +502,7 @@ function AvailabilitySearch() {
             className="w-full bg-transparent text-white text-base sm:text-lg font-medium outline-none scheme-dark text-center sm:text-left"
           />
         </div>
-        <div className="px-4 sm:px-6 py-2.5 sm:py-5 border-r border-white/15 hover:bg-white/5 transition-colors">
+        <div className="px-4 sm:px-6 py-2.5 sm:py-3.5 border-r border-white/15 hover:bg-white/5 transition-colors">
           <label htmlFor="v2-pets" className="block text-xs font-semibold text-white/60 mb-0 sm:mb-1 tracking-wide text-center sm:text-left">
             Pets
           </label>
@@ -516,14 +516,13 @@ function AvailabilitySearch() {
             className="w-full bg-transparent text-white text-base sm:text-lg font-medium outline-none scheme-dark text-center sm:text-left"
           />
         </div>
-        <div className="flex">
+        <div className="flex items-center justify-center p-2">
           <button
             type="submit"
             aria-label="Search"
-            className="bg-white text-neutral-900 hover:bg-white/90 transition-colors flex items-center justify-center gap-2 w-full sm:px-8 py-4 sm:py-0 font-semibold"
+            className="bg-white/20 hover:bg-white/30 text-white transition-colors flex items-center justify-center rounded-xl border border-white/20 w-12 h-12"
           >
             <Search className="h-5 w-5" />
-            <span className="sm:hidden">Search</span>
           </button>
         </div>
         </div>
