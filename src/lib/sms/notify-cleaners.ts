@@ -24,8 +24,10 @@ type NotifyParams = {
   checkIn: string;
   checkOut: string;
   numGuests: number;
+  numInfants?: number;
   numPets?: number;
   notes?: string | null;
+  upsells?: string[];
   propertyName?: string;
 };
 
@@ -41,6 +43,15 @@ function renderTemplate(
   vars: Record<string, string>
 ): string {
   return template.replace(/\{\{(\w+)\}\}/g, (_, key) => vars[key] ?? `{{${key}}}`);
+}
+
+// "Lakeside Drive, 475, East Stroudsburg, PA, 18301" → "475 Lakeside Drive"
+function formatAddress(raw: string): string {
+  const parts = raw.split(",").map((s) => s.trim()).filter(Boolean);
+  if (parts.length >= 2 && /^\d+$/.test(parts[1])) {
+    return `${parts[1]} ${parts[0]}`;
+  }
+  return parts[0] || raw;
 }
 
 function cleanerPortalUrl(registrationId: string): string {
@@ -87,10 +98,11 @@ async function getEventSettings(
 
   if (!event?.enabled) return null;
 
+  const rawAddress = (property.address as string | null) ?? "";
   return {
     messageTemplate: event.message,
     propertyName: property.nickname || property.name,
-    propertyAddress: (property.address as string | null) ?? "",
+    propertyAddress: rawAddress ? formatAddress(rawAddress) : "",
     hostId: property.host_id,
   };
 }
@@ -125,7 +137,12 @@ export async function notifyCleanersOfNewBooking(params: NotifyParams) {
   if (!config) return;
 
   const numPets = params.numPets ?? 0;
-  const petsText = numPets > 0 ? `, ${numPets} pet${numPets !== 1 ? "s" : ""}` : "";
+  const numInfants = params.numInfants ?? 0;
+  const extras: string[] = [];
+  if (numPets > 0) extras.push(`${numPets} pet${numPets !== 1 ? "s" : ""}`);
+  if (numInfants > 0) extras.push(`${numInfants} infant${numInfants !== 1 ? "s" : ""}`);
+  if (params.upsells?.length) extras.push(...params.upsells);
+  const extrasText = extras.length > 0 ? `\n${extras.join(", ")}` : "";
   const notesText = params.notes ? `\nNotes: ${params.notes}` : "";
   const link = cleanerPortalUrl(params.registrationId);
 
@@ -136,7 +153,7 @@ export async function notifyCleanersOfNewBooking(params: NotifyParams) {
     check_in: formatDate(params.checkIn),
     check_out: formatDate(params.checkOut),
     num_guests: String(params.numGuests),
-    pets_text: petsText,
+    extras_text: extrasText,
     notes_text: notesText,
     link,
   });

@@ -21,7 +21,7 @@ const EVENT_META: Record<
   cleaner_new_booking: {
     label: "New Booking",
     description: "Sent to assigned cleaners when a new booking is confirmed.",
-    variables: ["property", "address", "guest", "check_in", "check_out", "num_guests", "pets_text", "notes_text", "link"],
+    variables: ["property", "address", "guest", "check_in", "check_out", "num_guests", "extras_text", "notes_text", "link"],
   },
   cleaner_cancellation: {
     label: "Booking Cancelled",
@@ -55,7 +55,7 @@ const DEFAULT_SETTINGS: NotificationSettingsType = {
   cleaner_new_booking: {
     enabled: true,
     message:
-      "New booking — {{property}}, {{address}}: {{guest}}, {{check_in}}–{{check_out}}, {{num_guests}} guest(s){{pets_text}}{{notes_text}}\nView: {{link}}",
+      "New booking — {{property}}, {{address}}: {{guest}}, {{check_in}}–{{check_out}}, {{num_guests}} guest(s){{extras_text}}{{notes_text}}\nView: {{link}}",
   },
   cleaner_cancellation: {
     enabled: true,
