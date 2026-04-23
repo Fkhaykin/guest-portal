@@ -194,37 +194,42 @@ const EXPLORE_POCONOS = [
   {
     title: "Book Your Bachelorette Party",
     image:
-      "https://images.unsplash.com/photo-1529543544282-ea6407407db9?w=800&q=80",
+      "https://images.unsplash.com/photo-1529543544282-ea6407407db9?auto=format&fit=crop&w=800&q=80",
     icon: PartyPopper,
     gradient: "from-pink-600/80 to-purple-700/80",
+    href: "/things-to-do#section-entertainment",
   },
   {
     title: "Gather 'Round the Fire",
     image:
-      "https://images.unsplash.com/photo-1475483768296-6163e08872a1?w=800&q=80",
+      "https://images.unsplash.com/photo-1475483768296-6163e08872a1?auto=format&fit=crop&w=800&q=80",
     icon: Flame,
     gradient: "from-orange-600/80 to-red-700/80",
+    href: "/things-to-do#section-community",
   },
   {
     title: "Plan a Ski Trip",
     image:
-      "https://images.unsplash.com/photo-1551524559-8af4e6624178?w=800&q=80",
+      "https://images.unsplash.com/photo-1551524559-8af4e6624178?auto=format&fit=crop&w=800&q=80",
     icon: Snowflake,
     gradient: "from-sky-600/80 to-blue-800/80",
+    href: "/things-to-do#section-winter",
   },
   {
     title: "Get Out on the Lake",
     image:
-      "https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=800&q=80",
+      "https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&w=800&q=80",
     icon: Waves,
     gradient: "from-cyan-600/80 to-teal-700/80",
+    href: "/things-to-do#section-water",
   },
   {
     title: "Take a Wellness Retreat",
     image:
-      "https://images.unsplash.com/photo-1540555700478-4be289fbec6d?w=800&q=80",
+      "https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=800&q=80",
     icon: HeartHandshake,
     gradient: "from-emerald-600/80 to-green-800/80",
+    href: "/things-to-do#section-wellness",
   },
 ];
 
@@ -232,37 +237,42 @@ const LOCAL_HIGHLIGHTS = [
   {
     title: "Grab a Bite to Eat",
     image:
-      "https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=800&q=80",
+      "https://images.unsplash.com/photo-1414235077428-338989a2e8c0?auto=format&fit=crop&w=800&q=80",
     icon: UtensilsCrossed,
     gradient: "from-amber-600/80 to-orange-700/80",
+    href: "/things-to-do#section-dining",
   },
   {
     title: "Check Out Local Ski Areas",
     image:
-      "https://images.unsplash.com/photo-1565992441121-4367c2967103?w=800&q=80",
+      "https://images.unsplash.com/photo-1565992441121-4367c2967103?auto=format&fit=crop&w=800&q=80",
     icon: Mountain,
     gradient: "from-slate-600/80 to-blue-800/80",
+    href: "/things-to-do#section-winter",
   },
   {
     title: "Get in Touch with Nature",
     image:
-      "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=800&q=80",
+      "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?auto=format&fit=crop&w=800&q=80",
     icon: TreePine,
     gradient: "from-green-700/80 to-emerald-900/80",
+    href: "/things-to-do#section-outdoor",
   },
   {
     title: "Casino Night",
     image:
-      "https://images.unsplash.com/photo-1596838132731-3301c3fd4317?w=800&q=80",
+      "https://images.unsplash.com/photo-1596838132731-3301c3fd4317?auto=format&fit=crop&w=800&q=80",
     icon: Dices,
     gradient: "from-violet-700/80 to-purple-900/80",
+    href: "/things-to-do#section-entertainment",
   },
   {
     title: "Go Camping & Glamping",
     image:
-      "https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?w=800&q=80",
+      "https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?auto=format&fit=crop&w=800&q=80",
     icon: Tent,
     gradient: "from-yellow-700/80 to-amber-900/80",
+    href: "/things-to-do#section-adventure",
   },
 ];
 
@@ -285,6 +295,7 @@ function Carousel({
     image: string;
     icon: React.ComponentType<{ className?: string }>;
     gradient: string;
+    href?: string;
   }[];
   title: string;
   subtitle?: string;
@@ -322,6 +333,9 @@ function Carousel({
     startAutoPlay();
   };
 
+  const cardClass =
+    "group relative flex-shrink-0 w-[280px] h-[180px] rounded-xl overflow-hidden snap-start focus:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+
   return (
     <section className="space-y-4">
       <div className="px-4 sm:px-6">
@@ -345,19 +359,18 @@ function Carousel({
         >
           {items.map((item, i) => {
             const Icon = item.icon;
-            return (
-              <button
-                key={i}
-                onClick={() => goTo(i)}
-                className="group relative flex-shrink-0 w-[280px] h-[180px] rounded-xl overflow-hidden snap-start focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
+            const inner = (
+              <>
                 <img
                   src={item.image}
                   alt={item.title}
                   className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = "none";
+                  }}
                 />
                 <div
-                  className={`absolute inset-0 bg-gradient-to-t ${item.gradient}`}
+                  className={`absolute inset-0 bg-linear-to-t ${item.gradient}`}
                 />
                 <div className="absolute inset-0 flex flex-col justify-end p-5">
                   <div className="flex items-center gap-2">
@@ -367,6 +380,20 @@ function Carousel({
                     </span>
                   </div>
                 </div>
+              </>
+            );
+
+            return item.href ? (
+              <Link key={i} href={item.href} className={cardClass}>
+                {inner}
+              </Link>
+            ) : (
+              <button
+                key={i}
+                onClick={() => goTo(i)}
+                className={cardClass}
+              >
+                {inner}
               </button>
             );
           })}
