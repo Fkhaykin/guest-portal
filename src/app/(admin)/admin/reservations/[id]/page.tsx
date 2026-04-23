@@ -125,6 +125,16 @@ type UpdateLog = {
   created_at: string;
 };
 
+type EmailLog = {
+  id: string;
+  sent_to: string[];
+  subject: string | null;
+  body_summary: string | null;
+  email_type: string;
+  is_update: boolean;
+  created_at: string;
+};
+
 type IncurredCharge = {
   invoiceId: string;
   invoiceNumber: string;
@@ -151,6 +161,7 @@ export default function ReservationDetailPage() {
   const [editOpen, setEditOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historyLogs, setHistoryLogs] = useState<UpdateLog[]>([]);
+  const [emailLogs, setEmailLogs] = useState<EmailLog[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [charges, setCharges] = useState<IncurredCharge[]>([]);
   const [emailing, setEmailing] = useState(false);
@@ -261,12 +272,20 @@ export default function ReservationDetailPage() {
   async function openHistory() {
     setHistoryOpen(true);
     setHistoryLoading(true);
-    const { data } = await supabase
-      .from("registration_update_log")
-      .select("id, changed_by, change_type, summary, previous_data, new_data, created_at")
-      .eq("registration_id", id)
-      .order("created_at", { ascending: false });
-    setHistoryLogs(data ?? []);
+    const [{ data: updateData }, { data: emailData }] = await Promise.all([
+      supabase
+        .from("registration_update_log")
+        .select("id, changed_by, change_type, summary, previous_data, new_data, created_at")
+        .eq("registration_id", id)
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("email_send_log")
+        .select("id, sent_to, subject, body_summary, email_type, is_update, created_at")
+        .eq("registration_id", id)
+        .order("created_at", { ascending: false }),
+    ]);
+    setHistoryLogs(updateData ?? []);
+    setEmailLogs(emailData ?? []);
     setHistoryLoading(false);
   }
 
@@ -907,51 +926,99 @@ export default function ReservationDetailPage() {
       <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
         <DialogContent className="sm:max-w-lg max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Version History</DialogTitle>
+            <DialogTitle>History</DialogTitle>
             <DialogDescription>{guest?.full_name ?? "Unknown"}</DialogDescription>
           </DialogHeader>
 
           {historyLoading ? (
             <p className="text-sm text-muted-foreground py-4">Loading...</p>
-          ) : historyLogs.length > 0 ? (
-            <div className="space-y-4">
-              {historyLogs.map((log) => (
-                <div key={log.id} className="border rounded-lg p-3 space-y-1">
-                  <div className="flex items-center justify-between">
-                    <Badge variant="secondary" className="text-xs">
-                      {log.change_type.replace(/_/g, " ")}
-                    </Badge>
-                    <span className="text-xs text-muted-foreground">
-                      {new Date(log.created_at).toLocaleString()}
-                    </span>
-                  </div>
-                  {log.summary && <p className="text-sm">{log.summary}</p>}
-                  <p className="text-xs text-muted-foreground">by {log.changed_by}</p>
-                  {log.new_data && Object.keys(log.new_data).length > 0 && (
-                    <div className="mt-2">
-                      <p className="text-xs font-medium text-muted-foreground">New data</p>
-                      <pre className="mt-1 text-xs bg-muted p-2 rounded overflow-x-auto">
-                        {JSON.stringify(log.new_data, null, 2)}
-                      </pre>
-                    </div>
-                  )}
-                  {log.previous_data && Object.keys(log.previous_data).length > 0 && (
-                    <details className="mt-2">
-                      <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground">
-                        Previous data
-                      </summary>
-                      <pre className="mt-1 text-xs bg-muted p-2 rounded overflow-x-auto">
-                        {JSON.stringify(log.previous_data, null, 2)}
-                      </pre>
-                    </details>
-                  )}
-                </div>
-              ))}
-            </div>
           ) : (
-            <p className="text-sm text-muted-foreground py-4">
-              No changes recorded for this reservation.
-            </p>
+            <Tabs defaultValue={emailLogs.length > 0 ? "emails" : "updates"}>
+              <TabsList className="w-full">
+                <TabsTrigger value="emails" className="flex-1">
+                  Emails Sent {emailLogs.length > 0 && `(${emailLogs.length})`}
+                </TabsTrigger>
+                <TabsTrigger value="updates" className="flex-1">
+                  Updates {historyLogs.length > 0 && `(${historyLogs.length})`}
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="emails" className="mt-4">
+                {emailLogs.length > 0 ? (
+                  <div className="space-y-3">
+                    {emailLogs.map((log) => (
+                      <div key={log.id} className="border rounded-lg p-3 space-y-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <Badge variant="secondary" className="text-xs shrink-0">
+                            {log.is_update ? "Update" : "New Registration"}
+                          </Badge>
+                          <span className="text-xs text-muted-foreground">
+                            {new Date(log.created_at).toLocaleString()}
+                          </span>
+                        </div>
+                        {log.subject && (
+                          <p className="text-sm font-medium">{log.subject}</p>
+                        )}
+                        {log.body_summary && (
+                          <p className="text-sm text-muted-foreground">{log.body_summary}</p>
+                        )}
+                        <div className="flex items-start gap-1.5 text-xs text-muted-foreground">
+                          <Mail className="h-3 w-3 mt-0.5 shrink-0" />
+                          <span>{log.sent_to.join(", ")}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground py-4">
+                    No emails sent for this reservation. Emails sent going forward will appear here.
+                  </p>
+                )}
+              </TabsContent>
+
+              <TabsContent value="updates" className="mt-4">
+                {historyLogs.length > 0 ? (
+                  <div className="space-y-4">
+                    {historyLogs.map((log) => (
+                      <div key={log.id} className="border rounded-lg p-3 space-y-1">
+                        <div className="flex items-center justify-between">
+                          <Badge variant="secondary" className="text-xs">
+                            {log.change_type.replace(/_/g, " ")}
+                          </Badge>
+                          <span className="text-xs text-muted-foreground">
+                            {new Date(log.created_at).toLocaleString()}
+                          </span>
+                        </div>
+                        {log.summary && <p className="text-sm">{log.summary}</p>}
+                        <p className="text-xs text-muted-foreground">by {log.changed_by}</p>
+                        {log.new_data && Object.keys(log.new_data).length > 0 && (
+                          <div className="mt-2">
+                            <p className="text-xs font-medium text-muted-foreground">New data</p>
+                            <pre className="mt-1 text-xs bg-muted p-2 rounded overflow-x-auto">
+                              {JSON.stringify(log.new_data, null, 2)}
+                            </pre>
+                          </div>
+                        )}
+                        {log.previous_data && Object.keys(log.previous_data).length > 0 && (
+                          <details className="mt-2">
+                            <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground">
+                              Previous data
+                            </summary>
+                            <pre className="mt-1 text-xs bg-muted p-2 rounded overflow-x-auto">
+                              {JSON.stringify(log.previous_data, null, 2)}
+                            </pre>
+                          </details>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground py-4">
+                    No changes recorded for this reservation.
+                  </p>
+                )}
+              </TabsContent>
+            </Tabs>
           )}
         </DialogContent>
       </Dialog>

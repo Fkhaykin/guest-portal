@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { fetchRegistrationData, generateRegistrationPDF } from "@/lib/pdf/generate-for-registration";
 import { sendPEPOAPDF } from "@/lib/email/send-pepoa-pdf";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
 
@@ -44,18 +45,34 @@ export async function POST(request: Request) {
   if (hoaEmailRaw) {
     const hoaEmail = hoaEmailRaw.split(",").map((e) => e.trim()).filter(Boolean);
     try {
+      const lotSection = (data.property.lot_section as string) || "N/A";
+      const hoaType = (data.property.hoa_type as string) || "pepoa";
+      const isBML = hoaType === "bmlc";
+      const lotPart = isBML ? "" : ` — Lot/Section ${lotSection}`;
+      const subject = `Short-Term Tenant Registration${lotPart} — Check-in ${data.reg.check_in_date as string}`;
+
       await sendPEPOAPDF({
         to: hoaEmail,
         pdfBuffer,
         guestName: (data.guest.full_name as string) || "Guest",
-        lotSection: (data.property.lot_section as string) || "N/A",
+        lotSection,
         checkInDate: data.reg.check_in_date as string,
         ownerPhone: (data.property.owner_phone as string) || "",
         ownerEmail: (data.property.owner_email as string) || (data.host.email as string) || "",
         registrationId: registration_id,
-        hoaType: (data.property.hoa_type as string) || "pepoa",
+        hoaType,
         isUpdate: is_update,
         changeSummary: change_summary,
+      });
+
+      const adminDb = createAdminClient();
+      await adminDb.from("email_send_log").insert({
+        registration_id,
+        sent_to: hoaEmail,
+        subject,
+        body_summary: change_summary || null,
+        email_type: "pepoa",
+        is_update: !!is_update,
       });
     } catch (err) {
       console.error("Failed to send registration PDF email:", err);
