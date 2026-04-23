@@ -21,33 +21,33 @@ const EVENT_META: Record<
   cleaner_new_booking: {
     label: "New Booking",
     description: "Sent to assigned cleaners when a new booking is confirmed.",
-    variables: ["property", "guest", "check_in", "check_out", "num_guests", "pets_text", "notes_text", "link"],
+    variables: ["property", "address", "guest", "check_in", "check_out", "num_guests", "pets_text", "notes_text", "link"],
   },
   cleaner_cancellation: {
     label: "Booking Cancelled",
     description: "Sent to assigned cleaners when a booking is cancelled.",
-    variables: ["property", "guest", "check_in", "check_out"],
+    variables: ["property", "address", "guest", "check_in", "check_out"],
   },
   cleaner_checkout: {
     label: "Guest Checked Out",
     description:
       "Sent to assigned cleaners when a guest checks out and the property needs cleaning.",
-    variables: ["property", "guest", "link"],
+    variables: ["property", "address", "guest", "link"],
   },
   cleaner_pet_added: {
     label: "Pet Registered",
     description: "Sent to assigned cleaners when a guest registers pet(s).",
-    variables: ["property", "guest", "check_in", "num_pets", "link"],
+    variables: ["property", "address", "guest", "check_in", "num_pets", "link"],
   },
   cleaner_early_checkin: {
     label: "Early Check-In Purchased",
     description: "Sent to assigned cleaners when a guest purchases early check-in (1pm).",
-    variables: ["property", "guest", "check_in", "link"],
+    variables: ["property", "address", "guest", "check_in", "link"],
   },
   cleaner_late_checkout: {
     label: "Late Check-Out Purchased",
     description: "Sent to assigned cleaners when a guest purchases late check-out (2pm).",
-    variables: ["property", "guest", "check_out", "link"],
+    variables: ["property", "address", "guest", "check_out", "link"],
   },
 };
 
@@ -55,32 +55,32 @@ const DEFAULT_SETTINGS: NotificationSettingsType = {
   cleaner_new_booking: {
     enabled: true,
     message:
-      "New booking at {{property}}: {{guest}}, {{check_in}}–{{check_out}}, {{num_guests}} guest(s){{pets_text}}{{notes_text}}\nView: {{link}}",
+      "New booking — {{property}}, {{address}}: {{guest}}, {{check_in}}–{{check_out}}, {{num_guests}} guest(s){{pets_text}}{{notes_text}}\nView: {{link}}",
   },
   cleaner_cancellation: {
     enabled: true,
     message:
-      "Booking cancelled at {{property}}: {{guest}}, {{check_in}}–{{check_out}}.",
+      "Booking cancelled — {{property}}, {{address}}: {{guest}}, {{check_in}}–{{check_out}}.",
   },
   cleaner_checkout: {
     enabled: false,
     message:
-      "Guest checked out at {{property}}: {{guest}}. Ready for cleaning.",
+      "Guest checked out — {{property}}, {{address}}: {{guest}}. Ready for cleaning.",
   },
   cleaner_pet_added: {
     enabled: true,
     message:
-      "Pet(s) registered at {{property}}: {{guest}}, check-in {{check_in}}. {{num_pets}} pet(s) total. View: {{link}}",
+      "Pet(s) registered — {{property}}, {{address}}: {{guest}}, check-in {{check_in}}. {{num_pets}} pet(s) total. View: {{link}}",
   },
   cleaner_early_checkin: {
     enabled: true,
     message:
-      "Early check-in purchased at {{property}}: {{guest}}, arriving {{check_in}} at 1pm. View: {{link}}",
+      "Early check-in purchased — {{property}}, {{address}}: {{guest}}, arriving {{check_in}} at 1pm. View: {{link}}",
   },
   cleaner_late_checkout: {
     enabled: true,
     message:
-      "Late check-out purchased at {{property}}: {{guest}}, departing {{check_out}} at 2pm. View: {{link}}",
+      "Late check-out purchased — {{property}}, {{address}}: {{guest}}, departing {{check_out}} at 2pm. View: {{link}}",
   },
 };
 

@@ -70,7 +70,7 @@ async function getEventSettings(
 
   const { data: property } = await supabase
     .from("property")
-    .select("host_id, name, nickname")
+    .select("host_id, name, nickname, address")
     .eq("id", propertyId)
     .single();
 
@@ -90,6 +90,7 @@ async function getEventSettings(
   return {
     messageTemplate: event.message,
     propertyName: property.nickname || property.name,
+    propertyAddress: (property.address as string | null) ?? "",
     hostId: property.host_id,
   };
 }
@@ -130,6 +131,7 @@ export async function notifyCleanersOfNewBooking(params: NotifyParams) {
 
   const body = renderTemplate(config.messageTemplate, {
     property: config.propertyName,
+    address: config.propertyAddress,
     guest: params.guestName,
     check_in: formatDate(params.checkIn),
     check_out: formatDate(params.checkOut),
@@ -148,6 +150,7 @@ export async function notifyCleanersOfCancellation(params: NotifyParams) {
 
   const body = renderTemplate(config.messageTemplate, {
     property: config.propertyName,
+    address: config.propertyAddress,
     guest: params.guestName,
     check_in: formatDate(params.checkIn),
     check_out: formatDate(params.checkOut),
@@ -166,6 +169,7 @@ export async function notifyCleanersOfCheckout(params: {
 
   const body = renderTemplate(config.messageTemplate, {
     property: config.propertyName,
+    address: config.propertyAddress,
     guest: params.guestName,
     link: cleanerPortalUrl(params.registrationId),
   });
@@ -185,6 +189,7 @@ export async function notifyCleanersOfPetAdded(params: {
 
   const body = renderTemplate(config.messageTemplate, {
     property: config.propertyName,
+    address: config.propertyAddress,
     guest: params.guestName,
     check_in: formatDate(params.checkIn),
     num_pets: String(params.numPets),
@@ -205,6 +210,7 @@ export async function notifyCleanersOfEarlyCheckin(params: {
 
   const body = renderTemplate(config.messageTemplate, {
     property: config.propertyName,
+    address: config.propertyAddress,
     guest: params.guestName,
     check_in: formatDate(params.checkIn),
     link: cleanerPortalUrl(params.registrationId),
@@ -224,6 +230,7 @@ export async function notifyCleanersOfLateCheckout(params: {
 
   const body = renderTemplate(config.messageTemplate, {
     property: config.propertyName,
+    address: config.propertyAddress,
     guest: params.guestName,
     check_out: formatDate(params.checkOut),
     link: cleanerPortalUrl(params.registrationId),
