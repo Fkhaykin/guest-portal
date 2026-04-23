@@ -489,13 +489,14 @@ function AvailabilitySearch() {
             className="w-full bg-transparent text-white text-base sm:text-lg font-medium outline-none scheme-dark text-center sm:text-left"
           />
         </div>
-        <div className="flex items-stretch p-2">
+        <div className="flex">
           <button
             type="submit"
             aria-label="Search"
-            className="rounded-xl bg-white text-neutral-900 hover:bg-white/90 transition-colors flex items-center justify-center shrink-0 shadow-lg w-14 sm:w-16"
+            className="bg-white text-neutral-900 hover:bg-white/90 transition-colors flex items-center justify-center gap-2 w-full sm:px-8 py-4 sm:py-0 font-semibold"
           >
             <Search className="h-5 w-5" />
+            <span className="sm:hidden">Search</span>
           </button>
         </div>
         </div>
