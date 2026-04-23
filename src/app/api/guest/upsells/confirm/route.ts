@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { stripe } from "@/lib/stripe/client";
 import { verifyGuestToken } from "@/lib/guest-token";
+import { notifyCleanersOfEarlyCheckin, notifyCleanersOfLateCheckout } from "@/lib/sms/notify-cleaners";
 
 export async function POST(request: Request) {
   let body: { session_id: string; registration_id: string };
@@ -34,7 +35,7 @@ export async function POST(request: Request) {
 
   const { data: reg } = await supabase
     .from("registration")
-    .select("id, upsells, pets, pending_pets")
+    .select("id, upsells, pets, pending_pets, property_id, check_in_date, check_out_date, guest:guest_id(full_name)")
     .eq("id", registration_id)
     .single();
 
@@ -68,6 +69,32 @@ export async function POST(request: Request) {
     .from("registration")
     .update(registrationUpdate)
     .eq("id", reg.id);
+
+  // Notify cleaners of timing upsells just confirmed
+  const justPaid = updated.filter(
+    (u) => u.stripe_session_id === session_id && u.status === "paid"
+  );
+  const guestRow = reg.guest as unknown as { full_name: string } | null;
+  const guestName = guestRow?.full_name ?? "Guest";
+
+  for (const u of justPaid) {
+    if (u.type === "early_checkin" && reg.check_in_date) {
+      notifyCleanersOfEarlyCheckin({
+        propertyId: reg.property_id,
+        registrationId: reg.id,
+        guestName,
+        checkIn: reg.check_in_date as string,
+      }).catch(() => {});
+    }
+    if (u.type === "late_checkout" && reg.check_out_date) {
+      notifyCleanersOfLateCheckout({
+        propertyId: reg.property_id,
+        registrationId: reg.id,
+        guestName,
+        checkOut: reg.check_out_date as string,
+      }).catch(() => {});
+    }
+  }
 
   return NextResponse.json({ ok: true, upsells: updated.filter((u) => u.status === "paid") });
 }

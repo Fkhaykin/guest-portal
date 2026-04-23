@@ -355,12 +355,23 @@ export async function syncBooking(booking: LodgifyBooking) {
 
   // 5. Notify cleaners (fire-and-forget)
   const newStatus = mapStatus(booking.status);
+
+  // Fetch the registration ID we just upserted so we can link to it in the SMS
+  const { data: savedReg } = await supabase
+    .from("registration")
+    .select("id")
+    .eq("lodgify_booking_id", booking.id)
+    .single();
+
   const notifyParams = {
     propertyId,
+    registrationId: savedReg?.id ?? "",
     guestName: booking.guest.name,
     checkIn: booking.arrival,
     checkOut: booking.departure,
     numGuests: booking.guests || 1,
+    numPets: booking.pets || 0,
+    notes: booking.notes || null,
   };
 
   if (isNewBooking && newStatus === "active") {

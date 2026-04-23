@@ -102,6 +102,9 @@ export type NotificationSettings = {
   cleaner_new_booking: NotificationEvent;
   cleaner_cancellation: NotificationEvent;
   cleaner_checkout: NotificationEvent;
+  cleaner_pet_added: NotificationEvent;
+  cleaner_early_checkin: NotificationEvent;
+  cleaner_late_checkout: NotificationEvent;
 };
 
 export type NotificationEventKey = keyof NotificationSettings;

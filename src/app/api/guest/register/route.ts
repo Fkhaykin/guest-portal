@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { verifyGuestToken } from "@/lib/guest-token";
+import { notifyCleanersOfPetAdded } from "@/lib/sms/notify-cleaners";
 
 export async function POST(request: Request) {
   let body: {
@@ -72,7 +73,7 @@ export async function POST(request: Request) {
   // Find the registration and its guest
   const { data: reg, error: regError } = await supabase
     .from("registration")
-    .select("id, guest_id, property_id, lodgify_num_pets, upsells")
+    .select("id, guest_id, property_id, check_in_date, lodgify_num_pets, upsells")
     .eq("id", registration_id)
     .single();
 
@@ -257,6 +258,17 @@ export async function POST(request: Request) {
     },
     body: JSON.stringify({ registration_id: reg.id }),
   }).catch(() => {});
+
+  // Notify cleaners if pets were registered
+  if (cleanPets.length > 0 && reg.check_in_date) {
+    notifyCleanersOfPetAdded({
+      propertyId: reg.property_id,
+      registrationId: reg.id,
+      guestName: full_name,
+      checkIn: reg.check_in_date,
+      numPets: cleanPets.length,
+    }).catch(() => {});
+  }
 
   return NextResponse.json({ ok: true });
 }

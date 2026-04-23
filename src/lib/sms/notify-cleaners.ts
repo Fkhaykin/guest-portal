@@ -1,19 +1,31 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { NotificationSettings, NotificationEventKey } from "@/types/database";
-import twilio from "twilio";
 
-const client = process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN
-  ? twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN)
-  : null;
+const TEXTBELT_KEY = process.env.TEXTBELT_API_KEY;
 
-const FROM_NUMBER = process.env.TWILIO_FROM_NUMBER;
+async function sendSms(to: string, message: string) {
+  if (!TEXTBELT_KEY) {
+    console.log("[sms] Textbelt not configured, skipping notification");
+    return;
+  }
+  const res = await fetch("https://textbelt.com/text", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ phone: to, message, key: TEXTBELT_KEY }),
+  });
+  const data = await res.json();
+  if (!data.success) console.error("[sms] Textbelt error:", data.error);
+}
 
 type NotifyParams = {
   propertyId: string;
+  registrationId: string;
   guestName: string;
   checkIn: string;
   checkOut: string;
   numGuests: number;
+  numPets?: number;
+  notes?: string | null;
   propertyName?: string;
 };
 
@@ -29,6 +41,21 @@ function renderTemplate(
   vars: Record<string, string>
 ): string {
   return template.replace(/\{\{(\w+)\}\}/g, (_, key) => vars[key] ?? `{{${key}}}`);
+}
+
+function cleanerPortalUrl(registrationId: string): string {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "";
+  if (!appUrl || !registrationId) return "";
+  try {
+    const url = new URL(appUrl);
+    url.hostname = url.hostname.replace(/^(guest|admin)\./, "");
+    if (!url.hostname.startsWith("manager.")) {
+      url.hostname = `manager.${url.hostname}`;
+    }
+    return `${url.origin}/reservations/${registrationId}`;
+  } catch {
+    return "";
+  }
 }
 
 /**
@@ -71,11 +98,6 @@ async function getEventSettings(
  * Send an SMS to all active cleaners assigned to a property.
  */
 async function sendToCleaners(propertyId: string, body: string) {
-  if (!client || !FROM_NUMBER) {
-    console.log("[sms] Twilio not configured, skipping notification");
-    return;
-  }
-
   const supabase = createAdminClient();
 
   const { data: assignments } = await supabase
@@ -94,32 +116,17 @@ async function sendToCleaners(propertyId: string, body: string) {
 
   if (!cleaners?.length) return;
 
-  const results = await Promise.allSettled(
-    cleaners.map((cleaner) =>
-      client.messages.create({
-        to: cleaner.phone!,
-        from: FROM_NUMBER,
-        body,
-      })
-    )
-  );
-
-  for (let i = 0; i < results.length; i++) {
-    if (results[i].status === "rejected") {
-      console.error(
-        `[sms] Failed to notify cleaner ${cleaners[i].name}:`,
-        (results[i] as PromiseRejectedResult).reason
-      );
-    }
-  }
+  await Promise.all(cleaners.map((cleaner) => sendSms(cleaner.phone!, body)));
 }
 
-/**
- * Notify cleaners of a new booking (if enabled in host settings).
- */
 export async function notifyCleanersOfNewBooking(params: NotifyParams) {
   const config = await getEventSettings(params.propertyId, "cleaner_new_booking");
   if (!config) return;
+
+  const numPets = params.numPets ?? 0;
+  const petsText = numPets > 0 ? `, ${numPets} pet${numPets !== 1 ? "s" : ""}` : "";
+  const notesText = params.notes ? `\nNotes: ${params.notes}` : "";
+  const link = cleanerPortalUrl(params.registrationId);
 
   const body = renderTemplate(config.messageTemplate, {
     property: config.propertyName,
@@ -127,14 +134,14 @@ export async function notifyCleanersOfNewBooking(params: NotifyParams) {
     check_in: formatDate(params.checkIn),
     check_out: formatDate(params.checkOut),
     num_guests: String(params.numGuests),
+    pets_text: petsText,
+    notes_text: notesText,
+    link,
   });
 
   await sendToCleaners(params.propertyId, body);
 }
 
-/**
- * Notify cleaners of a cancelled booking (if enabled in host settings).
- */
 export async function notifyCleanersOfCancellation(params: NotifyParams) {
   const config = await getEventSettings(params.propertyId, "cleaner_cancellation");
   if (!config) return;
@@ -149,11 +156,9 @@ export async function notifyCleanersOfCancellation(params: NotifyParams) {
   await sendToCleaners(params.propertyId, body);
 }
 
-/**
- * Notify cleaners of a guest checkout (if enabled in host settings).
- */
 export async function notifyCleanersOfCheckout(params: {
   propertyId: string;
+  registrationId: string;
   guestName: string;
 }) {
   const config = await getEventSettings(params.propertyId, "cleaner_checkout");
@@ -162,6 +167,66 @@ export async function notifyCleanersOfCheckout(params: {
   const body = renderTemplate(config.messageTemplate, {
     property: config.propertyName,
     guest: params.guestName,
+    link: cleanerPortalUrl(params.registrationId),
+  });
+
+  await sendToCleaners(params.propertyId, body);
+}
+
+export async function notifyCleanersOfPetAdded(params: {
+  propertyId: string;
+  registrationId: string;
+  guestName: string;
+  checkIn: string;
+  numPets: number;
+}) {
+  const config = await getEventSettings(params.propertyId, "cleaner_pet_added");
+  if (!config) return;
+
+  const body = renderTemplate(config.messageTemplate, {
+    property: config.propertyName,
+    guest: params.guestName,
+    check_in: formatDate(params.checkIn),
+    num_pets: String(params.numPets),
+    link: cleanerPortalUrl(params.registrationId),
+  });
+
+  await sendToCleaners(params.propertyId, body);
+}
+
+export async function notifyCleanersOfEarlyCheckin(params: {
+  propertyId: string;
+  registrationId: string;
+  guestName: string;
+  checkIn: string;
+}) {
+  const config = await getEventSettings(params.propertyId, "cleaner_early_checkin");
+  if (!config) return;
+
+  const body = renderTemplate(config.messageTemplate, {
+    property: config.propertyName,
+    guest: params.guestName,
+    check_in: formatDate(params.checkIn),
+    link: cleanerPortalUrl(params.registrationId),
+  });
+
+  await sendToCleaners(params.propertyId, body);
+}
+
+export async function notifyCleanersOfLateCheckout(params: {
+  propertyId: string;
+  registrationId: string;
+  guestName: string;
+  checkOut: string;
+}) {
+  const config = await getEventSettings(params.propertyId, "cleaner_late_checkout");
+  if (!config) return;
+
+  const body = renderTemplate(config.messageTemplate, {
+    property: config.propertyName,
+    guest: params.guestName,
+    check_out: formatDate(params.checkOut),
+    link: cleanerPortalUrl(params.registrationId),
   });
 
   await sendToCleaners(params.propertyId, body);
