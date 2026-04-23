@@ -1559,7 +1559,7 @@ export default function ThingsToDoPage() {
     <div className="min-h-screen flex flex-col font-(family-name:--font-plus-jakarta)">
       {/* Scroll progress bar */}
       <div
-        className="fixed top-0 left-0 right-0 h-0.5 z-60 bg-linear-to-r from-emerald-500 via-sky-500 to-fuchsia-500 origin-left"
+        className="fixed top-0 left-0 right-0 h-0.5 z-60 bg-white origin-left"
         style={{
           transform: `scaleX(${progress / 100})`,
           transition: "transform 100ms linear",
