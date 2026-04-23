@@ -306,7 +306,9 @@ export async function syncBooking(booking: LodgifyBooking) {
   const isNewBooking = !existingReg;
   const wasPreviouslyActive = existingReg?.status === "active";
 
-  // 4. Upsert registration by lodgify_booking_id
+  // 4. Upsert registration by lodgify_booking_id. thread_uid is only present
+  // on v2 detail fetches (webhook path); omit when null so batch syncs don't
+  // overwrite a previously-cached value.
   const { error: regError } = await supabase
     .from("registration")
     .upsert(
@@ -325,6 +327,7 @@ export async function syncBooking(booking: LodgifyBooking) {
         status: mapStatus(booking.status),
         booking_source: booking.source,
         ...(booking.date_created ? { booked_at: booking.date_created } : {}),
+        ...(booking.thread_uid ? { lodgify_thread_uid: booking.thread_uid } : {}),
       },
       { onConflict: "lodgify_booking_id" }
     );
@@ -332,6 +335,22 @@ export async function syncBooking(booking: LodgifyBooking) {
   if (regError) {
     console.error(`[lodgify-sync] Failed to upsert registration for booking ${booking.id}:`, regError);
     return { skipped: true, reason: "upsert_failed" };
+  }
+
+  // Backfill lodgify_booking_id on any message rows we stored before we knew
+  // which booking the thread belonged to (webhook-delivered messages only
+  // carry thread_uid / inbox_uid).
+  if (booking.thread_uid) {
+    await supabase
+      .from("guest_message")
+      .update({ lodgify_booking_id: booking.id })
+      .eq("thread_uid", booking.thread_uid)
+      .is("lodgify_booking_id", null);
+    await supabase
+      .from("guest_message_thread")
+      .update({ lodgify_booking_id: booking.id })
+      .eq("thread_uid", booking.thread_uid)
+      .is("lodgify_booking_id", null);
   }
 
   // 5. Notify cleaners (fire-and-forget)

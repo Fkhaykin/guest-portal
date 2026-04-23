@@ -220,8 +220,8 @@ export default function WhySummitPage() {
             <div className="max-w-2xl">
               <Quote className="h-12 w-12 text-white/40 mb-6" />
               <p className="text-3xl sm:text-4xl lg:text-5xl font-medium text-white leading-tight">
-                Every house we run, we design the way we'd want to stay in it
-                ourselves. Because we do.
+                We run every house the way we'd want to stay in it. Because
+                we do.
               </p>
               <p className="text-white/70 mt-8 text-xs tracking-[0.3em] uppercase">
                 — The Summit Lakeside team

@@ -493,7 +493,7 @@ function AvailabilitySearch() {
           <button
             type="submit"
             aria-label="Search"
-            className="rounded-xl bg-white/15 text-white hover:bg-white/25 transition-colors flex items-center justify-center shrink-0 border border-white/20 w-14 sm:w-16"
+            className="rounded-xl bg-white text-neutral-900 hover:bg-white/90 transition-colors flex items-center justify-center shrink-0 shadow-lg w-14 sm:w-16"
           >
             <Search className="h-5 w-5" />
           </button>

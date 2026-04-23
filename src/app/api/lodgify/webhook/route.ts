@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createHmac, timingSafeEqual } from "crypto";
 import { syncBookingById } from "@/lib/lodgify/sync";
+import { fetchThreadMessages } from "@/lib/lodgify/messages";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 function verifySignature(rawBody: string, signature: string, secrets: string[]): boolean {
@@ -66,6 +67,129 @@ function safeHeaders(request: Request): Record<string, string> {
   return out;
 }
 
+type GuestMessageEvent = {
+  action?: string;
+  message?: string;
+  subject?: string;
+  inbox_uid?: string;
+  guest_name?: string;
+  message_id?: number;
+  thread_uid?: string;
+  sub_owner_id?: string | null;
+  creation_time?: string;
+  has_attachments?: boolean;
+};
+
+type BookingEvent = {
+  action?: string;
+  event?: string;
+  booking_id?: number;
+  booking?: { id?: number };
+};
+
+type LodgifyEvent = BookingEvent & GuestMessageEvent;
+
+const BOOKING_ACTIONS = new Set([
+  "booking_new_any_status",
+  "booking_new_status_booked",
+  "booking_change",
+  "booking_status_change",
+]);
+
+// inbox_uid for Airbnb threads encodes the booking id as "B<digits>".
+// Best-effort parse — we only use it to hint at a linked booking.
+function parseBookingIdFromInboxUid(inboxUid: string | undefined | null): number | null {
+  if (!inboxUid) return null;
+  const match = /^B(\d+)$/.exec(inboxUid);
+  if (!match) return null;
+  const id = Number(match[1]);
+  return Number.isFinite(id) ? id : null;
+}
+
+async function persistGuestMessage(event: GuestMessageEvent): Promise<{ outcome: string; skip_reason?: string }> {
+  const supabase = createAdminClient();
+  const messageId = event.message_id;
+  const threadUid = event.thread_uid;
+  if (!messageId || !threadUid) {
+    return { outcome: "message_skipped", skip_reason: "missing message_id or thread_uid" };
+  }
+
+  const bookingIdHint = parseBookingIdFromInboxUid(event.inbox_uid);
+  const creationTime = event.creation_time ?? null;
+
+  // Upsert the message row by lodgify_message_id so retries are idempotent.
+  const { error: msgErr } = await supabase
+    .from("guest_message")
+    .upsert(
+      {
+        lodgify_message_id: messageId,
+        thread_uid: threadUid,
+        inbox_uid: event.inbox_uid ?? null,
+        lodgify_booking_id: bookingIdHint,
+        message_type: "Renter",
+        guest_name: event.guest_name ?? null,
+        subject: event.subject ?? null,
+        message: event.message ?? "",
+        has_attachments: event.has_attachments ?? false,
+        sub_owner_id: event.sub_owner_id ?? null,
+        creation_time: creationTime,
+      },
+      { onConflict: "lodgify_message_id" }
+    );
+  if (msgErr) throw new Error(`guest_message upsert failed: ${msgErr.message}`);
+
+  // Upsert the thread summary row so the admin list can read from DB.
+  const preview = (event.message ?? "").slice(0, 200);
+  const { error: threadErr } = await supabase
+    .from("guest_message_thread")
+    .upsert(
+      {
+        thread_uid: threadUid,
+        inbox_uid: event.inbox_uid ?? null,
+        lodgify_booking_id: bookingIdHint,
+        guest_name: event.guest_name ?? null,
+        last_message_at: creationTime,
+        last_message_preview: preview,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "thread_uid" }
+    );
+  if (threadErr) throw new Error(`guest_message_thread upsert failed: ${threadErr.message}`);
+
+  // Best-effort: pull full thread from Lodgify to backfill Owner replies and
+  // older messages. We don't await completion beyond a short budget — the
+  // webhook needs to ack quickly so Lodgify doesn't retry.
+  await backfillThread(threadUid).catch((err) => {
+    console.error(`[lodgify-webhook] Thread backfill failed for ${threadUid}:`, err);
+  });
+
+  return { outcome: "message_synced" };
+}
+
+async function backfillThread(threadUid: string): Promise<void> {
+  const messages = await fetchThreadMessages(threadUid);
+  if (!messages.length) return;
+
+  const supabase = createAdminClient();
+  const rows = messages
+    .filter((m) => m.id && /^\d+$/.test(m.id))
+    .map((m) => ({
+      lodgify_message_id: Number(m.id),
+      thread_uid: threadUid,
+      message_type: m.type || "Comment",
+      subject: m.subject ?? null,
+      message: m.message ?? "",
+      creation_time: m.created_at || null,
+      guest_name: m.type === "Owner" ? null : m.sender_name,
+    }));
+  if (!rows.length) return;
+
+  const { error } = await supabase
+    .from("guest_message")
+    .upsert(rows, { onConflict: "lodgify_message_id", ignoreDuplicates: false });
+  if (error) console.error("[lodgify-webhook] Thread backfill upsert:", error.message);
+}
+
 export async function POST(request: Request) {
   const startedAt = Date.now();
   const rawBody = await request.text();
@@ -85,14 +209,9 @@ export async function POST(request: Request) {
     headers,
   };
 
-  // Try to parse payload upfront so we can log it even if signature check fails.
-  // Lodgify sends events as an array: [{ action, booking: { id }, guest, ... }]
-  type LodgifyEvent = {
-    action?: string;
-    event?: string;
-    booking_id?: number;
-    booking?: { id?: number };
-  };
+  // Parse upfront so we can log the payload even if signature verification fails.
+  // Lodgify sends most events as an array: [{ action, booking: { id }, ... }].
+  // guest_message_received is sent as a single object.
   let parsed: LodgifyEvent | LodgifyEvent[] | null = null;
   let firstEvent: LodgifyEvent | null = null;
   try {
@@ -105,7 +224,6 @@ export async function POST(request: Request) {
     log.raw_payload = { _parse_error: true, _body_preview: rawBody.slice(0, 500) };
   }
 
-  // Verify ms-signature from Lodgify
   const signingSecrets = process.env.LODGIFY_WEBHOOK_SIGNING_SECRETS;
   const signature = request.headers.get("ms-signature") ?? "";
   log.signature_present = signature.length > 0;
@@ -119,17 +237,16 @@ export async function POST(request: Request) {
       log.outcome = "signature_invalid";
       log.error_message = "Invalid ms-signature header";
       log.duration_ms = Date.now() - startedAt;
-      console.error(`[lodgify-webhook] Invalid signature for booking ${log.lodgify_booking_id ?? "?"}`);
+      console.error(`[lodgify-webhook] Invalid signature for ${log.action ?? "?"} booking=${log.lodgify_booking_id ?? "?"}`);
       await writeLog(log);
       return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
     }
   } else {
-    // No secret configured — record so we can spot misconfig in the log
     log.signature_valid = null;
     log.error_message = "LODGIFY_WEBHOOK_SIGNING_SECRETS not set (signature not verified)";
   }
 
-  if (!parsed) {
+  if (!parsed || !firstEvent) {
     log.status_code = 400;
     log.outcome = "invalid_json";
     log.error_message = log.error_message ?? "Request body is not valid JSON";
@@ -139,37 +256,83 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const bookingId = log.lodgify_booking_id;
-  if (!bookingId) {
-    log.status_code = 400;
-    log.outcome = "missing_booking_id";
-    log.error_message = "Payload missing booking.id or booking_id";
-    log.duration_ms = Date.now() - startedAt;
-    console.error("[lodgify-webhook] Missing booking id in payload");
-    await writeLog(log);
-    return NextResponse.json({ error: "Missing booking id" }, { status: 400 });
+  const action = log.action;
+
+  // Guest message events: persist to DB so the admin UI can read from our DB.
+  if (action === "guest_message_received") {
+    try {
+      const result = await persistGuestMessage(firstEvent);
+      log.status_code = 200;
+      log.outcome = result.outcome;
+      log.skip_reason = result.skip_reason ?? null;
+      log.duration_ms = Date.now() - startedAt;
+      await writeLog(log);
+      return NextResponse.json({ ok: true, ...result });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unknown error";
+      log.status_code = 500;
+      log.outcome = "message_failed";
+      log.error_message = message;
+      log.duration_ms = Date.now() - startedAt;
+      console.error("[lodgify-webhook] Guest message persist failed:", message);
+      await writeLog(log);
+      return NextResponse.json({ error: message }, { status: 500 });
+    }
   }
 
-  try {
-    const result = await syncBookingById(bookingId);
-    log.status_code = 200;
-    if (result.skipped) {
-      log.outcome = "sync_skipped";
-      log.skip_reason = result.reason ?? null;
-    } else {
-      log.outcome = "sync_ok";
+  // Booking events: sync the booking into our DB.
+  if (action && BOOKING_ACTIONS.has(action)) {
+    const bookingId = log.lodgify_booking_id;
+    if (!bookingId) {
+      log.status_code = 400;
+      log.outcome = "missing_booking_id";
+      log.error_message = "Payload missing booking.id or booking_id";
+      log.duration_ms = Date.now() - startedAt;
+      console.error("[lodgify-webhook] Missing booking id in payload");
+      await writeLog(log);
+      return NextResponse.json({ error: "Missing booking id" }, { status: 400 });
     }
-    log.duration_ms = Date.now() - startedAt;
-    await writeLog(log);
-    return NextResponse.json({ ok: true, ...result });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    log.status_code = 500;
-    log.outcome = "sync_failed";
-    log.error_message = message;
-    log.duration_ms = Date.now() - startedAt;
-    console.error(`[lodgify-webhook] Error syncing booking ${bookingId}:`, message);
-    await writeLog(log);
-    return NextResponse.json({ error: message }, { status: 500 });
+
+    try {
+      const result = await syncBookingById(bookingId);
+      log.status_code = 200;
+      if (result.skipped) {
+        log.outcome = "sync_skipped";
+        log.skip_reason = result.reason ?? null;
+      } else {
+        log.outcome = "sync_ok";
+      }
+      log.duration_ms = Date.now() - startedAt;
+      await writeLog(log);
+      return NextResponse.json({ ok: true, ...result });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unknown error";
+      // Treat Lodgify 404 as a skip, not a failure. These are manual test
+      // pings with fake booking ids (e.g. 12345678) — returning 500 would
+      // just trigger retries for bookings that will never exist.
+      if (/Lodgify API error 404/.test(message)) {
+        log.status_code = 200;
+        log.outcome = "sync_skipped";
+        log.skip_reason = "booking_not_found";
+        log.duration_ms = Date.now() - startedAt;
+        await writeLog(log);
+        return NextResponse.json({ ok: true, skipped: true, reason: "booking_not_found" });
+      }
+      log.status_code = 500;
+      log.outcome = "sync_failed";
+      log.error_message = message;
+      log.duration_ms = Date.now() - startedAt;
+      console.error(`[lodgify-webhook] Error syncing booking ${bookingId}:`, message);
+      await writeLog(log);
+      return NextResponse.json({ error: message }, { status: 500 });
+    }
   }
+
+  // Unknown/unsupported action — ack with 200 so Lodgify doesn't retry.
+  log.status_code = 200;
+  log.outcome = "action_ignored";
+  log.skip_reason = action ? `unsupported action: ${action}` : "missing action";
+  log.duration_ms = Date.now() - startedAt;
+  await writeLog(log);
+  return NextResponse.json({ ok: true, ignored: true, action });
 }

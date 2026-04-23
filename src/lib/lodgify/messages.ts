@@ -62,7 +62,7 @@ export async function fetchMessagesForBooking(
  *   is_read, messages: [{ id, subject, message, type, date_created, attachments,
  *   message_status, is_read, route, is_imported }], is_closed, error_message }
  */
-async function fetchThreadMessages(
+export async function fetchThreadMessages(
   threadUid: string
 ): Promise<LodgifyMessage[]> {
   try {
@@ -145,6 +145,9 @@ export interface ConversationThread {
   status: string;
   source: string | null;
   date_created: string | null;
+  last_message_at: string | null;
+  last_message_preview: string | null;
+  unread_count: number;
 }
 
 /**
@@ -203,6 +206,9 @@ export async function fetchAllConversations(
         status: b.status,
         source: b.source,
         date_created: b.created_at ?? b.date_created ?? null,
+        last_message_at: null,
+        last_message_preview: null,
+        unread_count: 0,
       });
     }
 

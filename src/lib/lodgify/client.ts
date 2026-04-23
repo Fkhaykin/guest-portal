@@ -63,6 +63,7 @@ export interface LodgifyBooking {
   notes: string | null;
   total_amount: number | null;
   date_created: string | null; // ISO datetime from Lodgify
+  thread_uid: string | null;   // Messaging thread id (only present on v2 detail)
 }
 
 // v1 response shape
@@ -182,6 +183,7 @@ export async function getBookings(params?: {
       notes: b.notes,
       total_amount: b.total_amount ?? b.amount ?? b.total ?? null,
       date_created: b.created_at ?? b.date_created ?? null,
+      thread_uid: null,
     };
   });
 
@@ -274,6 +276,7 @@ export async function getBookingById(bookingId: number): Promise<LodgifyBooking>
     amount?: number | null;
     subtotals?: { stay?: number | null };
     created_at?: string | null;
+    thread_uid?: string | null;
     rooms?: Array<{
       people: number;
       guest_breakdown?: { adults: number; children: number; infants: number; pets: number };
@@ -308,6 +311,7 @@ export async function getBookingById(bookingId: number): Promise<LodgifyBooking>
     notes: raw.notes ?? null,
     total_amount: resolvedAmount,
     date_created: raw.created_at ?? null,
+    thread_uid: raw.thread_uid ?? null,
   };
 }
 

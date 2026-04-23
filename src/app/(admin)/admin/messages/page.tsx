@@ -14,6 +14,7 @@ import {
   User,
   Home,
   CalendarDays,
+  RefreshCw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { LodgifyMessage, ConversationThread } from "@/lib/lodgify/messages";
@@ -31,24 +32,63 @@ export default function AdminMessagesPage() {
   const [sending, setSending] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [timeFilter, setTimeFilter] = useState<"all" | "current" | "past" | "future">("all");
+  const [syncing, setSyncing] = useState(false);
+  const [syncProgress, setSyncProgress] = useState<string | null>(null);
 
-  // Load conversations from Lodgify (sorted by last message date)
-  useEffect(() => {
-    async function load() {
-      try {
-        const res = await fetch("/api/admin/messages");
-        const data = await res.json();
-        if (res.ok && data.conversations) {
-          setConversations(data.conversations);
-        }
-      } catch {
-        // silent
-      } finally {
-        setLoadingConversations(false);
+  async function loadConversations() {
+    try {
+      const res = await fetch("/api/admin/messages");
+      const data = await res.json();
+      if (res.ok && data.conversations) {
+        setConversations(data.conversations);
       }
+    } catch {
+      // silent
+    } finally {
+      setLoadingConversations(false);
     }
-    load();
+  }
+
+  useEffect(() => {
+    loadConversations();
   }, []);
+
+  async function handleSync() {
+    if (syncing) return;
+    setSyncing(true);
+    setSyncProgress("Starting…");
+    try {
+      let offset = 0;
+      let done = false;
+      let totalProcessed = 0;
+      let totalMessages = 0;
+      while (!done) {
+        const res = await fetch(
+          `/api/admin/messages/backfill?offset=${offset}&limit=10&onlyMissing=true`,
+          { method: "POST" }
+        );
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          setSyncProgress(`Failed: ${err.error || res.status}`);
+          break;
+        }
+        const data = await res.json();
+        totalProcessed += data.processed ?? 0;
+        totalMessages += data.messagesWritten ?? 0;
+        done = data.done;
+        offset = data.next_offset ?? offset + (data.processed ?? 0);
+        setSyncProgress(
+          `Synced ${totalProcessed}/${data.total ?? "?"} bookings · ${totalMessages} messages`
+        );
+      }
+      await loadConversations();
+      setTimeout(() => setSyncProgress(null), 4000);
+    } catch {
+      setSyncProgress("Sync failed");
+    } finally {
+      setSyncing(false);
+    }
+  }
 
   // Handle deep link via ?booking=123
   useEffect(() => {
@@ -245,6 +285,27 @@ export default function AdminMessagesPage() {
                   {f}
                 </Button>
               ))}
+            </div>
+            <div className="flex items-center justify-between gap-2 pt-1">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleSync}
+                disabled={syncing}
+                className="h-7 text-xs gap-1.5"
+              >
+                {syncing ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-3 w-3" />
+                )}
+                Sync from Lodgify
+              </Button>
+              {syncProgress && (
+                <span className="text-[11px] text-muted-foreground truncate">
+                  {syncProgress}
+                </span>
+              )}
             </div>
           </div>
 
