@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   CheckCircle2,
   XCircle,
@@ -18,6 +19,7 @@ import {
   Trash2,
   Copy,
   Check,
+  MessageSquare,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -46,6 +48,19 @@ type Log = {
 };
 
 type OutcomeFilter = "all" | "errors" | "success";
+
+type SmsLog = {
+  id: string;
+  sent_at: string;
+  recipient_name: string | null;
+  recipient_phone: string;
+  event_type: string;
+  success: boolean;
+  error: string | null;
+  quota_remaining: number | null;
+  lodgify_booking_id: number | null;
+  property: { name: string; nickname: string | null } | null;
+};
 
 type Subscription = {
   id: number | string;
@@ -122,6 +137,10 @@ export default function LodgifyWebhooksPage() {
   const [filter, setFilter] = useState<OutcomeFilter>("all");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
+  const [smsLogs, setSmsLogs] = useState<SmsLog[]>([]);
+  const [smsLoading, setSmsLoading] = useState(true);
+  const [smsRefreshing, setSmsRefreshing] = useState(false);
+
   const [subs, setSubs] = useState<Subscription[] | null>(null);
   const [subsLoading, setSubsLoading] = useState(false);
   const [subsError, setSubsError] = useState<string | null>(null);
@@ -141,6 +160,19 @@ export default function LodgifyWebhooksPage() {
     } finally {
       setLoading(false);
       setRefreshing(false);
+    }
+  }
+
+  async function loadSmsLogs(showSpinner = true) {
+    if (showSpinner) setSmsLoading(true);
+    else setSmsRefreshing(true);
+    try {
+      const res = await fetch("/api/admin/sms-log", { cache: "no-store" });
+      const data = await res.json();
+      if (data.logs) setSmsLogs(data.logs);
+    } finally {
+      setSmsLoading(false);
+      setSmsRefreshing(false);
     }
   }
 
@@ -213,6 +245,7 @@ export default function LodgifyWebhooksPage() {
   useEffect(() => {
     load();
     loadSubs();
+    loadSmsLogs();
     if (typeof window !== "undefined") {
       setNewTargetUrl(`${window.location.protocol}//${window.location.host.replace(/^admin\./, "")}/api/lodgify/webhook`);
     }
@@ -242,13 +275,87 @@ export default function LodgifyWebhooksPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Lodgify Webhooks</h1>
-          <p className="text-muted-foreground">
-            Every incoming webhook from Lodgify — use this to diagnose missing reservations.
-          </p>
-        </div>
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">Lodgify Webhooks</h1>
+        <p className="text-muted-foreground">
+          Incoming webhooks from Lodgify and outgoing SMS notifications to cleaners.
+        </p>
+      </div>
+
+      <Tabs defaultValue="webhooks">
+        <TabsList>
+          <TabsTrigger value="webhooks">Webhooks</TabsTrigger>
+          <TabsTrigger value="sms">
+            <MessageSquare className="h-3.5 w-3.5 mr-1.5" />
+            SMS Notifications
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="sms" className="space-y-4 mt-4">
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">Every SMS sent to cleaners — most recent first.</p>
+            <Button variant="outline" size="sm" onClick={() => loadSmsLogs(false)} disabled={smsRefreshing}>
+              {smsRefreshing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+              Refresh
+            </Button>
+          </div>
+          {smsLoading ? (
+            <p className="text-muted-foreground text-sm">Loading SMS logs...</p>
+          ) : smsLogs.length === 0 ? (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <MessageSquare className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
+                <p className="text-lg font-medium">No SMS sent yet</p>
+                <p className="text-sm text-muted-foreground">Texts will appear here when bookings trigger cleaner notifications.</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-2">
+              {smsLogs.map((log) => (
+                <Card key={log.id} className={!log.success ? "border-red-200" : ""}>
+                  <CardContent className="py-3 px-4 flex items-start gap-3">
+                    {log.success ? (
+                      <CheckCircle2 className="h-4 w-4 text-green-500 mt-0.5 shrink-0" />
+                    ) : (
+                      <XCircle className="h-4 w-4 text-red-500 mt-0.5 shrink-0" />
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-sm font-medium">
+                          {log.recipient_name ?? log.recipient_phone}
+                        </span>
+                        {log.recipient_name && (
+                          <span className="text-xs text-muted-foreground">{log.recipient_phone}</span>
+                        )}
+                        <Badge variant="outline" className="text-[10px]">
+                          {log.event_type.replace("cleaner_", "").replace(/_/g, " ")}
+                        </Badge>
+                        {log.lodgify_booking_id && (
+                          <span className="text-xs text-muted-foreground">#{log.lodgify_booking_id}</span>
+                        )}
+                        {log.quota_remaining !== null && (
+                          <span className="text-xs text-muted-foreground ml-auto">{log.quota_remaining} credits left</span>
+                        )}
+                      </div>
+                      {log.property && (
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {log.property.nickname ?? log.property.name}
+                        </p>
+                      )}
+                      {log.error && (
+                        <p className="text-xs text-red-600 mt-0.5">{log.error}</p>
+                      )}
+                      <p className="text-xs text-muted-foreground mt-0.5">{formatTime(log.sent_at)}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="webhooks" className="space-y-4 mt-4">
+        <div className="flex items-center justify-end">
         <Button
           variant="outline"
           size="sm"
@@ -262,7 +369,7 @@ export default function LodgifyWebhooksPage() {
           )}
           Refresh
         </Button>
-      </div>
+        </div>
 
       {/* Subscriptions manager */}
       <Card>
@@ -568,6 +675,8 @@ export default function LodgifyWebhooksPage() {
           })}
         </div>
       )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

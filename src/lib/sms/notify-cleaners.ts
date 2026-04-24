@@ -3,18 +3,48 @@ import type { NotificationSettings, NotificationEventKey } from "@/types/databas
 
 const TEXTBELT_KEY = process.env.TEXTBELT_API_KEY?.trim();
 
-async function sendSms(to: string, message: string) {
+async function sendSms(
+  to: string,
+  message: string,
+  meta: { recipientName?: string; eventType: string; propertyId?: string; lodgifyBookingId?: number }
+) {
+  const supabase = createAdminClient();
+
   if (!TEXTBELT_KEY) {
     console.log("[sms] Textbelt not configured, skipping notification");
+    await supabase.from("sms_log").insert({
+      recipient_phone: to,
+      recipient_name: meta.recipientName ?? null,
+      message,
+      event_type: meta.eventType,
+      lodgify_booking_id: meta.lodgifyBookingId ?? null,
+      property_id: meta.propertyId ?? null,
+      success: false,
+      error: "TEXTBELT_API_KEY not configured",
+    });
     return;
   }
+
   const res = await fetch("https://textbelt.com/text", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ phone: to, message, key: TEXTBELT_KEY }),
   });
   const data = await res.json();
+
   if (!data.success) console.error("[sms] Textbelt error:", data.error);
+
+  await supabase.from("sms_log").insert({
+    recipient_phone: to,
+    recipient_name: meta.recipientName ?? null,
+    message,
+    event_type: meta.eventType,
+    lodgify_booking_id: meta.lodgifyBookingId ?? null,
+    property_id: meta.propertyId ?? null,
+    success: data.success === true,
+    error: data.error ?? null,
+    quota_remaining: typeof data.quotaRemaining === "number" ? data.quotaRemaining : null,
+  });
 }
 
 type NotifyParams = {
@@ -110,7 +140,11 @@ async function getEventSettings(
 /**
  * Send an SMS to all active cleaners assigned to a property.
  */
-async function sendToCleaners(propertyId: string, body: string) {
+async function sendToCleaners(
+  propertyId: string,
+  body: string,
+  meta: { eventType: string; lodgifyBookingId?: number }
+) {
   const supabase = createAdminClient();
 
   const { data: assignments } = await supabase
@@ -129,7 +163,16 @@ async function sendToCleaners(propertyId: string, body: string) {
 
   if (!cleaners?.length) return;
 
-  await Promise.all(cleaners.map((cleaner) => sendSms(cleaner.phone!, body)));
+  await Promise.all(
+    cleaners.map((cleaner) =>
+      sendSms(cleaner.phone!, body, {
+        recipientName: cleaner.name ?? undefined,
+        eventType: meta.eventType,
+        propertyId,
+        lodgifyBookingId: meta.lodgifyBookingId,
+      })
+    )
+  );
 }
 
 export async function notifyCleanersOfNewBooking(params: NotifyParams) {
@@ -158,7 +201,7 @@ export async function notifyCleanersOfNewBooking(params: NotifyParams) {
     link,
   });
 
-  await sendToCleaners(params.propertyId, body);
+  await sendToCleaners(params.propertyId, body, { eventType: "cleaner_new_booking", lodgifyBookingId: undefined });
 }
 
 export async function notifyCleanersOfCancellation(params: NotifyParams) {
@@ -173,7 +216,7 @@ export async function notifyCleanersOfCancellation(params: NotifyParams) {
     check_out: formatDate(params.checkOut),
   });
 
-  await sendToCleaners(params.propertyId, body);
+  await sendToCleaners(params.propertyId, body, { eventType: "cleaner_cancellation" });
 }
 
 export async function notifyCleanersOfCheckout(params: {
@@ -191,7 +234,7 @@ export async function notifyCleanersOfCheckout(params: {
     link: cleanerPortalUrl(params.registrationId),
   });
 
-  await sendToCleaners(params.propertyId, body);
+  await sendToCleaners(params.propertyId, body, { eventType: "cleaner_checkout" });
 }
 
 export async function notifyCleanersOfPetAdded(params: {
@@ -213,7 +256,7 @@ export async function notifyCleanersOfPetAdded(params: {
     link: cleanerPortalUrl(params.registrationId),
   });
 
-  await sendToCleaners(params.propertyId, body);
+  await sendToCleaners(params.propertyId, body, { eventType: "cleaner_pet_added" });
 }
 
 export async function notifyCleanersOfEarlyCheckin(params: {
@@ -233,7 +276,7 @@ export async function notifyCleanersOfEarlyCheckin(params: {
     link: cleanerPortalUrl(params.registrationId),
   });
 
-  await sendToCleaners(params.propertyId, body);
+  await sendToCleaners(params.propertyId, body, { eventType: "cleaner_early_checkin" });
 }
 
 export async function notifyCleanersOfLateCheckout(params: {
@@ -253,5 +296,5 @@ export async function notifyCleanersOfLateCheckout(params: {
     link: cleanerPortalUrl(params.registrationId),
   });
 
-  await sendToCleaners(params.propertyId, body);
+  await sendToCleaners(params.propertyId, body, { eventType: "cleaner_late_checkout" });
 }
