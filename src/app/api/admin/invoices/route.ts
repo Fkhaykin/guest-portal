@@ -23,16 +23,19 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  let body: { invoice_id: string; status: "approved" | "paid"; };
+  let body: { invoice_id: string; status?: "approved" | "paid"; due_date?: string | null };
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { invoice_id, status } = body;
-  if (!invoice_id || !["approved", "paid"].includes(status)) {
+  const { invoice_id, status, due_date } = body;
+  if (!invoice_id) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
+  }
+  if (status !== undefined && !["approved", "paid"].includes(status)) {
+    return NextResponse.json({ error: "Invalid status" }, { status: 400 });
   }
 
   const admin = createAdminClient();
@@ -49,9 +52,13 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
   }
 
-  const updates: Record<string, unknown> = { status };
-  if (status === "approved") updates.approved_at = new Date().toISOString();
-  if (status === "paid") updates.paid_at = new Date().toISOString();
+  const updates: Record<string, unknown> = {};
+  if (status !== undefined) {
+    updates.status = status;
+    if (status === "approved") updates.approved_at = new Date().toISOString();
+    if (status === "paid") updates.paid_at = new Date().toISOString();
+  }
+  if ("due_date" in body) updates.due_date = due_date ?? null;
 
   const { error } = await admin
     .from("cleaner_invoice")

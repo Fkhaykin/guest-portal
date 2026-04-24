@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import {
   ArrowLeft,
+  Calendar,
   CheckCircle2,
   DollarSign,
   Home,
@@ -23,6 +24,7 @@ import {
   User,
   FileText,
 } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import type { InvoiceLineItem, InvoiceStatus } from "@/types/database";
 
 const STATUS_STYLES: Record<string, string> = {
@@ -178,6 +180,7 @@ export function AdminInvoiceDetail({
     submitted_at: string | null;
     approved_at: string | null;
     paid_at: string | null;
+    due_date: string | null;
     created_at: string;
     cleaner_name: string;
     cleaner_phone: string | null;
@@ -190,6 +193,9 @@ export function AdminInvoiceDetail({
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [status, setStatus] = useState(invoice.status);
+  const [dueDate, setDueDate] = useState(invoice.due_date ?? "");
+  const [editingDueDate, setEditingDueDate] = useState(false);
+  const [savingDueDate, setSavingDueDate] = useState(false);
 
   async function updateStatus(newStatus: "approved" | "paid") {
     setSaving(true);
@@ -222,6 +228,20 @@ export function AdminInvoiceDetail({
       router.refresh();
     }
     setDeleting(false);
+  }
+
+  async function saveDueDateFn() {
+    setSavingDueDate(true);
+    const res = await fetch("/api/admin/invoices", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ invoice_id: invoice.id, due_date: dueDate || null }),
+    });
+    if (res.ok) {
+      setEditingDueDate(false);
+      router.refresh();
+    }
+    setSavingDueDate(false);
   }
 
   // Group pet fees by registration_id so they can be shown under their reservation
@@ -265,7 +285,50 @@ export function AdminInvoiceDetail({
                 {formatDate(invoice.period_end)}
               </span>
               <span>&middot;</span>
-              <span>Due: {getDueDate(invoice)}</span>
+              {editingDueDate ? (
+                <span className="flex items-center gap-1">
+                  <Input
+                    type="date"
+                    value={dueDate}
+                    onChange={(e) => setDueDate(e.target.value)}
+                    className="h-6 text-xs px-1 w-36"
+                    autoFocus
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") saveDueDateFn();
+                      if (e.key === "Escape") setEditingDueDate(false);
+                    }}
+                  />
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-5 px-1.5 text-xs"
+                    onClick={saveDueDateFn}
+                    disabled={savingDueDate}
+                  >
+                    {savingDueDate ? "…" : "Save"}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-5 px-1.5 text-xs"
+                    onClick={() => { setEditingDueDate(false); setDueDate(invoice.due_date ?? ""); }}
+                  >
+                    Cancel
+                  </Button>
+                </span>
+              ) : (
+                <button
+                  className="flex items-center gap-1 hover:text-foreground transition-colors"
+                  onClick={() => setEditingDueDate(true)}
+                  title="Edit due date"
+                >
+                  <Calendar className="h-3 w-3" />
+                  <span>
+                    Due: {dueDate ? formatDate(dueDate) : getDueDate(invoice)}
+                  </span>
+                  <Pencil className="h-2.5 w-2.5 opacity-50" />
+                </button>
+              )}
             </div>
           </div>
         </div>

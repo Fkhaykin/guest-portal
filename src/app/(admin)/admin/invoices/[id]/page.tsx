@@ -62,6 +62,7 @@ export default async function AdminInvoiceDetailPage({
         submitted_at: invoice.submitted_at,
         approved_at: invoice.approved_at,
         paid_at: invoice.paid_at,
+        due_date: invoice.due_date ?? null,
         created_at: invoice.created_at,
         cleaner_name: (invoice.cleaner as { name: string; phone: string | null; company: string | null; email: string | null } | null)?.name || "Unknown",
         cleaner_phone: (invoice.cleaner as { name: string; phone: string | null; company: string | null; email: string | null } | null)?.phone || null,
