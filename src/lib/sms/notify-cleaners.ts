@@ -1,7 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { NotificationSettings, NotificationEventKey } from "@/types/database";
 
-const TEXTBELT_KEY = process.env.TEXTBELT_API_KEY;
+const TEXTBELT_KEY = process.env.TEXTBELT_API_KEY?.trim();
 
 async function sendSms(to: string, message: string) {
   if (!TEXTBELT_KEY) {
