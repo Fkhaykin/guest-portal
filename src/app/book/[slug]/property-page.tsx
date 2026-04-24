@@ -157,7 +157,7 @@ function PhotoGallery({ images }: { images: { url: string }[] }) {
 
           {/* Floating thumbnail strip — positioned over the fade area */}
           {images.length > 1 && (
-            <div className="absolute bottom-6 inset-x-0 flex justify-center px-4 z-10">
+            <div className="absolute bottom-2 inset-x-0 flex justify-center px-4 z-10">
               <div
                 ref={thumbRef}
                 className="flex gap-2 overflow-x-auto py-1 px-1 max-w-full rounded-xl bg-black/30 backdrop-blur-md"
@@ -448,7 +448,7 @@ export function PropertyPage({
       <GuestPhotoCarousel propertyId={property.id} />
 
       {/* Reviews */}
-      <ReviewsCarousel ctaHref="#booking" />
+      <ReviewsCarousel ctaHref="#booking" propertyName={property.name} />
 
       {/* Spacer */}
       <div className="h-8" />

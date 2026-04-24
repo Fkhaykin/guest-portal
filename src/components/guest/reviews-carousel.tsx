@@ -135,11 +135,15 @@ function ReviewCard({ review }: { review: Review }) {
 export function ReviewsCarousel({
   ctaHref,
   ctaLabel = "See for yourself, book now!",
+  propertyName,
 }: {
   ctaHref?: string;
   ctaLabel?: string;
+  propertyName?: string;
 } = {}) {
-  const reviews = MASONRY_REVIEWS;
+  const reviews = propertyName
+    ? REVIEWS.filter((r) => r.property === propertyName && r.text.length > 80).slice(0, 20)
+    : MASONRY_REVIEWS;
 
   return (
     <section className="px-4 sm:px-6 py-10 max-w-6xl mx-auto w-full">
@@ -150,7 +154,9 @@ export function ReviewsCarousel({
           Guest Reviews
         </h2>
         <p className="text-muted-foreground">
-          {REVIEW_STATS.totalCount}+ verified guest reviews across all properties
+          {propertyName
+            ? `${REVIEWS.filter((r) => r.property === propertyName).length} verified guest reviews`
+            : `${REVIEW_STATS.totalCount}+ verified guest reviews across all properties`}
         </p>
       </div>
 

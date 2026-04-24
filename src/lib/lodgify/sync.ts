@@ -326,6 +326,7 @@ export async function syncBooking(booking: LodgifyBooking) {
         notes: booking.notes,
         status: mapStatus(booking.status),
         booking_source: booking.source,
+        ...(booking.total_amount ? { total_amount_cents: Math.round(booking.total_amount * 100) } : {}),
         ...(booking.date_created ? { booked_at: booking.date_created } : {}),
         ...(booking.thread_uid ? { lodgify_thread_uid: booking.thread_uid } : {}),
       },
@@ -469,38 +470,14 @@ export async function syncBookingsBatch(options?: {
 
   let synced = 0;
   let skipped = 0;
-  const amountUpdates: { lodgify_booking_id: number; amount_cents: number }[] = [];
 
   for (const booking of response.items) {
     const result = await syncBooking(booking);
-    if (result.skipped) {
-      skipped++;
-    } else {
-      synced++;
-      if (booking.total_amount) {
-        amountUpdates.push({
-          lodgify_booking_id: booking.id,
-          amount_cents: Math.round(booking.total_amount * 100),
-        });
-      }
-    }
+    if (result.skipped) skipped++;
+    else synced++;
   }
 
   const supabase = createAdminClient();
-
-  // Update amounts for this batch
-  if (amountUpdates.length > 0) {
-    const { error: rpcError } = await supabase.rpc(
-      "update_registration_amounts" as never,
-      {
-        booking_ids: amountUpdates.map((u) => u.lodgify_booking_id),
-        amounts: amountUpdates.map((u) => u.amount_cents),
-      } as never
-    );
-    if (rpcError) {
-      console.warn("[lodgify-sync] Amount update failed (PostgREST cache may be stale):", rpcError.message);
-    }
-  }
 
   const nextOffset = offset + response.items.length;
   const done = nextOffset >= response.total || response.items.length < PAGE_SIZE;

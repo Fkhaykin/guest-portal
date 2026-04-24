@@ -228,7 +228,10 @@ export async function POST(request: Request) {
   const signature = request.headers.get("ms-signature") ?? "";
   log.signature_present = signature.length > 0;
 
-  if (signingSecrets) {
+  if (signingSecrets && signature.length > 0) {
+    // Only verify when Lodgify actually sends a signature. Old subscriptions
+    // (created before signing was configured) send no ms-signature header and
+    // are allowed through so they don't break silently after the env var is set.
     const secrets = signingSecrets.split(",").map((s) => s.trim()).filter(Boolean);
     const valid = verifySignature(rawBody, signature, secrets);
     log.signature_valid = valid;
@@ -241,7 +244,7 @@ export async function POST(request: Request) {
       await writeLog(log);
       return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
     }
-  } else {
+  } else if (!signingSecrets) {
     log.signature_valid = null;
     log.error_message = "LODGIFY_WEBHOOK_SIGNING_SECRETS not set (signature not verified)";
   }
