@@ -327,121 +327,220 @@ export default function AdminReservationsPage() {
         </div>
       </div>
 
-      {/* Table */}
+      {/* Table / Cards */}
       {loading ? (
         <p className="text-muted-foreground">Loading...</p>
       ) : filtered.length > 0 ? (
-        <div className="rounded-lg border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("guest")}>Guest <SortIcon column="guest" /></TableHead>
-                <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("property")}>Property <SortIcon column="property" /></TableHead>
-                <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("booked")}>Booked <SortIcon column="booked" /></TableHead>
-                <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("check_in_date")}>Check-in <SortIcon column="check_in_date" /></TableHead>
-                <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("check_out_date")}>Check-out <SortIcon column="check_out_date" /></TableHead>
-                <TableHead>Guests</TableHead>
-                <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("registered")}>Registered <SortIcon column="registered" /></TableHead>
-                <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("revenue")}>Revenue <SortIcon column="revenue" /></TableHead>
-                <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("source")}>Source <SortIcon column="source" /></TableHead>
-                <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("status")}>Status <SortIcon column="status" /></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {sorted.map((reg) => {
-                const guest = reg.guest as Registration["guest"];
-                const breakdown = getGuestBreakdown(reg);
-                return (
-                  <TableRow
-                    key={reg.id}
-                    className={`cursor-pointer hover:bg-muted/50 ${newIds.has(reg.id) ? "bg-green-50 dark:bg-green-950/20 border-l-2 border-l-green-500" : ""}`}
-                    onClick={() => router.push(`/admin/reservations/${reg.id}`)}
-                  >
-                    <TableCell>
-                      <div>
-                        <p className="font-medium">{guest?.full_name ?? "Unknown"}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {guest?.email || guest?.phone}
-                        </p>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-sm">
-                      {reg.property?.nickname || reg.property?.name || "—"}
-                    </TableCell>
-                    <TableCell className="text-sm">
-                      {(reg.booked_at || reg.created_at) ? new Date(reg.booked_at || reg.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—"}
-                    </TableCell>
-                    <TableCell className="text-sm">{reg.check_in_date}</TableCell>
-                    <TableCell className="text-sm">{reg.check_out_date}</TableCell>
-                    <TableCell>
-                      <div className="text-xs">
-                        {breakdown.booked ? (
-                          <div className="flex flex-wrap gap-x-2 gap-y-0.5">
-                            {breakdown.booked.adults > 0 && <span>{breakdown.booked.adults}A</span>}
-                            {breakdown.booked.children > 0 && <span>{breakdown.booked.children}C</span>}
-                            {breakdown.booked.infants > 0 && <span>{breakdown.booked.infants}I</span>}
-                            {breakdown.booked.pets > 0 && <span>{breakdown.booked.pets}P</span>}
-                          </div>
-                        ) : (
-                          <span className="text-muted-foreground">{reg.num_guests} guest{reg.num_guests !== 1 ? "s" : ""}</span>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      {breakdown.registered ? (
-                        <div className="text-xs space-y-0.5">
-                          <div className="flex flex-wrap gap-x-2 gap-y-0.5">
-                            {breakdown.registered.adults > 0 && <span>{breakdown.registered.adults}A</span>}
-                            {breakdown.registered.children > 0 && <span>{breakdown.registered.children}C</span>}
-                            {breakdown.registered.infants > 0 && <span>{breakdown.registered.infants}I</span>}
-                            {breakdown.registered.pets > 0 && (
-                              <span className={breakdown.extraPets > 0 ? "text-amber-600 font-medium" : ""}>
-                                {breakdown.registered.pets}P{breakdown.extraPets > 0 && ` (+${breakdown.extraPets})`}
-                              </span>
+        <>
+          {/* Desktop table */}
+          <div className="hidden md:block rounded-lg border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("guest")}>Guest <SortIcon column="guest" /></TableHead>
+                  <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("property")}>Property <SortIcon column="property" /></TableHead>
+                  <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("booked")}>Booked <SortIcon column="booked" /></TableHead>
+                  <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("check_in_date")}>Check-in <SortIcon column="check_in_date" /></TableHead>
+                  <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("check_out_date")}>Check-out <SortIcon column="check_out_date" /></TableHead>
+                  <TableHead>Guests</TableHead>
+                  <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("registered")}>Registered <SortIcon column="registered" /></TableHead>
+                  <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("revenue")}>Revenue <SortIcon column="revenue" /></TableHead>
+                  <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("source")}>Source <SortIcon column="source" /></TableHead>
+                  <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("status")}>Status <SortIcon column="status" /></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {sorted.map((reg) => {
+                  const guest = reg.guest as Registration["guest"];
+                  const breakdown = getGuestBreakdown(reg);
+                  return (
+                    <TableRow
+                      key={reg.id}
+                      className={`cursor-pointer hover:bg-muted/50 ${newIds.has(reg.id) ? "bg-green-50 dark:bg-green-950/20 border-l-2 border-l-green-500" : ""}`}
+                      onClick={() => router.push(`/admin/reservations/${reg.id}`)}
+                    >
+                      <TableCell>
+                        <div>
+                          <p className="font-medium">{guest?.full_name ?? "Unknown"}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {guest?.email || guest?.phone}
+                          </p>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        {reg.property?.nickname || reg.property?.name || "—"}
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        {(reg.booked_at || reg.created_at) ? new Date(reg.booked_at || reg.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—"}
+                      </TableCell>
+                      <TableCell className="text-sm">{reg.check_in_date}</TableCell>
+                      <TableCell className="text-sm">{reg.check_out_date}</TableCell>
+                      <TableCell>
+                        <div className="text-xs">
+                          {breakdown.booked ? (
+                            <div className="flex flex-wrap gap-x-2 gap-y-0.5">
+                              {breakdown.booked.adults > 0 && <span>{breakdown.booked.adults}A</span>}
+                              {breakdown.booked.children > 0 && <span>{breakdown.booked.children}C</span>}
+                              {breakdown.booked.infants > 0 && <span>{breakdown.booked.infants}I</span>}
+                              {breakdown.booked.pets > 0 && <span>{breakdown.booked.pets}P</span>}
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground">{reg.num_guests} guest{reg.num_guests !== 1 ? "s" : ""}</span>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {breakdown.registered ? (
+                          <div className="text-xs space-y-0.5">
+                            <div className="flex flex-wrap gap-x-2 gap-y-0.5">
+                              {breakdown.registered.adults > 0 && <span>{breakdown.registered.adults}A</span>}
+                              {breakdown.registered.children > 0 && <span>{breakdown.registered.children}C</span>}
+                              {breakdown.registered.infants > 0 && <span>{breakdown.registered.infants}I</span>}
+                              {breakdown.registered.pets > 0 && (
+                                <span className={breakdown.extraPets > 0 ? "text-amber-600 font-medium" : ""}>
+                                  {breakdown.registered.pets}P{breakdown.extraPets > 0 && ` (+${breakdown.extraPets})`}
+                                </span>
+                              )}
+                            </div>
+                            {reg.signature_url && (
+                              <p className="text-muted-foreground">
+                                {new Date(reg.updated_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                              </p>
                             )}
                           </div>
-                          {reg.signature_url && (
-                            <p className="text-muted-foreground">
-                              {new Date(reg.updated_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
-                            </p>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-sm font-medium">
+                        {formatCents(reg.total_amount_cents)}
+                      </TableCell>
+                      <TableCell>
+                        {reg.booking_source ? (
+                          <span className="text-sm capitalize">{cleanSourceName(reg.booking_source)}</span>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {(() => {
+                          const displayStatus = getDisplayStatus(reg);
+                          const colors = {
+                            current: "bg-blue-100 text-blue-800 border-blue-200",
+                            future: "bg-green-100 text-green-800 border-green-200",
+                            past: "bg-yellow-100 text-yellow-800 border-yellow-200",
+                            cancelled: "bg-red-100 text-red-800 border-red-200",
+                          };
+                          return (
+                            <Badge variant="outline" className={colors[displayStatus]}>
+                              {displayStatus}
+                            </Badge>
+                          );
+                        })()}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* Mobile cards */}
+          <div className="flex flex-col gap-3 md:hidden">
+            {sorted.map((reg) => {
+              const guest = reg.guest as Registration["guest"];
+              const breakdown = getGuestBreakdown(reg);
+              const displayStatus = getDisplayStatus(reg);
+              const statusColors = {
+                current: "bg-blue-100 text-blue-800 border-blue-200",
+                future: "bg-green-100 text-green-800 border-green-200",
+                past: "bg-yellow-100 text-yellow-800 border-yellow-200",
+                cancelled: "bg-red-100 text-red-800 border-red-200",
+              };
+              return (
+                <div
+                  key={reg.id}
+                  className={`rounded-lg border bg-card p-4 space-y-3 cursor-pointer active:bg-muted/50 ${newIds.has(reg.id) ? "border-l-4 border-l-green-500" : ""}`}
+                  onClick={() => router.push(`/admin/reservations/${reg.id}`)}
+                >
+                  {/* Guest + status */}
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="font-semibold truncate">{guest?.full_name ?? "Unknown"}</p>
+                      {(guest?.email || guest?.phone) && (
+                        <p className="text-xs text-muted-foreground truncate">{guest?.email || guest?.phone}</p>
+                      )}
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {reg.property?.nickname || reg.property?.name || "—"}
+                      </p>
+                    </div>
+                    <Badge variant="outline" className={`${statusColors[displayStatus]} shrink-0`}>
+                      {displayStatus}
+                    </Badge>
+                  </div>
+
+                  {/* Dates */}
+                  <div className="flex items-center gap-2 text-sm font-medium">
+                    <span>{reg.check_in_date}</span>
+                    <span className="text-muted-foreground">→</span>
+                    <span>{reg.check_out_date}</span>
+                  </div>
+
+                  {/* Guest counts */}
+                  <div className="grid grid-cols-2 gap-x-4 text-xs">
+                    <div>
+                      <p className="text-muted-foreground uppercase tracking-wide text-[10px] mb-0.5">Booked</p>
+                      {breakdown.booked ? (
+                        <div className="flex gap-2 text-muted-foreground">
+                          {breakdown.booked.adults > 0 && <span>{breakdown.booked.adults}A</span>}
+                          {breakdown.booked.children > 0 && <span>{breakdown.booked.children}C</span>}
+                          {breakdown.booked.infants > 0 && <span>{breakdown.booked.infants}I</span>}
+                          {breakdown.booked.pets > 0 && <span>{breakdown.booked.pets}P</span>}
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground">{reg.num_guests} guest{reg.num_guests !== 1 ? "s" : ""}</span>
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground uppercase tracking-wide text-[10px] mb-0.5">Registered</p>
+                      {breakdown.registered ? (
+                        <div className="flex gap-2">
+                          {breakdown.registered.adults > 0 && <span>{breakdown.registered.adults}A</span>}
+                          {breakdown.registered.children > 0 && <span>{breakdown.registered.children}C</span>}
+                          {breakdown.registered.infants > 0 && <span>{breakdown.registered.infants}I</span>}
+                          {breakdown.registered.pets > 0 && (
+                            <span className={breakdown.extraPets > 0 ? "text-amber-600 font-medium" : ""}>
+                              {breakdown.registered.pets}P{breakdown.extraPets > 0 && ` (+${breakdown.extraPets})`}
+                            </span>
                           )}
                         </div>
                       ) : (
-                        <span className="text-xs text-muted-foreground">—</span>
+                        <span className="text-muted-foreground">—</span>
                       )}
-                    </TableCell>
-                    <TableCell className="text-sm font-medium">
-                      {formatCents(reg.total_amount_cents)}
-                    </TableCell>
-                    <TableCell>
-                      {reg.booking_source ? (
-                        <span className="text-sm capitalize">{cleanSourceName(reg.booking_source)}</span>
-                      ) : (
-                        <span className="text-sm text-muted-foreground">—</span>
+                    </div>
+                  </div>
+
+                  {/* Revenue + source + booked date */}
+                  <div className="flex items-center justify-between pt-1 border-t text-xs text-muted-foreground">
+                    <div className="flex items-center gap-3">
+                      {reg.total_amount_cents ? (
+                        <span className="font-medium text-foreground">{formatCents(reg.total_amount_cents)}</span>
+                      ) : null}
+                      {reg.booking_source && (
+                        <span className="capitalize">{cleanSourceName(reg.booking_source)}</span>
                       )}
-                    </TableCell>
-                    <TableCell>
-                      {(() => {
-                        const displayStatus = getDisplayStatus(reg);
-                        const colors = {
-                          current: "bg-blue-100 text-blue-800 border-blue-200",
-                          future: "bg-green-100 text-green-800 border-green-200",
-                          past: "bg-yellow-100 text-yellow-800 border-yellow-200",
-                          cancelled: "bg-red-100 text-red-800 border-red-200",
-                        };
-                        return (
-                          <Badge variant="outline" className={colors[displayStatus]}>
-                            {displayStatus}
-                          </Badge>
-                        );
-                      })()}
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </div>
+                    </div>
+                    <span>
+                      {(reg.booked_at || reg.created_at)
+                        ? new Date(reg.booked_at || reg.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+                        : ""}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </>
       ) : (
         <p className="text-muted-foreground">No reservations found.</p>
       )}
