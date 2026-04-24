@@ -422,11 +422,20 @@ export async function syncLatestBookings() {
     .in("lodgify_booking_id", lodgifyIds);
   const existingSet = new Set((existing || []).map((r) => r.lodgify_booking_id));
 
-  // Sync all
+  // Sync all — use v2 detail for bookings where v1 list omits the amount
+  // (common for OTA/Airbnb bookings where the payout isn't exposed on the list endpoint)
   let synced = 0;
   let skipped = 0;
   for (const booking of items) {
-    const result = await syncBooking(booking);
+    let bookingToSync = booking;
+    if (!booking.total_amount) {
+      try {
+        bookingToSync = await getBookingById(booking.id);
+      } catch {
+        // fall back to v1 data
+      }
+    }
+    const result = await syncBooking(bookingToSync);
     if (result.skipped) skipped++;
     else synced++;
   }
