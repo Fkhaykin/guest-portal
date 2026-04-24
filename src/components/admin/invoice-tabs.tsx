@@ -644,7 +644,7 @@ function HistoryTab({ invoices }: { invoices: AdminInvoiceRow[] }) {
                       {formatDateFull(inv.period_end)}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      Due: {getDueDate(inv)}
+                      Due: {inv.due_date ? formatDateFull(inv.due_date) : getDueDate(inv)}
                     </p>
                   </div>
                   <div className="flex items-center gap-2">

@@ -12,6 +12,7 @@ export type AdminInvoiceRow = {
   status: InvoiceStatus;
   period_start: string;
   period_end: string;
+  due_date: string | null;
   total: number;
   created_at: string;
   cleaner_name: string;
@@ -280,6 +281,7 @@ export default async function AdminInvoicesPage() {
       status: inv.status as InvoiceStatus,
       period_start: inv.period_start,
       period_end: inv.period_end,
+      due_date: inv.due_date ?? null,
       total: inv.total,
       created_at: inv.created_at,
       cleaner_name:

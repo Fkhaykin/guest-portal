@@ -154,6 +154,7 @@ export async function PUT(request: Request) {
     invoice_id: string;
     period_start: string;
     period_end: string;
+    due_date?: string | null;
     line_items: import("@/types/database").InvoiceLineItem[];
     adjustments?: import("@/types/database").InvoiceAdjustment[];
     attachments?: import("@/types/database").InvoiceAttachment[];
@@ -165,7 +166,7 @@ export async function PUT(request: Request) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { invoice_id, period_start, period_end, line_items, adjustments, attachments, notes } = body;
+  const { invoice_id, period_start, period_end, due_date, line_items, adjustments, attachments, notes } = body;
 
   if (!invoice_id || !period_start || !period_end || !line_items?.length) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
@@ -194,6 +195,7 @@ export async function PUT(request: Request) {
     .update({
       period_start,
       period_end,
+      due_date: due_date ?? null,
       line_items,
       adjustments: adjustments || [],
       attachments: attachments || [],

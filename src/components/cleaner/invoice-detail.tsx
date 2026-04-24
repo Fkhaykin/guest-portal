@@ -69,6 +69,7 @@ export function InvoiceDetail({
     submitted_at: string | null;
     approved_at: string | null;
     paid_at: string | null;
+    due_date: string | null;
     created_at: string;
   };
   canEdit: boolean;
@@ -92,6 +93,9 @@ export function InvoiceDetail({
             <h1 className="text-lg font-semibold">{invoice.invoice_number}</h1>
             <p className="text-xs text-muted-foreground">
               {formatDate(invoice.period_start)} &ndash; {formatDate(invoice.period_end)}
+              {invoice.due_date && (
+                <span> &middot; Due: {formatDate(invoice.due_date)}</span>
+              )}
             </p>
           </div>
         </div>

@@ -65,6 +65,7 @@ export default async function AdminInvoiceEditPage({
         id: invoice.id,
         period_start: invoice.period_start,
         period_end: invoice.period_end,
+        due_date: invoice.due_date ?? null,
         line_items: invoice.line_items as InvoiceLineItem[],
         adjustments: (invoice.adjustments as InvoiceAdjustment[]) || [],
         attachments: (invoice.attachments as InvoiceAttachment[]) || [],

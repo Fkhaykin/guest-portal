@@ -70,6 +70,7 @@ export function InvoiceForm({
     id: string;
     period_start: string;
     period_end: string;
+    due_date?: string | null;
     line_items: InvoiceLineItem[];
     adjustments?: InvoiceAdjustment[];
     attachments?: InvoiceAttachment[];
@@ -85,6 +86,7 @@ export function InvoiceForm({
   const [saving, setSaving] = useState(false);
   const [periodStart, setPeriodStart] = useState(initialData?.period_start || "");
   const [periodEnd, setPeriodEnd] = useState(initialData?.period_end || "");
+  const [dueDate, setDueDate] = useState(initialData?.due_date ?? "");
   const [notes, setNotes] = useState(initialData?.notes || "");
   const [lines, setLines] = useState<InvoiceLineItem[]>(
     initialData?.line_items.length ? initialData.line_items : [emptyLine()]
@@ -231,6 +233,7 @@ export function InvoiceForm({
         payload.submit = submit;
       } else {
         payload.invoice_id = initialData?.id;
+        payload.due_date = dueDate || null;
       }
 
       const res = await fetch(saveEndpoint, {
@@ -306,6 +309,18 @@ export function InvoiceForm({
               />
             </div>
           </div>
+          {mode === "admin" && (
+            <div className="space-y-1.5">
+              <Label htmlFor="due_date" className="text-xs">Due Date (optional — overrides auto-calculated)</Label>
+              <Input
+                id="due_date"
+                type="date"
+                value={dueDate}
+                onChange={(e) => setDueDate(e.target.value)}
+                className="max-w-48"
+              />
+            </div>
+          )}
         </CardContent>
       </Card>
 

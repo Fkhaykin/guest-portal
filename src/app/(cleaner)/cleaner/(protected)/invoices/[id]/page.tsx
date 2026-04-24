@@ -47,6 +47,7 @@ export default async function InvoiceDetailPage({
         submitted_at: invoice.submitted_at,
         approved_at: invoice.approved_at,
         paid_at: invoice.paid_at,
+        due_date: invoice.due_date ?? null,
         created_at: invoice.created_at,
       }}
       canEdit={invoice.status === "draft"}
