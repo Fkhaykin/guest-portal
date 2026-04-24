@@ -481,9 +481,9 @@ export default function AdminReservationsPage() {
 
                   {/* Dates */}
                   <div className="flex items-center gap-2 text-sm font-medium">
-                    <span>{reg.check_in_date}</span>
+                    <span>{new Date(reg.check_in_date + "T00:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}</span>
                     <span className="text-muted-foreground">→</span>
-                    <span>{reg.check_out_date}</span>
+                    <span>{new Date(reg.check_out_date + "T00:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}</span>
                   </div>
 
                   {/* Guest counts */}
@@ -504,14 +504,21 @@ export default function AdminReservationsPage() {
                     <div>
                       <p className="text-muted-foreground uppercase tracking-wide text-[10px] mb-0.5">Registered</p>
                       {breakdown.registered ? (
-                        <div className="flex gap-2">
-                          {breakdown.registered.adults > 0 && <span>{breakdown.registered.adults}A</span>}
-                          {breakdown.registered.children > 0 && <span>{breakdown.registered.children}C</span>}
-                          {breakdown.registered.infants > 0 && <span>{breakdown.registered.infants}I</span>}
-                          {breakdown.registered.pets > 0 && (
-                            <span className={breakdown.extraPets > 0 ? "text-amber-600 font-medium" : ""}>
-                              {breakdown.registered.pets}P{breakdown.extraPets > 0 && ` (+${breakdown.extraPets})`}
-                            </span>
+                        <div className="space-y-0.5">
+                          <div className="flex gap-2">
+                            {breakdown.registered.adults > 0 && <span>{breakdown.registered.adults}A</span>}
+                            {breakdown.registered.children > 0 && <span>{breakdown.registered.children}C</span>}
+                            {breakdown.registered.infants > 0 && <span>{breakdown.registered.infants}I</span>}
+                            {breakdown.registered.pets > 0 && (
+                              <span className={breakdown.extraPets > 0 ? "text-amber-600 font-medium" : ""}>
+                                {breakdown.registered.pets}P{breakdown.extraPets > 0 && ` (+${breakdown.extraPets})`}
+                              </span>
+                            )}
+                          </div>
+                          {reg.signature_url && (
+                            <p className="text-muted-foreground">
+                              {new Date(reg.updated_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                            </p>
                           )}
                         </div>
                       ) : (
