@@ -246,7 +246,6 @@ export async function POST(request: Request) {
     }
   } else if (!signingSecrets) {
     log.signature_valid = null;
-    log.error_message = "LODGIFY_WEBHOOK_SIGNING_SECRETS not set (signature not verified)";
   }
 
   if (!parsed || !firstEvent) {
