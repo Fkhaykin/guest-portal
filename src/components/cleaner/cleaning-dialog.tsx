@@ -191,7 +191,13 @@ function ExifDetailScreen({
           <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Image</h3>
           <div className="rounded-lg border divide-y text-sm">
             <ExifRow label="Resolution" value={exif.width && exif.height ? `${exif.width} × ${exif.height}` : undefined} />
-            <ExifRow label="Color Space" value={exif.color_space} />
+            <ExifRow label="Color Space" value={
+              exif.color_space == null ? undefined
+              : exif.color_space === "1" ? "sRGB"
+              : exif.color_space === "2" ? "Adobe RGB"
+              : exif.color_space === "65535" ? "Uncalibrated"
+              : exif.color_space
+            } />
             <ExifRow label="Orientation" value={exif.orientation} />
             <ExifRow label="File Type" value={exif.file_type} />
             <ExifRow label="File Size" value={exif.file_size ? formatBytes(exif.file_size) : undefined} />
@@ -408,7 +414,10 @@ export function CleaningDialog({
             if (d.Flash != null) clientExif.flash = typeof d.Flash === "object" ? JSON.stringify(d.Flash) : String(d.Flash);
             if (d.Orientation) clientExif.orientation = d.Orientation;
             if (d.Software) clientExif.software = d.Software;
-            if (d.ColorSpace != null) clientExif.color_space = String(d.ColorSpace);
+            if (d.ColorSpace != null) {
+              const cs = d.ColorSpace;
+              clientExif.color_space = cs === 1 ? "sRGB" : cs === 2 ? "Adobe RGB" : cs === 65535 ? "Uncalibrated" : String(cs);
+            }
             if (d.WhiteBalance != null) clientExif.white_balance = d.WhiteBalance === 0 ? "Auto" : "Manual";
             if (d.ExposureMode != null) clientExif.exposure_mode = d.ExposureMode === 0 ? "Auto" : d.ExposureMode === 1 ? "Manual" : String(d.ExposureMode);
             if (d.SceneCaptureType != null) {

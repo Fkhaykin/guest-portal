@@ -86,7 +86,10 @@ async function extractExifFromUrl(url: string): Promise<CleaningPhotoExif | null
         typeof data.Flash === "object" ? JSON.stringify(data.Flash) : String(data.Flash);
     if (data.Orientation) result.orientation = data.Orientation;
     if (data.Software) result.software = data.Software;
-    if (data.ColorSpace != null) result.color_space = String(data.ColorSpace);
+    if (data.ColorSpace != null) {
+      const cs = data.ColorSpace;
+      result.color_space = cs === 1 ? "sRGB" : cs === 2 ? "Adobe RGB" : cs === 65535 ? "Uncalibrated" : String(cs);
+    }
     if (data.WhiteBalance != null)
       result.white_balance = data.WhiteBalance === 0 ? "Auto" : "Manual";
     if (data.ExposureMode != null)

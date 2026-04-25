@@ -1169,6 +1169,15 @@ function ExifRow({ label, value }: { label: string; value: string | number | und
   );
 }
 
+function decodeColorSpace(cs: string | undefined | null): string | null {
+  if (!cs) return null;
+  const n = parseInt(cs, 10);
+  if (n === 1) return "sRGB";
+  if (n === 2) return "Adobe RGB";
+  if (n === 65535) return "Uncalibrated";
+  return cs;
+}
+
 function PhotoExifPanel({ exif, url, uploadedAt }: { exif: CleaningPhotoExif; url: string; uploadedAt: string }) {
   const formatBytes = (b: number) => b < 1024 * 1024 ? `${(b / 1024).toFixed(0)} KB` : `${(b / (1024 * 1024)).toFixed(1)} MB`;
 
@@ -1245,7 +1254,7 @@ function PhotoExifPanel({ exif, url, uploadedAt }: { exif: CleaningPhotoExif; ur
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Image</p>
           <div className="rounded-lg border divide-y text-sm">
             <ExifRow label="Resolution" value={exif.width && exif.height ? `${exif.width} × ${exif.height}` : null} />
-            <ExifRow label="Color space" value={exif.color_space} />
+            <ExifRow label="Color space" value={decodeColorSpace(exif.color_space)} />
             <ExifRow label="Orientation" value={exif.orientation} />
             <ExifRow label="File type" value={exif.file_type} />
             <ExifRow label="File size" value={exif.file_size ? formatBytes(exif.file_size) : null} />
