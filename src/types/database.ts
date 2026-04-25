@@ -182,7 +182,7 @@ export type Database = {
           listing_urls: Record<string, string>;
           sort_order: number;
           hoa_after_hours_email: string | null;
-          hoa_after_hours_schedule: { enabled: boolean; timezone: string; start: string; end: string } | null;
+          hoa_after_hours_schedule: { enabled: boolean; timezone: string; days: Record<string, { enabled: boolean; start: string; end: string }> } | null;
           created_at: string;
           updated_at: string;
         };
@@ -223,7 +223,7 @@ export type Database = {
           listing_urls?: Record<string, string>;
           sort_order?: number;
           hoa_after_hours_email?: string | null;
-          hoa_after_hours_schedule?: { enabled: boolean; timezone: string; start: string; end: string } | null;
+          hoa_after_hours_schedule?: { enabled: boolean; timezone: string; days: Record<string, { enabled: boolean; start: string; end: string }> } | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -264,7 +264,7 @@ export type Database = {
           listing_urls?: Record<string, string>;
           sort_order?: number;
           hoa_after_hours_email?: string | null;
-          hoa_after_hours_schedule?: { enabled: boolean; timezone: string; start: string; end: string } | null;
+          hoa_after_hours_schedule?: { enabled: boolean; timezone: string; days: Record<string, { enabled: boolean; start: string; end: string }> } | null;
           created_at?: string;
           updated_at?: string;
         };

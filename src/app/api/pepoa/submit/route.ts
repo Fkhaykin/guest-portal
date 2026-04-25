@@ -4,24 +4,30 @@ import { sendPEPOAPDF } from "@/lib/email/send-pepoa-pdf";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-function isAfterHours(sched: { enabled: boolean; timezone: string; start: string; end: string }): boolean {
+function isAfterHours(sched: { enabled: boolean; timezone: string; days: Record<string, { enabled: boolean; start: string; end: string }> }): boolean {
+  const now = new Date();
   const fmt = new Intl.DateTimeFormat("en-US", {
     timeZone: sched.timezone,
+    weekday: "short",
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
   });
-  const parts = fmt.formatToParts(new Date());
+  const parts = fmt.formatToParts(now);
+  const weekday = parts.find((p) => p.type === "weekday")?.value ?? "";
+  const dayIndex = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].indexOf(weekday);
+  const day = sched.days[String(dayIndex)];
+  if (!day || !day.enabled) return false;
   const h = parseInt(parts.find((p) => p.type === "hour")?.value ?? "0", 10);
   const m = parseInt(parts.find((p) => p.type === "minute")?.value ?? "0", 10);
-  const now = h * 60 + m;
-  const [sh, sm] = sched.start.split(":").map(Number);
-  const [eh, em] = sched.end.split(":").map(Number);
+  const current = h * 60 + m;
+  const [sh, sm] = day.start.split(":").map(Number);
+  const [eh, em] = day.end.split(":").map(Number);
   const start = sh * 60 + sm;
   const end = eh * 60 + em;
   return start > end
-    ? now >= start || now < end   // wraps midnight (e.g. 17:00–09:00)
-    : now >= start && now < end;  // same day (e.g. 08:00–17:00)
+    ? current >= start || current < end
+    : current >= start && current < end;
 }
 
 export const runtime = "nodejs";
@@ -69,7 +75,7 @@ export async function POST(request: Request) {
     const afterHoursEmailRaw = data.property.hoa_after_hours_email as string | null;
     if (afterHoursEmailRaw) {
       const afterHoursEmails = afterHoursEmailRaw.split(",").map((e) => e.trim()).filter(Boolean);
-      const sched = data.property.hoa_after_hours_schedule as { enabled: boolean; timezone: string; start: string; end: string } | null;
+      const sched = data.property.hoa_after_hours_schedule as { enabled: boolean; timezone: string; days: Record<string, { enabled: boolean; start: string; end: string }> } | null;
       if (afterHoursEmails.length > 0 && (!sched || !sched.enabled || isAfterHours(sched))) {
         afterHoursEmails.forEach((e) => { if (!hoaEmail.includes(e)) hoaEmail.push(e); });
       }

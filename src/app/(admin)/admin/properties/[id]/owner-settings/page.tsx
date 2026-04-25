@@ -44,8 +44,15 @@ export default function OwnerSettingsPage({
   const [afterHoursEmailInput, setAfterHoursEmailInput] = useState("");
   const [afterHoursEnabled, setAfterHoursEnabled] = useState(false);
   const [afterHoursTimezone, setAfterHoursTimezone] = useState("America/New_York");
-  const [afterHoursStart, setAfterHoursStart] = useState("17:00");
-  const [afterHoursEnd, setAfterHoursEnd] = useState("09:00");
+  const [afterHoursDays, setAfterHoursDays] = useState<Record<string, { enabled: boolean; start: string; end: string }>>({
+    "0": { enabled: true, start: "00:00", end: "23:59" },
+    "1": { enabled: true, start: "17:00", end: "09:00" },
+    "2": { enabled: true, start: "17:00", end: "09:00" },
+    "3": { enabled: true, start: "17:00", end: "09:00" },
+    "4": { enabled: true, start: "17:00", end: "09:00" },
+    "5": { enabled: true, start: "17:00", end: "09:00" },
+    "6": { enabled: true, start: "00:00", end: "23:59" },
+  });
 
   // BMLC-specific fields
   const [emergencyContactName, setEmergencyContactName] = useState("");
@@ -106,12 +113,11 @@ export default function OwnerSettingsPage({
           ? data.hoa_after_hours_email.split(",").map((e: string) => e.trim()).filter(Boolean)
           : []
       );
-      const sched = data.hoa_after_hours_schedule as { enabled: boolean; timezone: string; start: string; end: string } | null;
+      const sched = data.hoa_after_hours_schedule as { enabled: boolean; timezone: string; days?: Record<string, { enabled: boolean; start: string; end: string }> } | null;
       if (sched) {
         setAfterHoursEnabled(sched.enabled ?? false);
         setAfterHoursTimezone(sched.timezone ?? "America/New_York");
-        setAfterHoursStart(sched.start ?? "17:00");
-        setAfterHoursEnd(sched.end ?? "09:00");
+        if (sched.days) setAfterHoursDays(sched.days);
       }
       if (data.owner_signature_url) {
         const res = await fetch(`/api/admin/signature-url?path=${encodeURIComponent(data.owner_signature_url)}`);
@@ -149,7 +155,7 @@ export default function OwnerSettingsPage({
       hoa_submission_email: hoaEmails.length > 0 ? hoaEmails.join(", ") : null,
       hoa_after_hours_email: afterHoursEmails.length > 0 ? afterHoursEmails.join(", ") : null,
       hoa_after_hours_schedule: afterHoursEmails.length > 0
-        ? { enabled: afterHoursEnabled, timezone: afterHoursTimezone, start: afterHoursStart, end: afterHoursEnd }
+        ? { enabled: afterHoursEnabled, timezone: afterHoursTimezone, days: afterHoursDays }
         : null,
       emergency_contact_name: emergencyContactName.trim() || null,
       emergency_contact_relationship: emergencyContactRelationship.trim() || null,
@@ -465,8 +471,8 @@ export default function OwnerSettingsPage({
                     <span className="text-sm font-medium">Enable after-hours schedule</span>
                   </label>
                   {afterHoursEnabled && (
-                    <div className="grid grid-cols-3 gap-3">
-                      <div className="space-y-1">
+                    <div className="space-y-3">
+                      <div className="space-y-1 w-48">
                         <Label className="text-xs">Timezone</Label>
                         <Select value={afterHoursTimezone} onValueChange={(v) => setAfterHoursTimezone(v ?? "America/New_York")}>
                           <SelectTrigger className="h-8 text-xs">
@@ -483,31 +489,52 @@ export default function OwnerSettingsPage({
                           </SelectContent>
                         </Select>
                       </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs">After hours start</Label>
-                        <Input
-                          type="time"
-                          value={afterHoursStart}
-                          onChange={(e) => setAfterHoursStart(e.target.value)}
-                          className="h-8 text-xs"
-                        />
+                      <div className="border rounded-md overflow-hidden">
+                        <div className="grid grid-cols-[6rem_2rem_1fr_1fr] items-center gap-x-3 px-3 py-1.5 bg-muted/50 border-b">
+                          <span className="text-xs font-medium text-muted-foreground">Day</span>
+                          <span />
+                          <span className="text-xs font-medium text-muted-foreground">Start</span>
+                          <span className="text-xs font-medium text-muted-foreground">End</span>
+                        </div>
+                        {(["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"] as const).map((name, i) => {
+                          const key = String(i);
+                          const day = afterHoursDays[key] ?? { enabled: true, start: "17:00", end: "09:00" };
+                          return (
+                            <div key={key} className="grid grid-cols-[6rem_2rem_1fr_1fr] items-center gap-x-3 px-3 py-1.5 border-b last:border-b-0">
+                              <span className="text-xs">{name}</span>
+                              <input
+                                type="checkbox"
+                                checked={day.enabled}
+                                onChange={(e) => setAfterHoursDays({ ...afterHoursDays, [key]: { ...day, enabled: e.target.checked } })}
+                              />
+                              <Input
+                                type="time"
+                                value={day.start}
+                                disabled={!day.enabled}
+                                onChange={(e) => setAfterHoursDays({ ...afterHoursDays, [key]: { ...day, start: e.target.value } })}
+                                className="h-7 text-xs"
+                              />
+                              <Input
+                                type="time"
+                                value={day.end}
+                                disabled={!day.enabled}
+                                onChange={(e) => setAfterHoursDays({ ...afterHoursDays, [key]: { ...day, end: e.target.value } })}
+                                className="h-7 text-xs"
+                              />
+                            </div>
+                          );
+                        })}
                       </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs">After hours end</Label>
-                        <Input
-                          type="time"
-                          value={afterHoursEnd}
-                          onChange={(e) => setAfterHoursEnd(e.target.value)}
-                          className="h-8 text-xs"
-                        />
-                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        After-hours emails are CC'd when a registration is submitted during an active window. Times wrap midnight (e.g. 17:00–09:00 means 5 PM to 9 AM).
+                      </p>
                     </div>
                   )}
-                  <p className="text-xs text-muted-foreground">
-                    {afterHoursEnabled
-                      ? `After-hours emails will be CC'd on registrations submitted between ${afterHoursStart} and ${afterHoursEnd} (${afterHoursTimezone.split("/")[1]?.replace("_", " ")}).`
-                      : "After-hours emails will always be CC'd (no schedule restriction)."}
-                  </p>
+                  {!afterHoursEnabled && (
+                    <p className="text-xs text-muted-foreground">
+                      After-hours emails will always be CC'd alongside the regular HOA emails.
+                    </p>
+                  )}
                 </div>
               )}
             </div>
