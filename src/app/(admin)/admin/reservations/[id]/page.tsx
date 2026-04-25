@@ -1006,15 +1006,7 @@ export default function ReservationDetailPage() {
               </div>
 
               {/* EXIF data */}
-              {selectedPhoto.photo.exif && Object.keys(selectedPhoto.photo.exif).length > 0 ? (
-                <PhotoExifPanel exif={selectedPhoto.photo.exif} url={selectedPhoto.url} uploadedAt={selectedPhoto.photo.uploaded_at} />
-              ) : (
-                <div className="text-sm text-muted-foreground space-y-1">
-                  <p className="font-medium text-foreground text-xs uppercase tracking-wide">Photo info</p>
-                  <p>Uploaded {new Date(selectedPhoto.photo.uploaded_at).toLocaleString()}</p>
-                  <p>No EXIF data available.</p>
-                </div>
-              )}
+              <PhotoExifPanel exif={selectedPhoto.photo.exif ?? {}} url={selectedPhoto.url} uploadedAt={selectedPhoto.photo.uploaded_at} />
             </div>
           )}
         </DialogContent>
@@ -1167,86 +1159,111 @@ function Row({ label, value }: { label: string; value: string }) {
   );
 }
 
+function ExifRow({ label, value }: { label: string; value: string | number | undefined | null }) {
+  if (value == null) return null;
+  return (
+    <div className="flex items-center justify-between gap-4 px-3 py-2">
+      <span className="text-muted-foreground shrink-0">{label}</span>
+      <span className="text-right text-sm break-all">{String(value)}</span>
+    </div>
+  );
+}
+
 function PhotoExifPanel({ exif, url, uploadedAt }: { exif: CleaningPhotoExif; url: string; uploadedAt: string }) {
-  function formatFileSize(bytes: number) {
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  }
+  const formatBytes = (b: number) => b < 1024 * 1024 ? `${(b / 1024).toFixed(0)} KB` : `${(b / (1024 * 1024)).toFixed(1)} MB`;
 
-  const rows: { label: string; value: React.ReactNode }[] = [];
-
-  rows.push({ label: "Uploaded", value: new Date(uploadedAt).toLocaleString() });
-
-  if (exif.taken_at) rows.push({ label: "Taken", value: new Date(exif.taken_at).toLocaleString() });
-  if (exif.device_name) rows.push({ label: "Device", value: exif.device_name });
-  if (exif.camera) rows.push({ label: "Camera", value: exif.camera });
-  if (exif.lens) rows.push({ label: "Lens", value: exif.lens });
-  if (exif.width && exif.height) rows.push({ label: "Resolution", value: `${exif.width} × ${exif.height}` });
-  if (exif.iso) rows.push({ label: "ISO", value: String(exif.iso) });
-  if (exif.aperture) rows.push({ label: "Aperture", value: `f/${exif.aperture}` });
-  if (exif.shutter_speed) rows.push({ label: "Shutter speed", value: exif.shutter_speed });
-  if (exif.focal_length) rows.push({ label: "Focal length", value: exif.focal_length });
-  if (exif.flash) rows.push({ label: "Flash", value: exif.flash });
-  if (exif.white_balance) rows.push({ label: "White balance", value: exif.white_balance });
-  if (exif.exposure_mode) rows.push({ label: "Exposure mode", value: exif.exposure_mode });
-  if (exif.scene_type) rows.push({ label: "Scene type", value: exif.scene_type });
-  if (exif.color_space) rows.push({ label: "Color space", value: exif.color_space });
-  if (exif.software) rows.push({ label: "Software", value: exif.software });
-  if (exif.os) rows.push({ label: "OS", value: exif.os });
-  if (exif.browser) rows.push({ label: "Browser", value: exif.browser });
-  if (exif.file_type) rows.push({ label: "File type", value: exif.file_type });
-  if (exif.file_size) rows.push({ label: "File size", value: formatFileSize(exif.file_size) });
-  if (exif.orientation) rows.push({ label: "Orientation", value: String(exif.orientation) });
-  if (exif.altitude != null) rows.push({ label: "Altitude", value: `${exif.altitude.toFixed(1)} m` });
-
-  if (exif.latitude != null && exif.longitude != null) {
-    rows.push({
-      label: "Location",
-      value: (
-        <a
-          href={`https://maps.google.com/?q=${exif.latitude},${exif.longitude}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 text-primary hover:underline"
-        >
-          <MapPin className="h-3 w-3" />
-          {exif.latitude.toFixed(6)}, {exif.longitude.toFixed(6)}
-        </a>
-      ),
-    });
-  }
-
-  if (exif.source) {
-    rows.push({
-      label: "EXIF source",
-      value: (
-        <Badge variant="secondary" className="text-xs capitalize">{exif.source}</Badge>
-      ),
-    });
-  }
+  const hasLocation = exif.latitude != null && exif.longitude != null;
+  const hasCameraData = exif.camera || exif.lens || exif.iso || exif.aperture || exif.shutter_speed || exif.focal_length || exif.flash || exif.exposure_mode || exif.white_balance || exif.scene_type || exif.software;
+  const hasImageData = (exif.width && exif.height) || exif.color_space || exif.orientation || exif.file_type || exif.file_size;
+  const hasUploadContext = exif.device_name || exif.os || exif.browser;
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">EXIF &amp; Photo Details</p>
+        {exif.source && (
+          <Badge variant="secondary" className="text-xs capitalize">
+            {exif.source === "exif" ? "From photo EXIF" : exif.source === "mixed" ? "EXIF + Browser" : "Captured by browser"}
+          </Badge>
+        )}
         <a
           href={url}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
+          className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1 ml-auto"
         >
           <ExternalLink className="h-3 w-3" /> Open original
         </a>
       </div>
-      <div className="rounded-lg border divide-y text-sm">
-        {rows.map(({ label, value }) => (
-          <div key={label} className="flex items-center justify-between gap-4 px-3 py-2">
-            <span className="text-muted-foreground shrink-0">{label}</span>
-            <span className="text-right">{value}</span>
-          </div>
-        ))}
+
+      {/* Date & Location */}
+      <div>
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Date &amp; Location</p>
+        <div className="rounded-lg border divide-y text-sm">
+          <ExifRow label="Uploaded" value={new Date(uploadedAt).toLocaleString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" })} />
+          <ExifRow label="Taken" value={exif.taken_at ? new Date(exif.taken_at).toLocaleString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit", second: "2-digit" }) : null} />
+          <ExifRow label="Altitude" value={exif.altitude != null ? `${exif.altitude.toFixed(1)} m` : null} />
+          {hasLocation && (
+            <div className="flex items-center justify-between gap-4 px-3 py-2">
+              <span className="text-muted-foreground shrink-0">Location</span>
+              <a
+                href={`https://maps.google.com/?q=${exif.latitude},${exif.longitude}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-primary hover:underline text-sm"
+              >
+                <MapPin className="h-3 w-3" />
+                {exif.latitude!.toFixed(6)}, {exif.longitude!.toFixed(6)}
+              </a>
+            </div>
+          )}
+        </div>
       </div>
+
+      {/* Camera */}
+      {hasCameraData && (
+        <div>
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Camera</p>
+          <div className="rounded-lg border divide-y text-sm">
+            <ExifRow label="Device" value={exif.camera} />
+            <ExifRow label="Lens" value={exif.lens} />
+            <ExifRow label="ISO" value={exif.iso} />
+            <ExifRow label="Aperture" value={exif.aperture != null ? `f/${exif.aperture}` : null} />
+            <ExifRow label="Shutter speed" value={exif.shutter_speed != null ? `${exif.shutter_speed}s` : null} />
+            <ExifRow label="Focal length" value={exif.focal_length} />
+            <ExifRow label="Flash" value={exif.flash} />
+            <ExifRow label="Exposure mode" value={exif.exposure_mode} />
+            <ExifRow label="White balance" value={exif.white_balance} />
+            <ExifRow label="Scene type" value={exif.scene_type} />
+            <ExifRow label="Software" value={exif.software} />
+          </div>
+        </div>
+      )}
+
+      {/* Image */}
+      {hasImageData && (
+        <div>
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Image</p>
+          <div className="rounded-lg border divide-y text-sm">
+            <ExifRow label="Resolution" value={exif.width && exif.height ? `${exif.width} × ${exif.height}` : null} />
+            <ExifRow label="Color space" value={exif.color_space} />
+            <ExifRow label="Orientation" value={exif.orientation} />
+            <ExifRow label="File type" value={exif.file_type} />
+            <ExifRow label="File size" value={exif.file_size ? formatBytes(exif.file_size) : null} />
+          </div>
+        </div>
+      )}
+
+      {/* Upload context */}
+      {hasUploadContext && (
+        <div>
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Upload Context</p>
+          <div className="rounded-lg border divide-y text-sm">
+            <ExifRow label="Device" value={exif.device_name} />
+            <ExifRow label="OS" value={exif.os} />
+            <ExifRow label="Browser" value={exif.browser} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
