@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +15,12 @@ import {
   SheetTitle,
   SheetDescription,
 } from "@/components/ui/sheet";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   ArrowLeft,
   Pencil,
@@ -40,9 +46,10 @@ import {
   User,
   Sparkles,
   Check,
+  MapPin,
 } from "lucide-react";
 import { EditRegistrationDialog } from "@/components/admin/edit-registration-dialog";
-import type { GuestListEntry, PetEntry, UpsellEntry, CleaningPhoto, CleaningChecklistItem, InvoiceLineItem, InvoiceStatus } from "@/types/database";
+import type { GuestListEntry, PetEntry, UpsellEntry, CleaningPhoto, CleaningPhotoExif, CleaningChecklistItem, InvoiceLineItem, InvoiceStatus } from "@/types/database";
 import { ReceiptText } from "lucide-react";
 
 type FullRegistration = {
@@ -157,6 +164,8 @@ export default function ReservationDetailPage() {
   const [cleaning, setCleaning] = useState<CleaningStatus | null>(null);
   const [prevCleaning, setPrevCleaning] = useState<CleaningStatus | null>(null);
   const [photoUrls, setPhotoUrls] = useState<Record<string, string>>({});
+  const [currentPhotoUrls, setCurrentPhotoUrls] = useState<Record<string, string>>({});
+  const [selectedPhoto, setSelectedPhoto] = useState<{ photo: CleaningPhoto; url: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [editOpen, setEditOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -202,6 +211,19 @@ export default function ReservationDetailPage() {
         .eq("registration_id", id)
         .maybeSingle();
       setCleaning(cleaningData);
+
+      // Fetch signed URLs for current cleaning photos
+      if (cleaningData?.photos?.length) {
+        const res = await fetch(`/api/admin/cleaning-photos?registration_id=${id}`);
+        if (res.ok) {
+          const data = await res.json();
+          const urls: Record<string, string> = {};
+          for (const photo of data.cleaning?.photos ?? []) {
+            if (photo.url) urls[photo.path] = photo.url;
+          }
+          setCurrentPhotoUrls(urls);
+        }
+      }
 
       // Fetch previous reservation's cleaning (photos from the turnover before this guest's check-in)
       const { data: prevRegs } = await supabase
@@ -830,7 +852,7 @@ export default function ReservationDetailPage() {
 
         {/* Cleaning Photos Tab */}
         <TabsContent value="cleaning" className="space-y-6 mt-4">
-          {/* Current reservation cleaning status */}
+          {/* Current reservation — Post-Stay Cleaning */}
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-base flex items-center gap-2">
@@ -839,10 +861,49 @@ export default function ReservationDetailPage() {
             </CardHeader>
             <CardContent>
               {cleaning ? (
-                <div className="space-y-2 text-sm">
+                <div className="space-y-4 text-sm">
                   <Row label="Status" value={cleaning.is_cleaned ? "Cleaned" : "Pending"} />
                   {cleaning.cleaned_at && <Row label="Cleaned at" value={new Date(cleaning.cleaned_at).toLocaleString()} />}
                   {cleaning.notes && <Row label="Notes" value={cleaning.notes} />}
+                  {cleaning.photos && cleaning.photos.length > 0 && (
+                    <div className="space-y-4 pt-2">
+                      {Object.entries(
+                        cleaning.photos.reduce<Record<string, CleaningPhoto[]>>((acc, photo) => {
+                          const room = photo.room || "Other";
+                          if (!acc[room]) acc[room] = [];
+                          acc[room].push(photo);
+                          return acc;
+                        }, {})
+                      ).map(([room, photos]) => (
+                        <div key={room}>
+                          <h4 className="text-sm font-medium mb-2">{room}</h4>
+                          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                            {photos.map((photo) => (
+                              <button
+                                key={photo.path}
+                                type="button"
+                                onClick={() => currentPhotoUrls[photo.path] && setSelectedPhoto({ photo, url: currentPhotoUrls[photo.path] })}
+                                className="block aspect-square rounded-lg overflow-hidden bg-muted hover:ring-2 ring-primary transition-all cursor-pointer"
+                              >
+                                {currentPhotoUrls[photo.path] ? (
+                                  // eslint-disable-next-line @next/next/no-img-element
+                                  <img
+                                    src={currentPhotoUrls[photo.path]}
+                                    alt={`${room} cleaning photo`}
+                                    className="w-full h-full object-cover"
+                                  />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                                    <Camera className="h-6 w-6" />
+                                  </div>
+                                )}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ) : (
                 <p className="text-sm text-muted-foreground">No cleaning record yet.</p>
@@ -861,7 +922,6 @@ export default function ReservationDetailPage() {
             <CardContent>
               {prevCleaning?.photos && prevCleaning.photos.length > 0 ? (
                 <div className="space-y-4">
-                  {/* Group photos by room */}
                   {Object.entries(
                     prevCleaning.photos.reduce<Record<string, CleaningPhoto[]>>((acc, photo) => {
                       const room = photo.room || "Other";
@@ -874,12 +934,11 @@ export default function ReservationDetailPage() {
                       <h4 className="text-sm font-medium mb-2">{room}</h4>
                       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                         {photos.map((photo) => (
-                          <a
+                          <button
                             key={photo.path}
-                            href={photoUrls[photo.path] || "#"}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="block aspect-square rounded-lg overflow-hidden bg-muted hover:ring-2 ring-primary transition-all"
+                            type="button"
+                            onClick={() => photoUrls[photo.path] && setSelectedPhoto({ photo, url: photoUrls[photo.path] })}
+                            className="block aspect-square rounded-lg overflow-hidden bg-muted hover:ring-2 ring-primary transition-all cursor-pointer"
                           >
                             {photoUrls[photo.path] ? (
                               // eslint-disable-next-line @next/next/no-img-element
@@ -893,7 +952,7 @@ export default function ReservationDetailPage() {
                                 <Camera className="h-6 w-6" />
                               </div>
                             )}
-                          </a>
+                          </button>
                         ))}
                       </div>
                     </div>
@@ -913,6 +972,44 @@ export default function ReservationDetailPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Photo EXIF Dialog */}
+      <Dialog open={!!selectedPhoto} onOpenChange={(open) => !open && setSelectedPhoto(null)}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-base">
+              {selectedPhoto?.photo.room || "Photo"}
+              {selectedPhoto?.photo.note && (
+                <span className="ml-2 text-sm font-normal text-muted-foreground">{selectedPhoto.photo.note}</span>
+              )}
+            </DialogTitle>
+          </DialogHeader>
+          {selectedPhoto && (
+            <div className="space-y-4">
+              {/* Full image */}
+              <div className="rounded-lg overflow-hidden bg-muted">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={selectedPhoto.url}
+                  alt={selectedPhoto.photo.room}
+                  className="w-full object-contain max-h-[50vh]"
+                />
+              </div>
+
+              {/* EXIF data */}
+              {selectedPhoto.photo.exif && Object.keys(selectedPhoto.photo.exif).length > 0 ? (
+                <PhotoExifPanel exif={selectedPhoto.photo.exif} url={selectedPhoto.url} uploadedAt={selectedPhoto.photo.uploaded_at} />
+              ) : (
+                <div className="text-sm text-muted-foreground space-y-1">
+                  <p className="font-medium text-foreground text-xs uppercase tracking-wide">Photo info</p>
+                  <p>Uploaded {new Date(selectedPhoto.photo.uploaded_at).toLocaleString()}</p>
+                  <p>No EXIF data available.</p>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Edit Dialog */}
       <EditRegistrationDialog
@@ -1057,6 +1154,90 @@ function Row({ label, value }: { label: string; value: string }) {
     <div className="flex justify-between gap-4">
       <span className="text-muted-foreground shrink-0">{label}</span>
       <span className="text-right">{value}</span>
+    </div>
+  );
+}
+
+function PhotoExifPanel({ exif, url, uploadedAt }: { exif: CleaningPhotoExif; url: string; uploadedAt: string }) {
+  function formatFileSize(bytes: number) {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
+
+  const rows: { label: string; value: React.ReactNode }[] = [];
+
+  rows.push({ label: "Uploaded", value: new Date(uploadedAt).toLocaleString() });
+
+  if (exif.taken_at) rows.push({ label: "Taken", value: new Date(exif.taken_at).toLocaleString() });
+  if (exif.device_name) rows.push({ label: "Device", value: exif.device_name });
+  if (exif.camera) rows.push({ label: "Camera", value: exif.camera });
+  if (exif.lens) rows.push({ label: "Lens", value: exif.lens });
+  if (exif.width && exif.height) rows.push({ label: "Resolution", value: `${exif.width} × ${exif.height}` });
+  if (exif.iso) rows.push({ label: "ISO", value: String(exif.iso) });
+  if (exif.aperture) rows.push({ label: "Aperture", value: `f/${exif.aperture}` });
+  if (exif.shutter_speed) rows.push({ label: "Shutter speed", value: exif.shutter_speed });
+  if (exif.focal_length) rows.push({ label: "Focal length", value: exif.focal_length });
+  if (exif.flash) rows.push({ label: "Flash", value: exif.flash });
+  if (exif.white_balance) rows.push({ label: "White balance", value: exif.white_balance });
+  if (exif.exposure_mode) rows.push({ label: "Exposure mode", value: exif.exposure_mode });
+  if (exif.scene_type) rows.push({ label: "Scene type", value: exif.scene_type });
+  if (exif.color_space) rows.push({ label: "Color space", value: exif.color_space });
+  if (exif.software) rows.push({ label: "Software", value: exif.software });
+  if (exif.os) rows.push({ label: "OS", value: exif.os });
+  if (exif.browser) rows.push({ label: "Browser", value: exif.browser });
+  if (exif.file_type) rows.push({ label: "File type", value: exif.file_type });
+  if (exif.file_size) rows.push({ label: "File size", value: formatFileSize(exif.file_size) });
+  if (exif.orientation) rows.push({ label: "Orientation", value: String(exif.orientation) });
+  if (exif.altitude != null) rows.push({ label: "Altitude", value: `${exif.altitude.toFixed(1)} m` });
+
+  if (exif.latitude != null && exif.longitude != null) {
+    rows.push({
+      label: "Location",
+      value: (
+        <a
+          href={`https://maps.google.com/?q=${exif.latitude},${exif.longitude}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 text-primary hover:underline"
+        >
+          <MapPin className="h-3 w-3" />
+          {exif.latitude.toFixed(6)}, {exif.longitude.toFixed(6)}
+        </a>
+      ),
+    });
+  }
+
+  if (exif.source) {
+    rows.push({
+      label: "EXIF source",
+      value: (
+        <Badge variant="secondary" className="text-xs capitalize">{exif.source}</Badge>
+      ),
+    });
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">EXIF &amp; Photo Details</p>
+        <a
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
+        >
+          <ExternalLink className="h-3 w-3" /> Open original
+        </a>
+      </div>
+      <div className="rounded-lg border divide-y text-sm">
+        {rows.map(({ label, value }) => (
+          <div key={label} className="flex items-center justify-between gap-4 px-3 py-2">
+            <span className="text-muted-foreground shrink-0">{label}</span>
+            <span className="text-right">{value}</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
