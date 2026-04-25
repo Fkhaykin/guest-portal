@@ -40,6 +40,12 @@ export default function OwnerSettingsPage({
   const [lotSection, setLotSection] = useState("");
   const [hoaEmails, setHoaEmails] = useState<string[]>([]);
   const [hoaEmailInput, setHoaEmailInput] = useState("");
+  const [afterHoursEmails, setAfterHoursEmails] = useState<string[]>([]);
+  const [afterHoursEmailInput, setAfterHoursEmailInput] = useState("");
+  const [afterHoursEnabled, setAfterHoursEnabled] = useState(false);
+  const [afterHoursTimezone, setAfterHoursTimezone] = useState("America/New_York");
+  const [afterHoursStart, setAfterHoursStart] = useState("17:00");
+  const [afterHoursEnd, setAfterHoursEnd] = useState("09:00");
 
   // BMLC-specific fields
   const [emergencyContactName, setEmergencyContactName] = useState("");
@@ -68,7 +74,7 @@ export default function OwnerSettingsPage({
   async function loadProperty() {
     const { data } = await supabase
       .from("property")
-      .select("name, cover_image_url, owner_name, owner_mailing_address, owner_phone, owner_email, lot_section, hoa_submission_email, hoa_type, emergency_contact_name, emergency_contact_relationship, emergency_contact_phone, emergency_contact_phone_2, rental_agent_enabled, rental_agency_name, rental_agency_contact, owner_signature_url, listing_urls")
+      .select("name, cover_image_url, owner_name, owner_mailing_address, owner_phone, owner_email, lot_section, hoa_submission_email, hoa_type, emergency_contact_name, emergency_contact_relationship, emergency_contact_phone, emergency_contact_phone_2, rental_agent_enabled, rental_agency_name, rental_agency_contact, owner_signature_url, listing_urls, hoa_after_hours_email, hoa_after_hours_schedule")
       .eq("id", id)
       .single();
 
@@ -95,6 +101,18 @@ export default function OwnerSettingsPage({
       setRentalAgencyContact(data.rental_agency_contact || "");
       const urls = (data.listing_urls ?? {}) as Record<string, string>;
       setListingUrls(Object.entries(urls).map(([platform, url]) => ({ platform, url })));
+      setAfterHoursEmails(
+        data.hoa_after_hours_email
+          ? data.hoa_after_hours_email.split(",").map((e: string) => e.trim()).filter(Boolean)
+          : []
+      );
+      const sched = data.hoa_after_hours_schedule as { enabled: boolean; timezone: string; start: string; end: string } | null;
+      if (sched) {
+        setAfterHoursEnabled(sched.enabled ?? false);
+        setAfterHoursTimezone(sched.timezone ?? "America/New_York");
+        setAfterHoursStart(sched.start ?? "17:00");
+        setAfterHoursEnd(sched.end ?? "09:00");
+      }
       if (data.owner_signature_url) {
         const res = await fetch(`/api/admin/signature-url?path=${encodeURIComponent(data.owner_signature_url)}`);
         if (res.ok) {
@@ -129,6 +147,10 @@ export default function OwnerSettingsPage({
       owner_email: ownerEmail.trim().toLowerCase() || null,
       lot_section: lotSection.trim() || null,
       hoa_submission_email: hoaEmails.length > 0 ? hoaEmails.join(", ") : null,
+      hoa_after_hours_email: afterHoursEmails.length > 0 ? afterHoursEmails.join(", ") : null,
+      hoa_after_hours_schedule: afterHoursEmails.length > 0
+        ? { enabled: afterHoursEnabled, timezone: afterHoursTimezone, start: afterHoursStart, end: afterHoursEnd }
+        : null,
       emergency_contact_name: emergencyContactName.trim() || null,
       emergency_contact_relationship: emergencyContactRelationship.trim() || null,
       emergency_contact_phone: emergencyContactPhone.trim() || null,
@@ -373,6 +395,121 @@ export default function OwnerSettingsPage({
               <p className="text-xs text-muted-foreground">
                 The generated PDF will be emailed to all addresses after each guest registration or update. Press Enter or comma to add.
               </p>
+            </div>
+
+            <div className="border-t pt-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium">After Hours Emails</p>
+                  <p className="text-xs text-muted-foreground">Additional recipients during after-hours window</p>
+                </div>
+              </div>
+              {afterHoursEmails.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {afterHoursEmails.map((email, idx) => (
+                    <Badge key={idx} variant="secondary" className="gap-1 pr-1">
+                      {email}
+                      <button
+                        type="button"
+                        onClick={() => setAfterHoursEmails(afterHoursEmails.filter((_, i) => i !== idx))}
+                        className="rounded-full hover:bg-muted p-0.5"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
+              )}
+              <div className="flex gap-2">
+                <Input
+                  type="text"
+                  inputMode="email"
+                  value={afterHoursEmailInput}
+                  onChange={(e) => setAfterHoursEmailInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === ",") {
+                      e.preventDefault();
+                      const val = afterHoursEmailInput.trim().toLowerCase();
+                      if (val && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val) && !afterHoursEmails.includes(val)) {
+                        setAfterHoursEmails([...afterHoursEmails, val]);
+                        setAfterHoursEmailInput("");
+                      }
+                    }
+                  }}
+                  placeholder="oncall@pepoa.org"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const val = afterHoursEmailInput.trim().toLowerCase();
+                    if (val && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val) && !afterHoursEmails.includes(val)) {
+                      setAfterHoursEmails([...afterHoursEmails, val]);
+                      setAfterHoursEmailInput("");
+                    }
+                  }}
+                >
+                  <Plus className="h-4 w-4 mr-1" /> Add
+                </Button>
+              </div>
+
+              {afterHoursEmails.length > 0 && (
+                <div className="space-y-3 pt-1">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={afterHoursEnabled}
+                      onChange={(e) => setAfterHoursEnabled(e.target.checked)}
+                    />
+                    <span className="text-sm font-medium">Enable after-hours schedule</span>
+                  </label>
+                  {afterHoursEnabled && (
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="space-y-1">
+                        <Label className="text-xs">Timezone</Label>
+                        <Select value={afterHoursTimezone} onValueChange={(v) => setAfterHoursTimezone(v ?? "America/New_York")}>
+                          <SelectTrigger className="h-8 text-xs">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="America/New_York">Eastern (ET)</SelectItem>
+                            <SelectItem value="America/Chicago">Central (CT)</SelectItem>
+                            <SelectItem value="America/Denver">Mountain (MT)</SelectItem>
+                            <SelectItem value="America/Los_Angeles">Pacific (PT)</SelectItem>
+                            <SelectItem value="America/Phoenix">Arizona (AZ)</SelectItem>
+                            <SelectItem value="America/Anchorage">Alaska (AK)</SelectItem>
+                            <SelectItem value="Pacific/Honolulu">Hawaii (HI)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">After hours start</Label>
+                        <Input
+                          type="time"
+                          value={afterHoursStart}
+                          onChange={(e) => setAfterHoursStart(e.target.value)}
+                          className="h-8 text-xs"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">After hours end</Label>
+                        <Input
+                          type="time"
+                          value={afterHoursEnd}
+                          onChange={(e) => setAfterHoursEnd(e.target.value)}
+                          className="h-8 text-xs"
+                        />
+                      </div>
+                    </div>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    {afterHoursEnabled
+                      ? `After-hours emails will be CC'd on registrations submitted between ${afterHoursStart} and ${afterHoursEnd} (${afterHoursTimezone.split("/")[1]?.replace("_", " ")}).`
+                      : "After-hours emails will always be CC'd (no schedule restriction)."}
+                  </p>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
