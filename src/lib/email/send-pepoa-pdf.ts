@@ -6,6 +6,7 @@ function getResend() {
 
 export async function sendPEPOAPDF({
   to,
+  cc: extraCc = [],
   pdfBuffer,
   guestName,
   lotSection,
@@ -18,6 +19,7 @@ export async function sendPEPOAPDF({
   changeSummary,
 }: {
   to: string | string[];
+  cc?: string[];
   pdfBuffer: Buffer;
   guestName: string;
   lotSection: string;
@@ -36,8 +38,8 @@ export async function sendPEPOAPDF({
   const fromEmail = "contact@summitlakeside.com";
   const originalMessageId = `<pepoa-${registrationId}@summitlakeside.com>`;
 
-  const cc: string[] = [];
-  if (ownerEmail && ownerEmail.toLowerCase() !== fromEmail.toLowerCase()) {
+  const cc: string[] = [...extraCc];
+  if (ownerEmail && ownerEmail.toLowerCase() !== fromEmail.toLowerCase() && !cc.includes(ownerEmail.toLowerCase())) {
     cc.push(ownerEmail);
   }
 

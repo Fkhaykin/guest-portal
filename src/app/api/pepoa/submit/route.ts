@@ -71,15 +71,17 @@ export async function POST(request: Request) {
   if (hoaEmailRaw) {
     const hoaEmail = hoaEmailRaw.split(",").map((e) => e.trim()).filter(Boolean);
 
-    // Include after-hours emails if configured and current time is within the window
+    // After-hours emails go in CC (not To) when the window is active
+    const afterHoursCc: string[] = [];
     const afterHoursEmailRaw = data.property.hoa_after_hours_email as string | null;
     if (afterHoursEmailRaw) {
       const afterHoursEmails = afterHoursEmailRaw.split(",").map((e) => e.trim()).filter(Boolean);
       const sched = data.property.hoa_after_hours_schedule as { enabled: boolean; timezone: string; days: Record<string, { enabled: boolean; start: string; end: string }> } | null;
       if (afterHoursEmails.length > 0 && (!sched || !sched.enabled || isAfterHours(sched))) {
-        afterHoursEmails.forEach((e) => { if (!hoaEmail.includes(e)) hoaEmail.push(e); });
+        afterHoursEmails.forEach((e) => { if (!hoaEmail.includes(e)) afterHoursCc.push(e); });
       }
     }
+
     try {
       const lotSection = (data.property.lot_section as string) || "N/A";
       const hoaType = (data.property.hoa_type as string) || "pepoa";
@@ -89,6 +91,7 @@ export async function POST(request: Request) {
 
       await sendPEPOAPDF({
         to: hoaEmail,
+        cc: afterHoursCc,
         pdfBuffer,
         guestName: (data.guest.full_name as string) || "Guest",
         lotSection,
@@ -104,7 +107,7 @@ export async function POST(request: Request) {
       const adminDb = createAdminClient();
       await adminDb.from("email_send_log").insert({
         registration_id,
-        sent_to: hoaEmail,
+        sent_to: [...hoaEmail, ...afterHoursCc],
         subject,
         body_summary: change_summary || null,
         email_type: "pepoa",
