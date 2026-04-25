@@ -24,6 +24,7 @@ export default function OwnerSettingsPage({
 }) {
   const { id } = use(params);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -79,7 +80,7 @@ export default function OwnerSettingsPage({
   }, [id]);
 
   async function loadProperty() {
-    const { data } = await supabase
+    const { data, error: loadErr } = await supabase
       .from("property")
       .select("name, cover_image_url, owner_name, owner_mailing_address, owner_phone, owner_email, lot_section, hoa_submission_email, hoa_type, emergency_contact_name, emergency_contact_relationship, emergency_contact_phone, emergency_contact_phone_2, rental_agent_enabled, rental_agency_name, rental_agency_contact, owner_signature_url, listing_urls, hoa_after_hours_email, hoa_after_hours_schedule")
       .eq("id", id)
@@ -127,6 +128,7 @@ export default function OwnerSettingsPage({
         }
       }
     }
+    if (loadErr || !data) setLoadError(true);
     setLoading(false);
   }
 
@@ -141,6 +143,7 @@ export default function OwnerSettingsPage({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (loadError) return;
     setSaving(true);
     setError(null);
     setSaved(false);
@@ -202,6 +205,10 @@ export default function OwnerSettingsPage({
 
   if (loading) {
     return <div className="animate-pulse space-y-4"><div className="h-8 bg-muted rounded w-48" /><div className="h-64 bg-muted rounded" /></div>;
+  }
+
+  if (loadError) {
+    return <p className="text-sm text-destructive">Failed to load property settings. Please refresh or contact support.</p>;
   }
 
   return (
