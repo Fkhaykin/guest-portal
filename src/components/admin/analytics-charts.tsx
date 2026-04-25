@@ -155,10 +155,16 @@ type BucketReservation = {
   lodgifyBookingId: number | null;
 };
 
+type CleanerInvoice = {
+  periodStart: string;
+  totalCents: number;
+};
+
 type ApiData = {
   properties: { id: string; name: string }[];
   registrations: Registration[];
   qrScans: number;
+  cleanerInvoices: CleanerInvoice[];
 };
 
 // ─── Helpers ─────────────────────────────────────────────────
@@ -548,7 +554,15 @@ export function AnalyticsCharts() {
       const key = toBucketKey(r.checkIn, groupBy);
       if (!revProfitBuckets[key]) revProfitBuckets[key] = { revenue: 0, cleaningCost: 0 };
       revProfitBuckets[key].revenue += r.amount;
-      revProfitBuckets[key].cleaningCost += r.cleaningFeeCents;
+    }
+    // Bucket approved/paid cleaner invoices by their period_start date
+    for (const inv of (raw.cleanerInvoices ?? [])) {
+      const d = parseDate(inv.periodStart);
+      if (rangeFrom && d < rangeFrom) continue;
+      if (rangeTo && d > rangeTo) continue;
+      const key = toBucketKey(inv.periodStart, groupBy);
+      if (!revProfitBuckets[key]) revProfitBuckets[key] = { revenue: 0, cleaningCost: 0 };
+      revProfitBuckets[key].cleaningCost += inv.totalCents;
     }
     const revProfitKeys = Object.keys(revProfitBuckets).sort();
     const revenueProfitOverTime = revProfitKeys.map((key) => ({

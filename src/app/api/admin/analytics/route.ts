@@ -65,6 +65,12 @@ export async function GET() {
 
   const qrScans = (qrCodes ?? []).reduce((sum, q) => sum + q.scan_count, 0);
 
+  const { data: cleanerInvoices } = await supabase
+    .from("cleaner_invoice")
+    .select("period_start, total")
+    .eq("host_id", hostId)
+    .in("status", ["approved", "paid"]);
+
   // Build property fee lookup
   const propertyFees: Record<string, { cleaningFeeCents: number; petFeeCents: number }> = {};
   for (const p of properties) {
@@ -76,6 +82,10 @@ export async function GET() {
 
   return NextResponse.json({
     properties: uniqueProperties,
+    cleanerInvoices: (cleanerInvoices ?? []).map((inv) => ({
+      periodStart: inv.period_start as string,
+      totalCents: inv.total as number,
+    })),
     registrations: (registrations ?? []).map((r) => {
       const fees = propertyFees[r.property_id] ?? { cleaningFeeCents: 0, petFeeCents: 0 };
       const pets = (r.pets as unknown[] | null) ?? [];
