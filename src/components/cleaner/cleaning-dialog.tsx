@@ -331,6 +331,11 @@ export function CleaningDialog({
     Record<string, { total: number; completed: number }>
   >({});
 
+  const [cleanedOnDate, setCleanedOnDate] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  });
+
   // Damage report state
   const [reportDamage, setReportDamage] = useState(false);
   const [damageDescription, setDamageDescription] = useState("");
@@ -552,12 +557,14 @@ export function CleaningDialog({
       room: p.room,
       path: p.path,
       uploaded_at: p.uploaded_at,
+      ...(p.exif && { exif: p.exif }),
       note: notes[p.room] || undefined,
     }));
 
     const body: Record<string, unknown> = {
       registration_id: registrationId,
       is_cleaned: true,
+      cleaned_at: new Date(cleanedOnDate + "T00:00:00").toISOString(),
       photos: photosWithNotes,
     };
 
@@ -887,6 +894,23 @@ export function CleaningDialog({
           </div>
 
           <Separator />
+
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium" htmlFor="cleaned-on-date">
+              Cleaned on
+            </label>
+            <input
+              id="cleaned-on-date"
+              type="date"
+              value={cleanedOnDate}
+              max={(() => {
+                const d = new Date();
+                return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+              })()}
+              onChange={(e) => setCleanedOnDate(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg border text-sm bg-background"
+            />
+          </div>
 
           <Button
             onClick={handleSubmit}

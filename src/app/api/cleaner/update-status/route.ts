@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { validateCleanerSession } from "@/lib/cleaner/auth";
 import { getSessionToken } from "@/lib/cleaner/session";
+import type { CleaningPhotoExif } from "@/types/database";
 
 export async function POST(request: Request) {
   const token = await getSessionToken();
@@ -20,8 +21,9 @@ export async function POST(request: Request) {
     is_skipped?: boolean;
     fulfilled_upsells?: string[];
     checklist?: { room: string; item: string; checked: boolean }[];
-    photos?: { room: string; path: string; uploaded_at: string; note?: string }[];
+    photos?: { room: string; path: string; uploaded_at: string; note?: string; exif?: CleaningPhotoExif }[];
     notes?: string | null;
+    cleaned_at?: string;
     damage_report?: { description: string; photos: string[] };
     pet_report?: { description: string; count: number; labels: string[]; expected_pet_count: number };
   };
@@ -31,7 +33,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { registration_id, is_cleaned, is_skipped, fulfilled_upsells, checklist, photos, notes, damage_report, pet_report } = body;
+  const { registration_id, is_cleaned, is_skipped, fulfilled_upsells, checklist, photos, notes, cleaned_at: providedCleanedAt, damage_report, pet_report } = body;
   if (!registration_id) {
     return NextResponse.json(
       { error: "registration_id is required" },
@@ -86,7 +88,9 @@ export async function POST(request: Request) {
 
   if (is_cleaned !== undefined) {
     payload.is_cleaned = is_cleaned;
-    payload.cleaned_at = is_cleaned ? new Date().toISOString() : null;
+    payload.cleaned_at = is_cleaned
+      ? (providedCleanedAt ?? new Date().toISOString())
+      : null;
   }
 
   if (fulfilled_upsells !== undefined) {
