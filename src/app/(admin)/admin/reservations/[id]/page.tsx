@@ -163,8 +163,8 @@ export default function ReservationDetailPage() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [cleaning, setCleaning] = useState<CleaningStatus | null>(null);
   const [prevCleaning, setPrevCleaning] = useState<CleaningStatus | null>(null);
-  const [photoUrls, setPhotoUrls] = useState<Record<string, string>>({});
-  const [currentPhotoUrls, setCurrentPhotoUrls] = useState<Record<string, string>>({});
+  const [photoData, setPhotoData] = useState<Record<string, CleaningPhoto & { url: string }>>({});
+  const [currentPhotoData, setCurrentPhotoData] = useState<Record<string, CleaningPhoto & { url: string }>>();
   const [selectedPhoto, setSelectedPhoto] = useState<{ photo: CleaningPhoto; url: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [editOpen, setEditOpen] = useState(false);
@@ -217,11 +217,11 @@ export default function ReservationDetailPage() {
         const res = await fetch(`/api/admin/cleaning-photos?registration_id=${id}`);
         if (res.ok) {
           const data = await res.json();
-          const urls: Record<string, string> = {};
+          const map: Record<string, CleaningPhoto & { url: string }> = {};
           for (const photo of data.cleaning?.photos ?? []) {
-            if (photo.url) urls[photo.path] = photo.url;
+            if (photo.url) map[photo.path] = photo;
           }
-          setCurrentPhotoUrls(urls);
+          setCurrentPhotoData(map);
         }
       }
 
@@ -249,11 +249,11 @@ export default function ReservationDetailPage() {
           );
           if (res.ok) {
             const data = await res.json();
-            const urls: Record<string, string> = {};
+            const map: Record<string, CleaningPhoto & { url: string }> = {};
             for (const photo of data.cleaning?.photos ?? []) {
-              if (photo.url) urls[photo.path] = photo.url;
+              if (photo.url) map[photo.path] = photo;
             }
-            setPhotoUrls(urls);
+            setPhotoData(map);
           }
         }
       }
@@ -851,24 +851,86 @@ export default function ReservationDetailPage() {
         </TabsContent>
 
         {/* Cleaning Photos Tab */}
-        <TabsContent value="cleaning" className="space-y-6 mt-4">
-          {/* Current reservation — Post-Stay Cleaning */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center gap-2">
-                <ClipboardCheck className="h-4 w-4" /> Post-Stay Cleaning
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {cleaning ? (
-                <div className="space-y-4 text-sm">
-                  <Row label="Status" value={cleaning.is_cleaned ? "Cleaned" : "Pending"} />
-                  {cleaning.cleaned_at && <Row label="Cleaned at" value={new Date(cleaning.cleaned_at).toLocaleString()} />}
-                  {cleaning.notes && <Row label="Notes" value={cleaning.notes} />}
-                  {cleaning.photos && cleaning.photos.length > 0 && (
-                    <div className="space-y-4 pt-2">
+        <TabsContent value="cleaning" className="mt-4">
+          <Tabs defaultValue="pre">
+            <TabsList>
+              <TabsTrigger value="pre">Pre-Arrival</TabsTrigger>
+              <TabsTrigger value="post">Post-Stay</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="post" className="mt-4">
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <ClipboardCheck className="h-4 w-4" /> Post-Stay Cleaning
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {cleaning ? (
+                    <div className="space-y-4 text-sm">
+                      <Row label="Status" value={cleaning.is_cleaned ? "Cleaned" : "Pending"} />
+                      {cleaning.cleaned_at && <Row label="Cleaned at" value={new Date(cleaning.cleaned_at).toLocaleString()} />}
+                      {cleaning.notes && <Row label="Notes" value={cleaning.notes} />}
+                      {cleaning.photos && cleaning.photos.length > 0 && (
+                        <div className="space-y-4 pt-2">
+                          {Object.entries(
+                            cleaning.photos.reduce<Record<string, CleaningPhoto[]>>((acc, photo) => {
+                              const room = photo.room || "Other";
+                              if (!acc[room]) acc[room] = [];
+                              acc[room].push(photo);
+                              return acc;
+                            }, {})
+                          ).map(([room, photos]) => (
+                            <div key={room}>
+                              <h4 className="text-sm font-medium mb-2">{room}</h4>
+                              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                                {photos.map((photo) => (
+                                  <button
+                                    key={photo.path}
+                                    type="button"
+                                    onClick={() => { const p = currentPhotoData?.[photo.path]; if (p) setSelectedPhoto({ photo: p, url: p.url }); }}
+                                    className="block aspect-square rounded-lg overflow-hidden bg-muted hover:ring-2 ring-primary transition-all cursor-pointer"
+                                  >
+                                    {currentPhotoData?.[photo.path]?.url ? (
+                                      // eslint-disable-next-line @next/next/no-img-element
+                                      <img
+                                        src={currentPhotoData[photo.path].url}
+                                        alt={`${room} cleaning photo`}
+                                        className="w-full h-full object-cover"
+                                      />
+                                    ) : (
+                                      <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                                        <Camera className="h-6 w-6" />
+                                      </div>
+                                    )}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No cleaning record yet.</p>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="pre" className="mt-4">
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Camera className="h-4 w-4" /> Pre-Arrival Cleaning Photos
+                  </CardTitle>
+                  <p className="text-xs text-muted-foreground">Photos from the turnover cleaning before this guest checked in</p>
+                </CardHeader>
+                <CardContent>
+                  {prevCleaning?.photos && prevCleaning.photos.length > 0 ? (
+                    <div className="space-y-4">
                       {Object.entries(
-                        cleaning.photos.reduce<Record<string, CleaningPhoto[]>>((acc, photo) => {
+                        prevCleaning.photos.reduce<Record<string, CleaningPhoto[]>>((acc, photo) => {
                           const room = photo.room || "Other";
                           if (!acc[room]) acc[room] = [];
                           acc[room].push(photo);
@@ -882,13 +944,13 @@ export default function ReservationDetailPage() {
                               <button
                                 key={photo.path}
                                 type="button"
-                                onClick={() => currentPhotoUrls[photo.path] && setSelectedPhoto({ photo, url: currentPhotoUrls[photo.path] })}
+                                onClick={() => { const p = photoData[photo.path]; if (p) setSelectedPhoto({ photo: p, url: p.url }); }}
                                 className="block aspect-square rounded-lg overflow-hidden bg-muted hover:ring-2 ring-primary transition-all cursor-pointer"
                               >
-                                {currentPhotoUrls[photo.path] ? (
+                                {photoData[photo.path]?.url ? (
                                   // eslint-disable-next-line @next/next/no-img-element
                                   <img
-                                    src={currentPhotoUrls[photo.path]}
+                                    src={photoData[photo.path].url}
                                     alt={`${room} cleaning photo`}
                                     className="w-full h-full object-cover"
                                   />
@@ -902,74 +964,21 @@ export default function ReservationDetailPage() {
                           </div>
                         </div>
                       ))}
+                      {prevCleaning.cleaned_at && (
+                        <p className="text-xs text-muted-foreground">
+                          Cleaned on {new Date(prevCleaning.cleaned_at).toLocaleString()}
+                        </p>
+                      )}
                     </div>
-                  )}
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">No cleaning record yet.</p>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Previous reservation cleaning photos (pre-arrival photos) */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Camera className="h-4 w-4" /> Pre-Arrival Cleaning Photos
-              </CardTitle>
-              <p className="text-xs text-muted-foreground">Photos from the turnover cleaning before this guest checked in</p>
-            </CardHeader>
-            <CardContent>
-              {prevCleaning?.photos && prevCleaning.photos.length > 0 ? (
-                <div className="space-y-4">
-                  {Object.entries(
-                    prevCleaning.photos.reduce<Record<string, CleaningPhoto[]>>((acc, photo) => {
-                      const room = photo.room || "Other";
-                      if (!acc[room]) acc[room] = [];
-                      acc[room].push(photo);
-                      return acc;
-                    }, {})
-                  ).map(([room, photos]) => (
-                    <div key={room}>
-                      <h4 className="text-sm font-medium mb-2">{room}</h4>
-                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                        {photos.map((photo) => (
-                          <button
-                            key={photo.path}
-                            type="button"
-                            onClick={() => photoUrls[photo.path] && setSelectedPhoto({ photo, url: photoUrls[photo.path] })}
-                            className="block aspect-square rounded-lg overflow-hidden bg-muted hover:ring-2 ring-primary transition-all cursor-pointer"
-                          >
-                            {photoUrls[photo.path] ? (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img
-                                src={photoUrls[photo.path]}
-                                alt={`${room} cleaning photo`}
-                                className="w-full h-full object-cover"
-                              />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-                                <Camera className="h-6 w-6" />
-                              </div>
-                            )}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                  {prevCleaning.cleaned_at && (
-                    <p className="text-xs text-muted-foreground">
-                      Cleaned on {new Date(prevCleaning.cleaned_at).toLocaleString()}
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      No cleaning photos available for the turnover prior to this reservation.
                     </p>
                   )}
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  No cleaning photos available for the turnover prior to this reservation.
-                </p>
-              )}
-            </CardContent>
-          </Card>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
         </TabsContent>
       </Tabs>
 
