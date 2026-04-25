@@ -71,13 +71,18 @@ export async function POST(request: Request) {
   if (hoaEmailRaw) {
     const hoaEmail = hoaEmailRaw.split(",").map((e) => e.trim()).filter(Boolean);
 
-    // After-hours emails go in CC (not To) when the window is active
+    // After-hours emails go in CC (not To) when the window is active AND check-in is within 2 days
     const afterHoursCc: string[] = [];
     const afterHoursEmailRaw = data.property.hoa_after_hours_email as string | null;
     if (afterHoursEmailRaw) {
       const afterHoursEmails = afterHoursEmailRaw.split(",").map((e) => e.trim()).filter(Boolean);
       const sched = data.property.hoa_after_hours_schedule as { enabled: boolean; timezone: string; days: Record<string, { enabled: boolean; start: string; end: string }> } | null;
-      if (afterHoursEmails.length > 0 && (!sched || !sched.enabled || isAfterHours(sched))) {
+      const checkInDate = data.reg.check_in_date as string | null;
+      const daysUntilCheckIn = checkInDate
+        ? Math.ceil((new Date(checkInDate).getTime() - Date.now()) / 86400000)
+        : Infinity;
+      const withinWindow = !sched || !sched.enabled || isAfterHours(sched);
+      if (afterHoursEmails.length > 0 && withinWindow && daysUntilCheckIn <= 2) {
         afterHoursEmails.forEach((e) => { if (!hoaEmail.includes(e)) afterHoursCc.push(e); });
       }
     }
