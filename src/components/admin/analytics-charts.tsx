@@ -542,6 +542,22 @@ export function AnalyticsCharts() {
       return entry;
     });
 
+    // ── Revenue vs Profit over time ──
+    const revProfitBuckets: Record<string, { revenue: number; cleaningCost: number }> = {};
+    for (const r of regs) {
+      const key = toBucketKey(r.checkIn, groupBy);
+      if (!revProfitBuckets[key]) revProfitBuckets[key] = { revenue: 0, cleaningCost: 0 };
+      revProfitBuckets[key].revenue += r.amount;
+      revProfitBuckets[key].cleaningCost += r.cleaningFeeCents;
+    }
+    const revProfitKeys = Object.keys(revProfitBuckets).sort();
+    const revenueProfitOverTime = revProfitKeys.map((key) => ({
+      bucket: key,
+      "Booking Revenue": revProfitBuckets[key].revenue / 100,
+      "Cleaning Cost": revProfitBuckets[key].cleaningCost / 100,
+      "Profit": (revProfitBuckets[key].revenue - revProfitBuckets[key].cleaningCost) / 100,
+    }));
+
     // Stats
     const totalRevenue = regs.reduce((s, r) => s + r.amount, 0);
     const activeCount = regs.filter((r) => r.status === "active").length;
@@ -562,6 +578,7 @@ export function AnalyticsCharts() {
       addonsOverTime,
       addonTypes,
       addonReservations,
+      revenueProfitOverTime,
       stats: { totalRevenue, totalBookings: regs.length, activeBookings: activeCount },
     };
   }, [raw, regs, groupBy, rangeFrom, rangeTo, hiddenSeries]);
@@ -800,7 +817,37 @@ export function AnalyticsCharts() {
           </CardContent>
         </Card>
 
-        {/* 2. Occupancy Rate — grouped bar over time */}
+        {/* 2. Revenue vs Profit — line chart */}
+        <Card className="overflow-visible" onClickCapture={() => setActiveChartId("revProfit")}>
+          <CardHeader>
+            <CardTitle>Revenue vs Profit</CardTitle>
+            <CardDescription>{groupLabel} booking revenue, cleaning cost, and net profit</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {charts.revenueProfitOverTime.length === 0 ? (
+              <EmptyState label="No revenue data in this range" />
+            ) : (
+              <ResponsiveContainer width="100%" height={320}>
+                <LineChart data={charts.revenueProfitOverTime}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                  <XAxis dataKey="bucket" tickFormatter={(v) => formatBucketLabel(v, groupBy)} className="text-xs" />
+                  <YAxis tickFormatter={formatDollars} className="text-xs" />
+                  <Tooltip
+                    labelFormatter={(l: unknown) => formatBucketLabel(String(l), groupBy)}
+                    formatter={((v: ValueType) => [formatDollars(v as number)]) as never}
+                    contentStyle={TOOLTIP_STYLE}
+                  />
+                  <Legend />
+                  <Line type="monotone" dataKey="Booking Revenue" stroke="hsl(220, 70%, 55%)" strokeWidth={2} dot={false} />
+                  <Line type="monotone" dataKey="Cleaning Cost" stroke="hsl(0, 65%, 55%)" strokeWidth={2} dot={false} />
+                  <Line type="monotone" dataKey="Profit" stroke="hsl(160, 60%, 45%)" strokeWidth={2.5} dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* 3. Occupancy Rate — grouped bar over time */}
         <Card className="overflow-visible" onClickCapture={() => setActiveChartId("occupancy")}>
           <CardHeader>
             <CardTitle>Occupancy Rate</CardTitle>
