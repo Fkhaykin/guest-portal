@@ -9,12 +9,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from "@/components/ui/sheet";
 import {
   ArrowLeft,
   Pencil,
@@ -922,47 +922,96 @@ export default function ReservationDetailPage() {
         onSaved={loadData}
       />
 
-      {/* History Dialog */}
-      <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
-        <DialogContent className="sm:max-w-lg max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>History</DialogTitle>
-            <DialogDescription>{guest?.full_name ?? "Unknown"}</DialogDescription>
-          </DialogHeader>
+      {/* Outbox Drawer */}
+      <Sheet open={historyOpen} onOpenChange={setHistoryOpen}>
+        <SheetContent side="right" className="sm:max-w-md w-full flex flex-col p-0">
+          <SheetHeader className="px-4 pt-4 pb-3 border-b shrink-0">
+            <SheetTitle>Outbox</SheetTitle>
+            <SheetDescription>{guest?.full_name ?? "Unknown"}</SheetDescription>
+          </SheetHeader>
 
           {historyLoading ? (
-            <p className="text-sm text-muted-foreground py-4">Loading...</p>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground p-4">
+              <Loader2 className="h-4 w-4 animate-spin" /> Loading...
+            </div>
           ) : (
-            <Tabs defaultValue={emailLogs.length > 0 ? "emails" : "updates"}>
-              <TabsList className="w-full">
-                <TabsTrigger value="emails" className="flex-1">
-                  Emails Sent {emailLogs.length > 0 && `(${emailLogs.length})`}
-                </TabsTrigger>
-                <TabsTrigger value="updates" className="flex-1">
-                  Updates {historyLogs.length > 0 && `(${historyLogs.length})`}
-                </TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="emails" className="mt-4">
-                {emailLogs.length > 0 ? (
-                  <div className="space-y-3">
-                    {emailLogs.map((log) => (
-                      <EmailLogCard key={log.id} log={log} registrationId={id} />
-                    ))}
-                  </div>
+            <div className="flex-1 overflow-y-auto">
+              {/* Sent emails */}
+              <div className="p-4 space-y-4">
+                {emailLogs.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No emails sent yet.</p>
                 ) : (
-                  <p className="text-sm text-muted-foreground py-4">
-                    No emails sent for this reservation. Emails sent going forward will appear here.
-                  </p>
+                  emailLogs.map((log) => {
+                    const body = log.is_update
+                      ? "An updated tenant registration form has been submitted."
+                      : "A new tenant registration form has been submitted.";
+                    return (
+                      <div key={log.id} className="border rounded-lg overflow-hidden text-sm">
+                        <div className="bg-muted/40 px-3 py-2 flex items-center justify-between gap-2">
+                          <Badge variant="secondary" className="text-xs shrink-0">
+                            {log.is_update ? "Update" : "New Registration"}
+                          </Badge>
+                          <span className="text-xs text-muted-foreground">
+                            {new Date(log.created_at).toLocaleString()}
+                          </span>
+                        </div>
+                        <div className="px-3 py-2 space-y-1 border-b text-xs">
+                          <div className="flex gap-2">
+                            <span className="text-muted-foreground w-10 shrink-0">From</span>
+                            <span>contact@summitlakeside.com</span>
+                          </div>
+                          <div className="flex gap-2">
+                            <span className="text-muted-foreground w-10 shrink-0">To</span>
+                            <span>{log.sent_to.join(", ")}</span>
+                          </div>
+                          <div className="flex gap-2">
+                            <span className="text-muted-foreground w-10 shrink-0">Subject</span>
+                            <span className="font-medium">{log.subject ?? "—"}</span>
+                          </div>
+                        </div>
+                        <div className="px-3 py-3 space-y-1 text-xs text-muted-foreground border-b">
+                          <p>{body}</p>
+                          {log.body_summary && <p>Changes: {log.body_summary}</p>}
+                          <p>The {log.is_update ? "updated" : "completed"} Short-Term Tenant Registration Form and Lease is attached as a PDF.</p>
+                        </div>
+                        <div className="px-3 py-2 flex items-center gap-2">
+                          <Mail className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                          <span className="text-xs text-muted-foreground mr-auto">PDF attachment</span>
+                          <a
+                            href={`/api/pepoa/generate?registration_id=${id}&disposition=inline`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            <Button variant="ghost" size="sm" className="h-7 text-xs">
+                              <Eye className="h-3 w-3 mr-1" /> View
+                            </Button>
+                          </a>
+                          <a
+                            href={`/api/pepoa/generate?registration_id=${id}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            <Button variant="ghost" size="sm" className="h-7 text-xs">
+                              <Download className="h-3 w-3 mr-1" /> Download
+                            </Button>
+                          </a>
+                        </div>
+                      </div>
+                    );
+                  })
                 )}
-              </TabsContent>
+              </div>
 
-              <TabsContent value="updates" className="mt-4">
-                {historyLogs.length > 0 ? (
-                  <div className="space-y-4">
+              {/* Updates section */}
+              {historyLogs.length > 0 && (
+                <div className="px-4 pb-4">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">
+                    Registration Updates ({historyLogs.length})
+                  </p>
+                  <div className="space-y-3">
                     {historyLogs.map((log) => (
-                      <div key={log.id} className="border rounded-lg p-3 space-y-1">
-                        <div className="flex items-center justify-between">
+                      <div key={log.id} className="border rounded-lg p-3 space-y-1 text-sm">
+                        <div className="flex items-center justify-between gap-2">
                           <Badge variant="secondary" className="text-xs">
                             {log.change_type.replace(/_/g, " ")}
                           </Badge>
@@ -974,8 +1023,8 @@ export default function ReservationDetailPage() {
                         <p className="text-xs text-muted-foreground">by {log.changed_by}</p>
                         {log.new_data && Object.keys(log.new_data).length > 0 && (
                           <div className="mt-2">
-                            <p className="text-xs font-medium text-muted-foreground">New data</p>
-                            <pre className="mt-1 text-xs bg-muted p-2 rounded overflow-x-auto max-w-full">
+                            <p className="text-xs font-medium text-muted-foreground mb-1">New data</p>
+                            <pre className="text-xs bg-muted p-2 rounded overflow-x-auto max-w-full">
                               {JSON.stringify(log.new_data, null, 2)}
                             </pre>
                           </div>
@@ -993,77 +1042,12 @@ export default function ReservationDetailPage() {
                       </div>
                     ))}
                   </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground py-4">
-                    No changes recorded for this reservation.
-                  </p>
-                )}
-              </TabsContent>
-            </Tabs>
+                </div>
+              )}
+            </div>
           )}
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-}
-
-function EmailLogCard({ log, registrationId }: { log: EmailLog; registrationId: string }) {
-  const [expanded, setExpanded] = useState(false);
-  return (
-    <div
-      className="border rounded-lg p-3 space-y-2 cursor-pointer hover:bg-muted/40 transition-colors"
-      onClick={() => setExpanded((v) => !v)}
-    >
-      <div className="flex items-center justify-between gap-2">
-        <Badge variant="secondary" className="text-xs shrink-0">
-          {log.is_update ? "Update" : "New Registration"}
-        </Badge>
-        <span className="text-xs text-muted-foreground">
-          {new Date(log.created_at).toLocaleString()}
-        </span>
-      </div>
-      {log.subject && <p className="text-sm font-medium">{log.subject}</p>}
-      {log.body_summary && (
-        <p className="text-sm text-muted-foreground">{log.body_summary}</p>
-      )}
-      <div className="flex items-start gap-1.5 text-xs text-muted-foreground">
-        <Mail className="h-3 w-3 mt-0.5 shrink-0" />
-        <span>{log.sent_to.join(", ")}</span>
-      </div>
-      {expanded && (
-        <div className="pt-2 border-t space-y-3" onClick={(e) => e.stopPropagation()}>
-          <div className="text-xs text-muted-foreground space-y-1">
-            <p className="font-medium text-foreground">Email body</p>
-            <p>
-              {log.is_update
-                ? "An updated tenant registration form has been submitted."
-                : "A new tenant registration form has been submitted."}
-            </p>
-            {log.body_summary && <p>Changes: {log.body_summary}</p>}
-            <p>The completed Short-Term Tenant Registration Form and Lease is attached as a PDF.</p>
-          </div>
-          <div className="flex gap-2">
-            <a
-              href={`/api/pepoa/generate?registration_id=${registrationId}&disposition=inline`}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <Button variant="outline" size="sm" className="text-xs">
-                <Eye className="h-3 w-3 mr-1" /> View PDF
-              </Button>
-            </a>
-            <a
-              href={`/api/pepoa/generate?registration_id=${registrationId}`}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <Button variant="outline" size="sm" className="text-xs">
-                <Download className="h-3 w-3 mr-1" /> Download PDF
-              </Button>
-            </a>
-          </div>
-        </div>
-      )}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
@@ -1076,3 +1060,4 @@ function Row({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
+
