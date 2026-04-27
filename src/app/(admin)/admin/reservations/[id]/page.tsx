@@ -16,12 +16,6 @@ import {
   SheetDescription,
 } from "@/components/ui/sheet";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
   ArrowLeft,
   Pencil,
   Eye,
@@ -997,35 +991,36 @@ export default function ReservationDetailPage() {
         </TabsContent>
       </Tabs>
 
-      {/* Photo EXIF Dialog */}
-      <Dialog open={!!selectedPhoto} onOpenChange={(open) => !open && setSelectedPhoto(null)}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-base">
+      {/* Photo EXIF Drawer */}
+      <Sheet open={!!selectedPhoto} onOpenChange={(open) => !open && setSelectedPhoto(null)}>
+        <SheetContent side="right" className="sm:max-w-3xl w-full flex flex-col p-0">
+          <SheetHeader className="px-4 pt-4 pb-3 border-b shrink-0">
+            <SheetTitle className="text-base">
               {selectedPhoto?.photo.room || "Photo"}
               {selectedPhoto?.photo.note && (
                 <span className="ml-2 text-sm font-normal text-muted-foreground">{selectedPhoto.photo.note}</span>
               )}
-            </DialogTitle>
-          </DialogHeader>
+            </SheetTitle>
+          </SheetHeader>
           {selectedPhoto && (
-            <div className="space-y-4">
-              {/* Full image */}
-              <div className="rounded-lg overflow-hidden bg-muted">
+            <div className="flex-1 flex min-h-0">
+              {/* Image panel */}
+              <div className="flex-1 bg-muted flex items-center justify-center p-4">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={selectedPhoto.url}
                   alt={selectedPhoto.photo.room}
-                  className="w-full object-contain max-h-[50vh]"
+                  className="max-w-full max-h-full object-contain"
                 />
               </div>
-
-              {/* EXIF data */}
-              <PhotoExifPanel exif={selectedPhoto.photo.exif ?? {}} url={selectedPhoto.url} uploadedAt={selectedPhoto.photo.uploaded_at} />
+              {/* EXIF panel */}
+              <div className="w-72 shrink-0 border-l overflow-y-auto p-4">
+                <PhotoExifPanel exif={selectedPhoto.photo.exif ?? {}} url={selectedPhoto.url} uploadedAt={selectedPhoto.photo.uploaded_at} />
+              </div>
             </div>
           )}
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
 
       {/* Edit Dialog */}
       <EditRegistrationDialog
@@ -1162,9 +1157,9 @@ function Row({ label, value }: { label: string; value: string }) {
 function ExifRow({ label, value }: { label: string; value: string | number | undefined | null }) {
   if (value == null) return null;
   return (
-    <div className="flex items-center justify-between gap-4 px-3 py-2">
-      <span className="text-muted-foreground shrink-0">{label}</span>
-      <span className="text-right text-sm break-all">{String(value)}</span>
+    <div className="flex items-center justify-between gap-3 px-3 py-1.5">
+      <span className="text-muted-foreground shrink-0 text-xs">{label}</span>
+      <span className="text-right text-xs break-all">{String(value)}</span>
     </div>
   );
 }
@@ -1246,7 +1241,7 @@ function PhotoExifPanel({ exif, url, uploadedAt }: { exif: CleaningPhotoExif; ur
   const hasUploadContext = exif.device_name || exif.os || exif.browser;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div className="flex items-center justify-between">
         {exif.source && (
           <Badge variant="secondary" className="text-xs capitalize">
@@ -1265,19 +1260,19 @@ function PhotoExifPanel({ exif, url, uploadedAt }: { exif: CleaningPhotoExif; ur
 
       {/* Date & Location */}
       <div>
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Date &amp; Location</p>
+        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">Date &amp; Location</p>
         <div className="rounded-lg border divide-y text-sm">
           <ExifRow label="Uploaded" value={new Date(uploadedAt).toLocaleString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" })} />
           <ExifRow label="Taken" value={exif.taken_at ? new Date(exif.taken_at).toLocaleString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit", second: "2-digit" }) : null} />
           <ExifRow label="Altitude" value={exif.altitude != null ? `${exif.altitude.toFixed(1)} m` : null} />
           {hasLocation && (
-            <div className="flex items-center justify-between gap-4 px-3 py-2">
-              <span className="text-muted-foreground shrink-0">Location</span>
+            <div className="flex items-center justify-between gap-3 px-3 py-1.5">
+              <span className="text-muted-foreground shrink-0 text-xs">Location</span>
               <a
                 href={`https://maps.google.com/?q=${exif.latitude},${exif.longitude}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-primary hover:underline text-sm"
+                className="inline-flex items-center gap-1 text-primary hover:underline text-xs"
               >
                 <MapPin className="h-3 w-3" />
                 {exif.latitude!.toFixed(6)}, {exif.longitude!.toFixed(6)}
@@ -1290,7 +1285,7 @@ function PhotoExifPanel({ exif, url, uploadedAt }: { exif: CleaningPhotoExif; ur
       {/* Camera */}
       {hasCameraData && (
         <div>
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Camera</p>
+          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">Camera</p>
           <div className="rounded-lg border divide-y text-sm">
             <ExifRow label="Device" value={exif.camera} />
             <ExifRow label="Lens" value={exif.lens} />
@@ -1310,7 +1305,7 @@ function PhotoExifPanel({ exif, url, uploadedAt }: { exif: CleaningPhotoExif; ur
       {/* Image */}
       {hasImageData && (
         <div>
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Image</p>
+          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">Image</p>
           <div className="rounded-lg border divide-y text-sm">
             <ExifRow label="Resolution" value={exif.width && exif.height ? `${exif.width} × ${exif.height}` : null} />
             <ExifRow label="Color space" value={decodeColorSpace(exif.color_space)} />
@@ -1324,7 +1319,7 @@ function PhotoExifPanel({ exif, url, uploadedAt }: { exif: CleaningPhotoExif; ur
       {/* Upload context */}
       {hasUploadContext && (
         <div>
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Upload Context</p>
+          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">Upload Context</p>
           <div className="rounded-lg border divide-y text-sm">
             <ExifRow label="Device" value={exif.device_name} />
             <ExifRow label="OS" value={exif.os} />
