@@ -176,6 +176,7 @@ export default function ReservationDetailPage() {
   const [emailing, setEmailing] = useState(false);
   const [emailResult, setEmailResult] = useState<"success" | "error" | null>(null);
   const [expandedDrivers, setExpandedDrivers] = useState<Set<number>>(new Set());
+  const [hasModifications, setHasModifications] = useState(false);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -282,6 +283,13 @@ export default function ReservationDetailPage() {
         }
       }
       setCharges(foundCharges);
+
+      const { count: modCount } = await supabase
+        .from("registration_update_log")
+        .select("id", { count: "exact", head: true })
+        .eq("registration_id", id)
+        .neq("change_type", "initial_registration");
+      setHasModifications((modCount ?? 0) > 0);
     }
 
     setLoading(false);
@@ -449,6 +457,13 @@ export default function ReservationDetailPage() {
             <Badge variant="outline" className="text-sm gap-1 text-muted-foreground">
               <XCircle className="h-3 w-3" /> Not registered
             </Badge>
+          )}
+          {hasModifications && (
+            <button type="button" onClick={openHistory}>
+              <Badge variant="outline" className="text-sm gap-1 bg-orange-50 text-orange-700 border-orange-200 cursor-pointer hover:bg-orange-100 transition-colors">
+                <History className="h-3 w-3" /> Modified
+              </Badge>
+            </button>
           )}
         </div>
       </div>
@@ -1108,9 +1123,9 @@ export default function ReservationDetailPage() {
                   </p>
                   <div className="space-y-3">
                     {historyLogs.map((log) => (
-                      <div key={log.id} className="border rounded-lg p-3 space-y-1 text-sm">
+                      <div key={log.id} className="border rounded-lg p-3 space-y-2 text-sm">
                         <div className="flex items-center justify-between gap-2">
-                          <Badge variant="secondary" className="text-xs">
+                          <Badge variant="secondary" className="text-xs capitalize">
                             {log.change_type.replace(/_/g, " ")}
                           </Badge>
                           <span className="text-xs text-muted-foreground">
@@ -1119,24 +1134,9 @@ export default function ReservationDetailPage() {
                         </div>
                         {log.summary && <p className="text-sm">{log.summary}</p>}
                         <p className="text-xs text-muted-foreground">by {log.changed_by}</p>
-                        {log.new_data && Object.keys(log.new_data).length > 0 && (
-                          <div className="mt-2">
-                            <p className="text-xs font-medium text-muted-foreground mb-1">New data</p>
-                            <pre className="text-xs bg-muted p-2 rounded overflow-x-auto max-w-full">
-                              {JSON.stringify(log.new_data, null, 2)}
-                            </pre>
-                          </div>
-                        )}
-                        {log.previous_data && Object.keys(log.previous_data).length > 0 && (
-                          <details className="mt-2">
-                            <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground">
-                              Previous data
-                            </summary>
-                            <pre className="mt-1 text-xs bg-muted p-2 rounded overflow-x-auto max-w-full">
-                              {JSON.stringify(log.previous_data, null, 2)}
-                            </pre>
-                          </details>
-                        )}
+                        {log.change_type === "admin_edit" ? (
+                          <AdminEditDiff prev={log.previous_data} next={log.new_data} />
+                        ) : null}
                       </div>
                     ))}
                   </div>
@@ -1176,6 +1176,65 @@ function decodeColorSpace(cs: string | undefined | null): string | null {
   if (n === 2) return "Adobe RGB";
   if (n === 65535) return "Uncalibrated";
   return cs;
+}
+
+const ADMIN_EDIT_FIELD_LABELS: Record<string, string> = {
+  guest_name: "Guest Name",
+  email: "Email",
+  check_in_date: "Check-in Date",
+  check_out_date: "Check-out Date",
+  status: "Status",
+  notes: "Notes",
+  guest_list: "Guest List",
+  pets: "Pets",
+};
+
+function AdminEditDiff({
+  prev,
+  next,
+}: {
+  prev: Record<string, unknown> | null;
+  next: Record<string, unknown> | null;
+}) {
+  if (!prev || !next) return null;
+
+  const changes = Object.entries(ADMIN_EDIT_FIELD_LABELS).filter(
+    ([key]) => JSON.stringify(prev[key]) !== JSON.stringify(next[key])
+  );
+
+  if (changes.length === 0) return null;
+
+  return (
+    <div className="space-y-1.5 mt-1">
+      {changes.map(([key, label]) => {
+        const fromVal = prev[key];
+        const toVal = next[key];
+        const isArray = Array.isArray(fromVal) || Array.isArray(toVal);
+        return (
+          <div key={key} className="text-xs rounded-md bg-muted/60 px-2.5 py-2">
+            <p className="font-medium text-muted-foreground mb-1">{label}</p>
+            {isArray ? (
+              <div className="flex items-center gap-2">
+                <span className="line-through text-red-600">{((fromVal as unknown[]) ?? []).length} entries</span>
+                <span className="text-muted-foreground">→</span>
+                <span className="text-green-700">{((toVal as unknown[]) ?? []).length} entries</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="line-through text-red-600">
+                  {fromVal != null && fromVal !== "" ? String(fromVal) : "none"}
+                </span>
+                <span className="text-muted-foreground">→</span>
+                <span className="text-green-700">
+                  {toVal != null && toVal !== "" ? String(toVal) : "none"}
+                </span>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
 function PhotoExifPanel({ exif, url, uploadedAt }: { exif: CleaningPhotoExif; url: string; uploadedAt: string }) {
