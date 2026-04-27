@@ -169,3 +169,13 @@ See `.env.example`:
 - Lodgify: `LODGIFY_API_KEY`, `LODGIFY_WEBHOOK_SECRET`
 - App: `NEXT_PUBLIC_APP_URL`
 - Also requires `RESEND_API_KEY` (not in .env.example)
+
+## Vercel Environment Variables
+
+When a new env var is needed, **always set it via the Vercel CLI** — never tell the user to do it manually:
+
+```bash
+vercel env add VARIABLE_NAME production
+```
+
+For multiple environments: `vercel env add VARIABLE_NAME production preview development`

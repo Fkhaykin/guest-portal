@@ -15,6 +15,7 @@ import {
   Home,
   CalendarDays,
   RefreshCw,
+  ChevronLeft,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { LodgifyMessage, ConversationThread } from "@/lib/lodgify/messages";
@@ -34,6 +35,7 @@ export default function AdminMessagesPage() {
   const [timeFilter, setTimeFilter] = useState<"all" | "current" | "past" | "future">("all");
   const [syncing, setSyncing] = useState(false);
   const [syncProgress, setSyncProgress] = useState<string | null>(null);
+  const [mobileView, setMobileView] = useState<"list" | "thread">("list");
 
   async function loadConversations() {
     try {
@@ -97,6 +99,7 @@ export default function AdminMessagesPage() {
       const id = Number(bookingParam);
       if (id && !isNaN(id)) {
         setSelectedBookingId(id);
+        setMobileView("thread");
       }
     }
   }, [searchParams]);
@@ -261,7 +264,10 @@ export default function AdminMessagesPage() {
 
       <div className="flex flex-1 min-h-0 rounded-lg border bg-card">
         {/* Left panel — Conversation list */}
-        <div className="w-80 flex-shrink-0 border-r flex flex-col">
+        <div className={cn(
+          "shrink-0 border-r flex-col md:w-80 w-full",
+          mobileView === "thread" ? "hidden md:flex" : "flex"
+        )}>
           {/* Search + Filters */}
           <div className="p-3 border-b space-y-2">
             <div className="relative">
@@ -325,7 +331,10 @@ export default function AdminMessagesPage() {
               filtered.map((conv) => (
                 <button
                   key={conv.booking_id}
-                  onClick={() => setSelectedBookingId(conv.booking_id)}
+                  onClick={() => {
+                    setSelectedBookingId(conv.booking_id);
+                    setMobileView("thread");
+                  }}
                   className={cn(
                     "w-full text-left p-3 border-b hover:bg-muted/50 transition-colors",
                     selectedBookingId === conv.booking_id && "bg-accent"
@@ -371,7 +380,10 @@ export default function AdminMessagesPage() {
         </div>
 
         {/* Right panel — Message thread */}
-        <div className="flex-1 flex flex-col min-w-0">
+        <div className={cn(
+          "flex-1 flex-col min-w-0",
+          mobileView === "list" ? "hidden md:flex" : "flex"
+        )}>
           {!selectedBookingId ? (
             <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground gap-3">
               <MessageSquare className="h-12 w-12 opacity-30" />
@@ -384,7 +396,15 @@ export default function AdminMessagesPage() {
               {/* Thread header */}
               {selectedConversation && (
                 <div className="p-4 border-b flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="md:hidden -ml-1 shrink-0"
+                    onClick={() => setMobileView("list")}
+                  >
+                    <ChevronLeft className="h-5 w-5" />
+                  </Button>
+                  <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center shrink-0">
                     <User className="h-5 w-5 text-muted-foreground" />
                   </div>
                   <div className="flex-1 min-w-0">
@@ -536,13 +556,13 @@ export default function AdminMessagesPage() {
                       }
                     }}
                     rows={1}
-                    className="min-h-[40px] max-h-[120px] resize-none"
+                    className="min-h-10 max-h-30 resize-none"
                   />
                   <Button
                     onClick={handleSend}
                     disabled={!newMessage.trim() || sending}
                     size="icon"
-                    className="h-10 w-10 flex-shrink-0"
+                    className="h-10 w-10 shrink-0"
                   >
                     {sending ? (
                       <Loader2 className="h-4 w-4 animate-spin" />

@@ -213,8 +213,9 @@ async function ensureProperty(lodgifyPropertyId: number): Promise<string | null>
 export async function syncBooking(booking: LodgifyBooking) {
   const supabase = createAdminClient();
 
-  // Skip unconfirmed bookings or bookings with no revenue (failed payments, inquiries)
-  const shouldRemove = SKIP_STATUSES.has(booking.status) || !booking.total_amount;
+  // Skip unconfirmed bookings. Don't gate on total_amount — OTA bookings (Airbnb/VRBO)
+  // legitimately omit payout amounts from the API; dropping them silently prevents notifications.
+  const shouldRemove = SKIP_STATUSES.has(booking.status);
   if (shouldRemove) {
     const { data: existing } = await supabase
       .from("registration")
@@ -226,10 +227,9 @@ export async function syncBooking(booking: LodgifyBooking) {
       await supabase.from("cleaning_status").delete().eq("registration_id", existing.id);
       await supabase.from("registration_update_log").delete().eq("registration_id", existing.id);
       await supabase.from("registration").delete().eq("id", existing.id);
-      const reason = SKIP_STATUSES.has(booking.status) ? `status: ${booking.status}` : "no revenue";
-      console.log(`[lodgify-sync] Removed booking ${booking.id} (${reason})`);
+      console.log(`[lodgify-sync] Removed booking ${booking.id} (status: ${booking.status})`);
     }
-    return { skipped: true, reason: SKIP_STATUSES.has(booking.status) ? "unconfirmed" : "no_revenue" };
+    return { skipped: true, reason: "unconfirmed" };
   }
 
   // 1. Find or create the property
@@ -381,7 +381,10 @@ export async function syncBooking(booking: LodgifyBooking) {
     upsells: paidUpsells,
   };
 
-  if (isNewBooking && newStatus === "active") {
+  // Notify on new active bookings AND on status transitions to active (e.g. booking
+  // was previously in DB as completed/cancelled, or first synced before webhook fired).
+  const justBecameActive = !isNewBooking && newStatus === "active" && !wasPreviouslyActive;
+  if ((isNewBooking || justBecameActive) && newStatus === "active") {
     notifyCleanersOfNewBooking(notifyParams).catch((err) => {
       console.error(`[lodgify-sync] Failed to notify cleaners for booking ${booking.id}:`, err);
     });
