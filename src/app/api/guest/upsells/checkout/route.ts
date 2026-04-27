@@ -53,7 +53,9 @@ export async function POST(request: Request) {
     .eq("id", reg.property_id)
     .single();
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+  const host = request.headers.get("host") || "localhost:3000";
+  const proto = request.headers.get("x-forwarded-proto") || "http";
+  const appUrl = `${proto}://${host}`;
   const slug = property?.slug || "";
   const returnPage = return_path || "register";
 
