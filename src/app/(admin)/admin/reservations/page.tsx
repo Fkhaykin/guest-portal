@@ -16,7 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ArrowDown, ArrowUp, ArrowUpDown, ChevronDown, RefreshCw } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, ChevronDown, RefreshCw, Search, X } from "lucide-react";
 import type { GuestListEntry, PetEntry } from "@/types/database";
 
 type Property = {
@@ -61,6 +61,7 @@ export default function AdminReservationsPage() {
   const [sortAsc, setSortAsc] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [newIds, setNewIds] = useState<Set<string>>(new Set());
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     loadProperties();
@@ -160,6 +161,11 @@ export default function AdminReservationsPage() {
     if (selectedProperties.size > 0 && !selectedProperties.has(reg.property_id)) return false;
     if (selectedStatuses.size > 0 && !selectedStatuses.has(getDisplayStatus(reg))) return false;
     if (onlyCompleted && !reg.signature_url) return false;
+    if (searchQuery.trim()) {
+      const q = searchQuery.trim().toLowerCase();
+      const name = reg.guest?.full_name?.toLowerCase() ?? "";
+      if (!name.split(" ").some((part) => part.startsWith(q))) return false;
+    }
     return true;
   });
 
@@ -228,6 +234,25 @@ export default function AdminReservationsPage() {
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3">
+        {/* Name search */}
+        <div className="relative">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+          <input
+            type="text"
+            placeholder="Search by name..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-8 pr-7 py-2 text-sm rounded-md border border-input bg-background ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 w-48"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery("")}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
         {/* Property dropdown */}
         <Popover>
           <PopoverTrigger className="inline-flex items-center justify-between gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm font-medium ring-offset-background hover:bg-accent hover:text-accent-foreground w-50 cursor-pointer">
