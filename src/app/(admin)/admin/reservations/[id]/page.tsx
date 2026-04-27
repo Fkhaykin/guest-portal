@@ -993,7 +993,7 @@ export default function ReservationDetailPage() {
 
       {/* Photo EXIF Drawer */}
       <Sheet open={!!selectedPhoto} onOpenChange={(open) => !open && setSelectedPhoto(null)}>
-        <SheetContent side="right" className="sm:max-w-3xl w-full flex flex-col p-0">
+        <SheetContent side="right" className="sm:max-w-5xl w-full flex flex-col p-0">
           <SheetHeader className="px-4 pt-4 pb-3 border-b shrink-0">
             <SheetTitle className="text-base">
               {selectedPhoto?.photo.room || "Photo"}
@@ -1003,18 +1003,18 @@ export default function ReservationDetailPage() {
             </SheetTitle>
           </SheetHeader>
           {selectedPhoto && (
-            <div className="flex-1 flex min-h-0">
-              {/* Image panel */}
-              <div className="flex-1 bg-muted flex items-center justify-center p-4">
+            <div className="flex-1 flex flex-col sm:flex-row min-h-0 overflow-y-auto sm:overflow-hidden">
+              {/* Image panel — sticky on mobile, flex fill on desktop */}
+              <div className="sticky top-0 z-10 sm:static sm:flex-1 bg-muted flex items-center justify-center sm:overflow-hidden">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={selectedPhoto.url}
                   alt={selectedPhoto.photo.room}
-                  className="max-w-full max-h-full object-contain"
+                  className="w-full sm:w-auto sm:h-full object-contain"
                 />
               </div>
               {/* EXIF panel */}
-              <div className="w-72 shrink-0 border-l overflow-y-auto p-4">
+              <div className="w-full sm:w-72 shrink-0 border-t sm:border-t-0 sm:border-l sm:overflow-y-auto p-4">
                 <PhotoExifPanel exif={selectedPhoto.photo.exif ?? {}} url={selectedPhoto.url} uploadedAt={selectedPhoto.photo.uploaded_at} />
               </div>
             </div>
