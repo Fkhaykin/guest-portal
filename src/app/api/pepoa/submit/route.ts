@@ -1,34 +1,6 @@
 import { NextResponse } from "next/server";
-import { fetchRegistrationData, generateRegistrationPDF } from "@/lib/pdf/generate-for-registration";
-import { sendPEPOAPDF } from "@/lib/email/send-pepoa-pdf";
+import { submitPEPOAEmail } from "@/lib/pepoa/submit-email";
 import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
-
-function isAfterHours(sched: { enabled: boolean; timezone: string; days: Record<string, { enabled: boolean; start: string; end: string }> }): boolean {
-  const now = new Date();
-  const fmt = new Intl.DateTimeFormat("en-US", {
-    timeZone: sched.timezone,
-    weekday: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
-  const parts = fmt.formatToParts(now);
-  const weekday = parts.find((p) => p.type === "weekday")?.value ?? "";
-  const dayIndex = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].indexOf(weekday);
-  const day = sched.days[String(dayIndex)];
-  if (!day || !day.enabled) return false;
-  const h = parseInt(parts.find((p) => p.type === "hour")?.value ?? "0", 10);
-  const m = parseInt(parts.find((p) => p.type === "minute")?.value ?? "0", 10);
-  const current = h * 60 + m;
-  const [sh, sm] = day.start.split(":").map(Number);
-  const [eh, em] = day.end.split(":").map(Number);
-  const start = sh * 60 + sm;
-  const end = eh * 60 + em;
-  return start > end
-    ? current >= start || current < end
-    : current >= start && current < end;
-}
 
 export const runtime = "nodejs";
 
@@ -59,68 +31,19 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Missing registration_id" }, { status: 400 });
   }
 
-  const data = await fetchRegistrationData(registration_id);
-  if (!data) {
-    return NextResponse.json({ error: "Registration not found" }, { status: 404 });
-  }
-
-  const pdfBuffer = await generateRegistrationPDF(data);
-
-  // Email to HOA office if configured
-  const hoaEmailRaw = data.property.hoa_submission_email as string | null;
-  if (hoaEmailRaw) {
-    const hoaEmail = hoaEmailRaw.split(",").map((e) => e.trim()).filter(Boolean);
-
-    // After-hours emails go in CC (not To) when the window is active AND check-in is within 2 days
-    const afterHoursCc: string[] = [];
-    const afterHoursEmailRaw = data.property.hoa_after_hours_email as string | null;
-    if (afterHoursEmailRaw) {
-      const afterHoursEmails = afterHoursEmailRaw.split(",").map((e) => e.trim()).filter(Boolean);
-      const sched = data.property.hoa_after_hours_schedule as { enabled: boolean; timezone: string; days: Record<string, { enabled: boolean; start: string; end: string }> } | null;
-      const checkInDate = data.reg.check_in_date as string | null;
-      const daysUntilCheckIn = checkInDate
-        ? Math.ceil((new Date(checkInDate).getTime() - Date.now()) / 86400000)
-        : Infinity;
-      const withinWindow = !sched || !sched.enabled || isAfterHours(sched);
-      if (afterHoursEmails.length > 0 && withinWindow && daysUntilCheckIn <= 2) {
-        afterHoursEmails.forEach((e) => { if (!hoaEmail.includes(e)) afterHoursCc.push(e); });
-      }
+  try {
+    await submitPEPOAEmail({
+      registrationId: registration_id,
+      isUpdate: is_update,
+      changeSummary: change_summary,
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    if (message === "Registration not found") {
+      return NextResponse.json({ error: "Registration not found" }, { status: 404 });
     }
-
-    try {
-      const lotSection = (data.property.lot_section as string) || "N/A";
-      const hoaType = (data.property.hoa_type as string) || "pepoa";
-      const isBML = hoaType === "bmlc";
-      const lotPart = isBML ? "" : ` — Lot/Section ${lotSection}`;
-      const subject = `Short-Term Tenant Registration${lotPart} — Check-in ${data.reg.check_in_date as string}`;
-
-      await sendPEPOAPDF({
-        to: hoaEmail,
-        cc: afterHoursCc,
-        pdfBuffer,
-        guestName: (data.guest.full_name as string) || "Guest",
-        lotSection,
-        checkInDate: data.reg.check_in_date as string,
-        ownerPhone: (data.property.owner_phone as string) || "",
-        ownerEmail: (data.property.owner_email as string) || (data.host.email as string) || "",
-        registrationId: registration_id,
-        hoaType,
-        isUpdate: is_update,
-        changeSummary: change_summary,
-      });
-
-      const adminDb = createAdminClient();
-      await adminDb.from("email_send_log").insert({
-        registration_id,
-        sent_to: [...hoaEmail, ...afterHoursCc],
-        subject,
-        body_summary: change_summary || null,
-        email_type: "pepoa",
-        is_update: !!is_update,
-      });
-    } catch (err) {
-      console.error("Failed to send registration PDF email:", err);
-    }
+    console.error("Failed to send registration PDF email:", err);
+    return NextResponse.json({ error: "Failed to send email" }, { status: 500 });
   }
 
   return NextResponse.json({ ok: true });

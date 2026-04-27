@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { verifyGuestToken } from "@/lib/guest-token";
+import { notifyCleanersOfPetAdded } from "@/lib/sms/notify-cleaners";
+import { submitPEPOAEmail } from "@/lib/pepoa/submit-email";
 
 export async function POST(request: Request) {
   let body: {
@@ -124,6 +126,17 @@ export async function POST(request: Request) {
       previous_data: { pets: previous } as Record<string, unknown>,
       new_data: { pets: validPets } as Record<string, unknown>,
     });
+
+    if (validPets.length > 0 && reg.check_in_date) {
+      const guestName = guest?.full_name ?? "Guest";
+      notifyCleanersOfPetAdded({
+        propertyId: reg.property_id,
+        registrationId: registration_id,
+        guestName,
+        checkIn: reg.check_in_date as string,
+        numPets: validPets.length,
+      }).catch(() => {});
+    }
   } else if (section === "vehicles" && body.vehicles) {
     // Enforce property vehicle cap
     const { data: property } = await supabase
@@ -181,15 +194,9 @@ export async function POST(request: Request) {
   }
 
   // Re-generate and email PEPOA PDF
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-  fetch(`${appUrl}/api/pepoa/submit`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
-    },
-    body: JSON.stringify({ registration_id, is_update: true, change_summary: summary }),
-  }).catch(() => {});
+  submitPEPOAEmail({ registrationId: registration_id, isUpdate: true, changeSummary: summary }).catch((err) => {
+    console.error("Failed to send PEPOA update email:", err);
+  });
 
   return NextResponse.json({ ok: true, summary });
 }

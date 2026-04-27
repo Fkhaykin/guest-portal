@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { verifyGuestToken } from "@/lib/guest-token";
 import { notifyCleanersOfPetAdded } from "@/lib/sms/notify-cleaners";
+import { submitPEPOAEmail } from "@/lib/pepoa/submit-email";
 
 export async function POST(request: Request) {
   let body: {
@@ -249,15 +250,9 @@ export async function POST(request: Request) {
   });
 
   // Trigger PEPOA PDF generation + email (fire and forget)
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-  fetch(`${appUrl}/api/pepoa/submit`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
-    },
-    body: JSON.stringify({ registration_id: reg.id }),
-  }).catch(() => {});
+  submitPEPOAEmail({ registrationId: reg.id }).catch((err) => {
+    console.error("Failed to send PEPOA email:", err);
+  });
 
   // Notify cleaners if pets were registered
   if (cleanPets.length > 0 && reg.check_in_date) {
