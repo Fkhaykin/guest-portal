@@ -112,6 +112,26 @@ const OUTCOME_CONFIG: Record<
     color: "bg-red-100 text-red-800 border-red-200",
     icon: XCircle,
   },
+  message_synced: {
+    label: "Message Saved",
+    color: "bg-blue-100 text-blue-800 border-blue-200",
+    icon: CheckCircle2,
+  },
+  message_skipped: {
+    label: "Message Skipped",
+    color: "bg-gray-100 text-gray-800 border-gray-200",
+    icon: AlertTriangle,
+  },
+  message_failed: {
+    label: "Message Failed",
+    color: "bg-red-100 text-red-800 border-red-200",
+    icon: XCircle,
+  },
+  action_ignored: {
+    label: "Ignored",
+    color: "bg-gray-100 text-gray-800 border-gray-200",
+    icon: AlertTriangle,
+  },
   unknown: {
     label: "Unknown",
     color: "bg-gray-100 text-gray-800 border-gray-200",
