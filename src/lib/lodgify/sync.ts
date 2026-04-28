@@ -210,7 +210,7 @@ async function ensureProperty(lodgifyPropertyId: number): Promise<string | null>
  * Auto-creates the property if it doesn't exist locally.
  * Finds or creates the guest, then upserts the registration.
  */
-export async function syncBooking(booking: LodgifyBooking) {
+export async function syncBooking(booking: LodgifyBooking, options?: { skipNotify?: boolean }) {
   const supabase = createAdminClient();
 
   // Skip unconfirmed bookings. Don't gate on total_amount — OTA bookings (Airbnb/VRBO)
@@ -453,15 +453,18 @@ export async function syncBooking(booking: LodgifyBooking) {
 
   // Notify on new active bookings AND on status transitions to active (e.g. booking
   // was previously in DB as completed/cancelled, or first synced before webhook fired).
+  // Batch/full syncs pass skipNotify=true — notifications only fire on the webhook path.
   const justBecameActive = !isNewBooking && newStatus === "active" && !wasPreviouslyActive;
-  if ((isNewBooking || justBecameActive) && newStatus === "active") {
-    notifyCleanersOfNewBooking(notifyParams).catch((err) => {
-      console.error(`[lodgify-sync] Failed to notify cleaners for booking ${booking.id}:`, err);
-    });
-  } else if (wasPreviouslyActive && newStatus === "cancelled") {
-    notifyCleanersOfCancellation(notifyParams).catch((err) => {
-      console.error(`[lodgify-sync] Failed to notify cleaners of cancellation ${booking.id}:`, err);
-    });
+  if (!options?.skipNotify) {
+    if ((isNewBooking || justBecameActive) && newStatus === "active") {
+      notifyCleanersOfNewBooking(notifyParams).catch((err) => {
+        console.error(`[lodgify-sync] Failed to notify cleaners for booking ${booking.id}:`, err);
+      });
+    } else if (wasPreviouslyActive && newStatus === "cancelled") {
+      notifyCleanersOfCancellation(notifyParams).catch((err) => {
+        console.error(`[lodgify-sync] Failed to notify cleaners of cancellation ${booking.id}:`, err);
+      });
+    }
   }
 
   return { skipped: false };
@@ -508,7 +511,7 @@ export async function syncLatestBookings() {
         // fall back to v1 data
       }
     }
-    const result = await syncBooking(bookingToSync);
+    const result = await syncBooking(bookingToSync, { skipNotify: true });
     if (result.skipped) skipped++;
     else synced++;
   }
@@ -554,7 +557,7 @@ export async function syncBookingsBatch(options?: {
   let skipped = 0;
 
   for (const booking of response.items) {
-    const result = await syncBooking(booking);
+    const result = await syncBooking(booking, { skipNotify: true });
     if (result.skipped) skipped++;
     else synced++;
   }
