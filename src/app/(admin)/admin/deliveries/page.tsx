@@ -59,10 +59,7 @@ type SentDelivery = {
   email_subject: string | null;
   email_body: string | null;
   email_recipients: string[] | null;
-  registration: {
-    guest: { full_name: string } | null;
-    property: { name: string; nickname: string | null } | null;
-  } | null;
+  property: { name: string; nickname: string | null } | null;
 };
 
 type Category = "rideshare" | "food_grocery" | "other";
@@ -143,13 +140,14 @@ export default function AdminDeliveriesPage() {
 
   async function loadHistory() {
     setHistoryLoading(true);
-    const { data } = await supabase
+    const { data, error: err } = await supabase
       .from("delivery_rideshare")
       .select(
-        "id, created_at, category, provider, arrival_date, email_subject, email_body, email_recipients, registration:registration_id(guest:guest_id(full_name), property:property_id(name, nickname))"
+        "id, created_at, category, provider, arrival_date, email_subject, email_body, email_recipients, property:property_id(name, nickname)"
       )
       .order("created_at", { ascending: false })
       .limit(50);
+    if (err) console.error("loadHistory error:", err);
     if (data) setSentHistory(data as unknown as SentDelivery[]);
     setHistoryLoading(false);
   }
@@ -327,11 +325,9 @@ export default function AdminDeliveriesPage() {
             {sentHistory.map((item) => {
               const isExpanded = expandedId === item.id;
               const label =
-                item.registration?.property?.nickname ||
-                item.registration?.property?.name ||
+                item.property?.nickname ||
+                item.property?.name ||
                 "Unknown property";
-              const guestName =
-                item.registration?.guest?.full_name || "Unknown guest";
               const sentAt = new Date(item.created_at).toLocaleString("en-US", {
                 month: "short",
                 day: "numeric",
@@ -360,7 +356,7 @@ export default function AdminDeliveriesPage() {
                             {item.email_subject || `${item.provider || categoryLabel} — ${formatDate(item.arrival_date)}`}
                           </p>
                           <p className="text-xs text-muted-foreground mt-0.5">
-                            {guestName} · {label} · {sentAt}
+                            {label} · {sentAt}
                           </p>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
