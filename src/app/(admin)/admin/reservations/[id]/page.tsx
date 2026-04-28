@@ -1129,9 +1129,13 @@ export default function ReservationDetailPage() {
                         </div>
                         {log.summary && <p className="text-sm">{log.summary}</p>}
                         <p className="text-xs text-muted-foreground">by {log.changed_by}</p>
-                        {log.change_type === "admin_edit" ? (
-                          <AdminEditDiff prev={log.previous_data} next={log.new_data} />
-                        ) : null}
+                        {(log.change_type === "admin_edit" || log.change_type === "booking_modified") && (
+                          <FieldDiff
+                            prev={log.previous_data}
+                            next={log.new_data}
+                            fieldLabels={log.change_type === "admin_edit" ? ADMIN_EDIT_FIELD_LABELS : BOOKING_FIELD_LABELS}
+                          />
+                        )}
                       </div>
                     ))}
                   </div>
@@ -1184,47 +1188,58 @@ const ADMIN_EDIT_FIELD_LABELS: Record<string, string> = {
   pets: "Pets",
 };
 
-function AdminEditDiff({
+const BOOKING_FIELD_LABELS: Record<string, string> = {
+  check_in_date: "Check-in Date",
+  check_out_date: "Check-out Date",
+  num_guests: "Total Guests",
+  lodgify_adults: "Adults",
+  lodgify_children: "Children",
+  lodgify_infants: "Infants",
+  lodgify_num_pets: "Pets",
+  status: "Status",
+  notes: "Notes",
+  total_amount_cents: "Revenue",
+};
+
+function FieldDiff({
   prev,
   next,
+  fieldLabels,
 }: {
   prev: Record<string, unknown> | null;
   next: Record<string, unknown> | null;
+  fieldLabels: Record<string, string>;
 }) {
   if (!prev || !next) return null;
 
-  const changes = Object.entries(ADMIN_EDIT_FIELD_LABELS).filter(
+  const changes = Object.entries(fieldLabels).filter(
     ([key]) => JSON.stringify(prev[key]) !== JSON.stringify(next[key])
   );
 
   if (changes.length === 0) return null;
+
+  const formatVal = (key: string, val: unknown): string => {
+    if (key === "total_amount_cents" && typeof val === "number") {
+      return `$${Math.round(val / 100).toLocaleString()}`;
+    }
+    if (Array.isArray(val)) return `${val.length} entries`;
+    if (val != null && val !== "") return String(val);
+    return "none";
+  };
 
   return (
     <div className="space-y-1.5 mt-1">
       {changes.map(([key, label]) => {
         const fromVal = prev[key];
         const toVal = next[key];
-        const isArray = Array.isArray(fromVal) || Array.isArray(toVal);
         return (
           <div key={key} className="text-xs rounded-md bg-muted/60 px-2.5 py-2">
             <p className="font-medium text-muted-foreground mb-1">{label}</p>
-            {isArray ? (
-              <div className="flex items-center gap-2">
-                <span className="line-through text-red-600">{((fromVal as unknown[]) ?? []).length} entries</span>
-                <span className="text-muted-foreground">→</span>
-                <span className="text-green-700">{((toVal as unknown[]) ?? []).length} entries</span>
-              </div>
-            ) : (
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <span className="line-through text-red-600">
-                  {fromVal != null && fromVal !== "" ? String(fromVal) : "none"}
-                </span>
-                <span className="text-muted-foreground">→</span>
-                <span className="text-green-700">
-                  {toVal != null && toVal !== "" ? String(toVal) : "none"}
-                </span>
-              </div>
-            )}
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="line-through text-red-600">{formatVal(key, fromVal)}</span>
+              <span className="text-muted-foreground">→</span>
+              <span className="text-green-700">{formatVal(key, toVal)}</span>
+            </div>
           </div>
         );
       })}

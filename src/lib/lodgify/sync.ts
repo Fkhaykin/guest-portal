@@ -299,7 +299,7 @@ export async function syncBooking(booking: LodgifyBooking) {
   // 3. Check if this booking already exists (to distinguish new vs update)
   const { data: existingReg } = await supabase
     .from("registration")
-    .select("id, status")
+    .select("id, status, check_in_date, check_out_date, num_guests, lodgify_adults, lodgify_children, lodgify_infants, lodgify_num_pets, notes, total_amount_cents")
     .eq("lodgify_booking_id", booking.id)
     .maybeSingle();
 
@@ -354,15 +354,85 @@ export async function syncBooking(booking: LodgifyBooking) {
       .is("lodgify_booking_id", null);
   }
 
-  // 5. Notify cleaners (fire-and-forget)
-  const newStatus = mapStatus(booking.status);
-
-  // Fetch the registration we just upserted for the portal link and upsells
+  // Fetch the registration we just upserted for the portal link, upsells, and change logging
   const { data: savedReg } = await supabase
     .from("registration")
     .select("id, upsells")
     .eq("lodgify_booking_id", booking.id)
     .single();
+
+  // 5. Log booking-level changes from Lodgify/OTA (dates, guests, status, etc.)
+  if (!isNewBooking && existingReg && savedReg) {
+    const newSnap = {
+      check_in_date: booking.arrival ?? null,
+      check_out_date: booking.departure ?? null,
+      num_guests: booking.guests ?? 1,
+      lodgify_adults: booking.adults ?? 0,
+      lodgify_children: booking.children ?? 0,
+      lodgify_infants: booking.infants ?? 0,
+      lodgify_num_pets: booking.pets ?? 0,
+      status: mapStatus(booking.status),
+      notes: booking.notes ?? null,
+      // Only compare revenue when we have a new value; otherwise keep old to avoid false diffs
+      total_amount_cents: booking.total_amount
+        ? Math.round(booking.total_amount * 100)
+        : (existingReg.total_amount_cents ?? null),
+    };
+
+    const TRACKED = [
+      "check_in_date", "check_out_date", "num_guests",
+      "lodgify_adults", "lodgify_children", "lodgify_infants", "lodgify_num_pets",
+      "status", "notes", "total_amount_cents",
+    ] as const;
+
+    const existing = existingReg as Record<string, unknown>;
+    const changedKeys = TRACKED.filter(
+      (key) => String(existing[key] ?? "") !== String(newSnap[key] ?? "")
+    );
+
+    if (changedKeys.length > 0) {
+      const source = booking.source
+        ? booking.source.replace(/\s*integration\s*/i, "").replace(/\s*api\s*/i, "").trim().toLowerCase()
+        : "lodgify";
+
+      const LABEL: Record<string, string> = {
+        check_in_date: "check-in", check_out_date: "check-out",
+        num_guests: "guest count", lodgify_adults: "adults",
+        lodgify_children: "children", lodgify_infants: "infants",
+        lodgify_num_pets: "pets", status: "status",
+        notes: "notes", total_amount_cents: "revenue",
+      };
+
+      const summaryParts = changedKeys.map((key) => {
+        const label = LABEL[key] ?? key;
+        const prev = existing[key];
+        const next = newSnap[key];
+        if (key === "total_amount_cents") {
+          return `${label}: $${Math.round(((prev as number) ?? 0) / 100)} → $${Math.round(((next as number) ?? 0) / 100)}`;
+        }
+        return `${label}: ${prev ?? "—"} → ${next ?? "—"}`;
+      });
+
+      const prevSnap: Record<string, unknown> = {};
+      const nextSnap: Record<string, unknown> = {};
+      for (const key of TRACKED) {
+        prevSnap[key] = existing[key] ?? null;
+        nextSnap[key] = newSnap[key] ?? null;
+      }
+
+      await supabase.from("registration_update_log").insert({
+        registration_id: savedReg.id,
+        changed_by: source,
+        change_type: "booking_modified",
+        summary: summaryParts.join("; "),
+        previous_data: prevSnap,
+        new_data: nextSnap,
+      });
+    }
+  }
+
+  // 6. Notify cleaners (fire-and-forget)
+  const newStatus = mapStatus(booking.status);
 
   const paidUpsells = ((savedReg?.upsells as Array<{ status: string; label?: string }> | null) ?? [])
     .filter((u) => u.status === "paid" && u.label)
