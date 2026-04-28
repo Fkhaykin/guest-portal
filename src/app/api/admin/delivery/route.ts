@@ -89,23 +89,43 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Failed to save" }, { status: 500 });
   }
 
-  if (property?.hoa_submission_email) {
-    const hoaEmails = property.hoa_submission_email
-      .split(",")
-      .map((e: string) => e.trim())
-      .filter(Boolean);
+  const ALWAYS_NOTIFY = "welcomecenter@pepoa.org";
 
+  const hoaEmails: string[] = property?.hoa_submission_email
+    ? property.hoa_submission_email
+        .split(",")
+        .map((e: string) => e.trim())
+        .filter(Boolean)
+    : [];
+
+  if (!hoaEmails.includes(ALWAYS_NOTIFY)) {
+    hoaEmails.push(ALWAYS_NOTIFY);
+  }
+
+  if (hoaEmails.length > 0) {
     sendDeliveryNotification({
       to: hoaEmails,
-      lotSection: property.lot_section || "N/A",
+      lotSection: property?.lot_section || "N/A",
       category,
       provider: provider || "Other",
       quantity: num_cars || 1,
       arrivalDate: arrival_date,
-      ownerPhone: property.owner_phone || "",
-      ownerEmail: property.owner_email || "",
-      hoaType: property.hoa_type || "pepoa",
-    }).catch(() => {});
+      ownerPhone: property?.owner_phone || "",
+      ownerEmail: property?.owner_email || "",
+      hoaType: property?.hoa_type || "pepoa",
+    })
+      .then(({ subject, body }) => {
+        admin
+          .from("delivery_rideshare")
+          .update({
+            email_subject: subject,
+            email_body: body,
+            email_recipients: hoaEmails,
+          })
+          .eq("id", record.id)
+          .then(() => {});
+      })
+      .catch(() => {});
   }
 
   return NextResponse.json({ ok: true, id: record.id });

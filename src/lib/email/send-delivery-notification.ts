@@ -58,16 +58,20 @@ export async function sendDeliveryNotification({
     "Summit Lakeside Rentals",
   ];
 
+  const body = bodyLines.join("\n");
+
   const resend = getResend();
   const { error } = await resend.emails.send({
     from: fromEmail,
     to,
     ...(cc.length > 0 ? { cc } : {}),
     subject,
-    text: bodyLines.join("\n"),
+    text: body,
   });
 
   if (error) {
     throw new Error(`Resend API error: ${error.message}`);
   }
+
+  return { subject, body };
 }

@@ -36,6 +36,9 @@ import {
   Plus,
   Minus,
   Search,
+  Mail,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 
 type Registration = {
@@ -45,6 +48,21 @@ type Registration = {
   status: string;
   guest: { full_name: string; email: string | null } | null;
   property: { id: string; name: string; nickname: string | null } | null;
+};
+
+type SentDelivery = {
+  id: string;
+  created_at: string;
+  category: "rideshare" | "food_grocery" | "other";
+  provider: string | null;
+  arrival_date: string;
+  email_subject: string | null;
+  email_body: string | null;
+  email_recipients: string[] | null;
+  registration: {
+    guest: { full_name: string } | null;
+    property: { name: string; nickname: string | null } | null;
+  } | null;
 };
 
 type Category = "rideshare" | "food_grocery" | "other";
@@ -83,6 +101,9 @@ export default function AdminDeliveriesPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [selectedReg, setSelectedReg] = useState<Registration | null>(null);
+  const [sentHistory, setSentHistory] = useState<SentDelivery[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(true);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   // Form state
   const [category, setCategory] = useState<Category>("food_grocery");
@@ -99,6 +120,7 @@ export default function AdminDeliveriesPage() {
 
   useEffect(() => {
     load();
+    loadHistory();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -117,6 +139,19 @@ export default function AdminDeliveriesPage() {
       );
     }
     setLoading(false);
+  }
+
+  async function loadHistory() {
+    setHistoryLoading(true);
+    const { data } = await supabase
+      .from("delivery_rideshare")
+      .select(
+        "id, created_at, category, provider, arrival_date, email_subject, email_body, email_recipients, registration:registration_id(guest:guest_id(full_name), property:property_id(name, nickname))"
+      )
+      .order("created_at", { ascending: false })
+      .limit(50);
+    if (data) setSentHistory(data as unknown as SentDelivery[]);
+    setHistoryLoading(false);
   }
 
   function openDialog(reg: Registration) {
@@ -164,6 +199,7 @@ export default function AdminDeliveriesPage() {
         setError(d.error || "Something went wrong");
       } else {
         setSubmitted(true);
+        setTimeout(() => loadHistory(), 2000);
       }
     } catch {
       setError("Unable to connect. Please try again.");
@@ -274,6 +310,123 @@ export default function AdminDeliveriesPage() {
           })}
         </div>
       )}
+
+      {/* Sent History */}
+      <div className="space-y-4 pt-4 border-t">
+        <div className="flex items-center gap-2">
+          <Mail className="h-5 w-5 text-muted-foreground" />
+          <h2 className="text-lg font-semibold">Sent History</h2>
+        </div>
+
+        {historyLoading ? (
+          <div className="text-muted-foreground text-sm">Loading history...</div>
+        ) : sentHistory.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No deliveries sent yet.</p>
+        ) : (
+          <div className="space-y-2">
+            {sentHistory.map((item) => {
+              const isExpanded = expandedId === item.id;
+              const label =
+                item.registration?.property?.nickname ||
+                item.registration?.property?.name ||
+                "Unknown property";
+              const guestName =
+                item.registration?.guest?.full_name || "Unknown guest";
+              const sentAt = new Date(item.created_at).toLocaleString("en-US", {
+                month: "short",
+                day: "numeric",
+                year: "numeric",
+                hour: "numeric",
+                minute: "2-digit",
+              });
+              const categoryLabel =
+                item.category === "rideshare"
+                  ? "Ride Share"
+                  : item.category === "food_grocery"
+                  ? "Food / Grocery"
+                  : "Other";
+
+              return (
+                <Card key={item.id} className="overflow-hidden">
+                  <button
+                    type="button"
+                    className="w-full text-left"
+                    onClick={() => setExpandedId(isExpanded ? null : item.id)}
+                  >
+                    <CardHeader className="pb-3 pt-4 px-4">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium leading-snug truncate">
+                            {item.email_subject || `${item.provider || categoryLabel} — ${formatDate(item.arrival_date)}`}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {guestName} · {label} · {sentAt}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <Badge variant="outline" className="text-xs">
+                            {categoryLabel}
+                          </Badge>
+                          {isExpanded ? (
+                            <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                          ) : (
+                            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                          )}
+                        </div>
+                      </div>
+                    </CardHeader>
+                  </button>
+
+                  {isExpanded && (
+                    <CardContent className="px-4 pb-4 pt-0 space-y-3 border-t">
+                      {item.email_recipients && item.email_recipients.length > 0 && (
+                        <div>
+                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                            Recipients
+                          </p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {item.email_recipients.map((r) => (
+                              <span
+                                key={r}
+                                className="text-xs bg-muted rounded px-2 py-0.5 font-mono"
+                              >
+                                {r}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {item.email_subject && (
+                        <div>
+                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                            Subject
+                          </p>
+                          <p className="text-sm">{item.email_subject}</p>
+                        </div>
+                      )}
+                      {item.email_body && (
+                        <div>
+                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                            Body
+                          </p>
+                          <pre className="text-sm whitespace-pre-wrap font-sans bg-muted rounded p-3 leading-relaxed">
+                            {item.email_body}
+                          </pre>
+                        </div>
+                      )}
+                      {!item.email_subject && !item.email_body && (
+                        <p className="text-sm text-muted-foreground italic">
+                          No email preview available for this record.
+                        </p>
+                      )}
+                    </CardContent>
+                  )}
+                </Card>
+              );
+            })}
+          </div>
+        )}
+      </div>
 
       {/* Delivery Dialog */}
       <Dialog open={!!selectedReg} onOpenChange={(open) => !open && closeDialog()}>
