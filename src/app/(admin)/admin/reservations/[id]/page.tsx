@@ -1004,13 +1004,13 @@ export default function ReservationDetailPage() {
           </SheetHeader>
           {selectedPhoto && (
             <div className="flex-1 flex flex-col sm:flex-row min-h-0 overflow-y-auto sm:overflow-hidden">
-              {/* Image panel — sticky on mobile, flex fill on desktop */}
-              <div className="sticky top-0 z-10 sm:static sm:flex-1 bg-muted flex items-center justify-center sm:overflow-hidden">
+              {/* Image panel — sticky on mobile, fills remaining height on desktop */}
+              <div className="sticky top-0 z-10 h-64 sm:h-auto sm:static sm:relative sm:flex-1 sm:min-h-0 bg-muted">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={selectedPhoto.url}
                   alt={selectedPhoto.photo.room}
-                  className="w-full sm:w-auto sm:h-full object-contain"
+                  className="absolute inset-0 w-full h-full object-contain"
                 />
               </div>
               {/* EXIF panel */}
