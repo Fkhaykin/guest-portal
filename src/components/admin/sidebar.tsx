@@ -17,6 +17,7 @@ import {
   LogOut,
   Menu,
   X,
+  Truck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -28,6 +29,7 @@ const navItems = [
   { label: "Dashboard", href: "/admin", icon: Home },
   { label: "Properties", href: "/admin/properties", icon: Building2 },
   { label: "Reservations", href: "/admin/reservations", icon: ClipboardList },
+  { label: "Deliveries", href: "/admin/deliveries", icon: Truck },
   { label: "Messages", href: "/admin/messages", icon: MessageSquare },
   { label: "Cleaners", href: "/admin/cleaners", icon: SprayCan },
   { label: "AirCover Claims", href: "/admin/aircover-claims", icon: ShieldAlert },
