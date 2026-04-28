@@ -993,7 +993,7 @@ export default function ReservationDetailPage() {
 
       {/* Photo EXIF Drawer */}
       <Sheet open={!!selectedPhoto} onOpenChange={(open) => !open && setSelectedPhoto(null)}>
-        <SheetContent side="right" className="w-[min(95vw,1300px)] max-w-none flex flex-col p-0">
+        <SheetContent side="right" className="flex flex-col p-0" style={{ width: "min(95vw, 1300px)", maxWidth: "none" }}>
           <SheetHeader className="px-4 pt-4 pb-3 border-b shrink-0">
             <SheetTitle className="text-base">
               {selectedPhoto?.photo.room || "Photo"}
