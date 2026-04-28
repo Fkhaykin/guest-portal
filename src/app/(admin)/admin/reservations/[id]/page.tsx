@@ -993,7 +993,7 @@ export default function ReservationDetailPage() {
 
       {/* Photo EXIF Drawer */}
       <Sheet open={!!selectedPhoto} onOpenChange={(open) => !open && setSelectedPhoto(null)}>
-        <SheetContent side="right" className="sm:max-w-5xl w-full flex flex-col p-0">
+        <SheetContent side="right" className="w-[min(95vw,1300px)] max-w-none flex flex-col p-0">
           <SheetHeader className="px-4 pt-4 pb-3 border-b shrink-0">
             <SheetTitle className="text-base">
               {selectedPhoto?.photo.room || "Photo"}
@@ -1003,9 +1003,9 @@ export default function ReservationDetailPage() {
             </SheetTitle>
           </SheetHeader>
           {selectedPhoto && (
-            <div className="flex-1 flex flex-col sm:flex-row min-h-0 overflow-y-auto sm:overflow-hidden">
-              {/* Image panel — sticky on mobile, fills remaining height on desktop */}
-              <div className="sticky top-0 z-10 h-64 sm:h-auto sm:static sm:relative sm:flex-1 sm:min-h-0 bg-muted">
+            <div className="flex-1 flex flex-row min-h-0 overflow-hidden">
+              {/* Image panel — left side, fills all remaining space */}
+              <div className="relative flex-1 min-h-0 bg-muted overflow-hidden">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={selectedPhoto.url}
@@ -1013,8 +1013,8 @@ export default function ReservationDetailPage() {
                   className="absolute inset-0 w-full h-full object-contain"
                 />
               </div>
-              {/* EXIF panel */}
-              <div className="w-full sm:w-72 shrink-0 border-t sm:border-t-0 sm:border-l sm:overflow-y-auto p-4">
+              {/* EXIF panel — right side, fixed width */}
+              <div className="w-80 shrink-0 border-l overflow-y-auto p-4">
                 <PhotoExifPanel exif={selectedPhoto.photo.exif ?? {}} url={selectedPhoto.url} uploadedAt={selectedPhoto.photo.uploaded_at} />
               </div>
             </div>
