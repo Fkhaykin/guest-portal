@@ -95,29 +95,30 @@ export async function POST(request: Request) {
     hoaEmails.push(ALWAYS_NOTIFY);
   }
 
-  sendDeliveryNotification({
-    to: hoaEmails,
-    lotSection: property.lot_section || "N/A",
-    category,
-    provider: provider || "Other",
-    quantity: num_cars || 1,
-    arrivalDate: arrival_date,
-    ownerPhone: property.owner_phone || "",
-    ownerEmail: property.owner_email || "",
-    hoaType: property.hoa_type || "pepoa",
-  })
-    .then(({ subject, body }) => {
-      admin
-        .from("delivery_rideshare")
-        .update({
-          email_subject: subject,
-          email_body: body,
-          email_recipients: hoaEmails,
-        })
-        .eq("id", record.id)
-        .then(() => {});
-    })
-    .catch(() => {});
+  try {
+    const { subject, body: emailBody } = await sendDeliveryNotification({
+      to: hoaEmails,
+      lotSection: property.lot_section || "N/A",
+      category,
+      provider: provider || "Other",
+      quantity: num_cars || 1,
+      arrivalDate: arrival_date,
+      ownerPhone: property.owner_phone || "",
+      ownerEmail: property.owner_email || "",
+      hoaType: property.hoa_type || "pepoa",
+    });
+
+    await admin
+      .from("delivery_rideshare")
+      .update({
+        email_subject: subject,
+        email_body: emailBody,
+        email_recipients: hoaEmails,
+      })
+      .eq("id", record.id);
+  } catch {
+    // Email failed — record is already saved, return success anyway
+  }
 
   return NextResponse.json({ ok: true, id: record.id });
 }
