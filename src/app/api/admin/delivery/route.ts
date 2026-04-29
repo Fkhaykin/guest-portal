@@ -19,7 +19,7 @@ export async function POST(request: Request) {
   if (!host) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   let body: {
-    registration_id: string;
+    property_id: string;
     category: "rideshare" | "food_grocery" | "other";
     provider?: string;
     num_cars?: number;
@@ -37,7 +37,7 @@ export async function POST(request: Request) {
   }
 
   const {
-    registration_id,
+    property_id,
     category,
     provider,
     num_cars,
@@ -48,31 +48,24 @@ export async function POST(request: Request) {
     notes,
   } = body;
 
-  if (!registration_id || !category || !arrival_date) {
+  if (!property_id || !category || !arrival_date) {
     return NextResponse.json(
-      { error: "registration_id, category, and arrival_date are required" },
+      { error: "property_id, category, and arrival_date are required" },
       { status: 400 }
     );
   }
 
-  const { data: reg } = await admin
-    .from("registration")
-    .select("id, property_id")
-    .eq("id", registration_id)
-    .single();
-  if (!reg) return NextResponse.json({ error: "Registration not found" }, { status: 404 });
-
   const { data: property } = await admin
     .from("property")
-    .select("lot_section, hoa_submission_email, owner_phone, owner_email, hoa_type")
-    .eq("id", reg.property_id)
+    .select("id, lot_section, hoa_submission_email, owner_phone, owner_email, hoa_type")
+    .eq("id", property_id)
     .single();
+  if (!property) return NextResponse.json({ error: "Property not found" }, { status: 404 });
 
   const { data: record, error: insertError } = await admin
     .from("delivery_rideshare")
     .insert({
-      registration_id: reg.id,
-      property_id: reg.property_id,
+      property_id,
       category,
       provider: provider || null,
       num_cars: num_cars || 1,
@@ -91,7 +84,7 @@ export async function POST(request: Request) {
 
   const ALWAYS_NOTIFY = "welcomecenter@pepoa.org";
 
-  const hoaEmails: string[] = property?.hoa_submission_email
+  const hoaEmails: string[] = property.hoa_submission_email
     ? property.hoa_submission_email
         .split(",")
         .map((e: string) => e.trim())
@@ -102,31 +95,29 @@ export async function POST(request: Request) {
     hoaEmails.push(ALWAYS_NOTIFY);
   }
 
-  if (hoaEmails.length > 0) {
-    sendDeliveryNotification({
-      to: hoaEmails,
-      lotSection: property?.lot_section || "N/A",
-      category,
-      provider: provider || "Other",
-      quantity: num_cars || 1,
-      arrivalDate: arrival_date,
-      ownerPhone: property?.owner_phone || "",
-      ownerEmail: property?.owner_email || "",
-      hoaType: property?.hoa_type || "pepoa",
+  sendDeliveryNotification({
+    to: hoaEmails,
+    lotSection: property.lot_section || "N/A",
+    category,
+    provider: provider || "Other",
+    quantity: num_cars || 1,
+    arrivalDate: arrival_date,
+    ownerPhone: property.owner_phone || "",
+    ownerEmail: property.owner_email || "",
+    hoaType: property.hoa_type || "pepoa",
+  })
+    .then(({ subject, body }) => {
+      admin
+        .from("delivery_rideshare")
+        .update({
+          email_subject: subject,
+          email_body: body,
+          email_recipients: hoaEmails,
+        })
+        .eq("id", record.id)
+        .then(() => {});
     })
-      .then(({ subject, body }) => {
-        admin
-          .from("delivery_rideshare")
-          .update({
-            email_subject: subject,
-            email_body: body,
-            email_recipients: hoaEmails,
-          })
-          .eq("id", record.id)
-          .then(() => {});
-      })
-      .catch(() => {});
-  }
+    .catch(() => {});
 
   return NextResponse.json({ ok: true, id: record.id });
 }

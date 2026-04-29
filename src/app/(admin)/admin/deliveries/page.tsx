@@ -35,19 +35,15 @@ import {
   Check,
   Plus,
   Minus,
-  Search,
   Mail,
   ChevronDown,
   ChevronUp,
 } from "lucide-react";
 
-type Registration = {
+type Property = {
   id: string;
-  check_in_date: string;
-  check_out_date: string;
-  status: string;
-  guest: { full_name: string; email: string | null } | null;
-  property: { id: string; name: string; nickname: string | null } | null;
+  name: string;
+  nickname: string | null;
 };
 
 type SentDelivery = {
@@ -77,6 +73,11 @@ const FOOD_PROVIDERS = [
   "Other",
 ];
 
+function todayString() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 function formatDate(d: string) {
   return new Date(d + "T00:00:00").toLocaleDateString("en-US", {
     month: "short",
@@ -85,19 +86,11 @@ function formatDate(d: string) {
   });
 }
 
-function isCurrentOrUpcoming(reg: Registration) {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const checkOut = new Date(reg.check_out_date + "T00:00:00");
-  return checkOut >= today;
-}
-
 export default function AdminDeliveriesPage() {
   const supabase = createClient();
-  const [registrations, setRegistrations] = useState<Registration[]>([]);
+  const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-  const [selectedReg, setSelectedReg] = useState<Registration | null>(null);
+  const [selectedProp, setSelectedProp] = useState<Property | null>(null);
   const [sentHistory, setSentHistory] = useState<SentDelivery[]>([]);
   const [historyLoading, setHistoryLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -106,7 +99,7 @@ export default function AdminDeliveriesPage() {
   const [category, setCategory] = useState<Category>("food_grocery");
   const [provider, setProvider] = useState("");
   const [numCars, setNumCars] = useState(1);
-  const [arrivalDate, setArrivalDate] = useState("");
+  const [arrivalDate, setArrivalDate] = useState(todayString());
   const [hasReturn, setHasReturn] = useState(false);
   const [returnCars, setReturnCars] = useState(1);
   const [returnDate, setReturnDate] = useState("");
@@ -124,17 +117,11 @@ export default function AdminDeliveriesPage() {
   async function load() {
     setLoading(true);
     const { data } = await supabase
-      .from("registration")
-      .select(
-        "id, check_in_date, check_out_date, status, guest:guest_id(full_name, email), property:property_id(id, name, nickname)"
-      )
-      .eq("status", "active")
-      .order("check_in_date", { ascending: true });
-    if (data) {
-      setRegistrations(
-        (data as unknown as Registration[]).filter(isCurrentOrUpcoming)
-      );
-    }
+      .from("property")
+      .select("id, name, nickname")
+      .eq("is_active", true)
+      .order("sort_order", { ascending: true });
+    if (data) setProperties(data as Property[]);
     setLoading(false);
   }
 
@@ -152,12 +139,12 @@ export default function AdminDeliveriesPage() {
     setHistoryLoading(false);
   }
 
-  function openDialog(reg: Registration) {
-    setSelectedReg(reg);
+  function openDialog(prop: Property) {
+    setSelectedProp(prop);
     setCategory("food_grocery");
     setProvider("");
     setNumCars(1);
-    setArrivalDate(reg.check_in_date);
+    setArrivalDate(todayString());
     setHasReturn(false);
     setReturnCars(1);
     setReturnDate("");
@@ -168,12 +155,12 @@ export default function AdminDeliveriesPage() {
   }
 
   function closeDialog() {
-    setSelectedReg(null);
+    setSelectedProp(null);
     setSubmitted(false);
   }
 
   async function handleSubmit() {
-    if (!selectedReg || !category || !arrivalDate) return;
+    if (!selectedProp || !category || !arrivalDate) return;
     setSubmitting(true);
     setError(null);
     try {
@@ -181,7 +168,7 @@ export default function AdminDeliveriesPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          registration_id: selectedReg.id,
+          property_id: selectedProp.id,
           category,
           provider: provider || undefined,
           num_cars: category === "rideshare" ? numCars : 1,
@@ -209,103 +196,40 @@ export default function AdminDeliveriesPage() {
   const providerOptions =
     category === "rideshare" ? RIDESHARE_PROVIDERS : FOOD_PROVIDERS;
 
-  const filtered = registrations.filter((r) => {
-    const q = search.toLowerCase();
-    if (!q) return true;
-    const guestName = r.guest?.full_name?.toLowerCase() ?? "";
-    const propName = (r.property?.nickname || r.property?.name || "").toLowerCase();
-    return guestName.includes(q) || propName.includes(q);
-  });
-
   const isRideshare = category === "rideshare";
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Deliveries</h1>
-          <p className="text-muted-foreground text-sm">
-            Register a delivery or rideshare for a current guest
-          </p>
-        </div>
-      </div>
-
-      {/* Search */}
-      <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Search guest or property..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="pl-9"
-        />
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">Deliveries</h1>
+        <p className="text-muted-foreground text-sm">
+          Register a delivery or rideshare notification for a property
+        </p>
       </div>
 
       {loading ? (
-        <div className="text-muted-foreground text-sm">Loading bookings...</div>
-      ) : filtered.length === 0 ? (
-        <Card>
-          <CardContent className="p-8 text-center text-muted-foreground">
-            <Truck className="h-10 w-10 mx-auto mb-3 opacity-40" />
-            <p>No active or upcoming bookings found.</p>
-          </CardContent>
-        </Card>
+        <div className="text-muted-foreground text-sm">Loading properties...</div>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {filtered.map((reg) => {
-            const propertyLabel =
-              reg.property?.nickname || reg.property?.name || "—";
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            const checkIn = new Date(reg.check_in_date + "T00:00:00");
-            const checkOut = new Date(reg.check_out_date + "T00:00:00");
-            const isCurrent = checkIn <= today && checkOut >= today;
-
-            return (
-              <Card key={reg.id} className="flex flex-col">
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <CardTitle className="text-base leading-snug">
-                      {propertyLabel}
-                    </CardTitle>
-                    {isCurrent ? (
-                      <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 shrink-0">
-                        Staying Now
-                      </Badge>
-                    ) : (
-                      <Badge variant="outline" className="shrink-0">
-                        Upcoming
-                      </Badge>
-                    )}
-                  </div>
-                </CardHeader>
-                <CardContent className="flex-1 space-y-3">
-                  <div>
-                    <p className="font-medium text-sm">
-                      {reg.guest?.full_name || "Unknown guest"}
-                    </p>
-                    {reg.guest?.email && (
-                      <p className="text-xs text-muted-foreground">
-                        {reg.guest.email}
-                      </p>
-                    )}
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    {formatDate(reg.check_in_date)} →{" "}
-                    {formatDate(reg.check_out_date)}
-                  </div>
-                  <Button
-                    className="w-full mt-auto"
-                    size="sm"
-                    onClick={() => openDialog(reg)}
-                  >
-                    <Truck className="h-3.5 w-3.5 mr-1.5" />
-                    Register Delivery
-                  </Button>
-                </CardContent>
-              </Card>
-            );
-          })}
+          {properties.map((prop) => (
+            <Card key={prop.id} className="flex flex-col">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base leading-snug">
+                  {prop.nickname || prop.name}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Button
+                  className="w-full"
+                  size="sm"
+                  onClick={() => openDialog(prop)}
+                >
+                  <Truck className="h-3.5 w-3.5 mr-1.5" />
+                  Register Delivery
+                </Button>
+              </CardContent>
+            </Card>
+          ))}
         </div>
       )}
 
@@ -353,7 +277,8 @@ export default function AdminDeliveriesPage() {
                       <div className="flex items-center justify-between gap-2">
                         <div className="min-w-0">
                           <p className="text-sm font-medium leading-snug truncate">
-                            {item.email_subject || `${item.provider || categoryLabel} — ${formatDate(item.arrival_date)}`}
+                            {item.email_subject ||
+                              `${item.provider || categoryLabel} — ${formatDate(item.arrival_date)}`}
                           </p>
                           <p className="text-xs text-muted-foreground mt-0.5">
                             {label} · {sentAt}
@@ -425,7 +350,7 @@ export default function AdminDeliveriesPage() {
       </div>
 
       {/* Delivery Dialog */}
-      <Dialog open={!!selectedReg} onOpenChange={(open) => !open && closeDialog()}>
+      <Dialog open={!!selectedProp} onOpenChange={(open) => !open && closeDialog()}>
         <DialogContent className="max-w-md">
           {submitted ? (
             <div className="py-8 text-center space-y-4">
@@ -436,8 +361,7 @@ export default function AdminDeliveriesPage() {
                 <h2 className="text-lg font-semibold">Delivery Registered</h2>
                 <p className="text-sm text-muted-foreground">
                   Notification sent to HOA for{" "}
-                  {selectedReg?.property?.nickname ||
-                    selectedReg?.property?.name}.
+                  {selectedProp?.nickname || selectedProp?.name}.
                 </p>
               </div>
               <div className="flex gap-2 pt-2">
@@ -445,7 +369,7 @@ export default function AdminDeliveriesPage() {
                   variant="outline"
                   className="flex-1"
                   onClick={() => {
-                    if (selectedReg) openDialog(selectedReg);
+                    if (selectedProp) openDialog(selectedProp);
                   }}
                 >
                   Register Another
@@ -460,9 +384,7 @@ export default function AdminDeliveriesPage() {
               <DialogHeader>
                 <DialogTitle>Register Delivery</DialogTitle>
                 <p className="text-sm text-muted-foreground">
-                  {selectedReg?.guest?.full_name} ·{" "}
-                  {selectedReg?.property?.nickname ||
-                    selectedReg?.property?.name}
+                  {selectedProp?.nickname || selectedProp?.name}
                 </p>
               </DialogHeader>
 
@@ -567,8 +489,6 @@ export default function AdminDeliveriesPage() {
                     id="arrival-date"
                     type="date"
                     value={arrivalDate}
-                    min={selectedReg?.check_in_date}
-                    max={selectedReg?.check_out_date}
                     onChange={(e) => setArrivalDate(e.target.value)}
                   />
                 </div>
@@ -591,7 +511,7 @@ export default function AdminDeliveriesPage() {
                       </button>
                     </div>
                     {hasReturn && (
-                      <div className="space-y-3 pl-0">
+                      <div className="space-y-3">
                         <div className="space-y-2">
                           <Label>Cars for drop-off</Label>
                           <div className="flex items-center gap-3">
@@ -627,8 +547,7 @@ export default function AdminDeliveriesPage() {
                             id="return-date"
                             type="date"
                             value={returnDate}
-                            min={arrivalDate || selectedReg?.check_in_date}
-                            max={selectedReg?.check_out_date}
+                            min={arrivalDate}
                             onChange={(e) => setReturnDate(e.target.value)}
                           />
                         </div>
