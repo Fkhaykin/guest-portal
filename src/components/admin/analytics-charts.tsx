@@ -40,7 +40,6 @@ import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -699,26 +698,26 @@ export function AnalyticsCharts() {
               )}
               <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="min-w-48 max-w-[calc(100vw-2rem)]" style={{ width: "auto" }}>
-              <DropdownMenuLabel className="text-xs font-normal text-muted-foreground flex items-center justify-between gap-4">
-                Filter by property
+            <DropdownMenuContent align="start" className="min-w-48 max-w-[calc(100vw-2rem)] p-2" style={{ width: "auto" }}>
+              <div className="flex items-center justify-between gap-4 px-1 pb-1.5">
+                <span className="text-xs text-muted-foreground">Filter by property</span>
                 <div className="flex gap-2 shrink-0">
                   <button
                     type="button"
                     onClick={() => setHiddenSeries(new Set())}
-                    className="text-[10px] underline hover:text-foreground"
+                    className="text-[10px] text-muted-foreground underline hover:text-foreground"
                   >
                     All
                   </button>
                   <button
                     type="button"
                     onClick={() => setHiddenSeries(new Set(raw.properties.map((p) => p.name)))}
-                    className="text-[10px] underline hover:text-foreground"
+                    className="text-[10px] text-muted-foreground underline hover:text-foreground"
                   >
                     None
                   </button>
                 </div>
-              </DropdownMenuLabel>
+              </div>
               <DropdownMenuSeparator />
               {raw.properties.map((p, i) => (
                 <DropdownMenuCheckboxItem
