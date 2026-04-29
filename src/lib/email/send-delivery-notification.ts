@@ -11,8 +11,10 @@ export async function sendDeliveryNotification({
   provider,
   quantity,
   arrivalDate,
+  ownerName,
   ownerPhone,
   ownerEmail,
+  housePassword,
   hoaType,
 }: {
   to: string | string[];
@@ -21,8 +23,10 @@ export async function sendDeliveryNotification({
   provider: string;
   quantity: number;
   arrivalDate: string;
+  ownerName: string;
   ownerPhone: string;
   ownerEmail: string;
+  housePassword: string;
   hoaType?: string;
 }) {
   const fromEmail = "contact@summitlakeside.com";
@@ -43,6 +47,7 @@ export async function sendDeliveryNotification({
   const subject = `${provider} ${typeLabel[0].toUpperCase() + typeLabel.slice(1)}${lotPart} — ${formattedDate}`;
 
   const contactLines: string[] = [];
+  if (ownerName) contactLines.push(`  Name: ${ownerName}`);
   if (ownerPhone) contactLines.push(`  Phone: ${ownerPhone}`);
   if (ownerEmail) contactLines.push(`  Email: ${ownerEmail}`);
 
@@ -50,6 +55,8 @@ export async function sendDeliveryNotification({
     "Hello,",
     "",
     `We have a ${quantity} ${typeLabel} from ${provider} on ${formattedDate}. Please register and allow them through.`,
+    "",
+    `House Password: ${housePassword}`,
     "",
     "If you have any questions please contact us:",
     ...contactLines,

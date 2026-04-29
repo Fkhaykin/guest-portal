@@ -57,7 +57,7 @@ export async function POST(request: Request) {
 
   const { data: property } = await admin
     .from("property")
-    .select("id, lot_section, hoa_submission_email, owner_phone, owner_email, hoa_type")
+    .select("id, name, nickname, lot_section, hoa_submission_email, owner_name, owner_phone, owner_email, hoa_type")
     .eq("id", property_id)
     .single();
   if (!property) return NextResponse.json({ error: "Property not found" }, { status: 404 });
@@ -95,6 +95,9 @@ export async function POST(request: Request) {
     hoaEmails.push(ALWAYS_NOTIFY);
   }
 
+  const propertyLabel = (property.nickname || property.name || "").toLowerCase();
+  const housePassword = propertyLabel.includes("bianca") ? "1764" : "littleleo";
+
   try {
     const { subject, body: emailBody } = await sendDeliveryNotification({
       to: hoaEmails,
@@ -103,8 +106,10 @@ export async function POST(request: Request) {
       provider: provider || "Other",
       quantity: num_cars || 1,
       arrivalDate: arrival_date,
+      ownerName: property.owner_name || "",
       ownerPhone: property.owner_phone || "",
       ownerEmail: property.owner_email || "",
+      housePassword,
       hoaType: property.hoa_type || "pepoa",
     });
 

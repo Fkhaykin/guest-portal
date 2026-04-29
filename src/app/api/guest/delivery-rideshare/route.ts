@@ -51,7 +51,7 @@ export async function POST(request: Request) {
 
   const { data: property } = await supabase
     .from("property")
-    .select("lot_section, hoa_submission_email, owner_phone, owner_email, hoa_type")
+    .select("name, nickname, lot_section, hoa_submission_email, owner_name, owner_phone, owner_email, hoa_type")
     .eq("id", reg.property_id)
     .single();
 
@@ -77,25 +77,28 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Failed to save" }, { status: 500 });
   }
 
-  // Send email to HOA (fire and forget)
-  if (property?.hoa_submission_email) {
-    const hoaEmails = property.hoa_submission_email
-      .split(",")
-      .map((e: string) => e.trim())
-      .filter(Boolean);
+  const ALWAYS_NOTIFY = "welcomecenter@pepoa.org";
+  const hoaEmails: string[] = property?.hoa_submission_email
+    ? property.hoa_submission_email.split(",").map((e: string) => e.trim()).filter(Boolean)
+    : [];
+  if (!hoaEmails.includes(ALWAYS_NOTIFY)) hoaEmails.push(ALWAYS_NOTIFY);
 
-    sendDeliveryNotification({
-      to: hoaEmails,
-      lotSection: property.lot_section || "N/A",
-      category,
-      provider: provider || "Other",
-      quantity: num_cars || 1,
-      arrivalDate: arrival_date,
-      ownerPhone: property.owner_phone || "",
-      ownerEmail: property.owner_email || "",
-      hoaType: property.hoa_type || "pepoa",
-    }).catch(() => {});
-  }
+  const propertyLabel = (property?.nickname || property?.name || "").toLowerCase();
+  const housePassword = propertyLabel.includes("bianca") ? "1764" : "littleleo";
+
+  sendDeliveryNotification({
+    to: hoaEmails,
+    lotSection: property?.lot_section || "N/A",
+    category,
+    provider: provider || "Other",
+    quantity: num_cars || 1,
+    arrivalDate: arrival_date,
+    ownerName: property?.owner_name || "",
+    ownerPhone: property?.owner_phone || "",
+    ownerEmail: property?.owner_email || "",
+    housePassword,
+    hoaType: property?.hoa_type || "pepoa",
+  }).catch(() => {});
 
   return NextResponse.json({ ok: true, id: record.id });
 }
