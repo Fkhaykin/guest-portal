@@ -275,12 +275,12 @@ export default function AdminDeliveriesPage() {
                   >
                     <CardHeader className="pb-3 pt-4 px-4">
                       <div className="flex items-center justify-between gap-2">
-                        <div className="min-w-0">
+                        <div className="min-w-0 overflow-hidden">
                           <p className="text-sm font-medium leading-snug truncate">
                             {item.email_subject ||
                               `${item.provider || categoryLabel} — ${formatDate(item.arrival_date)}`}
                           </p>
-                          <p className="text-xs text-muted-foreground mt-0.5">
+                          <p className="text-xs text-muted-foreground mt-0.5 truncate">
                             {label} · {sentAt}
                           </p>
                         </div>
