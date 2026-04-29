@@ -657,22 +657,24 @@ export function AnalyticsCharts() {
   const periodLabel = groupBy === "week" ? "Week" : groupBy === "quarter" ? "Quarter" : "Month";
 
   return (
-    <div className="space-y-4">
-      {/* Controls bar */}
-      <div className="flex flex-wrap items-center gap-3">
-        <CalendarRange className="h-4 w-4 text-muted-foreground" />
-        <div className="flex items-center gap-1">
-          {PRESETS.map((p) => (
-            <Button
-              key={p.value}
-              variant={preset === p.value ? "default" : "outline"}
-              size="sm"
-              onClick={() => setPreset(p.value)}
-              className="h-7 text-xs px-2.5"
-            >
-              {p.label}
-            </Button>
-          ))}
+    <div className="space-y-3">
+      {/* Row 1: date presets */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:flex-wrap">
+        <div className="flex items-center gap-2">
+          <CalendarRange className="h-4 w-4 shrink-0 text-muted-foreground" />
+          <div className="flex items-center gap-1 overflow-x-auto">
+            {PRESETS.map((p) => (
+              <Button
+                key={p.value}
+                variant={preset === p.value ? "default" : "outline"}
+                size="sm"
+                onClick={() => setPreset(p.value)}
+                className="h-7 text-xs px-2.5 shrink-0"
+              >
+                {p.label}
+              </Button>
+            ))}
+          </div>
         </div>
         {preset === "custom" && (
           <div className="flex items-center gap-1.5">
@@ -681,8 +683,63 @@ export function AnalyticsCharts() {
             <Input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} className="h-7 w-36 text-xs" />
           </div>
         )}
-        <div className="ml-auto flex items-center gap-1.5">
-          <span className="text-xs text-muted-foreground">Group by</span>
+      </div>
+
+      {/* Row 2: property filter + group by */}
+      <div className="flex items-center gap-2">
+        {raw && (
+          <DropdownMenu>
+            <DropdownMenuTrigger className="inline-flex items-center gap-1.5 h-8 px-3 rounded-md border border-input bg-background text-xs font-medium hover:bg-accent hover:text-accent-foreground transition-colors shrink-0">
+              <Building2 className="h-3.5 w-3.5" />
+              Properties
+              {hiddenSeries.size > 0 && (
+                <span className="rounded-full bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 leading-none">
+                  {raw.properties.length - hiddenSeries.size}/{raw.properties.length}
+                </span>
+              )}
+              <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="min-w-48 max-w-[calc(100vw-2rem)]" style={{ width: "auto" }}>
+              <DropdownMenuLabel className="text-xs font-normal text-muted-foreground flex items-center justify-between gap-4">
+                Filter by property
+                <div className="flex gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setHiddenSeries(new Set())}
+                    className="text-[10px] underline hover:text-foreground"
+                  >
+                    All
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setHiddenSeries(new Set(raw.properties.map((p) => p.name)))}
+                    className="text-[10px] underline hover:text-foreground"
+                  >
+                    None
+                  </button>
+                </div>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {raw.properties.map((p, i) => (
+                <DropdownMenuCheckboxItem
+                  key={p.name}
+                  checked={!hiddenSeries.has(p.name)}
+                  onCheckedChange={() => toggleSeries(p.name)}
+                  closeOnClick={false}
+                  className="text-xs gap-2"
+                >
+                  <span
+                    className="inline-block h-2 w-2 rounded-full shrink-0"
+                    style={{ background: COLORS[i % COLORS.length] }}
+                  />
+                  {p.name}
+                </DropdownMenuCheckboxItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+        <div className="ml-auto flex items-center gap-1.5 shrink-0">
+          <span className="text-xs text-muted-foreground hidden sm:block">Group by</span>
           <Select value={groupBy} onValueChange={(v) => setGroupBy(v as GroupBy)}>
             <SelectTrigger size="sm" className="w-28">
               <SelectValue />
@@ -695,58 +752,6 @@ export function AnalyticsCharts() {
           </Select>
         </div>
       </div>
-
-      {/* Property filters */}
-      {raw && (
-        <DropdownMenu>
-          <DropdownMenuTrigger className="inline-flex items-center gap-1.5 h-8 px-3 rounded-md border border-input bg-background text-xs font-medium hover:bg-accent hover:text-accent-foreground transition-colors">
-            <Building2 className="h-3.5 w-3.5" />
-            Properties
-            {hiddenSeries.size > 0 && (
-              <span className="rounded-full bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 leading-none">
-                {raw.properties.length - hiddenSeries.size}/{raw.properties.length}
-              </span>
-            )}
-            <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-56">
-            <DropdownMenuLabel className="text-xs font-normal text-muted-foreground flex items-center justify-between">
-              Filter by property
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setHiddenSeries(new Set())}
-                  className="text-[10px] underline hover:text-foreground"
-                >
-                  All
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setHiddenSeries(new Set(raw.properties.map((p) => p.name)))}
-                  className="text-[10px] underline hover:text-foreground"
-                >
-                  None
-                </button>
-              </div>
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            {raw.properties.map((p, i) => (
-              <DropdownMenuCheckboxItem
-                key={p.name}
-                checked={!hiddenSeries.has(p.name)}
-                onCheckedChange={() => toggleSeries(p.name)}
-                className="text-xs gap-2"
-              >
-                <span
-                  className="inline-block h-2 w-2 rounded-full shrink-0"
-                  style={{ background: COLORS[i % COLORS.length] }}
-                />
-                {p.name}
-              </DropdownMenuCheckboxItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      )}
 
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
