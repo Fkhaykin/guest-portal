@@ -105,10 +105,23 @@ export async function updateSession(request: NextRequest) {
   // Refresh the session — important for Server Components
   const {
     data: { user },
+    error: getUserError,
   } = await supabase.auth.getUser();
 
+  // On mobile PWA cold-start, iOS hasn't established network by the time
+  // middleware runs. getUser() always makes a network call and returns null on
+  // failure, which would redirect the user to login even with a valid session.
+  // Fall back to a local getSession() check when it's a transient fetch error.
+  let isAuthenticated = !!user;
+  if (!isAuthenticated && getUserError?.name === "AuthRetryableFetchError") {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    isAuthenticated = !!session;
+  }
+
   // Protect admin routes
-  if (internalPath.startsWith("/admin") && !user) {
+  if (internalPath.startsWith("/admin") && !isAuthenticated) {
     const url = request.nextUrl.clone();
     url.pathname = "/auth/login";
     // On the admin subdomain, redirect back to / (which rewrites to /admin)
