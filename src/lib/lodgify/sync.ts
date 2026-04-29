@@ -2,6 +2,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getBookings, getBookingById, getProperties, type LodgifyBooking } from "./client";
 import { notifyCleanersOfNewBooking, notifyCleanersOfCancellation } from "@/lib/sms/notify-cleaners";
+import { sendGuestConfirmationAsync } from "@/lib/guest-messages/send";
 
 const STATUS_MAP: Record<string, "active" | "completed" | "cancelled"> = {
   Booked: "active",
@@ -465,6 +466,22 @@ export async function syncBooking(booking: LodgifyBooking, options?: { skipNotif
         console.error(`[lodgify-sync] Failed to notify cleaners of cancellation ${booking.id}:`, err);
       });
     }
+  }
+
+  // Send automated guest message for non-Airbnb new/reactivated bookings
+  const isAirbnb = /airbnb/i.test(booking.source ?? "");
+  const isDirect = !booking.source || /direct|lodgify/i.test(booking.source ?? "");
+  if (!options?.skipNotify && (isNewBooking || justBecameActive) && newStatus === "active" && !isAirbnb && savedReg) {
+    sendGuestConfirmationAsync({
+      registrationId: savedReg.id,
+      lodgifyBookingId: booking.id,
+      channel: isDirect ? "email" : "lodgify",
+      guestName: booking.guest.name,
+      guestEmail: booking.guest.email ?? null,
+      propertyId,
+      checkInDate: booking.arrival ?? null,
+      checkOutDate: booking.departure ?? null,
+    }).catch((err) => console.error(`[guest-msg] Confirmation failed for booking ${booking.id}:`, err));
   }
 
   return { skipped: false };

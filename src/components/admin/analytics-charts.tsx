@@ -37,10 +37,19 @@ import {
 } from "recharts";
 import type { ValueType } from "recharts/types/component/DefaultTooltipContent";
 import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Building2,
   CreditCard,
   QrCode,
   CalendarRange,
+  ChevronDown,
 } from "lucide-react";
 
 // ─── Constants ───────────────────────────────────────────────
@@ -689,46 +698,54 @@ export function AnalyticsCharts() {
 
       {/* Property filters */}
       {raw && (
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-          <div className="flex gap-1 mr-2">
-            <button
-              type="button"
-              onClick={() => setHiddenSeries(new Set())}
-              className="text-[10px] text-muted-foreground hover:text-foreground underline"
-            >
-              All
-            </button>
-            <span className="text-[10px] text-muted-foreground">/</span>
-            <button
-              type="button"
-              onClick={() => setHiddenSeries(new Set(raw.properties.map((p) => p.name)))}
-              className="text-[10px] text-muted-foreground hover:text-foreground underline"
-            >
-              None
-            </button>
-          </div>
-          {raw.properties.map((p, i) => {
-            const hidden = hiddenSeries.has(p.name);
-            return (
-              <label
+        <DropdownMenu>
+          <DropdownMenuTrigger className="inline-flex items-center gap-1.5 h-8 px-3 rounded-md border border-input bg-background text-xs font-medium hover:bg-accent hover:text-accent-foreground transition-colors">
+            <Building2 className="h-3.5 w-3.5" />
+            Properties
+            {hiddenSeries.size > 0 && (
+              <span className="rounded-full bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 leading-none">
+                {raw.properties.length - hiddenSeries.size}/{raw.properties.length}
+              </span>
+            )}
+            <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-56">
+            <DropdownMenuLabel className="text-xs font-normal text-muted-foreground flex items-center justify-between">
+              Filter by property
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setHiddenSeries(new Set())}
+                  className="text-[10px] underline hover:text-foreground"
+                >
+                  All
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setHiddenSeries(new Set(raw.properties.map((p) => p.name)))}
+                  className="text-[10px] underline hover:text-foreground"
+                >
+                  None
+                </button>
+              </div>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            {raw.properties.map((p, i) => (
+              <DropdownMenuCheckboxItem
                 key={p.name}
-                className="flex items-center gap-1.5 cursor-pointer text-xs select-none"
+                checked={!hiddenSeries.has(p.name)}
+                onCheckedChange={() => toggleSeries(p.name)}
+                className="text-xs gap-2"
               >
-                <input
-                  type="checkbox"
-                  checked={!hidden}
-                  onChange={() => toggleSeries(p.name)}
-                  className="rounded border-muted-foreground"
-                />
                 <span
-                  className="inline-block h-2.5 w-2.5 rounded-full"
-                  style={{ background: COLORS[i % COLORS.length], opacity: hidden ? 0.3 : 1 }}
+                  className="inline-block h-2 w-2 rounded-full shrink-0"
+                  style={{ background: COLORS[i % COLORS.length] }}
                 />
-                <span style={{ opacity: hidden ? 0.4 : 1 }}>{p.name}</span>
-              </label>
-            );
-          })}
-        </div>
+                {p.name}
+              </DropdownMenuCheckboxItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
       )}
 
       {/* Stats */}
