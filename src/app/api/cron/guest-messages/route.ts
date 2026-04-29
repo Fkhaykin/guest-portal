@@ -18,7 +18,6 @@ export async function GET(request: Request) {
   }
 
   const supabase = createAdminClient();
-  const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://guest.summitlakeside.com";
 
   type BookingRow = {
     id: string;
@@ -27,41 +26,25 @@ export async function GET(request: Request) {
     check_in_date: string;
     check_out_date: string;
     guest: { full_name: string; email: string | null };
-    property: { name: string; slug: string; nickname: string | null };
+    property: { name: string; slug: string; nickname: string | null; host_id: string };
   };
 
-  const batches: { type: GuestMessageType; query: string }[] = [
-    {
-      type: "pre_arrival",
-      query: `check_in_date.eq.${offsetDate(3)},status.eq.active`,
-    },
-    {
-      type: "day_of_checkin",
-      query: `check_in_date.eq.${offsetDate(0)},status.eq.active`,
-    },
-    {
-      type: "post_checkout",
-      query: `check_out_date.eq.${offsetDate(-1)},status.eq.completed`,
-    },
+  const batches: { type: GuestMessageType; dateCol: string; dateVal: string; status: string }[] = [
+    { type: "pre_arrival",    dateCol: "check_in_date",  dateVal: offsetDate(3),  status: "active" },
+    { type: "day_of_checkin", dateCol: "check_in_date",  dateVal: offsetDate(0),  status: "active" },
+    { type: "post_checkout",  dateCol: "check_out_date", dateVal: offsetDate(-1), status: "completed" },
   ];
 
   const results: Record<string, { sent: number; skipped: number; errors: number }> = {};
 
   for (const batch of batches) {
-    const conditions = batch.query.split(",");
-
-    let query = supabase
+    const { data: rows, error } = await supabase
       .from("registration")
-      .select("id, lodgify_booking_id, booking_source, check_in_date, check_out_date, guest:guest_id(full_name, email), property:property_id(name, slug, nickname)")
+      .select("id, lodgify_booking_id, booking_source, check_in_date, check_out_date, guest:guest_id(full_name, email), property:property_id(name, slug, nickname, host_id)")
+      .eq(batch.dateCol, batch.dateVal)
+      .eq("status", batch.status)
       .not("booking_source", "ilike", "%airbnb%")
       .not("lodgify_booking_id", "is", null);
-
-    for (const condition of conditions) {
-      const [col, op, val] = condition.split(".");
-      if (op === "eq") query = query.eq(col, val);
-    }
-
-    const { data: rows, error } = await query;
 
     if (error) {
       console.error(`[guest-msg-cron] Query failed for ${batch.type}:`, error);
@@ -74,12 +57,12 @@ export async function GET(request: Request) {
     for (const row of (rows ?? []) as unknown as BookingRow[]) {
       if (!row.lodgify_booking_id) { skipped++; continue; }
 
-      const isDirect = !row.booking_source || /direct|lodgify/i.test(row.booking_source);
-      const channel: GuestMessageChannel = isDirect ? "email" : "lodgify";
       const property = Array.isArray(row.property) ? row.property[0] : row.property;
       const guest = Array.isArray(row.guest) ? row.guest[0] : row.guest;
-
       if (!property || !guest) { skipped++; continue; }
+
+      const isDirect = !row.booking_source || /direct|lodgify/i.test(row.booking_source);
+      const channel: GuestMessageChannel = isDirect ? "email" : "lodgify";
 
       try {
         await sendGuestAutomatedMessage({
@@ -93,6 +76,7 @@ export async function GET(request: Request) {
           propertySlug: property.slug,
           checkInDate: row.check_in_date,
           checkOutDate: row.check_out_date,
+          hostId: property.host_id,
         });
         sent++;
       } catch (err) {

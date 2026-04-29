@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   Search,
   Send,
@@ -19,6 +20,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { LodgifyMessage, ConversationThread } from "@/lib/lodgify/messages";
+import { GuestMessageSettings } from "@/components/admin/guest-message-settings";
 
 export default function AdminMessagesPage() {
   const searchParams = useSearchParams();
@@ -262,7 +264,18 @@ export default function AdminMessagesPage() {
         </p>
       </div>
 
-      <div className="flex flex-1 min-h-0 rounded-lg border bg-card">
+      <Tabs defaultValue="inbox" className="flex flex-col flex-1 min-h-0">
+        <TabsList className="w-fit mb-3 shrink-0">
+          <TabsTrigger value="inbox">Inbox</TabsTrigger>
+          <TabsTrigger value="auto-messages">Auto Messages</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="auto-messages" className="overflow-y-auto mt-0">
+          <GuestMessageSettings />
+        </TabsContent>
+
+        <TabsContent value="inbox" className="flex-1 min-h-0 mt-0">
+        <div className="flex h-full rounded-lg border bg-card">
         {/* Left panel — Conversation list */}
         <div className={cn(
           "shrink-0 border-r flex-col md:w-80 w-full",
@@ -575,7 +588,9 @@ export default function AdminMessagesPage() {
             </>
           )}
         </div>
-      </div>
+        </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

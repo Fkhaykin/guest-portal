@@ -109,6 +109,21 @@ export type NotificationSettings = {
 
 export type NotificationEventKey = keyof NotificationSettings;
 
+export type GuestMessageEvent = {
+  enabled: boolean;
+  subject: string;
+  message: string;
+};
+
+export type GuestMessageSettings = {
+  booking_confirmation: GuestMessageEvent;
+  pre_arrival: GuestMessageEvent;
+  day_of_checkin: GuestMessageEvent;
+  post_checkout: GuestMessageEvent;
+};
+
+export type GuestMessageKey = keyof GuestMessageSettings;
+
 export type Database = {
   public: {
     Tables: {
@@ -120,6 +135,7 @@ export type Database = {
           full_name: string;
           signature_url: string | null;
           notification_settings: NotificationSettings;
+          guest_message_settings: GuestMessageSettings | null;
           created_at: string;
           updated_at: string;
         };
@@ -130,6 +146,7 @@ export type Database = {
           full_name: string;
           signature_url?: string | null;
           notification_settings?: NotificationSettings;
+          guest_message_settings?: GuestMessageSettings | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -140,6 +157,7 @@ export type Database = {
           full_name?: string;
           signature_url?: string | null;
           notification_settings?: NotificationSettings;
+          guest_message_settings?: GuestMessageSettings | null;
           created_at?: string;
           updated_at?: string;
         };

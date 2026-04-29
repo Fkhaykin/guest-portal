@@ -6,7 +6,7 @@ export type GuestMessageType =
 
 export type GuestMessageChannel = "lodgify" | "email";
 
-interface TemplateVars {
+export interface TemplateVars {
   guest_name: string;
   property_name: string;
   check_in_date: string;
@@ -14,7 +14,7 @@ interface TemplateVars {
   portal_link: string;
 }
 
-const TEMPLATES: Record<GuestMessageType, { subject: string; body: string }> = {
+export const TEMPLATES: Record<GuestMessageType, { subject: string; body: string }> = {
   booking_confirmation: {
     subject: "Your booking is confirmed",
     body: `Hi {{guest_name}},
@@ -60,18 +60,22 @@ Hope to host you again soon!`,
   },
 };
 
+export function interpolate(template: string, vars: TemplateVars): string {
+  return template
+    .replace(/\{\{guest_name\}\}/g, vars.guest_name)
+    .replace(/\{\{property_name\}\}/g, vars.property_name)
+    .replace(/\{\{check_in_date\}\}/g, vars.check_in_date)
+    .replace(/\{\{check_out_date\}\}/g, vars.check_out_date)
+    .replace(/\{\{portal_link\}\}/g, vars.portal_link);
+}
+
 export function renderTemplate(
   type: GuestMessageType,
   vars: TemplateVars
 ): { subject: string; body: string } {
   const tpl = TEMPLATES[type];
-  const replace = (s: string) =>
-    s
-      .replace(/\{\{guest_name\}\}/g, vars.guest_name)
-      .replace(/\{\{property_name\}\}/g, vars.property_name)
-      .replace(/\{\{check_in_date\}\}/g, vars.check_in_date)
-      .replace(/\{\{check_out_date\}\}/g, vars.check_out_date)
-      .replace(/\{\{portal_link\}\}/g, vars.portal_link);
-
-  return { subject: replace(tpl.subject), body: replace(tpl.body) };
+  return {
+    subject: interpolate(tpl.subject, vars),
+    body: interpolate(tpl.body, vars),
+  };
 }
