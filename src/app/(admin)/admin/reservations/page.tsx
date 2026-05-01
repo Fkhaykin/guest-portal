@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 // Button unused after popover trigger refactor
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
@@ -16,13 +17,15 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ArrowDown, ArrowUp, ArrowUpDown, ChevronDown, RefreshCw, Search, X } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, CalendarRange, ChevronDown, List, RefreshCw, Search, X } from "lucide-react";
 import type { GuestListEntry, PetEntry } from "@/types/database";
+import { AdminCalendarView, type AdminCalendarEntry, type AdminPropertyGroup } from "@/components/admin/admin-calendar-view";
 
 type Property = {
   id: string;
   name: string;
   nickname: string | null;
+  cover_image_url: string | null;
 };
 
 type Registration = {
@@ -45,7 +48,7 @@ type Registration = {
   updated_at: string;
   booked_at: string | null;
   guest: { full_name: string; email: string | null; phone: string | null } | null;
-  property: { name: string; nickname: string | null } | null;
+  property: { name: string; nickname: string | null; cover_image_url: string | null } | null;
 };
 
 export default function AdminReservationsPage() {
@@ -62,6 +65,7 @@ export default function AdminReservationsPage() {
   const [syncing, setSyncing] = useState(false);
   const [newIds, setNewIds] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState("");
+  const [viewMode, setViewMode] = useState<"list" | "calendar">("list");
 
   useEffect(() => {
     loadProperties();
@@ -72,7 +76,7 @@ export default function AdminReservationsPage() {
   async function loadProperties() {
     const { data } = await supabase
       .from("property")
-      .select("id, name, nickname")
+      .select("id, name, nickname, cover_image_url")
       .order("name");
     if (data) setProperties(data);
   }
@@ -81,7 +85,7 @@ export default function AdminReservationsPage() {
     setLoading(true);
     const { data } = await supabase
       .from("registration")
-      .select("id, property_id, check_in_date, check_out_date, num_guests, lodgify_adults, lodgify_children, lodgify_infants, lodgify_num_pets, status, booking_source, signature_url, total_amount_cents, guest_list, pets, created_at, updated_at, booked_at, guest:guest_id(full_name, email, phone), property:property_id(name, nickname)")
+      .select("id, property_id, check_in_date, check_out_date, num_guests, lodgify_adults, lodgify_children, lodgify_infants, lodgify_num_pets, status, booking_source, signature_url, total_amount_cents, guest_list, pets, created_at, updated_at, booked_at, guest:guest_id(full_name, email, phone), property:property_id(name, nickname, cover_image_url)")
       .order("check_in_date", { ascending: false });
     if (data) setRegistrations(data as unknown as Registration[]);
     setLoading(false);
@@ -214,6 +218,50 @@ export default function AdminReservationsPage() {
       ? <ArrowUp className="inline ml-1 h-3 w-3" />
       : <ArrowDown className="inline ml-1 h-3 w-3" />;
   }
+
+  const calendarEntries: AdminCalendarEntry[] = useMemo(() => {
+    const today = new Date();
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+    return registrations.map((reg) => {
+      const ds = getDisplayStatus(reg);
+      const nights = Math.max(1, Math.round(
+        (new Date(reg.check_out_date + "T12:00:00").getTime() - new Date(reg.check_in_date + "T12:00:00").getTime()) / 86400000
+      ));
+      void todayStr;
+      return {
+        id: reg.id,
+        propertyId: reg.property_id,
+        propertyName: reg.property?.name ?? "",
+        propertyNickname: reg.property?.nickname ?? null,
+        propertyCoverImage: reg.property?.cover_image_url ?? null,
+        checkIn: reg.check_in_date,
+        checkOut: reg.check_out_date,
+        numGuests: reg.num_guests,
+        lodgifyAdults: reg.lodgify_adults,
+        lodgifyChildren: reg.lodgify_children,
+        lodgifyInfants: reg.lodgify_infants,
+        lodgifyPets: reg.lodgify_num_pets,
+        guestName: reg.guest?.full_name ?? null,
+        guestEmail: reg.guest?.email ?? null,
+        displayStatus: ds,
+        totalAmountCents: reg.total_amount_cents ?? 0,
+        hasRegistration: !!reg.signature_url,
+        bookingSource: reg.booking_source,
+        nights,
+        bookedAt: reg.booked_at,
+      };
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [registrations]);
+
+  const calendarPropertyGroups: AdminPropertyGroup[] = useMemo(() =>
+    properties.map((p) => ({
+      key: (p.nickname || p.name).toLowerCase(),
+      label: p.nickname || p.name,
+      coverImage: p.cover_image_url,
+    })),
+    [properties]
+  );
 
   return (
     <div className="space-y-6">
@@ -352,8 +400,40 @@ export default function AdminReservationsPage() {
         </div>
       </div>
 
+      {/* View toggle */}
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-muted-foreground">
+          {loading ? "Loading..." : `${filtered.length} reservation${filtered.length !== 1 ? "s" : ""}`}
+        </p>
+        <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
+          <Button
+            variant={viewMode === "list" ? "default" : "ghost"}
+            size="sm"
+            className="h-7 px-2.5 gap-1.5 text-xs"
+            onClick={() => setViewMode("list")}
+          >
+            <List className="h-3.5 w-3.5" />
+            List
+          </Button>
+          <Button
+            variant={viewMode === "calendar" ? "default" : "ghost"}
+            size="sm"
+            className="h-7 px-2.5 gap-1.5 text-xs"
+            onClick={() => setViewMode("calendar")}
+          >
+            <CalendarRange className="h-3.5 w-3.5" />
+            Calendar
+          </Button>
+        </div>
+      </div>
+
+      {/* Calendar view */}
+      {viewMode === "calendar" && !loading && (
+        <AdminCalendarView entries={calendarEntries} propertyGroups={calendarPropertyGroups} />
+      )}
+
       {/* Table / Cards */}
-      {loading ? (
+      {viewMode === "list" && (loading ? (
         <p className="text-muted-foreground">Loading...</p>
       ) : filtered.length > 0 ? (
         <>
@@ -575,7 +655,7 @@ export default function AdminReservationsPage() {
         </>
       ) : (
         <p className="text-muted-foreground">No reservations found.</p>
-      )}
+      ))}
     </div>
   );
 }

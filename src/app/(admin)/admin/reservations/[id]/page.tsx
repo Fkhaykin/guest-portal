@@ -1212,8 +1212,9 @@ function FieldDiff({
 }) {
   if (!prev || !next) return null;
 
+  const normalize = (v: unknown) => (v == null || v === "" ? null : v);
   const changes = Object.entries(fieldLabels).filter(
-    ([key]) => JSON.stringify(prev[key]) !== JSON.stringify(next[key])
+    ([key]) => JSON.stringify(normalize(prev[key])) !== JSON.stringify(normalize(next[key]))
   );
 
   if (changes.length === 0) return null;
@@ -1223,7 +1224,13 @@ function FieldDiff({
       return `$${Math.round(val / 100).toLocaleString()}`;
     }
     if (Array.isArray(val)) return `${val.length} entries`;
-    if (val != null && val !== "") return String(val);
+    if (val != null && val !== "") {
+      const s = String(val);
+      if ((key === "check_in_date" || key === "check_out_date") && /^\d{4}-\d{2}-\d{2}/.test(s)) {
+        return new Date(s.slice(0, 10) + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+      }
+      return s;
+    }
     return "none";
   };
 

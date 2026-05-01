@@ -156,6 +156,7 @@ type Registration = {
 type BucketReservation = {
   guestName: string;
   checkIn: string;
+  checkOut: string;
   amount: number;
   nights: number;
   registrationId: string;
@@ -455,6 +456,7 @@ export function AnalyticsCharts() {
       reservationsByBucket[key][r.propertyName].push({
         guestName: r.guestName,
         checkIn: r.checkIn,
+        checkOut: r.checkOut,
         amount: r.amount,
         nights,
         registrationId: r.id,
@@ -476,6 +478,7 @@ export function AnalyticsCharts() {
       petFeeReservations[key][r.propertyName].push({
         guestName: `${r.guestName} (${r.numPets} pet${r.numPets !== 1 ? "s" : ""})`,
         checkIn: r.checkIn,
+        checkOut: r.checkOut,
         amount: r.petFeeCents,
         nights: 0,
         registrationId: r.id,
@@ -503,6 +506,7 @@ export function AnalyticsCharts() {
       cleanFeeReservations[key][r.propertyName].push({
         guestName: r.guestName,
         checkIn: r.checkIn,
+        checkOut: r.checkOut,
         amount: r.cleaningFeeCents,
         nights: 0,
         registrationId: r.id,
@@ -534,6 +538,7 @@ export function AnalyticsCharts() {
         addonReservations[key][typeName].push({
           guestName: `${r.guestName} — ${r.propertyName}`,
           checkIn: r.checkIn,
+          checkOut: r.checkOut,
           amount: u.priceCents,
           nights: 0,
           registrationId: r.id,
@@ -1176,9 +1181,10 @@ function formatCheckIn(dateStr: string): string {
 
 function ReservationList({ reservations, showNights }: { reservations: BucketReservation[]; showNights?: boolean }) {
   if (!reservations?.length) return null;
+  const sorted = [...reservations].sort((a, b) => a.checkOut.localeCompare(b.checkOut));
   return (
     <div className="ml-4 mt-0.5 mb-1 space-y-px">
-      {reservations.map((r, i) => {
+      {sorted.map((r, i) => {
         const lodgifyUrl = r.lodgifyBookingId
           ? `https://app.lodgify.com/reservations/inbox/${r.lodgifyBookingId}`
           : undefined;

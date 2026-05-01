@@ -364,16 +364,21 @@ export async function syncBooking(booking: LodgifyBooking, options?: { skipNotif
 
   // 5. Log booking-level changes from Lodgify/OTA (dates, guests, status, etc.)
   if (!isNewBooking && existingReg && savedReg) {
+    // Normalize to YYYY-MM-DD so Lodgify datetime strings ("2026-04-29T00:00:00")
+    // don't create false diffs against the date-typed DB column ("2026-04-29").
+    const toDateStr = (val: string | null | undefined): string | null =>
+      val ? val.slice(0, 10) : null;
+
     const newSnap = {
-      check_in_date: booking.arrival ?? null,
-      check_out_date: booking.departure ?? null,
+      check_in_date: toDateStr(booking.arrival),
+      check_out_date: toDateStr(booking.departure),
       num_guests: booking.guests ?? 1,
       lodgify_adults: booking.adults ?? 0,
       lodgify_children: booking.children ?? 0,
       lodgify_infants: booking.infants ?? 0,
       lodgify_num_pets: booking.pets ?? 0,
       status: mapStatus(booking.status),
-      notes: booking.notes ?? null,
+      notes: booking.notes || null,
       // Only compare revenue when we have a new value; otherwise keep old to avoid false diffs
       total_amount_cents: booking.total_amount
         ? Math.round(booking.total_amount * 100)
@@ -387,8 +392,10 @@ export async function syncBooking(booking: LodgifyBooking, options?: { skipNotif
     ] as const;
 
     const existing = existingReg as Record<string, unknown>;
+    // Normalize null/"" as equivalent so empty-string vs null doesn't create spurious diffs
+    const normalize = (v: unknown) => (v == null || v === "" ? null : v);
     const changedKeys = TRACKED.filter(
-      (key) => String(existing[key] ?? "") !== String(newSnap[key] ?? "")
+      (key) => JSON.stringify(normalize(existing[key])) !== JSON.stringify(normalize(newSnap[key]))
     );
 
     if (changedKeys.length > 0) {
