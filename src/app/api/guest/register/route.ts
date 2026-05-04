@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { verifyGuestToken } from "@/lib/guest-token";
 import { notifyCleanersOfPetAdded } from "@/lib/sms/notify-cleaners";
@@ -249,21 +249,22 @@ export async function POST(request: Request) {
     summary: `Initial registration by ${full_name}`,
   });
 
-  // Trigger PEPOA PDF generation + email (fire and forget)
-  submitPEPOAEmail({ registrationId: reg.id }).catch((err) => {
-    console.error("Failed to send PEPOA email:", err);
-  });
+  // Run post-response work after the response is committed
+  after(async () => {
+    await submitPEPOAEmail({ registrationId: reg.id }).catch((err) => {
+      console.error("Failed to send PEPOA email:", err);
+    });
 
-  // Notify cleaners if pets were registered
-  if (cleanPets.length > 0 && reg.check_in_date) {
-    notifyCleanersOfPetAdded({
-      propertyId: reg.property_id,
-      registrationId: reg.id,
-      guestName: full_name,
-      checkIn: reg.check_in_date,
-      numPets: cleanPets.length,
-    }).catch(() => {});
-  }
+    if (cleanPets.length > 0 && reg.check_in_date) {
+      await notifyCleanersOfPetAdded({
+        propertyId: reg.property_id,
+        registrationId: reg.id,
+        guestName: full_name,
+        checkIn: reg.check_in_date,
+        numPets: cleanPets.length,
+      }).catch(() => {});
+    }
+  });
 
   return NextResponse.json({ ok: true });
 }

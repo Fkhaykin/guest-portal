@@ -1,8 +1,19 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { verifyGuestToken } from "@/lib/guest-token";
 import { notifyCleanersOfPetAdded } from "@/lib/sms/notify-cleaners";
 import { submitPEPOAEmail } from "@/lib/pepoa/submit-email";
+
+type GuestEntry = { first_name: string; last_name: string; age_group: string };
+type VehicleRow = {
+  make: string | null; model: string | null; color: string | null;
+  license_plate: string; year: string | null; state_or_region: string | null; driver_name: string | null;
+};
+
+function describeVehicle(v: { year?: string | null; color?: string | null; make?: string | null; model?: string | null; license_plate: string }) {
+  const detail = [v.year, v.color, v.make, v.model].filter(Boolean).join(" ");
+  return detail ? `${detail} (${v.license_plate})` : v.license_plate;
+}
 
 export async function POST(request: Request) {
   let body: {
@@ -57,11 +68,11 @@ export async function POST(request: Request) {
 
   const guest = reg.guest as { full_name: string } | null;
   let summary = "";
+  let petCount = 0;
 
   if (section === "guest_list" && body.guest_list) {
     const validGuests = body.guest_list.filter((g) => g.first_name.trim() && g.last_name.trim());
 
-    // Enforce property capacity
     const { data: property } = await supabase
       .from("property")
       .select("max_guests")
@@ -76,7 +87,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const previous = reg.guest_list;
+    const prevGuests = ((reg.guest_list as GuestEntry[] | null) ?? []);
 
     await supabase
       .from("registration")
@@ -90,19 +101,30 @@ export async function POST(request: Request) {
       })
       .eq("id", registration_id);
 
-    summary = `Guest list updated to ${validGuests.length} guest(s)`;
+    const added = validGuests.filter(
+      (g) => !prevGuests.some((p) => p.first_name === g.first_name.trim() && p.last_name === g.last_name.trim())
+    );
+    const removed = prevGuests.filter(
+      (p) => !validGuests.some((g) => g.first_name.trim() === p.first_name && g.last_name.trim() === p.last_name)
+    );
+
+    const parts: string[] = [`Guest list changed from ${prevGuests.length} to ${validGuests.length} guest(s)`];
+    if (added.length) parts.push(`Added: ${added.map((g) => `${g.first_name.trim()} ${g.last_name.trim()}`).join(", ")}`);
+    if (removed.length) parts.push(`Removed: ${removed.map((g) => `${g.first_name} ${g.last_name}`).join(", ")}`);
+    summary = parts.join(". ");
 
     await supabase.from("registration_update_log").insert({
       registration_id,
       changed_by: "guest",
       change_type: "guest_list_update",
       summary,
-      previous_data: { guest_list: previous } as Record<string, unknown>,
+      previous_data: { guest_list: prevGuests } as Record<string, unknown>,
       new_data: { guest_list: validGuests } as Record<string, unknown>,
     });
   } else if (section === "pets" && body.pets) {
     const validPets = body.pets.filter((p) => p.name.trim());
-    const previous = reg.pets;
+    const prevPets = reg.pets as Array<{ name: string; kind: string }> | null ?? [];
+    petCount = validPets.length;
 
     await supabase
       .from("registration")
@@ -116,29 +138,23 @@ export async function POST(request: Request) {
       })
       .eq("id", registration_id);
 
-    summary = `Pets updated to ${validPets.length} pet(s)`;
+    const added = validPets.filter((p) => !prevPets.some((prev) => prev.name === p.name.trim()));
+    const removed = prevPets.filter((prev) => !validPets.some((p) => p.name.trim() === prev.name));
+
+    const parts: string[] = [`Pet list changed from ${prevPets.length} to ${validPets.length} pet(s)`];
+    if (added.length) parts.push(`Added: ${added.map((p) => `${p.name.trim()} (${p.kind.trim()})`).join(", ")}`);
+    if (removed.length) parts.push(`Removed: ${removed.map((p) => `${p.name} (${p.kind})`).join(", ")}`);
+    summary = parts.join(". ");
 
     await supabase.from("registration_update_log").insert({
       registration_id,
       changed_by: "guest",
       change_type: "pets_update",
       summary,
-      previous_data: { pets: previous } as Record<string, unknown>,
+      previous_data: { pets: prevPets } as Record<string, unknown>,
       new_data: { pets: validPets } as Record<string, unknown>,
     });
-
-    if (validPets.length > 0 && reg.check_in_date) {
-      const guestName = guest?.full_name ?? "Guest";
-      notifyCleanersOfPetAdded({
-        propertyId: reg.property_id,
-        registrationId: registration_id,
-        guestName,
-        checkIn: reg.check_in_date as string,
-        numPets: validPets.length,
-      }).catch(() => {});
-    }
   } else if (section === "vehicles" && body.vehicles) {
-    // Enforce property vehicle cap
     const { data: property } = await supabase
       .from("property")
       .select("max_vehicles")
@@ -154,32 +170,37 @@ export async function POST(request: Request) {
       );
     }
 
-    // Fetch current vehicles for snapshot
     const { data: currentVehicles } = await supabase
       .from("vehicle")
       .select("*")
       .eq("registration_id", registration_id);
 
-    // Delete and re-insert
+    const prevVehicles = (currentVehicles ?? []) as VehicleRow[];
+
     await supabase.from("vehicle").delete().eq("registration_id", registration_id);
 
-    const vehicleRows = validVehicles
-      .map((v) => ({
-        registration_id,
-        make: v.make?.trim() || null,
-        model: v.model?.trim() || null,
-        color: v.color?.trim() || null,
-        license_plate: v.license_plate.trim(),
-        state_or_region: v.state_or_region?.trim() || null,
-        year: v.year?.trim() || null,
-        driver_name: v.driver_name?.trim() || null,
-      }));
+    const vehicleRows = validVehicles.map((v) => ({
+      registration_id,
+      make: v.make?.trim() || null,
+      model: v.model?.trim() || null,
+      color: v.color?.trim() || null,
+      license_plate: v.license_plate.trim(),
+      state_or_region: v.state_or_region?.trim() || null,
+      year: v.year?.trim() || null,
+      driver_name: v.driver_name?.trim() || null,
+    }));
 
     if (vehicleRows.length > 0) {
       await supabase.from("vehicle").insert(vehicleRows);
     }
 
-    summary = `Vehicles updated to ${vehicleRows.length} vehicle(s)`;
+    const added = vehicleRows.filter((v) => !prevVehicles.some((p) => p.license_plate === v.license_plate));
+    const removed = prevVehicles.filter((p) => !vehicleRows.some((v) => v.license_plate === p.license_plate));
+
+    const parts: string[] = [`Vehicle list changed from ${prevVehicles.length} to ${vehicleRows.length} vehicle(s)`];
+    if (added.length) parts.push(`Added: ${added.map(describeVehicle).join(", ")}`);
+    if (removed.length) parts.push(`Removed: ${removed.map(describeVehicle).join(", ")}`);
+    summary = parts.join(". ");
 
     await supabase.from("registration_update_log").insert({
       registration_id,
@@ -193,9 +214,26 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid section or missing data" }, { status: 400 });
   }
 
-  // Re-generate and email PEPOA PDF
-  submitPEPOAEmail({ registrationId: registration_id, isUpdate: true, changeSummary: summary }).catch((err) => {
-    console.error("Failed to send PEPOA update email:", err);
+  const capturedSummary = summary;
+  const capturedPetCount = petCount;
+  const capturedPropertyId = reg.property_id as string;
+  const capturedCheckIn = reg.check_in_date as string | null;
+  const capturedGuestName = guest?.full_name ?? "Guest";
+
+  after(async () => {
+    await submitPEPOAEmail({ registrationId: registration_id, isUpdate: true, changeSummary: capturedSummary }).catch((err) => {
+      console.error("Failed to send PEPOA update email:", err);
+    });
+
+    if (capturedPetCount > 0 && capturedCheckIn) {
+      await notifyCleanersOfPetAdded({
+        propertyId: capturedPropertyId,
+        registrationId: registration_id,
+        guestName: capturedGuestName,
+        checkIn: capturedCheckIn,
+        numPets: capturedPetCount,
+      }).catch(() => {});
+    }
   });
 
   return NextResponse.json({ ok: true, summary });
