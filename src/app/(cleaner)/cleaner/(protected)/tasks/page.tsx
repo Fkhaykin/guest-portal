@@ -107,6 +107,17 @@ export default async function CleanerDashboard() {
   // Re-sort by check-in ascending for display
   regs.sort((a, b) => a.check_in_date.localeCompare(b.check_in_date));
 
+  // Detect back-to-back: same property, one's checkout === another's checkin
+  const backToBackIds = new Set<string>();
+  for (const reg of regs) {
+    for (const other of regs) {
+      if (reg.id !== other.id && reg.property_id === other.property_id && reg.check_out_date === other.check_in_date) {
+        backToBackIds.add(reg.id);
+        backToBackIds.add(other.id);
+      }
+    }
+  }
+
   // Get cleaning statuses
   const regIds = regs.map((r) => r.id);
   const { data: statuses } = await supabase
@@ -172,6 +183,7 @@ export default async function CleanerDashboard() {
           fulfilledUpsells={status?.fulfilled_upsells ?? []}
           photoAreas={prop?.photoAreas || null}
           category={category}
+          isBackToBack={backToBackIds.has(reg.id)}
           cleaningFeeCents={cleaningFeeCents}
           petFeeCents={petFeeCents}
           bookedOn={reg.created_at}

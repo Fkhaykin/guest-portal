@@ -16,6 +16,7 @@ import {
   Undo2,
   Baby,
   DollarSign,
+  Repeat2,
 } from "lucide-react";
 import type { UpsellEntry, GuestListEntry, PetEntry } from "@/types/database";
 import { CleaningDialog } from "./cleaning-dialog";
@@ -93,6 +94,7 @@ export function ReservationCard({
   photoAreas,
   category,
   isNew,
+  isBackToBack = false,
   cleaningFeeCents = 0,
   petFeeCents = 0,
   bookedOn,
@@ -115,6 +117,7 @@ export function ReservationCard({
   photoAreas: string[] | null;
   category: "current" | "upcoming" | "departed";
   isNew?: boolean;
+  isBackToBack?: boolean;
   cleaningFeeCents?: number;
   petFeeCents?: number;
   bookedOn?: string | null;
@@ -335,8 +338,14 @@ export function ReservationCard({
           </div>
 
           {/* Secondary row: early/late callouts + infant needs + tips + upsells (only if present) */}
-          {(hasEarlyCheckin || hasLateCheckout || needsHighchair || needsPackNPlay || tipUpsells.length > 0 || regularUpsells.length > 0) && (
+          {(isBackToBack || hasEarlyCheckin || hasLateCheckout || needsHighchair || needsPackNPlay || tipUpsells.length > 0 || regularUpsells.length > 0) && (
             <div className="flex flex-wrap items-center gap-1.5 mt-2 pt-2 border-t border-border/50">
+              {isBackToBack && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-rose-100 text-rose-700 dark:bg-rose-950/30 dark:text-rose-300 border border-rose-200 dark:border-rose-900">
+                  <Repeat2 className="h-3 w-3" />
+                  Back to Back
+                </span>
+              )}
               {hasEarlyCheckin && (
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-orange-100 text-orange-700 dark:bg-orange-950/30 dark:text-orange-300 border border-orange-200 dark:border-orange-900">
                   <ArrowDownToLine className="h-3 w-3" />
