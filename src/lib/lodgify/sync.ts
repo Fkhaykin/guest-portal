@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { getBookings, getBookingById, getProperties, type LodgifyBooking } from "./client";
 import { notifyCleanersOfNewBooking, notifyCleanersOfCancellation } from "@/lib/sms/notify-cleaners";
 import { sendGuestConfirmationAsync } from "@/lib/guest-messages/send";
+import { submitPEPOAEmail } from "@/lib/pepoa/submit-email";
 
 const STATUS_MAP: Record<string, "active" | "completed" | "cancelled"> = {
   Booked: "active",
@@ -436,6 +437,18 @@ export async function syncBooking(booking: LodgifyBooking, options?: { skipNotif
         previous_data: prevSnap,
         new_data: nextSnap,
       });
+
+      // Email HOA when check-in or check-out dates change
+      const dateChanged = changedKeys.some((k) => k === "check_in_date" || k === "check_out_date");
+      if (dateChanged) {
+        const dateSummary = changedKeys
+          .filter((k) => k === "check_in_date" || k === "check_out_date")
+          .map((key) => `${LABEL[key]}: ${existing[key] ?? "—"} → ${newSnap[key] ?? "—"}`)
+          .join("; ");
+        submitPEPOAEmail({ registrationId: savedReg.id, isUpdate: true, changeSummary: dateSummary }).catch((err) => {
+          console.error(`[lodgify-sync] PEPOA date-change email failed for ${savedReg.id}:`, err);
+        });
+      }
     }
   }
 

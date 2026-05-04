@@ -66,7 +66,9 @@ export async function submitPEPOAEmail({
   const hoaType = (data.property.hoa_type as string) || "pepoa";
   const isBML = hoaType === "bmlc";
   const lotPart = isBML ? "" : ` — Lot/Section ${lotSection}`;
-  const subject = `Short-Term Tenant Registration${lotPart} — Check-in ${data.reg.check_in_date as string}`;
+  const subject = isUpdate
+    ? `[UPDATE] Short-Term Tenant Registration${lotPart} — Check-in ${data.reg.check_in_date as string}`
+    : `Short-Term Tenant Registration${lotPart} — Check-in ${data.reg.check_in_date as string}`;
 
   await sendPEPOAPDF({
     to: hoaEmail,

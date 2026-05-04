@@ -33,7 +33,9 @@ export async function sendPEPOAPDF({
 }) {
   const isBML = hoaType === "bmlc";
   const lotPart = isBML ? "" : ` — Lot/Section ${lotSection}`;
-  const subject = `Short-Term Tenant Registration${lotPart} — Check-in ${checkInDate}`;
+  const subject = isUpdate
+    ? `[UPDATE] Short-Term Tenant Registration${lotPart} — Check-in ${checkInDate}`
+    : `Short-Term Tenant Registration${lotPart} — Check-in ${checkInDate}`;
 
   const fromEmail = "contact@summitlakeside.com";
   const originalMessageId = `<pepoa-${registrationId}@summitlakeside.com>`;
