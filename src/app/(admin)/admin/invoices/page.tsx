@@ -23,6 +23,7 @@ export type AdminInvoiceRow = {
 export type AdminUnpaidCleaning = {
   registrationId: string;
   propertyName: string;
+  propertyNickname: string | null;
   propertyCoverImage: string | null;
   cleanerName: string;
   cleanerId: string;
@@ -99,7 +100,7 @@ export default async function AdminInvoicesPage() {
       // Get properties with fees
       const { data: properties } = await admin
         .from("property")
-        .select("id, name, cover_image_url, cleaning_fee_cents")
+        .select("id, name, nickname, cover_image_url, cleaning_fee_cents")
         .in("id", allPropertyIds);
 
       // Get cleaner pet fees
@@ -178,6 +179,7 @@ export default async function AdminInvoicesPage() {
             return {
               registrationId: r.id,
               propertyName: prop.name,
+              propertyNickname: prop.nickname,
               propertyCoverImage: prop.cover_image_url,
               cleanerName: cleanerNameMap.get(cleanerId) || "Unknown",
               cleanerId,
@@ -262,6 +264,15 @@ export default async function AdminInvoicesPage() {
     .eq("host_id", host.id)
     .order("created_at", { ascending: false });
 
+  // Build property-name → nickname map for this host (used for is_bianca lookup)
+  const { data: hostProperties } = await admin
+    .from("property")
+    .select("name, nickname")
+    .eq("host_id", host.id);
+  const propertyNicknameMap = new Map(
+    (hostProperties || []).map((p) => [p.name, p.nickname])
+  );
+
   // Sort: open invoices first, then by created_at desc
   const sortedInvoices = (invoices || []).sort((a, b) => {
     if (a.status === "open" && b.status !== "open") return -1;
@@ -271,9 +282,14 @@ export default async function AdminInvoicesPage() {
 
   const invoiceRows: AdminInvoiceRow[] = sortedInvoices.map((inv) => {
     const items = inv.line_items as InvoiceLineItem[];
-    const isBianca = items.some((item) =>
-      item.description?.toLowerCase().includes("bianca")
-    );
+    const cleanerName =
+      (inv.cleaner as { name: string } | null)?.name || "Unknown";
+    const isBianca = items.some((item) => {
+      const propName = item.property_name;
+      if (!propName) return false;
+      const nickname = propertyNicknameMap.get(propName);
+      return nickname?.toLowerCase().includes("bianca") ?? false;
+    });
     const isMonthly = items.some((item) => item.type === "monthly_fee");
     return {
       id: inv.id,
@@ -284,8 +300,7 @@ export default async function AdminInvoicesPage() {
       due_date: inv.due_date ?? null,
       total: inv.total,
       created_at: inv.created_at,
-      cleaner_name:
-        (inv.cleaner as { name: string } | null)?.name || "Unknown",
+      cleaner_name: cleanerName,
       is_bianca: isBianca,
       is_monthly: isMonthly,
     };

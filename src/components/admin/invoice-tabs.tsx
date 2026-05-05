@@ -226,14 +226,14 @@ function UnpaidTab({
     setShowModal(true);
   }
 
-  const isBiancaProperty = (name: string) =>
-    name.toLowerCase().includes("bianca");
+  const isBiancaProperty = (nickname: string | null) =>
+    !!nickname?.toLowerCase().includes("bianca");
 
-  // For the modal, filter selected cleanings by invoice type
+  // For the modal, filter selected cleanings by invoice type (based on property nickname)
   const modalCleanings = selectedCleanings.filter((c) =>
     invoiceType === "bianca"
-      ? isBiancaProperty(c.propertyName)
-      : !isBiancaProperty(c.propertyName)
+      ? isBiancaProperty(c.propertyNickname)
+      : !isBiancaProperty(c.propertyNickname)
   );
   const modalTotal = modalCleanings.reduce((s, c) => s + c.totalFee, 0);
 
