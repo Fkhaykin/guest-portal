@@ -249,8 +249,14 @@ export function ReservationCard({
 
             {/* Property name + badge */}
             <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                 <h3 className="font-semibold text-sm truncate">{propertyNickname || propertyName}</h3>
+                {isBackToBack && (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0 bg-rose-600 text-white">
+                    <Repeat2 className="h-2.5 w-2.5" />
+                    Back to Back
+                  </span>
+                )}
                 {timingBadge && (
                   <span
                     className={`inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full shrink-0 ${timingBadge.color}`}
@@ -338,14 +344,8 @@ export function ReservationCard({
           </div>
 
           {/* Secondary row: early/late callouts + infant needs + tips + upsells (only if present) */}
-          {(isBackToBack || hasEarlyCheckin || hasLateCheckout || needsHighchair || needsPackNPlay || tipUpsells.length > 0 || regularUpsells.length > 0) && (
+          {(hasEarlyCheckin || hasLateCheckout || needsHighchair || needsPackNPlay || tipUpsells.length > 0 || regularUpsells.length > 0) && (
             <div className="flex flex-wrap items-center gap-1.5 mt-2 pt-2 border-t border-border/50">
-              {isBackToBack && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-rose-100 text-rose-700 dark:bg-rose-950/30 dark:text-rose-300 border border-rose-200 dark:border-rose-900">
-                  <Repeat2 className="h-3 w-3" />
-                  Back to Back
-                </span>
-              )}
               {hasEarlyCheckin && (
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-orange-100 text-orange-700 dark:bg-orange-950/30 dark:text-orange-300 border border-orange-200 dark:border-orange-900">
                   <ArrowDownToLine className="h-3 w-3" />
