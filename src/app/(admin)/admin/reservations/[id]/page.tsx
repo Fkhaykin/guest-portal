@@ -1302,6 +1302,21 @@ function PhotoExifPanel({ exif, url, uploadedAt }: { exif: CleaningPhotoExif; ur
             </div>
           )}
         </div>
+        {hasLocation && (
+          <a
+            href={`https://maps.google.com/?q=${exif.latitude},${exif.longitude}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-2 block overflow-hidden rounded-lg border"
+          >
+            <iframe
+              src={`https://maps.google.com/maps?q=${exif.latitude},${exif.longitude}&z=15&ie=UTF8&iwloc=&output=embed`}
+              className="pointer-events-none block h-32 w-full"
+              loading="lazy"
+              referrerPolicy="no-referrer-when-downgrade"
+            />
+          </a>
+        )}
       </div>
 
       {/* Camera */}
