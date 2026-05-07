@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Badge } from "@/components/ui/badge";
@@ -60,7 +60,7 @@ export default function AdminReservationsPage() {
   const [selectedStatuses, setSelectedStatuses] = useState<Set<string>>(new Set());
   const [onlyCompleted, setOnlyCompleted] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [sortColumn, setSortColumn] = useState<string>("booked");
+  const [sortColumn, setSortColumn] = useState<string>("default");
   const [sortAsc, setSortAsc] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [newIds, setNewIds] = useState<Set<string>>(new Set());
@@ -197,9 +197,31 @@ export default function AdminReservationsPage() {
     }
   }
 
-  const sorted = useMemo(() => {
-    return [...filtered].sort((a, b) => {
-      // Pin newly synced rows to the top
+  const { sorted, dividerIndex } = useMemo(() => {
+    if (sortColumn === "default") {
+      const now = new Date();
+      const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+      const isPast = (r: Registration) => r.check_out_date < today || r.status === "cancelled";
+
+      const upcoming = filtered
+        .filter((r) => !isPast(r))
+        .sort((a, b) => a.check_in_date.localeCompare(b.check_in_date));
+      const past = filtered
+        .filter(isPast)
+        .sort((a, b) => b.check_out_date.localeCompare(a.check_out_date));
+
+      // Pin newly synced rows to the very top, preserving section order otherwise
+      const newRows = [...upcoming, ...past].filter((r) => newIds.has(r.id));
+      const upcomingRest = upcoming.filter((r) => !newIds.has(r.id));
+      const pastRest = past.filter((r) => !newIds.has(r.id));
+
+      return {
+        sorted: [...newRows, ...upcomingRest, ...pastRest],
+        dividerIndex: pastRest.length > 0 ? newRows.length + upcomingRest.length : -1,
+      };
+    }
+
+    const sorted = [...filtered].sort((a, b) => {
       const aNew = newIds.has(a.id) ? 0 : 1;
       const bNew = newIds.has(b.id) ? 0 : 1;
       if (aNew !== bNew) return aNew - bNew;
@@ -209,6 +231,7 @@ export default function AdminReservationsPage() {
       const cmp = aVal.localeCompare(bVal);
       return sortAsc ? cmp : -cmp;
     });
+    return { sorted, dividerIndex: -1 };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filtered, sortColumn, sortAsc, newIds]);
 
@@ -455,12 +478,20 @@ export default function AdminReservationsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {sorted.map((reg) => {
+                {sorted.map((reg, idx) => {
                   const guest = reg.guest as Registration["guest"];
                   const breakdown = getGuestBreakdown(reg);
+                  const showDivider = idx === dividerIndex && dividerIndex > 0;
                   return (
+                    <Fragment key={reg.id}>
+                    {showDivider && (
+                      <TableRow className="hover:bg-transparent">
+                        <TableCell colSpan={10} className="bg-muted/40 py-1.5 text-[11px] uppercase tracking-wider text-muted-foreground font-medium text-center">
+                          Past reservations
+                        </TableCell>
+                      </TableRow>
+                    )}
                     <TableRow
-                      key={reg.id}
                       className={`cursor-pointer hover:bg-muted/50 ${newIds.has(reg.id) ? "bg-green-50 dark:bg-green-950/20 border-l-2 border-l-green-500" : ""}`}
                       onClick={() => router.push(`/admin/reservations/${reg.id}`)}
                     >
@@ -544,6 +575,7 @@ export default function AdminReservationsPage() {
                         })()}
                       </TableCell>
                     </TableRow>
+                    </Fragment>
                   );
                 })}
               </TableBody>
@@ -552,7 +584,7 @@ export default function AdminReservationsPage() {
 
           {/* Mobile cards */}
           <div className="flex flex-col gap-3 md:hidden">
-            {sorted.map((reg) => {
+            {sorted.map((reg, idx) => {
               const guest = reg.guest as Registration["guest"];
               const breakdown = getGuestBreakdown(reg);
               const displayStatus = getDisplayStatus(reg);
@@ -562,9 +594,17 @@ export default function AdminReservationsPage() {
                 past: "bg-yellow-100 text-yellow-800 border-yellow-200",
                 cancelled: "bg-red-100 text-red-800 border-red-200",
               };
+              const showDivider = idx === dividerIndex && dividerIndex > 0;
               return (
+                <Fragment key={reg.id}>
+                {showDivider && (
+                  <div className="flex items-center gap-2 py-1">
+                    <div className="h-px bg-border flex-1" />
+                    <span className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Past reservations</span>
+                    <div className="h-px bg-border flex-1" />
+                  </div>
+                )}
                 <div
-                  key={reg.id}
                   className={`rounded-lg border bg-card p-4 space-y-3 cursor-pointer active:bg-muted/50 ${newIds.has(reg.id) ? "border-l-4 border-l-green-500" : ""}`}
                   onClick={() => router.push(`/admin/reservations/${reg.id}`)}
                 >
@@ -649,6 +689,7 @@ export default function AdminReservationsPage() {
                     </span>
                   </div>
                 </div>
+                </Fragment>
               );
             })}
           </div>
