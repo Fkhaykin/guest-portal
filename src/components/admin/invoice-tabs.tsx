@@ -43,7 +43,9 @@ import {
   Loader2,
   ChevronDown,
   Ban,
+  RotateCcw,
 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import type {
   AdminInvoiceRow,
   AdminUnpaidCleaning,
@@ -106,7 +108,9 @@ export function AdminInvoiceTabs({
 }) {
   const [tab, setTab] = useState<"unpaid" | "history">("unpaid");
 
-  const totalUnpaid = unpaidCleanings.reduce((s, c) => s + c.totalFee, 0);
+  const pendingCleanings = unpaidCleanings.filter((c) => !c.skipped);
+  const pendingCount = pendingCleanings.length;
+  const totalUnpaid = pendingCleanings.reduce((s, c) => s + c.totalFee, 0);
 
   return (
     <div className="space-y-4 max-w-3xl mx-auto">
@@ -124,12 +128,12 @@ export function AdminInvoiceTabs({
         >
           <SprayCan className="h-4 w-4" />
           Unpaid Cleanings
-          {unpaidCleanings.length > 0 && (
+          {pendingCount > 0 && (
             <Badge
               variant="secondary"
               className="text-[10px] h-5 px-1.5 ml-1"
             >
-              {unpaidCleanings.length}
+              {pendingCount}
             </Badge>
           )}
         </button>
@@ -177,11 +181,19 @@ function UnpaidTab({
   const [showModal, setShowModal] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [skipping, setSkipping] = useState(false);
+  const [unskippingId, setUnskippingId] = useState<string | null>(null);
+  const [showSkipped, setShowSkipped] = useState(false);
   const [invoiceType, setInvoiceType] = useState<"bianca" | "summit" | null>(null);
 
-  const allIds = cleanings.map((c) => c.registrationId);
-  const allSelected = cleanings.length > 0 && selected.size === cleanings.length;
-  const someSelected = selected.size > 0 && selected.size < cleanings.length;
+  const pendingCleanings = cleanings.filter((c) => !c.skipped);
+  const skippedCleanings = cleanings.filter((c) => c.skipped);
+  const visibleCleanings = showSkipped
+    ? [...pendingCleanings, ...skippedCleanings]
+    : pendingCleanings;
+
+  const allIds = pendingCleanings.map((c) => c.registrationId);
+  const allSelected = pendingCleanings.length > 0 && selected.size === pendingCleanings.length;
+  const someSelected = selected.size > 0 && selected.size < pendingCleanings.length;
 
   function toggleAll() {
     if (allSelected) {
@@ -200,8 +212,26 @@ function UnpaidTab({
     });
   }
 
-  const selectedCleanings = cleanings.filter((c) => selected.has(c.registrationId));
+  const selectedCleanings = pendingCleanings.filter((c) => selected.has(c.registrationId));
   const selectedTotal = selectedCleanings.reduce((s, c) => s + c.totalFee, 0);
+
+  async function handleUnskip(registrationId: string) {
+    if (unskippingId) return;
+    setUnskippingId(registrationId);
+    try {
+      const res = await fetch("/api/admin/skip-cleaning", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          registration_ids: [registrationId],
+          is_skipped: false,
+        }),
+      });
+      if (res.ok) router.refresh();
+    } finally {
+      setUnskippingId(null);
+    }
+  }
 
   async function handleSkipSelected() {
     if (selected.size === 0 || skipping) return;
@@ -276,7 +306,7 @@ function UnpaidTab({
     }
   }
 
-  if (cleanings.length === 0) {
+  if (pendingCleanings.length === 0 && skippedCleanings.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center space-y-3">
         <CheckCircle2 className="h-12 w-12 text-green-500/30" />
@@ -342,14 +372,24 @@ function UnpaidTab({
       ) : (
         <Card className="bg-primary/5 border-primary/20">
           <CardContent className="py-3">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-4">
               <div>
                 <p className="text-sm text-muted-foreground">
-                  {cleanings.length} cleaning{cleanings.length !== 1 ? "s" : ""} pending invoice
+                  {pendingCleanings.length} cleaning{pendingCleanings.length !== 1 ? "s" : ""} pending invoice
                 </p>
                 <p className="text-2xl font-bold">{formatCents(totalUnpaid)}</p>
               </div>
-              <p className="text-xs text-muted-foreground">Select rows to take action</p>
+              {skippedCleanings.length > 0 && (
+                <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+                  <Switch
+                    checked={showSkipped}
+                    onCheckedChange={setShowSkipped}
+                  />
+                  <span className="whitespace-nowrap">
+                    Show skipped ({skippedCleanings.length})
+                  </span>
+                </label>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -374,23 +414,39 @@ function UnpaidTab({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {cleanings.map((c) => {
+            {visibleCleanings.map((c) => {
               const isSelected = selected.has(c.registrationId);
+              const isSkipped = c.skipped;
               return (
                 <TableRow
                   key={c.registrationId}
-                  className={`cursor-pointer transition-colors ${isSelected ? "bg-primary/5" : ""}`}
-                  onClick={() => toggleOne(c.registrationId)}
+                  className={`transition-colors ${
+                    isSkipped
+                      ? "opacity-60"
+                      : `cursor-pointer ${isSelected ? "bg-primary/5" : ""}`
+                  }`}
+                  onClick={isSkipped ? undefined : () => toggleOne(c.registrationId)}
                 >
                   <TableCell className="pl-3" onClick={(e) => e.stopPropagation()}>
-                    <Checkbox
-                      checked={isSelected}
-                      onCheckedChange={() => toggleOne(c.registrationId)}
-                    />
+                    {isSkipped ? (
+                      <Ban className="h-4 w-4 text-muted-foreground" />
+                    ) : (
+                      <Checkbox
+                        checked={isSelected}
+                        onCheckedChange={() => toggleOne(c.registrationId)}
+                      />
+                    )}
                   </TableCell>
                   <TableCell>
                     <div className="min-w-0">
-                      <p className="text-sm font-medium truncate">{c.propertyName}</p>
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-sm font-medium truncate">{c.propertyName}</p>
+                        {isSkipped && (
+                          <Badge variant="outline" className="text-[10px] h-4 px-1.5 shrink-0">
+                            Skipped
+                          </Badge>
+                        )}
+                      </div>
                       <p className="text-xs text-muted-foreground flex items-center gap-1">
                         <User className="h-3 w-3" />
                         {c.cleanerName}
@@ -432,12 +488,31 @@ function UnpaidTab({
                       </p>
                     )}
                   </TableCell>
-                  <TableCell className="text-right pr-4">
-                    <p className="text-sm font-semibold">{formatCents(c.totalFee)}</p>
-                    {c.petFee > 0 && (
-                      <p className="text-[10px] text-muted-foreground">
-                        +{formatCents(c.petFee)} pet
-                      </p>
+                  <TableCell className="text-right pr-4" onClick={(e) => isSkipped && e.stopPropagation()}>
+                    {isSkipped ? (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 px-2 text-xs"
+                        onClick={() => handleUnskip(c.registrationId)}
+                        disabled={unskippingId === c.registrationId}
+                      >
+                        {unskippingId === c.registrationId ? (
+                          <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                        ) : (
+                          <RotateCcw className="h-3 w-3 mr-1" />
+                        )}
+                        Unskip
+                      </Button>
+                    ) : (
+                      <>
+                        <p className="text-sm font-semibold">{formatCents(c.totalFee)}</p>
+                        {c.petFee > 0 && (
+                          <p className="text-[10px] text-muted-foreground">
+                            +{formatCents(c.petFee)} pet
+                          </p>
+                        )}
+                      </>
                     )}
                   </TableCell>
                 </TableRow>

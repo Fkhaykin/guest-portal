@@ -21,14 +21,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  let body: { registration_ids: string[] };
+  let body: { registration_ids: string[]; is_skipped?: boolean };
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { registration_ids } = body;
+  const { registration_ids, is_skipped = true } = body;
   if (!registration_ids?.length) {
     return NextResponse.json({ error: "Missing registration_ids" }, { status: 400 });
   }
@@ -54,12 +54,12 @@ export async function POST(request: Request) {
 
   const { error } = await admin
     .from("cleaning_status")
-    .update({ is_skipped: true })
+    .update({ is_skipped })
     .in("registration_id", validIds);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json({ success: true, skipped: validIds.length });
+  return NextResponse.json({ success: true, count: validIds.length });
 }

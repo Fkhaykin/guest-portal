@@ -37,6 +37,7 @@ export type AdminUnpaidCleaning = {
   cleaningFee: number;
   petFee: number;
   totalFee: number;
+  skipped: boolean;
 };
 
 export default async function AdminInvoicesPage() {
@@ -127,20 +128,19 @@ export default async function AdminInvoicesPage() {
 
       const allRegIds = (allRegs || []).map((r) => r.id);
 
-      // Get cleaned statuses for these registrations
+      // Get cleaned statuses for these registrations (incl. skipped)
       const { data: cleanedStatuses } = allRegIds.length > 0
         ? await admin
             .from("cleaning_status")
-            .select("registration_id, cleaned_at")
+            .select("registration_id, cleaned_at, is_skipped")
             .eq("is_cleaned", true)
-            .eq("is_skipped", false)
             .in("registration_id", allRegIds)
         : { data: [] };
 
-      const cleanedAtMap = new Map(
+      const cleanedStatusMap = new Map(
         (cleanedStatuses || []).map((s) => [
           s.registration_id,
-          s.cleaned_at,
+          { cleanedAt: s.cleaned_at, skipped: s.is_skipped },
         ])
       );
 
@@ -160,7 +160,7 @@ export default async function AdminInvoicesPage() {
       }
 
       const unbilledRegs = (allRegs || []).filter(
-        (r) => !billedRegIds.has(r.id) && propMap.has(r.property_id) && cleanedAtMap.has(r.id)
+        (r) => !billedRegIds.has(r.id) && propMap.has(r.property_id) && cleanedStatusMap.has(r.id)
       );
 
       if (unbilledRegs.length > 0) {
@@ -176,6 +176,7 @@ export default async function AdminInvoicesPage() {
               full_name: string;
             } | null;
             const petCount = (pets || []).filter((p) => p.name?.trim()).length;
+            const status = cleanedStatusMap.get(r.id);
             return {
               registrationId: r.id,
               propertyName: prop.name,
@@ -186,13 +187,14 @@ export default async function AdminInvoicesPage() {
               guestName: guest?.full_name || null,
               checkInDate: r.check_in_date,
               checkOutDate: r.check_out_date,
-              cleanedAt: cleanedAtMap.get(r.id) || null,
+              cleanedAt: status?.cleanedAt || null,
               guestCount: r.num_guests,
               petCount,
               hasPets,
               cleaningFee,
               petFee,
               totalFee: cleaningFee + petFee,
+              skipped: status?.skipped ?? false,
             };
           })
           .sort((a, b) => b.checkOutDate.localeCompare(a.checkOutDate));
