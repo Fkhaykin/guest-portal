@@ -440,7 +440,9 @@ function UnpaidTab({
                   <TableCell>
                     <div className="min-w-0">
                       <div className="flex items-center gap-1.5">
-                        <p className="text-sm font-medium truncate">{c.propertyName}</p>
+                        <p className="text-sm font-medium truncate">
+                          {c.propertyNickname || c.propertyName}
+                        </p>
                         {isSkipped && (
                           <Badge variant="outline" className="text-[10px] h-4 px-1.5 shrink-0">
                             Skipped
@@ -562,7 +564,7 @@ function UnpaidTab({
                         className="rounded-md border p-2.5 text-xs space-y-1"
                       >
                         <div className="flex items-center justify-between">
-                          <p className="font-medium">{c.propertyName}</p>
+                          <p className="font-medium">{c.propertyNickname || c.propertyName}</p>
                           <p className="font-semibold">{formatCents(c.totalFee)}</p>
                         </div>
                         <div className="flex items-center gap-3 text-muted-foreground">
