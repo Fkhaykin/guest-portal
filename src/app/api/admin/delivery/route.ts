@@ -98,31 +98,34 @@ export async function POST(request: Request) {
   const propertyLabel = (property.nickname || property.name || "").toLowerCase();
   const housePassword = propertyLabel.includes("bianca") ? "1764" : "littleleo";
 
-  try {
-    const { subject, body: emailBody } = await sendDeliveryNotification({
-      to: hoaEmails,
-      lotSection: property.lot_section || "N/A",
-      category,
-      provider: provider || "Other",
-      quantity: num_cars || 1,
-      arrivalDate: arrival_date,
-      ownerName: property.owner_name || "",
-      ownerPhone: property.owner_phone || "",
-      ownerEmail: property.owner_email || "",
-      housePassword,
-      hoaType: property.hoa_type || "pepoa",
-    });
+  // BML/BMLC properties don't use HOA delivery emails
+  if (property.hoa_type !== "bmlc") {
+    try {
+      const { subject, body: emailBody } = await sendDeliveryNotification({
+        to: hoaEmails,
+        lotSection: property.lot_section || "N/A",
+        category,
+        provider: provider || "Other",
+        quantity: num_cars || 1,
+        arrivalDate: arrival_date,
+        ownerName: property.owner_name || "",
+        ownerPhone: property.owner_phone || "",
+        ownerEmail: property.owner_email || "",
+        housePassword,
+        hoaType: property.hoa_type || "pepoa",
+      });
 
-    await admin
-      .from("delivery_rideshare")
-      .update({
-        email_subject: subject,
-        email_body: emailBody,
-        email_recipients: hoaEmails,
-      })
-      .eq("id", record.id);
-  } catch {
-    // Email failed — record is already saved, return success anyway
+      await admin
+        .from("delivery_rideshare")
+        .update({
+          email_subject: subject,
+          email_body: emailBody,
+          email_recipients: hoaEmails,
+        })
+        .eq("id", record.id);
+    } catch {
+      // Email failed — record is already saved, return success anyway
+    }
   }
 
   return NextResponse.json({ ok: true, id: record.id });

@@ -86,19 +86,22 @@ export async function POST(request: Request) {
   const propertyLabel = (property?.nickname || property?.name || "").toLowerCase();
   const housePassword = propertyLabel.includes("bianca") ? "1764" : "littleleo";
 
-  sendDeliveryNotification({
-    to: hoaEmails,
-    lotSection: property?.lot_section || "N/A",
-    category,
-    provider: provider || "Other",
-    quantity: num_cars || 1,
-    arrivalDate: arrival_date,
-    ownerName: property?.owner_name || "",
-    ownerPhone: property?.owner_phone || "",
-    ownerEmail: property?.owner_email || "",
-    housePassword,
-    hoaType: property?.hoa_type || "pepoa",
-  }).catch(() => {});
+  // BML/BMLC properties don't use HOA delivery emails
+  if (property?.hoa_type !== "bmlc") {
+    sendDeliveryNotification({
+      to: hoaEmails,
+      lotSection: property?.lot_section || "N/A",
+      category,
+      provider: provider || "Other",
+      quantity: num_cars || 1,
+      arrivalDate: arrival_date,
+      ownerName: property?.owner_name || "",
+      ownerPhone: property?.owner_phone || "",
+      ownerEmail: property?.owner_email || "",
+      housePassword,
+      hoaType: property?.hoa_type || "pepoa",
+    }).catch(() => {});
+  }
 
   return NextResponse.json({ ok: true, id: record.id });
 }
