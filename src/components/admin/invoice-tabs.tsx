@@ -89,15 +89,32 @@ function formatTimestamp(ts: string) {
   });
 }
 
-function getDueDate(invoice: AdminInvoiceRow): string {
+function getDueDateValue(invoice: AdminInvoiceRow): Date {
+  if (invoice.due_date) {
+    return new Date(invoice.due_date + "T00:00:00");
+  }
   if (invoice.is_monthly) {
     const end = new Date(invoice.period_end + "T00:00:00");
-    const due = new Date(end.getFullYear(), end.getMonth() + 1, 5);
-    return due.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+    return new Date(end.getFullYear(), end.getMonth() + 1, 5);
   }
   const created = new Date(invoice.created_at);
   created.setDate(created.getDate() + 5);
-  return created.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  return created;
+}
+
+function formatDueDate(invoice: AdminInvoiceRow): string {
+  return getDueDateValue(invoice).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+function isPastDue(invoice: AdminInvoiceRow): boolean {
+  if (invoice.status === "paid") return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return getDueDateValue(invoice).getTime() < today.getTime();
 }
 
 export function AdminInvoiceTabs({
@@ -713,7 +730,9 @@ function HistoryTab({ invoices }: { invoices: AdminInvoiceRow[] }) {
         </div>
       ) : (
         <div className="flex flex-col gap-4">
-          {filtered.map((inv) => (
+          {filtered.map((inv) => {
+            const pastDue = isPastDue(inv);
+            return (
             <Link key={inv.id} href={`/admin/invoices/${inv.id}`} className="block">
               <Card className="hover:bg-accent/50 transition-colors cursor-pointer">
                 <CardContent className="py-4 flex items-center justify-between">
@@ -723,14 +742,19 @@ function HistoryTab({ invoices }: { invoices: AdminInvoiceRow[] }) {
                       <Badge className={STATUS_STYLES[inv.status]}>
                         {inv.status}
                       </Badge>
+                      {pastDue && (
+                        <Badge className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
+                          Past due
+                        </Badge>
+                      )}
                     </div>
                     <p className="text-xs text-muted-foreground">
                       {inv.cleaner_name} &middot;{" "}
                       {formatDateFull(inv.period_start)} &ndash;{" "}
                       {formatDateFull(inv.period_end)}
                     </p>
-                    <p className="text-xs text-muted-foreground">
-                      Due: {inv.due_date ? formatDateFull(inv.due_date) : getDueDate(inv)}
+                    <p className={`text-xs ${pastDue ? "text-red-600 dark:text-red-400 font-medium" : "text-muted-foreground"}`}>
+                      Due: {formatDueDate(inv)}
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
@@ -748,7 +772,8 @@ function HistoryTab({ invoices }: { invoices: AdminInvoiceRow[] }) {
                 </CardContent>
               </Card>
             </Link>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
