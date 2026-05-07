@@ -105,6 +105,7 @@ export type NotificationSettings = {
   cleaner_pet_added: NotificationEvent;
   cleaner_early_checkin: NotificationEvent;
   cleaner_late_checkout: NotificationEvent;
+  cleaner_invoice_paid: NotificationEvent;
 };
 
 export type NotificationEventKey = keyof NotificationSettings;

@@ -1,6 +1,7 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { notifyCleanerOfInvoicePaid } from "@/lib/sms/notify-cleaners";
 import type { InvoiceLineItem } from "@/types/database";
 
 // PATCH — update invoice status (approve / mark paid)
@@ -43,7 +44,7 @@ export async function PATCH(request: Request) {
   // Verify invoice belongs to this host
   const { data: invoice } = await admin
     .from("cleaner_invoice")
-    .select("id, status")
+    .select("id, status, cleaner_id, invoice_number, total, period_start, period_end")
     .eq("id", invoice_id)
     .eq("host_id", host.id)
     .single();
@@ -67,6 +68,19 @@ export async function PATCH(request: Request) {
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  if (status === "paid" && invoice.status !== "paid") {
+    after(
+      notifyCleanerOfInvoicePaid({
+        cleanerId: invoice.cleaner_id,
+        hostId: host.id,
+        invoiceNumber: invoice.invoice_number,
+        total: invoice.total,
+        periodStart: invoice.period_start,
+        periodEnd: invoice.period_end,
+      }).catch((err) => console.error("[invoice-paid] notify failed:", err))
+    );
   }
 
   return NextResponse.json({ success: true });

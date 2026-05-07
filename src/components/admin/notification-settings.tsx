@@ -49,6 +49,11 @@ const EVENT_META: Record<
     description: "Sent to assigned cleaners when a guest purchases late check-out (2pm).",
     variables: ["property", "address", "guest", "check_out", "link"],
   },
+  cleaner_invoice_paid: {
+    label: "Invoice Paid",
+    description: "Sent to the cleaner when one of their invoices is marked paid.",
+    variables: ["invoice_number", "amount", "period_start", "period_end"],
+  },
 };
 
 const DEFAULT_SETTINGS: NotificationSettingsType = {
@@ -82,6 +87,11 @@ const DEFAULT_SETTINGS: NotificationSettingsType = {
     message:
       "Late check-out purchased — {{property}}, {{address}}: {{guest}}, departing {{check_out}} at 2pm. View: {{link}}",
   },
+  cleaner_invoice_paid: {
+    enabled: true,
+    message:
+      "Invoice {{invoice_number}} ({{period_start}}–{{period_end}}) marked paid — {{amount}}. Thanks!",
+  },
 };
 
 export function NotificationSettings({
@@ -92,7 +102,7 @@ export function NotificationSettings({
   initialSettings: NotificationSettingsType | null;
 }) {
   const [settings, setSettings] = useState<NotificationSettingsType>(
-    initialSettings ?? DEFAULT_SETTINGS
+    { ...DEFAULT_SETTINGS, ...(initialSettings ?? {}) }
   );
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);

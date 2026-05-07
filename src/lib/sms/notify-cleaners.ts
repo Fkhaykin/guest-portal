@@ -298,3 +298,49 @@ export async function notifyCleanersOfLateCheckout(params: {
 
   await sendToCleaners(params.propertyId, body, { eventType: "cleaner_late_checkout" });
 }
+
+export async function notifyCleanerOfInvoicePaid(params: {
+  cleanerId: string;
+  hostId: string;
+  invoiceNumber: string;
+  total: number;
+  periodStart: string;
+  periodEnd: string;
+}) {
+  const supabase = createAdminClient();
+
+  const { data: host } = await supabase
+    .from("host")
+    .select("notification_settings")
+    .eq("id", params.hostId)
+    .single();
+
+  const settings = host?.notification_settings as NotificationSettings | null;
+  const event = settings?.cleaner_invoice_paid;
+  if (!event?.enabled) return;
+
+  const { data: cleaner } = await supabase
+    .from("cleaner")
+    .select("id, name, phone, is_active")
+    .eq("id", params.cleanerId)
+    .single();
+
+  if (!cleaner?.phone || !cleaner.is_active) return;
+
+  const amount = (params.total / 100).toLocaleString("en-US", {
+    style: "currency",
+    currency: "USD",
+  });
+
+  const body = renderTemplate(event.message, {
+    invoice_number: params.invoiceNumber,
+    amount,
+    period_start: formatDate(params.periodStart),
+    period_end: formatDate(params.periodEnd),
+  });
+
+  await sendSms(cleaner.phone, body, {
+    recipientName: cleaner.name ?? undefined,
+    eventType: "cleaner_invoice_paid",
+  });
+}
