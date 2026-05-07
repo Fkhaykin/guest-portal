@@ -44,6 +44,7 @@ import {
   ChevronDown,
   Ban,
   RotateCcw,
+  ExternalLink,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import type {
@@ -443,6 +444,14 @@ function UnpaidTab({
                         <p className="text-sm font-medium truncate">
                           {c.propertyNickname || c.propertyName}
                         </p>
+                        <Link
+                          href={`/admin/reservations/${c.registrationId}`}
+                          onClick={(e) => e.stopPropagation()}
+                          className="text-muted-foreground hover:text-foreground shrink-0"
+                          title="View reservation"
+                        >
+                          <ExternalLink className="h-3.5 w-3.5" />
+                        </Link>
                         {isSkipped && (
                           <Badge variant="outline" className="text-[10px] h-4 px-1.5 shrink-0">
                             Skipped
