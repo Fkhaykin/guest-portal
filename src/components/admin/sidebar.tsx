@@ -6,14 +6,11 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
   Home,
-  Building2,
   ClipboardList,
   MessageSquare,
   Settings,
-  SprayCan,
   Receipt,
   ShieldAlert,
-  Webhook,
   LogOut,
   Menu,
   X,
@@ -27,14 +24,11 @@ import { useRouter } from "next/navigation";
 
 const navItems = [
   { label: "Dashboard", href: "/admin", icon: Home },
-  { label: "Properties", href: "/admin/properties", icon: Building2 },
   { label: "Reservations", href: "/admin/reservations", icon: ClipboardList },
   { label: "Deliveries", href: "/admin/deliveries", icon: Truck },
   { label: "Messages", href: "/admin/messages", icon: MessageSquare },
-  { label: "Cleaners", href: "/admin/cleaners", icon: SprayCan },
   { label: "AirCover Claims", href: "/admin/aircover-claims", icon: ShieldAlert },
   { label: "Invoices", href: "/admin/invoices", icon: Receipt },
-  { label: "Lodgify Webhooks", href: "/admin/lodgify-webhooks", icon: Webhook },
   { label: "Settings", href: "/admin/settings", icon: Settings },
 ];
 
