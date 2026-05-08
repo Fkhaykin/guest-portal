@@ -11,7 +11,6 @@ import {
   CalendarClock,
   CheckCircle2,
   Home,
-  SkipForward,
 } from "lucide-react";
 import { SyncBookingsButton } from "@/components/cleaner/sync-bookings-button";
 import { NewIdsProvider } from "@/components/cleaner/new-ids-provider";
@@ -107,15 +106,23 @@ export default async function CleanerDashboard() {
   // Re-sort by check-in ascending for display
   regs.sort((a, b) => a.check_in_date.localeCompare(b.check_in_date));
 
-  // Detect back-to-back: same property, one's checkout === another's checkin
-  const backToBackIds = new Set<string>();
+  // Detect back-to-back per reservation: same property, same-day checkout/checkin handoff
+  // - "checkout": this reg's check-out is another reg's check-in (someone arrives the day this guest leaves)
+  // - "checkin":  this reg's check-in is another reg's check-out (someone left the day this guest arrives)
+  // - "both":     both conditions true
+  type BackToBackKind = "checkin" | "checkout" | "both";
+  const backToBackMap = new Map<string, BackToBackKind>();
   for (const reg of regs) {
+    let isCheckin = false;
+    let isCheckout = false;
     for (const other of regs) {
-      if (reg.id !== other.id && reg.property_id === other.property_id && reg.check_out_date === other.check_in_date) {
-        backToBackIds.add(reg.id);
-        backToBackIds.add(other.id);
-      }
+      if (reg.id === other.id || reg.property_id !== other.property_id) continue;
+      if (reg.check_out_date === other.check_in_date) isCheckout = true;
+      if (reg.check_in_date === other.check_out_date) isCheckin = true;
     }
+    if (isCheckin && isCheckout) backToBackMap.set(reg.id, "both");
+    else if (isCheckin) backToBackMap.set(reg.id, "checkin");
+    else if (isCheckout) backToBackMap.set(reg.id, "checkout");
   }
 
   // Get cleaning statuses
@@ -183,7 +190,7 @@ export default async function CleanerDashboard() {
           fulfilledUpsells={status?.fulfilled_upsells ?? []}
           photoAreas={prop?.photoAreas || null}
           category={category}
-          isBackToBack={backToBackIds.has(reg.id)}
+          backToBack={backToBackMap.get(reg.id) ?? null}
           cleaningFeeCents={cleaningFeeCents}
           petFeeCents={petFeeCents}
           bookedOn={reg.created_at}
@@ -193,7 +200,6 @@ export default async function CleanerDashboard() {
   }
 
   const uncleanedDeparted = departed.filter((r) => !statusMap.get(r.id)?.is_cleaned && !statusMap.get(r.id)?.is_skipped);
-  const skippedDeparted = departed.filter((r) => statusMap.get(r.id)?.is_skipped && !statusMap.get(r.id)?.is_cleaned);
   const cleanedDeparted = departed.filter((r) => statusMap.get(r.id)?.is_cleaned);
 
   return (
@@ -275,14 +281,6 @@ export default async function CleanerDashboard() {
             count: cleanedDeparted.length,
             cards: renderCards(cleanedDeparted, "departed"),
             empty: "No completed cleanings yet.",
-          },
-          {
-            key: "skipped",
-            label: "Skipped",
-            icon: <SkipForward className="h-3.5 w-3.5 text-muted-foreground" />,
-            count: skippedDeparted.length,
-            cards: renderCards(skippedDeparted, "departed"),
-            empty: "No skipped tasks.",
           },
         ]}
       />

@@ -94,7 +94,7 @@ export function ReservationCard({
   photoAreas,
   category,
   isNew,
-  isBackToBack = false,
+  backToBack = null,
   cleaningFeeCents = 0,
   petFeeCents = 0,
   bookedOn,
@@ -117,7 +117,7 @@ export function ReservationCard({
   photoAreas: string[] | null;
   category: "current" | "upcoming" | "departed";
   isNew?: boolean;
-  isBackToBack?: boolean;
+  backToBack?: "checkin" | "checkout" | "both" | null;
   cleaningFeeCents?: number;
   petFeeCents?: number;
   bookedOn?: string | null;
@@ -251,10 +251,14 @@ export function ReservationCard({
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                 <h3 className="font-semibold text-sm truncate">{propertyNickname || propertyName}</h3>
-                {isBackToBack && (
+                {backToBack && (
                   <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0 bg-rose-600 text-white">
                     <Repeat2 className="h-2.5 w-2.5" />
-                    Back to Back
+                    {backToBack === "both"
+                      ? "Back to Back · Check-in & Check-out"
+                      : backToBack === "checkin"
+                        ? "Back to Back · Check-in"
+                        : "Back to Back · Check-out"}
                   </span>
                 )}
                 {timingBadge && (

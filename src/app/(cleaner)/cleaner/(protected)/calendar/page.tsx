@@ -99,6 +99,22 @@ export default async function CalendarPage() {
     }
   }
 
+  // Detect back-to-back per reservation: same property, same-day handoff
+  type BackToBackKind = "checkin" | "checkout" | "both";
+  const backToBackMap = new Map<string, BackToBackKind>();
+  for (const reg of calendarRegs) {
+    let isCheckin = false;
+    let isCheckout = false;
+    for (const other of calendarRegs) {
+      if (reg.id === other.id || reg.property_id !== other.property_id) continue;
+      if (reg.check_out_date === other.check_in_date) isCheckout = true;
+      if (reg.check_in_date === other.check_out_date) isCheckin = true;
+    }
+    if (isCheckin && isCheckout) backToBackMap.set(reg.id, "both");
+    else if (isCheckin) backToBackMap.set(reg.id, "checkin");
+    else if (isCheckout) backToBackMap.set(reg.id, "checkout");
+  }
+
   const calendarRegIds = calendarRegs.map((r) => r.id);
   const { data: calendarStatuses } = await supabase
     .from("cleaning_status")
@@ -147,6 +163,7 @@ export default async function CalendarPage() {
       cleaningFeeCents,
       petFeeCents,
       cleanerRevenueCents,
+      backToBack: backToBackMap.get(r.id) ?? null,
     };
   });
 

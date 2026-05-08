@@ -28,6 +28,7 @@ import {
   XCircle,
   List,
   CalendarRange,
+  Repeat2,
 } from "lucide-react";
 import type { GuestListEntry, PetEntry } from "@/types/database";
 
@@ -54,7 +55,14 @@ export type CalendarReservation = {
   cleaningFeeCents: number;
   petFeeCents: number;
   cleanerRevenueCents: number;
+  backToBack: "checkin" | "checkout" | "both" | null;
 };
+
+function backToBackLabel(kind: "checkin" | "checkout" | "both") {
+  if (kind === "both") return "B2B · In & Out";
+  if (kind === "checkin") return "B2B · Check-in";
+  return "B2B · Check-out";
+}
 
 const DAY_NAMES_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTH_NAMES_SHORT = [
@@ -136,7 +144,7 @@ export function CalendarView({
   const startOfWeek = new Date(today);
   startOfWeek.setDate(today.getDate() - today.getDay());
 
-  const [viewMode, setViewMode] = useState<"calendar" | "list">("calendar");
+  const [viewMode, setViewMode] = useState<"calendar" | "list">("list");
   const [startDate, setStartDate] = useState(startOfWeek);
   const [selected, setSelected] = useState<CalendarReservation | null>(null);
   const [failedImages, setFailedImages] = useState<Set<string>>(new Set());
@@ -313,7 +321,15 @@ export function CalendarView({
                                   </div>
                                 )}
                               </div>
-                              <span className="font-medium truncate">{r.propertyNickname || r.propertyName}</span>
+                              <div className="min-w-0 flex-1">
+                                <span className="font-medium truncate block">{r.propertyNickname || r.propertyName}</span>
+                                {r.backToBack && (
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full mt-0.5 bg-rose-600 text-white">
+                                    <Repeat2 className="h-2.5 w-2.5" />
+                                    {backToBackLabel(r.backToBack)}
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           </td>
                           <td className="p-3 text-foreground">{r.guestName || <span className="text-muted-foreground">Blocked</span>}</td>
@@ -381,7 +397,15 @@ export function CalendarView({
                                   </div>
                                 )}
                               </div>
-                              <span className="font-medium truncate">{r.propertyNickname || r.propertyName}</span>
+                              <div className="min-w-0 flex-1">
+                                <span className="font-medium truncate block">{r.propertyNickname || r.propertyName}</span>
+                                {r.backToBack && (
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full mt-0.5 bg-rose-600 text-white">
+                                    <Repeat2 className="h-2.5 w-2.5" />
+                                    {backToBackLabel(r.backToBack)}
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           </td>
                           <td className="p-3 text-foreground">{r.guestName || <span className="text-muted-foreground">Blocked</span>}</td>
@@ -435,7 +459,15 @@ export function CalendarView({
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
-                      <p className="font-medium text-sm truncate">{r.propertyNickname || r.propertyName}</p>
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                        <p className="font-medium text-sm truncate">{r.propertyNickname || r.propertyName}</p>
+                        {r.backToBack && (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-rose-600 text-white shrink-0">
+                            <Repeat2 className="h-2.5 w-2.5" />
+                            {backToBackLabel(r.backToBack)}
+                          </span>
+                        )}
+                      </div>
                       <p className="text-xs text-muted-foreground mt-0.5">
                         {r.guestName || "Blocked"} · {r.numGuests} guest{r.numGuests !== 1 ? "s" : ""}
                         {petCount > 0 && <span className="text-amber-600"> · {petCount} pet{petCount !== 1 ? "s" : ""}</span>}
