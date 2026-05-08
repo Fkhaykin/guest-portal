@@ -436,6 +436,7 @@ export function ReservationCard({
         propertyName={propertyNickname || propertyName}
         checkIn={checkIn}
         checkOut={checkOut}
+        photoAreas={photoAreas}
       />
     </>
   );

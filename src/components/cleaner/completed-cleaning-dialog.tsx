@@ -19,8 +19,10 @@ import {
   Check,
   MapPin,
   Info,
+  Plus,
 } from "lucide-react";
-import type { CleaningPhoto, CleaningPhotoExif } from "@/types/database";
+import type { CleaningPhoto } from "@/types/database";
+import { buildClientExif, compressImage, DEFAULT_PHOTO_AREAS } from "@/lib/cleaner/photo-upload";
 
 type PhotoWithUrl = CleaningPhoto & { url?: string | null };
 
@@ -52,6 +54,7 @@ export function CompletedCleaningDialog({
   propertyName,
   checkIn,
   checkOut,
+  photoAreas,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -59,6 +62,7 @@ export function CompletedCleaningDialog({
   propertyName: string;
   checkIn: string;
   checkOut: string;
+  photoAreas?: string[] | null;
 }) {
   const [details, setDetails] = useState<CleaningDetails | null>(null);
   const [loading, setLoading] = useState(false);
@@ -66,6 +70,11 @@ export function CompletedCleaningDialog({
   const [additionalNotes, setAdditionalNotes] = useState("");
   const [savingNotes, setSavingNotes] = useState(false);
   const [notesSaved, setNotesSaved] = useState(false);
+  const [uploadRoom, setUploadRoom] = useState<string>("");
+  const [uploadProgress, setUploadProgress] = useState<{ total: number; completed: number } | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
+  const areas = photoAreas && photoAreas.length > 0 ? photoAreas : DEFAULT_PHOTO_AREAS;
 
   useEffect(() => {
     if (open && !details) {
@@ -93,6 +102,58 @@ export function CompletedCleaningDialog({
       if (!photosByRoom[photo.room]) photosByRoom[photo.room] = [];
       photosByRoom[photo.room].push(photo);
     }
+  }
+
+  async function handleUploadPhotos(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = e.target.files;
+    if (!files || files.length === 0 || !uploadRoom) return;
+
+    const rawFiles = Array.from(files);
+    e.target.value = "";
+    setUploadError(null);
+    setUploadProgress({ total: rawFiles.length, completed: 0 });
+
+    for (let i = 0; i < rawFiles.length; i++) {
+      try {
+        let file: File;
+        try { file = await compressImage(rawFiles[i]); } catch { file = rawFiles[i]; }
+        const clientExif = await buildClientExif(rawFiles[i]);
+
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("registration_id", registrationId);
+        formData.append("room", uploadRoom);
+        formData.append("client_exif", JSON.stringify(clientExif));
+
+        const res = await fetch("/api/cleaner/upload-photo", {
+          method: "POST",
+          body: formData,
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          // Generate a local preview URL for the freshly uploaded photo
+          const previewUrl = URL.createObjectURL(file);
+          const newPhoto: PhotoWithUrl = { ...data.photo, url: previewUrl };
+          setDetails((prev) => prev ? { ...prev, photos: [...prev.photos, newPhoto] } : prev);
+        } else {
+          const text = await res.text();
+          let errorMsg = `Upload failed (${res.status})`;
+          try {
+            const data = JSON.parse(text);
+            if (data?.error) errorMsg = data.error;
+          } catch {
+            // non-JSON response
+          }
+          setUploadError(errorMsg);
+        }
+      } catch {
+        setUploadError("Network error — check your connection and try again");
+      }
+      setUploadProgress({ total: rawFiles.length, completed: i + 1 });
+    }
+
+    setUploadProgress(null);
   }
 
   async function handleSaveNotes() {
@@ -212,6 +273,63 @@ export function CompletedCleaningDialog({
             ) : (
               <p className="text-sm text-muted-foreground">No photos uploaded.</p>
             )}
+
+            {/* Add more photos */}
+            <div className="space-y-2 rounded-lg border border-dashed p-3">
+              <h4 className="text-xs font-semibold flex items-center gap-1.5">
+                <Plus className="h-3.5 w-3.5" />
+                Add more photos
+              </h4>
+              {uploadError && (
+                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs">
+                  <span className="flex-1">{uploadError}</span>
+                  <button onClick={() => setUploadError(null)} className="shrink-0">
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              )}
+              <select
+                value={uploadRoom}
+                onChange={(e) => setUploadRoom(e.target.value)}
+                disabled={!!uploadProgress}
+                className="w-full px-3 py-2 rounded-lg border text-sm bg-background"
+              >
+                <option value="">Select an area…</option>
+                {areas.map((area) => (
+                  <option key={area} value={area}>{area}</option>
+                ))}
+              </select>
+              {uploadProgress && (
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <span className="flex items-center gap-1.5">
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      Uploading {uploadProgress.completed}/{uploadProgress.total}
+                    </span>
+                    <span>{Math.round((uploadProgress.completed / uploadProgress.total) * 100)}%</span>
+                  </div>
+                  <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-primary transition-all duration-300"
+                      style={{ width: `${(uploadProgress.completed / uploadProgress.total) * 100}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+              <label
+                className={`flex items-center gap-2 w-full px-3 py-3 rounded-lg border border-dashed hover:bg-muted/50 transition-colors text-sm text-muted-foreground cursor-pointer ${(!uploadRoom || uploadProgress) ? "opacity-50 pointer-events-none" : ""}`}
+              >
+                <Camera className="h-4 w-4" />
+                Take or upload photos
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
+                  multiple
+                  className="sr-only"
+                  onChange={handleUploadPhotos}
+                />
+              </label>
+            </div>
 
             <Separator />
 
