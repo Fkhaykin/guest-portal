@@ -2,7 +2,8 @@ export type GuestMessageType =
   | "booking_confirmation"
   | "pre_arrival"
   | "day_of_checkin"
-  | "post_checkout";
+  | "post_checkout"
+  | "registration_reminder";
 
 export type GuestMessageChannel = "lodgify" | "email";
 
@@ -57,6 +58,10 @@ Thank you for staying at {{property_name}}! We hope you had a wonderful time.
 If you have a moment, we'd really appreciate a review — it means a lot to us.
 
 Hope to host you again soon!`,
+  },
+  registration_reminder: {
+    subject: "Please complete your guest registration",
+    body: `Hi {{guest_name}}, your stay at {{property_name}} starts {{check_in_date}}. Please complete your guest registration to avoid delays at check-in: {{portal_link}}`,
   },
 };
 

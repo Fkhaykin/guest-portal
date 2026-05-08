@@ -121,6 +121,7 @@ export type GuestMessageSettings = {
   pre_arrival: GuestMessageEvent;
   day_of_checkin: GuestMessageEvent;
   post_checkout: GuestMessageEvent;
+  registration_reminder: GuestMessageEvent;
 };
 
 export type GuestMessageKey = keyof GuestMessageSettings;

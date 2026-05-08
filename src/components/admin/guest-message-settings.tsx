@@ -34,6 +34,11 @@ const EVENT_META: Record<GuestMessageKey, { label: string; description: string; 
     description: "Sent the day after check-out.",
     channel: "Lodgify message (VRBO) · Email (Direct)",
   },
+  registration_reminder: {
+    label: "Registration Reminder",
+    description: "Sent at 10, 7, 6, 5, 4, 3, 2, and 1 days before check-in to guests who have not completed registration.",
+    channel: "Lodgify message (VRBO) · Email (Direct) · SMS (when phone on file)",
+  },
 };
 
 const VARIABLES = ["guest_name", "property_name", "check_in_date", "check_out_date", "portal_link"];
@@ -44,6 +49,7 @@ function defaultSettings(): GuestMessageSettingsType {
     pre_arrival: { enabled: true, subject: TEMPLATES.pre_arrival.subject, message: TEMPLATES.pre_arrival.body },
     day_of_checkin: { enabled: true, subject: TEMPLATES.day_of_checkin.subject, message: TEMPLATES.day_of_checkin.body },
     post_checkout: { enabled: true, subject: TEMPLATES.post_checkout.subject, message: TEMPLATES.post_checkout.body },
+    registration_reminder: { enabled: true, subject: TEMPLATES.registration_reminder.subject, message: TEMPLATES.registration_reminder.body },
   };
 }
 

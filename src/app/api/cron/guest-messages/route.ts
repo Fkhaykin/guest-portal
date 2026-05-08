@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendGuestAutomatedMessage } from "@/lib/guest-messages/send";
+import { sendRegistrationReminder, REMINDER_DAYS, type ReminderDay } from "@/lib/guest-messages/reminders";
 import type { GuestMessageType, GuestMessageChannel } from "@/lib/guest-messages/templates";
 
 export const maxDuration = 60;
@@ -88,7 +89,70 @@ export async function GET(request: Request) {
     results[batch.type] = { sent, skipped, errors };
   }
 
-  return NextResponse.json({ ok: true, results });
+  // Registration reminders — for unregistered (no signature_url) bookings,
+  // sent at 10, 7, 6, 5, 4, 3, 2, and 1 days before check-in.
+  type ReminderRow = {
+    id: string;
+    lodgify_booking_id: number | null;
+    booking_source: string | null;
+    check_in_date: string;
+    check_out_date: string;
+    signature_url: string | null;
+    guest: { full_name: string; email: string | null; phone: string | null };
+    property: { name: string; slug: string; nickname: string | null; host_id: string };
+  };
+
+  const reminderResults: Record<string, { sent: number; skipped: number; errors: number }> = {};
+
+  for (const days of REMINDER_DAYS) {
+    const targetDate = offsetDate(days);
+    const { data: rows, error } = await supabase
+      .from("registration")
+      .select("id, lodgify_booking_id, booking_source, check_in_date, check_out_date, signature_url, guest:guest_id(full_name, email, phone), property:property_id(name, slug, nickname, host_id)")
+      .eq("check_in_date", targetDate)
+      .eq("status", "active")
+      .is("signature_url", null);
+
+    if (error) {
+      console.error(`[reminder-cron] Query failed for d${days}:`, error);
+      reminderResults[`d${days}`] = { sent: 0, skipped: 0, errors: 1 };
+      continue;
+    }
+
+    let sent = 0, skipped = 0, errors = 0;
+
+    for (const row of (rows ?? []) as unknown as ReminderRow[]) {
+      const property = Array.isArray(row.property) ? row.property[0] : row.property;
+      const guest = Array.isArray(row.guest) ? row.guest[0] : row.guest;
+      if (!property || !guest) { skipped++; continue; }
+
+      try {
+        const result = await sendRegistrationReminder({
+          registrationId: row.id,
+          lodgifyBookingId: row.lodgify_booking_id,
+          daysUntilCheckin: days as ReminderDay,
+          bookingSource: row.booking_source,
+          guestName: guest.full_name,
+          guestEmail: guest.email,
+          guestPhone: guest.phone,
+          propertyName: property.nickname || property.name,
+          propertySlug: property.slug,
+          checkInDate: row.check_in_date,
+          checkOutDate: row.check_out_date,
+          hostId: property.host_id,
+        });
+        if (result === "sent") sent++;
+        else skipped++;
+      } catch (err) {
+        console.error(`[reminder-cron] Error sending d${days} for ${row.id}:`, err);
+        errors++;
+      }
+    }
+
+    reminderResults[`d${days}`] = { sent, skipped, errors };
+  }
+
+  return NextResponse.json({ ok: true, results, reminders: reminderResults });
 }
 
 function offsetDate(days: number): string {
