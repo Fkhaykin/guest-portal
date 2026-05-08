@@ -17,7 +17,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ArrowDown, ArrowUp, ArrowUpDown, CalendarRange, ChevronDown, List, RefreshCw, Search, X } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, CalendarRange, ChevronDown, List, Plus, RefreshCw, Search, X } from "lucide-react";
 import type { GuestListEntry, PetEntry } from "@/types/database";
 import { AdminCalendarView, type AdminCalendarEntry, type AdminPropertyGroup } from "@/components/admin/admin-calendar-view";
 
@@ -293,14 +293,23 @@ export default function AdminReservationsPage() {
           <h1 className="text-3xl font-bold tracking-tight">Reservations</h1>
           <p className="text-muted-foreground">All reservations across properties</p>
         </div>
-        <button
-          onClick={handleRefresh}
-          disabled={syncing}
-          className="inline-flex items-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground disabled:opacity-50"
-        >
-          <RefreshCw className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`} />
-          {syncing ? "Syncing..." : "Refresh from Lodgify"}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => router.push("/admin/reservations/new")}
+            className="inline-flex items-center gap-2 rounded-md bg-primary text-primary-foreground px-3 py-2 text-sm font-medium hover:opacity-90"
+          >
+            <Plus className="h-4 w-4" />
+            New booking
+          </button>
+          <button
+            onClick={handleRefresh}
+            disabled={syncing}
+            className="inline-flex items-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground disabled:opacity-50"
+          >
+            <RefreshCw className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`} />
+            {syncing ? "Syncing..." : "Refresh from Lodgify"}
+          </button>
+        </div>
       </div>
 
       {/* Filters */}

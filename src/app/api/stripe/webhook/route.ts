@@ -150,5 +150,62 @@ export async function POST(request: Request) {
       .eq("stripe_payment_intent_id", intent.id);
   }
 
+  // Admin-created booking invoice flow (deposit, balance, or full payment).
+  if (event.type === "invoice.paid") {
+    const invoice = event.data.object as Stripe.Invoice;
+    const registrationId = invoice.metadata?.registration_id;
+    const phase = invoice.metadata?.booking_phase;
+    if (registrationId && phase) {
+      // Resolve the payment_method used so we can off-session charge the balance later.
+      let paymentMethodId: string | null = null;
+      const piRef = (invoice as unknown as { payment_intent?: string | Stripe.PaymentIntent | null }).payment_intent;
+      try {
+        if (piRef) {
+          const piId = typeof piRef === "string" ? piRef : piRef.id;
+          const pi = await stripe.paymentIntents.retrieve(piId);
+          if (pi.payment_method) {
+            paymentMethodId = typeof pi.payment_method === "string" ? pi.payment_method : pi.payment_method.id;
+          }
+        }
+      } catch (err) {
+        console.error("[webhook] Failed to retrieve PaymentIntent for invoice:", err);
+      }
+
+      if (phase === "deposit") {
+        const updates: Record<string, unknown> = {
+          status: "active",
+          deposit_paid_at: new Date().toISOString(),
+        };
+        if (paymentMethodId) updates.stripe_payment_method_id = paymentMethodId;
+        await supabase.from("registration").update(updates).eq("id", registrationId);
+      } else if (phase === "full") {
+        const updates: Record<string, unknown> = {
+          status: "active",
+          deposit_paid_at: new Date().toISOString(),
+          balance_paid_at: new Date().toISOString(),
+        };
+        if (paymentMethodId) updates.stripe_payment_method_id = paymentMethodId;
+        await supabase.from("registration").update(updates).eq("id", registrationId);
+      } else if (phase === "balance") {
+        await supabase
+          .from("registration")
+          .update({ balance_paid_at: new Date().toISOString() })
+          .eq("id", registrationId);
+      }
+    }
+  }
+
+  if (event.type === "invoice.payment_failed") {
+    const invoice = event.data.object as Stripe.Invoice;
+    const registrationId = invoice.metadata?.registration_id;
+    const phase = invoice.metadata?.booking_phase;
+    // Only the balance invoice retries via cron — log here for visibility.
+    if (registrationId && phase === "balance") {
+      console.warn(
+        `[webhook] Balance invoice ${invoice.id} failed for registration ${registrationId}`
+      );
+    }
+  }
+
   return NextResponse.json({ received: true });
 }
