@@ -310,6 +310,15 @@ const CATEGORIES: Category[] = [
         website: "https://www.barleycreek.com",
         mapQuery: "Barley Creek Brewing Company Tannersville PA",
       },
+      {
+        name: "Sweet Creams Cafe",
+        description:
+          "A charming Main Street cafe in downtown Stroudsburg serving breakfast, lunch, espresso drinks, and house-made ice cream. Pair a stop here with a stroll through the boutiques and galleries.",
+        image: img("photo-1501339847302-ac426a4a7cbb"),
+        distance: "15 min",
+        tags: ["Breakfast", "Coffee", "Ice Cream"],
+        mapQuery: "Sweet Creams Cafe Main Street Stroudsburg PA",
+      },
     ],
   },
   {
