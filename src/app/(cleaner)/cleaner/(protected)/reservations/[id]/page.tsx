@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { validateCleanerSession } from "@/lib/cleaner/auth";
 import { getSessionToken } from "@/lib/cleaner/session";
+import { maskGuestName } from "@/lib/cleaner/format";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -70,7 +71,7 @@ export default async function ReservationDetailPage({ params }: { params: { id: 
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <p className="text-xs uppercase tracking-wider text-muted-foreground">Guest</p>
-                <p className="font-medium text-sm">{guest?.full_name ?? "Unknown guest"}</p>
+                <p className="font-medium text-sm">{maskGuestName(guest?.full_name) ?? "Unknown guest"}</p>
                 {guest?.email && <p className="text-sm text-muted-foreground">{guest.email}</p>}
                 {guest?.phone && <p className="text-sm text-muted-foreground">{guest.phone}</p>}
               </div>

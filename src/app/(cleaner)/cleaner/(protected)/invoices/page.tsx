@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { validateCleanerSession } from "@/lib/cleaner/auth";
 import { getSessionToken } from "@/lib/cleaner/session";
 import { InvoiceTabs } from "@/components/cleaner/invoice-tabs";
+import { maskGuestName } from "@/lib/cleaner/format";
 import type { InvoiceLineItem, InvoiceStatus } from "@/types/database";
 
 export const dynamic = "force-dynamic";
@@ -121,7 +122,7 @@ export default async function InvoicesPage() {
         const cleaningFee = prop.cleaning_fee_cents ?? 0;
         const petFee = hasPets ? (cleaner.pet_fee_cents ?? 0) : 0;
         const guest = r.guest as unknown as { full_name: string } | null;
-        const guestName = guest?.full_name || null;
+        const guestName = maskGuestName(guest?.full_name);
         return {
           registrationId: r.id,
           propertyName: prop.name,
@@ -163,7 +164,7 @@ export default async function InvoicesPage() {
       return {
         id: r.id,
         propertyName: prop.name,
-        guestName: guest?.full_name || null,
+        guestName: maskGuestName(guest?.full_name),
         checkInDate: r.check_in_date,
         checkOutDate: r.check_out_date,
       };

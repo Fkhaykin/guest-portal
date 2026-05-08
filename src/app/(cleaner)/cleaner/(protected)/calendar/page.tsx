@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { validateCleanerSession } from "@/lib/cleaner/auth";
 import { getSessionToken } from "@/lib/cleaner/session";
 import { CalendarView } from "@/components/cleaner/calendar-view";
+import { maskGuestName } from "@/lib/cleaner/format";
 import type { UpsellEntry, GuestListEntry, PetEntry } from "@/types/database";
 
 export const dynamic = "force-dynamic";
@@ -149,7 +150,7 @@ export default async function CalendarPage() {
       checkIn: r.check_in_date,
       checkOut: r.check_out_date,
       numGuests: r.num_guests,
-      guestName: guest?.full_name || null,
+      guestName: maskGuestName(guest?.full_name),
       guestList: r.guest_list as unknown as GuestListEntry[] | null,
       pets: r.pets as unknown as PetEntry[] | null,
       isCleaned: calendarStatusMap.get(r.id) ?? false,
