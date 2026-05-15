@@ -80,12 +80,10 @@ function formatDateFull(dateStr: string) {
   });
 }
 
-function formatTimestamp(ts: string) {
+function formatTimestampDate(ts: string) {
   return new Date(ts).toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
   });
 }
 
@@ -428,6 +426,7 @@ function UnpaidTab({
               <TableHead>Property</TableHead>
               <TableHead className="hidden sm:table-cell">Guest</TableHead>
               <TableHead className="hidden sm:table-cell">Dates</TableHead>
+              <TableHead className="hidden sm:table-cell">Cleaned</TableHead>
               <TableHead className="text-right pr-4">Amount</TableHead>
             </TableRow>
           </TableHeader>
@@ -479,12 +478,18 @@ function UnpaidTab({
                         <User className="h-3 w-3" />
                         {c.cleanerName}
                       </p>
-                      {/* Mobile-only: guest + dates */}
+                      {/* Mobile-only: guest + dates + cleaned */}
                       <div className="sm:hidden text-xs text-muted-foreground mt-0.5 space-y-0.5">
                         {c.guestName && <p className="truncate">{c.guestName}</p>}
                         <p>
                           {formatDate(c.checkInDate)} &ndash; {formatDate(c.checkOutDate)}
                         </p>
+                        {c.cleanedAt && (
+                          <p className="flex items-center gap-0.5">
+                            <SprayCan className="h-2.5 w-2.5" />
+                            Cleaned {formatTimestampDate(c.cleanedAt)}
+                          </p>
+                        )}
                       </div>
                     </div>
                   </TableCell>
@@ -509,11 +514,14 @@ function UnpaidTab({
                     <p className="text-sm whitespace-nowrap">
                       {formatDate(c.checkInDate)} &ndash; {formatDate(c.checkOutDate)}
                     </p>
-                    {c.cleanedAt && (
-                      <p className="text-[10px] text-muted-foreground flex items-center gap-0.5 mt-0.5">
-                        <SprayCan className="h-2.5 w-2.5" />
-                        {formatTimestamp(c.cleanedAt)}
+                  </TableCell>
+                  <TableCell className="hidden sm:table-cell">
+                    {c.cleanedAt ? (
+                      <p className="text-sm whitespace-nowrap">
+                        {formatTimestampDate(c.cleanedAt)}
                       </p>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">&mdash;</span>
                     )}
                   </TableCell>
                   <TableCell className="text-right pr-4" onClick={(e) => isSkipped && e.stopPropagation()}>

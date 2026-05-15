@@ -197,7 +197,13 @@ export default async function AdminInvoicesPage() {
               skipped: status?.skipped ?? false,
             };
           })
-          .sort((a, b) => b.checkOutDate.localeCompare(a.checkOutDate));
+          .sort((a, b) => {
+            // Sort by cleanedAt desc; rows without a cleanedAt fall to the bottom
+            if (!a.cleanedAt && !b.cleanedAt) return 0;
+            if (!a.cleanedAt) return 1;
+            if (!b.cleanedAt) return -1;
+            return b.cleanedAt.localeCompare(a.cleanedAt);
+          });
       }
     }
   }
