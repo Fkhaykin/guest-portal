@@ -68,7 +68,8 @@ export default function NewReservationPage() {
   const [numGuests, setNumGuests] = useState("2");
   const [numPets, setNumPets] = useState("0");
   const [discountDollars, setDiscountDollars] = useState("");
-  const [paymentPlan, setPaymentPlan] = useState<"full" | "split">("full");
+  const [discountLabel, setDiscountLabel] = useState("Loyalty Discount");
+  const [paymentPlan, setPaymentPlan] = useState<"full" | "split" | "automatic">("full");
   const [notes, setNotes] = useState("");
 
   const [breakdown, setBreakdown] = useState<Breakdown | null>(null);
@@ -77,7 +78,14 @@ export default function NewReservationPage() {
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<{ url: string | null; balanceDue: string | null; dueNowCents: number; totalCents: number } | null>(null);
+  const [result, setResult] = useState<{
+    plan: "full" | "split" | "automatic";
+    url: string | null;
+    pickUrl: string | null;
+    balanceDue: string | null;
+    dueNowCents: number;
+    totalCents: number;
+  } | null>(null);
 
   // Cache the latest fetch params so a stale response doesn't overwrite a newer one.
   const fetchSeq = useRef(0);
@@ -182,6 +190,7 @@ export default function NewReservationPage() {
           num_guests: parseInt(numGuests, 10) || 1,
           num_pets: parseInt(numPets, 10) || 0,
           discount_cents: discountCents,
+          discount_label: discountCents > 0 ? discountLabel.trim() || null : null,
           payment_plan: paymentPlan,
           notes,
         }),
@@ -192,7 +201,9 @@ export default function NewReservationPage() {
         return;
       }
       setResult({
+        plan: paymentPlan,
         url: data.hosted_invoice_url ?? null,
+        pickUrl: data.pick_plan_url ?? null,
         balanceDue: data.balance_due_date ?? null,
         dueNowCents: data.amount_due_now_cents ?? 0,
         totalCents: data.total_cents ?? 0,
@@ -205,24 +216,29 @@ export default function NewReservationPage() {
   }
 
   if (result) {
+    const isAuto = result.plan === "automatic";
     return (
       <div className="max-w-2xl">
         <h1 className="text-3xl font-bold tracking-tight mb-6">Booking created</h1>
         <Card>
           <CardContent className="pt-6 space-y-4">
             <div className="text-sm text-muted-foreground space-y-1">
-              <p>An invoice for <strong>{fmt(result.dueNowCents)}</strong> has been emailed to the guest.</p>
+              {isAuto ? (
+                <p>The guest has been emailed a link to choose their payment plan.</p>
+              ) : (
+                <p>An invoice for <strong>{fmt(result.dueNowCents)}</strong> has been emailed to the guest.</p>
+              )}
               <p>Booking total: <strong>{fmt(result.totalCents)}</strong></p>
               {result.balanceDue && (
                 <p>The 50% balance auto-charges on <strong>{result.balanceDue}</strong>.</p>
               )}
             </div>
-            {result.url && (
+            {(result.url || result.pickUrl) && (
               <div className="space-y-2">
-                <Label>Hosted invoice link (also sent by email)</Label>
+                <Label>{isAuto ? "Payment-plan picker link (also sent by email)" : "Hosted invoice link (also sent by email)"}</Label>
                 <div className="flex items-center gap-2">
-                  <Input readOnly value={result.url} onClick={(e) => e.currentTarget.select()} />
-                  <Button type="button" variant="outline" onClick={() => navigator.clipboard.writeText(result.url!)}>Copy</Button>
+                  <Input readOnly value={result.pickUrl ?? result.url ?? ""} onClick={(e) => e.currentTarget.select()} />
+                  <Button type="button" variant="outline" onClick={() => navigator.clipboard.writeText((result.pickUrl ?? result.url)!)}>Copy</Button>
                 </div>
               </div>
             )}
@@ -323,17 +339,29 @@ export default function NewReservationPage() {
         <Card>
           <CardHeader><CardTitle>Pricing</CardTitle></CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="discount">Discount (USD, optional)</Label>
-              <Input
-                id="discount"
-                type="number"
-                step="0.01"
-                min="0"
-                placeholder="0.00"
-                value={discountDollars}
-                onChange={(e) => setDiscountDollars(e.target.value)}
-              />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="discount">Discount (USD, optional)</Label>
+                <Input
+                  id="discount"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="0.00"
+                  value={discountDollars}
+                  onChange={(e) => setDiscountDollars(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="discount_label">Discount name</Label>
+                <Input
+                  id="discount_label"
+                  placeholder="Loyalty Discount"
+                  value={discountLabel}
+                  onChange={(e) => setDiscountLabel(e.target.value)}
+                  disabled={discountCents <= 0}
+                />
+              </div>
             </div>
 
             {!checkIn || !checkOut ? (
@@ -363,12 +391,28 @@ export default function NewReservationPage() {
                   {breakdown.petFeeTotalCents > 0 && <Row label={`Pet fee × ${parseInt(numPets, 10) || 0}`} value={fmt(breakdown.petFeeTotalCents)} />}
                   {breakdown.stateTaxCents > 0 && <Row label="PA state hotel tax (6%)" value={fmt(breakdown.stateTaxCents)} />}
                   {breakdown.countyTaxCents > 0 && <Row label="Monroe County tax (3%)" value={fmt(breakdown.countyTaxCents)} />}
-                  {breakdown.discountCents > 0 && <Row label="Discount" value={`− ${fmt(breakdown.discountCents)}`} muted />}
                 </div>
-                <div className="px-4 py-3 border-t bg-muted/30 flex items-center justify-between">
-                  <span className="font-semibold">Total</span>
-                  <span className="font-semibold">{fmt(breakdown.totalCents)}</span>
-                </div>
+                {breakdown.discountCents > 0 ? (
+                  <>
+                    <div className="px-4 py-2 border-t bg-muted/20 flex items-center justify-between text-sm">
+                      <span>Subtotal</span>
+                      <span>{fmt(breakdown.totalCents + breakdown.discountCents)}</span>
+                    </div>
+                    <div className="px-4 py-2 border-t flex items-center justify-between text-sm text-muted-foreground">
+                      <span>{discountLabel.trim() || "Discount"}</span>
+                      <span>− {fmt(breakdown.discountCents)}</span>
+                    </div>
+                    <div className="px-4 py-3 border-t bg-muted/30 flex items-center justify-between">
+                      <span className="font-semibold">Total</span>
+                      <span className="font-semibold">{fmt(breakdown.totalCents)}</span>
+                    </div>
+                  </>
+                ) : (
+                  <div className="px-4 py-3 border-t bg-muted/30 flex items-center justify-between">
+                    <span className="font-semibold">Total</span>
+                    <span className="font-semibold">{fmt(breakdown.totalCents)}</span>
+                  </div>
+                )}
               </div>
             ) : null}
           </CardContent>
@@ -377,7 +421,7 @@ export default function NewReservationPage() {
         <Card>
           <CardHeader><CardTitle>Payment plan</CardTitle></CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
               <button
                 type="button"
                 onClick={() => setPaymentPlan("full")}
@@ -397,8 +441,23 @@ export default function NewReservationPage() {
                 <div className="font-medium">50% deposit + 50% balance</div>
                 <div className="text-xs text-muted-foreground mt-1">
                   {splitAllowed
-                    ? `Guest pays ${breakdown ? fmt(dueNowCents) : "50%"} now; balance auto-charged 30 days before check-in.`
+                    ? `Guest pays ${breakdown ? fmt(Math.round((breakdown?.totalCents ?? 0) / 2)) : "50%"} now; balance auto-charged 30 days before check-in.`
                     : `Available only when check-in is ${SPLIT_MIN_LEAD_DAYS}+ days out${checkIn ? ` (currently ${daysOut} day${daysOut === 1 ? "" : "s"})` : ""}.`}
+                </div>
+              </button>
+              <button
+                type="button"
+                onClick={() => setPaymentPlan("automatic")}
+                className={`text-left rounded-md border p-3 text-sm transition ${paymentPlan === "automatic" ? "border-primary ring-1 ring-primary" : "hover:bg-accent"}`}
+              >
+                <div className="font-medium">Automatic — rule based</div>
+                <div className="text-xs text-muted-foreground mt-1">
+                  Guest picks at checkout.{" "}
+                  {checkIn
+                    ? splitAllowed
+                      ? `Check-in is ${daysOut} day${daysOut === 1 ? "" : "s"} out, so full and split will both be offered.`
+                      : `Check-in is under ${SPLIT_MIN_LEAD_DAYS} days out, so only full payment will be offered.`
+                    : `Split is offered when check-in is ${SPLIT_MIN_LEAD_DAYS}+ days out; otherwise full only.`}
                 </div>
               </button>
             </div>
@@ -412,7 +471,11 @@ export default function NewReservationPage() {
 
             <div className="flex gap-3 pt-2">
               <Button type="submit" disabled={submitting || !breakdown}>
-                {submitting ? "Creating…" : `Create booking & send invoice${breakdown ? ` (${fmt(dueNowCents)} due now)` : ""}`}
+                {submitting
+                  ? "Creating…"
+                  : paymentPlan === "automatic"
+                    ? `Create booking & email plan picker${breakdown ? ` (${fmt(breakdown.totalCents)} total)` : ""}`
+                    : `Create booking & send invoice${breakdown ? ` (${fmt(dueNowCents)} due now)` : ""}`}
               </Button>
               <Button type="button" variant="outline" onClick={() => router.back()}>
                 Cancel

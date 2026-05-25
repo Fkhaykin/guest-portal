@@ -6,7 +6,10 @@ import {
   createAndFinalizeBookingInvoice,
   getOrCreateStripeCustomer,
 } from "@/lib/stripe/booking-invoices";
-import { sendBookingInvoiceEmail } from "@/lib/email/send-booking-invoice";
+import {
+  sendBookingInvoiceEmail,
+  sendBookingPlanPickerEmail,
+} from "@/lib/email/send-booking-invoice";
 
 const SPLIT_MIN_LEAD_DAYS = 60;
 const INVOICE_DUE_DAYS = 7;
@@ -30,8 +33,9 @@ export async function POST(request: NextRequest) {
     check_out_date: string;
     num_guests: number;
     num_pets?: number;
-    payment_plan: "full" | "split";
+    payment_plan: "full" | "split" | "automatic";
     discount_cents?: number;
+    discount_label?: string | null;
     notes?: string;
   };
   try {
@@ -50,7 +54,7 @@ export async function POST(request: NextRequest) {
   if (body.check_out_date <= body.check_in_date) {
     return NextResponse.json({ error: "Check-out must be after check-in" }, { status: 400 });
   }
-  if (body.payment_plan !== "full" && body.payment_plan !== "split") {
+  if (body.payment_plan !== "full" && body.payment_plan !== "split" && body.payment_plan !== "automatic") {
     return NextResponse.json({ error: "Invalid payment plan" }, { status: 400 });
   }
 
@@ -128,6 +132,8 @@ export async function POST(request: NextRequest) {
     guestId = newGuest.id;
   }
 
+  const discountLabel = body.discount_label?.trim() || null;
+
   // Create registration in pending_payment with the full breakdown.
   const { data: registration, error: regErr } = await admin
     .from("registration")
@@ -145,6 +151,7 @@ export async function POST(request: NextRequest) {
       tax_amount_cents: quote.taxTotalCents,
       pet_fee_total_cents: quote.petFeeTotalCents,
       discount_cents: quote.discountCents,
+      discount_label: quote.discountCents > 0 ? discountLabel : null,
       nightly_rates_snapshot: quote.nightlyRates,
       payment_plan: body.payment_plan,
       notes: body.notes?.trim() || null,
@@ -158,6 +165,36 @@ export async function POST(request: NextRequest) {
       { error: "Failed to create booking", details: regErr?.message },
       { status: 500 }
     );
+  }
+
+  const propertyLabel = property.nickname || property.name;
+
+  // Automatic plan: defer invoice creation. Guest receives an email with a
+  // link to choose Full vs. Split themselves. Split is offered only when
+  // check-in is at least SPLIT_MIN_LEAD_DAYS away.
+  if (body.payment_plan === "automatic") {
+    const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/+$/, "");
+    const pickPlanUrl = `${baseUrl}/pay/${registration.id}`;
+    try {
+      await sendBookingPlanPickerEmail({
+        to: email,
+        guestName: fullName,
+        propertyName: propertyLabel,
+        checkInDate: body.check_in_date,
+        checkOutDate: body.check_out_date,
+        totalCents: quote.totalCents,
+        splitAllowed: daysUntilCheckin >= SPLIT_MIN_LEAD_DAYS,
+        pickPlanUrl,
+      });
+    } catch (err) {
+      console.error("[admin/bookings/create] Plan-picker email failed:", err);
+    }
+    return NextResponse.json({
+      ok: true,
+      registration_id: registration.id,
+      pick_plan_url: pickPlanUrl,
+      total_cents: quote.totalCents,
+    });
   }
 
   // Stripe customer
@@ -177,10 +214,11 @@ export async function POST(request: NextRequest) {
 
   const isSplit = body.payment_plan === "split";
   const dueNowCents = isSplit ? Math.round(quote.totalCents / 2) : quote.totalCents;
-  const propertyLabel = property.nickname || property.name;
+  const discountSuffix =
+    quote.discountCents > 0 && discountLabel ? ` (${discountLabel} applied)` : "";
   const description = isSplit
-    ? `Deposit (50%) — ${propertyLabel}, ${body.check_in_date} to ${body.check_out_date}`
-    : `Booking — ${propertyLabel}, ${body.check_in_date} to ${body.check_out_date}`;
+    ? `Deposit (50%) — ${propertyLabel}, ${body.check_in_date} to ${body.check_out_date}${discountSuffix}`
+    : `Booking — ${propertyLabel}, ${body.check_in_date} to ${body.check_out_date}${discountSuffix}`;
 
   // Create + finalize the deposit/full invoice
   let invoice;
@@ -224,6 +262,8 @@ export async function POST(request: NextRequest) {
         hostedInvoiceUrl: invoice.hosted_invoice_url,
         isDeposit: isSplit,
         balanceDueDate,
+        discountLabel: quote.discountCents > 0 ? discountLabel : null,
+        discountCents: quote.discountCents,
       });
     } catch (err) {
       console.error("[admin/bookings/create] Invoice email failed:", err);

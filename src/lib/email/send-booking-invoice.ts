@@ -25,6 +25,8 @@ interface InvoiceParams {
   hostedInvoiceUrl: string;
   isDeposit: boolean;
   balanceDueDate?: string;
+  discountLabel?: string | null;
+  discountCents?: number;
 }
 
 export async function sendBookingInvoiceEmail(params: InvoiceParams) {
@@ -36,15 +38,59 @@ export async function sendBookingInvoiceEmail(params: InvoiceParams) {
     ? `\n\nThe remaining ${formatMoney(params.totalCents - params.amountCents)} balance will be automatically charged to your saved card on ${formatDate(params.balanceDueDate)} (30 days before check-in).`
     : "";
 
+  const discountLine =
+    params.discountLabel && params.discountCents && params.discountCents > 0
+      ? `\n${params.discountLabel}: −${formatMoney(params.discountCents)}`
+      : "";
+
+  const text = [
+    `Hi ${params.guestName},`,
+    "",
+    `Your booking at ${params.propertyName} for ${formatDate(params.checkInDate)} – ${formatDate(params.checkOutDate)} is reserved pending payment.`,
+    "",
+    `Booking total: ${formatMoney(params.totalCents)}${discountLine}`,
+    params.isDeposit ? `Due now (50% deposit): ${formatMoney(params.amountCents)}` : `Due now: ${formatMoney(params.amountCents)}`,
+    "",
+    `Pay your invoice here: ${params.hostedInvoiceUrl}` + balanceLine,
+    "",
+    "Reply to this email if you have any questions.",
+  ].join("\n");
+
+  const { error } = await getResend().emails.send({
+    from: FROM,
+    to: params.to,
+    subject,
+    text,
+  });
+  if (error) throw new Error(`Resend error: ${error.message}`);
+}
+
+interface PlanPickerParams {
+  to: string;
+  guestName: string;
+  propertyName: string;
+  checkInDate: string;
+  checkOutDate: string;
+  totalCents: number;
+  splitAllowed: boolean;
+  pickPlanUrl: string;
+}
+
+export async function sendBookingPlanPickerEmail(params: PlanPickerParams) {
+  const subject = `Action required: choose how to pay for your stay at ${params.propertyName}`;
+  const optionsLine = params.splitAllowed
+    ? "You can pay in full now, or split it 50% now and 50% auto-charged 30 days before check-in."
+    : "You can pay in full now (your check-in is too close for our split-pay option).";
+
   const text = [
     `Hi ${params.guestName},`,
     "",
     `Your booking at ${params.propertyName} for ${formatDate(params.checkInDate)} – ${formatDate(params.checkOutDate)} is reserved pending payment.`,
     "",
     `Booking total: ${formatMoney(params.totalCents)}`,
-    params.isDeposit ? `Due now (50% deposit): ${formatMoney(params.amountCents)}` : `Due now: ${formatMoney(params.amountCents)}`,
+    optionsLine,
     "",
-    `Pay your invoice here: ${params.hostedInvoiceUrl}` + balanceLine,
+    `Pick your payment plan: ${params.pickPlanUrl}`,
     "",
     "Reply to this email if you have any questions.",
   ].join("\n");

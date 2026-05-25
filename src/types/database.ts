@@ -396,7 +396,8 @@ export type Database = {
           signature_url: string | null;
           booking_source: string | null;
           total_amount_cents: number;
-          payment_plan: "full" | "split";
+          payment_plan: "full" | "split" | "automatic";
+          discount_label: string | null;
           deposit_paid_at: string | null;
           balance_paid_at: string | null;
           balance_charge_attempts: number;
@@ -428,7 +429,8 @@ export type Database = {
           signature_url?: string | null;
           booking_source?: string | null;
           total_amount_cents?: number;
-          payment_plan?: "full" | "split";
+          payment_plan?: "full" | "split" | "automatic";
+          discount_label?: string | null;
           deposit_paid_at?: string | null;
           balance_paid_at?: string | null;
           balance_charge_attempts?: number;
@@ -460,7 +462,8 @@ export type Database = {
           signature_url?: string | null;
           booking_source?: string | null;
           total_amount_cents?: number;
-          payment_plan?: "full" | "split";
+          payment_plan?: "full" | "split" | "automatic";
+          discount_label?: string | null;
           deposit_paid_at?: string | null;
           balance_paid_at?: string | null;
           balance_charge_attempts?: number;
