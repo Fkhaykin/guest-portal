@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { verifyGuestToken } from "@/lib/guest-token";
+import { checkPhotoRewardEligibility } from "@/lib/photo-reward";
 
 export async function POST(request: Request) {
   const body = await request.json();
@@ -47,10 +48,17 @@ export async function POST(request: Request) {
     .eq("id", registration_id)
     .single();
 
+  const rewardClaimed = reg?.photo_reward_claimed || false;
+  const eligibility = rewardClaimed
+    ? { eligible: true as const }
+    : await checkPhotoRewardEligibility(supabase, registration_id);
+
   return NextResponse.json({
     photos: photosWithUrls,
     photo_count: photos?.length || 0,
-    reward_claimed: reg?.photo_reward_claimed || false,
+    reward_claimed: rewardClaimed,
+    reward_eligible: eligibility.eligible,
+    reward_blocked_reason: eligibility.eligible ? null : eligibility.reason,
   });
 }
 

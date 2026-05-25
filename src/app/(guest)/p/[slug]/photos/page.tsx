@@ -68,6 +68,8 @@ export default function PhotoAlbumPage() {
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [photoCount, setPhotoCount] = useState(0);
   const [rewardClaimed, setRewardClaimed] = useState(false);
+  const [rewardEligible, setRewardEligible] = useState(true);
+  const [rewardBlockedReason, setRewardBlockedReason] = useState<string | null>(null);
 
   // Upload state
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
@@ -103,6 +105,8 @@ export default function PhotoAlbumPage() {
       setPhotos(data.photos);
       setPhotoCount(data.photo_count);
       setRewardClaimed(data.reward_claimed);
+      setRewardEligible(data.reward_eligible ?? true);
+      setRewardBlockedReason(data.reward_blocked_reason ?? null);
     } else if (res.status === 401) {
       sessionStorage.removeItem(SESSION_KEY);
       window.location.href = `/?redirect=${encodeURIComponent(window.location.pathname)}`;
@@ -248,6 +252,22 @@ export default function PhotoAlbumPage() {
             </div>
           </CardContent>
         </Card>
+      ) : !rewardEligible ? (
+        <Card className="border-muted-foreground/20 bg-muted/40">
+          <CardContent className="flex items-center gap-4 p-4">
+            <div className="rounded-full bg-muted p-3 shrink-0">
+              <Clock className="h-6 w-6 text-muted-foreground" />
+            </div>
+            <div>
+              <p className="font-semibold">
+                Free check-out offer unavailable
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {rewardBlockedReason || "The free 12:00 PM check-out reward isn't available for this stay."} You&apos;re still welcome to share photos from your stay below.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
       ) : (
         <Card className="border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950">
           <CardContent className="flex items-center gap-4 p-4">
@@ -273,7 +293,7 @@ export default function PhotoAlbumPage() {
       )}
 
       {/* Progress bar */}
-      {!rewardClaimed && (
+      {!rewardClaimed && rewardEligible && (
         <div className="space-y-1.5">
           <div className="flex justify-between text-xs text-muted-foreground">
             <span>{photoCount} / {REWARD_THRESHOLD} photos</span>

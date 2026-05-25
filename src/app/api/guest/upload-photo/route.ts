@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { verifyGuestToken } from "@/lib/guest-token";
-
-const PHOTO_REWARD_THRESHOLD = 3;
+import { checkPhotoRewardEligibility, PHOTO_REWARD_THRESHOLD } from "@/lib/photo-reward";
 
 export async function POST(request: Request) {
   const formData = await request.formData();
@@ -99,6 +98,7 @@ export async function POST(request: Request) {
 
   // Check if guest has earned the late checkout reward
   let rewardEarned = false;
+  let rewardBlockedReason: string | null = null;
   if (!reg.photo_reward_claimed) {
     const { count } = await supabase
       .from("guest_photo")
@@ -106,34 +106,38 @@ export async function POST(request: Request) {
       .eq("registration_id", registrationId);
 
     if (count && count >= PHOTO_REWARD_THRESHOLD) {
-      // Grant free late checkout by adding it to upsells
-      const { data: currentReg } = await supabase
-        .from("registration")
-        .select("upsells")
-        .eq("id", registrationId)
-        .single();
+      const eligibility = await checkPhotoRewardEligibility(supabase, registrationId);
+      if (!eligibility.eligible) {
+        rewardBlockedReason = eligibility.reason;
+      } else {
+        const { data: currentReg } = await supabase
+          .from("registration")
+          .select("upsells")
+          .eq("id", registrationId)
+          .single();
 
-      const currentUpsells = (currentReg?.upsells as unknown[]) || [];
-      const updatedUpsells = [
-        ...currentUpsells,
-        {
-          type: "late_checkout",
-          label: "Late Check-Out (12:00 PM — Photo Album Reward)",
-          price_cents: 0,
-          status: "paid",
-          meta: { source: "photo_reward", checkout_time: "12:00 PM" },
-        },
-      ];
+        const currentUpsells = (currentReg?.upsells as unknown[]) || [];
+        const updatedUpsells = [
+          ...currentUpsells,
+          {
+            type: "late_checkout",
+            label: "Late Check-Out (12:00 PM — Photo Album Reward)",
+            price_cents: 0,
+            status: "paid",
+            meta: { source: "photo_reward", checkout_time: "12:00 PM" },
+          },
+        ];
 
-      await supabase
-        .from("registration")
-        .update({
-          upsells: updatedUpsells,
-          photo_reward_claimed: true,
-        })
-        .eq("id", registrationId);
+        await supabase
+          .from("registration")
+          .update({
+            upsells: updatedUpsells,
+            photo_reward_claimed: true,
+          })
+          .eq("id", registrationId);
 
-      rewardEarned = true;
+        rewardEarned = true;
+      }
     }
   }
 
@@ -141,5 +145,6 @@ export async function POST(request: Request) {
     ok: true,
     photo,
     reward_earned: rewardEarned,
+    reward_blocked_reason: rewardBlockedReason,
   });
 }
