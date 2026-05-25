@@ -118,10 +118,10 @@ export async function POST(request: Request) {
         ...currentUpsells,
         {
           type: "late_checkout",
-          label: "Late Check-Out (Photo Album Reward)",
+          label: "Late Check-Out (12:00 PM — Photo Album Reward)",
           price_cents: 0,
-          status: "confirmed",
-          meta: { source: "photo_reward" },
+          status: "paid",
+          meta: { source: "photo_reward", checkout_time: "12:00 PM" },
         },
       ];
 

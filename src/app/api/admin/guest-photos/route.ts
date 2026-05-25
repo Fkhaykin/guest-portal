@@ -15,13 +15,14 @@ async function getHost() {
   return host;
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   const host = await getHost();
   if (!host) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const supabase = createAdminClient();
+  const registrationId = new URL(request.url).searchParams.get("registration_id");
 
   // Get all photos for this host's properties
   const { data: properties } = await supabase
@@ -36,11 +37,17 @@ export async function GET() {
   const propertyIds = properties.map((p) => p.id);
   const propertyMap = new Map(properties.map((p) => [p.id, p.name]));
 
-  const { data: photos } = await supabase
+  let query = supabase
     .from("guest_photo")
     .select("*")
     .in("property_id", propertyIds)
     .order("created_at", { ascending: false });
+
+  if (registrationId) {
+    query = query.eq("registration_id", registrationId);
+  }
+
+  const { data: photos } = await query;
 
   const photosWithUrls = await Promise.all(
     (photos || []).map(async (photo) => {

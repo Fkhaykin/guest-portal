@@ -155,6 +155,7 @@ type PurchasedUpsell = {
   label: string;
   price_cents: number;
   status: string;
+  meta?: Record<string, unknown> | null;
 };
 
 type DeliveryEntry = {
@@ -210,7 +211,12 @@ function GuestDashboard({
   }, [reservation.id]);
 
   const hasEarlyCheckin = purchasedUpsells.some((u) => u.type === "early_checkin" && u.status === "paid");
-  const hasLateCheckout = purchasedUpsells.some((u) => u.type === "late_checkout" && u.status === "paid");
+  const lateCheckoutUpsells = purchasedUpsells.filter((u) => u.type === "late_checkout" && u.status === "paid");
+  const hasLateCheckout = lateCheckoutUpsells.length > 0;
+  const hasPaidLateCheckout = lateCheckoutUpsells.some(
+    (u) => (u.meta as { source?: string } | undefined)?.source !== "photo_reward"
+  );
+  const lateCheckoutTime = hasPaidLateCheckout ? "2:00 PM" : "12:00 PM";
 
   const countdownLabel =
     daysUntil === 0
@@ -366,7 +372,7 @@ function GuestDashboard({
                   {formatShortDate(reservation.check_out_date)}
                 </p>
                 <p className={`text-sm ${hasLateCheckout ? "text-purple-700 dark:text-purple-400 font-medium" : "text-muted-foreground"}`}>
-                  By {hasLateCheckout ? "2:00 PM" : lodgify?.check_out_time ? formatTime(lodgify.check_out_time) : "11:00 AM"}
+                  By {hasLateCheckout ? lateCheckoutTime : lodgify?.check_out_time ? formatTime(lodgify.check_out_time) : "11:00 AM"}
                 </p>
               </div>
             </div>

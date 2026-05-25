@@ -224,10 +224,10 @@ export default function PhotoAlbumPage() {
             </div>
             <div>
               <p className="font-semibold text-green-800 dark:text-green-200">
-                You earned a free late check-out!
+                You earned a free 12:00 PM check-out!
               </p>
               <p className="text-sm text-green-600 dark:text-green-400">
-                Thank you for sharing your photos! Your late check-out has been added to your booking.
+                Thank you for sharing your photos! Your 12:00 PM check-out has been added to your booking.
               </p>
             </div>
           </CardContent>
@@ -240,7 +240,7 @@ export default function PhotoAlbumPage() {
             </div>
             <div>
               <p className="font-semibold text-green-800 dark:text-green-200">
-                Free late check-out unlocked!
+                Free 12:00 PM check-out unlocked!
               </p>
               <p className="text-sm text-green-600 dark:text-green-400">
                 Keep sharing photos — we love seeing your memories!
@@ -256,10 +256,10 @@ export default function PhotoAlbumPage() {
             </div>
             <div>
               <p className="font-semibold text-amber-800 dark:text-amber-200">
-                Earn a free late check-out!
+                Earn a free 12:00 PM check-out!
               </p>
               <p className="text-sm text-amber-600 dark:text-amber-400">
-                Upload {REWARD_THRESHOLD} photos from your stay to unlock a complimentary late check-out.
+                Upload {REWARD_THRESHOLD} photos from your stay to unlock a complimentary 12:00 PM check-out.
                 {photosUntilReward > 0 && (
                   <span className="font-medium">
                     {" "}
@@ -277,7 +277,7 @@ export default function PhotoAlbumPage() {
         <div className="space-y-1.5">
           <div className="flex justify-between text-xs text-muted-foreground">
             <span>{photoCount} / {REWARD_THRESHOLD} photos</span>
-            <span>Free late check-out</span>
+            <span>Free 12:00 PM check-out</span>
           </div>
           <div className="h-2 rounded-full bg-muted overflow-hidden">
             <div

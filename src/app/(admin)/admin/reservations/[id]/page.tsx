@@ -136,6 +136,16 @@ type EmailLog = {
   created_at: string;
 };
 
+type GuestPhoto = {
+  id: string;
+  file_path: string;
+  caption: string | null;
+  guest_name: string | null;
+  approved: boolean;
+  created_at: string;
+  url: string | null;
+};
+
 type IncurredCharge = {
   invoiceId: string;
   invoiceNumber: string;
@@ -171,6 +181,9 @@ export default function ReservationDetailPage() {
   const [emailResult, setEmailResult] = useState<"success" | "error" | null>(null);
   const [expandedDrivers, setExpandedDrivers] = useState<Set<number>>(new Set());
   const [hasModifications, setHasModifications] = useState(false);
+  const [guestPhotos, setGuestPhotos] = useState<GuestPhoto[]>([]);
+  const [selectedGuestPhoto, setSelectedGuestPhoto] = useState<GuestPhoto | null>(null);
+  const [guestPhotoActionId, setGuestPhotoActionId] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -284,6 +297,13 @@ export default function ReservationDetailPage() {
         .eq("registration_id", id)
         .neq("change_type", "initial_registration");
       setHasModifications((modCount ?? 0) > 0);
+
+      // Fetch guest-uploaded photos for this reservation
+      const photosRes = await fetch(`/api/admin/guest-photos?registration_id=${id}`);
+      if (photosRes.ok) {
+        const { photos } = await photosRes.json();
+        setGuestPhotos(photos ?? []);
+      }
     }
 
     setLoading(false);
@@ -331,6 +351,29 @@ export default function ReservationDetailPage() {
     }
   }
 
+  async function handleGuestPhotoAction(photoId: string, action: "approve" | "reject") {
+    setGuestPhotoActionId(photoId);
+    try {
+      const res = await fetch("/api/admin/guest-photos", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ photo_id: photoId, action }),
+      });
+      if (res.ok) {
+        if (action === "approve") {
+          setGuestPhotos((prev) =>
+            prev.map((p) => (p.id === photoId ? { ...p, approved: true } : p))
+          );
+        } else {
+          setGuestPhotos((prev) => prev.filter((p) => p.id !== photoId));
+          if (selectedGuestPhoto?.id === photoId) setSelectedGuestPhoto(null);
+        }
+      }
+    } finally {
+      setGuestPhotoActionId(null);
+    }
+  }
+
   // Open the guest portal as this guest. Fetches a signed token from the
   // admin API so the cross-subdomain preview endpoint can authenticate.
   const openGuestPortal = useCallback(async () => {
@@ -372,9 +415,20 @@ export default function ReservationDetailPage() {
   const infants = guestList.filter((g) => g.age_group === "infant").length;
   const nights = Math.max(1, Math.round((new Date(reg.check_out_date).getTime() - new Date(reg.check_in_date).getTime()) / 86400000));
   const hasEarlyCheckin = upsells.some((u) => u.type === "early_checkin" && u.status === "paid");
-  const hasLateCheckout = upsells.some((u) => u.type === "late_checkout" && u.status === "paid");
+  const lateCheckouts = upsells.filter((u) => u.type === "late_checkout" && u.status === "paid");
+  const hasLateCheckout = lateCheckouts.length > 0;
+  const hasPhotoRewardCheckout = lateCheckouts.some(
+    (u) => (u.meta as { source?: string } | undefined)?.source === "photo_reward"
+  );
+  const hasPaidLateCheckout = lateCheckouts.some(
+    (u) => (u.meta as { source?: string } | undefined)?.source !== "photo_reward"
+  );
   const checkInTime = hasEarlyCheckin ? "1:00 PM" : "4:00 PM";
-  const checkOutTime = hasLateCheckout ? "2:00 PM" : "11:00 AM";
+  const checkOutTime = hasPaidLateCheckout
+    ? "2:00 PM"
+    : hasPhotoRewardCheckout
+      ? "12:00 PM"
+      : "11:00 AM";
   const hasSignature = !!reg.signature_url;
 
   // Map vehicles to guest list entries by driver name
@@ -459,6 +513,11 @@ export default function ReservationDetailPage() {
               </Badge>
             </button>
           )}
+          {hasPhotoRewardCheckout && (
+            <Badge variant="outline" className="text-sm gap-1 bg-purple-50 text-purple-700 border-purple-200">
+              <Camera className="h-3 w-3" /> Free 12 PM checkout (photo reward)
+            </Badge>
+          )}
         </div>
       </div>
 
@@ -487,6 +546,9 @@ export default function ReservationDetailPage() {
         <TabsList>
           <TabsTrigger value="details">Details</TabsTrigger>
           <TabsTrigger value="cleaning">Cleaning Photos</TabsTrigger>
+          <TabsTrigger value="guest-photos">
+            Guest Photos{guestPhotos.length > 0 ? ` (${guestPhotos.length})` : ""}
+          </TabsTrigger>
         </TabsList>
 
         {/* Details Tab */}
@@ -989,7 +1051,139 @@ export default function ReservationDetailPage() {
             </TabsContent>
           </Tabs>
         </TabsContent>
+
+        {/* Guest Photos Tab */}
+        <TabsContent value="guest-photos" className="mt-4">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Camera className="h-4 w-4" /> Guest-Uploaded Photos
+              </CardTitle>
+              <p className="text-xs text-muted-foreground">
+                Photos shared by the guest from their stay. Approve to publish in the property&apos;s public photo album; reject to delete. {guestPhotos.length >= 3 && hasPhotoRewardCheckout ? "This guest earned a free 12:00 PM check-out." : "Guests earn a free 12:00 PM check-out after sharing 3 photos."}
+              </p>
+            </CardHeader>
+            <CardContent>
+              {guestPhotos.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No photos uploaded yet.</p>
+              ) : (
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                  {guestPhotos.map((photo) => (
+                    <div key={photo.id} className="space-y-2">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedGuestPhoto(photo)}
+                        className="block w-full aspect-square rounded-lg overflow-hidden bg-muted hover:ring-2 ring-primary transition-all cursor-pointer relative"
+                      >
+                        {photo.url ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={photo.url}
+                            alt={photo.caption || "Guest photo"}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                            <Camera className="h-6 w-6" />
+                          </div>
+                        )}
+                        {photo.approved && (
+                          <div className="absolute top-1 right-1 rounded-full bg-green-600 text-white p-1">
+                            <Check className="h-3 w-3" />
+                          </div>
+                        )}
+                      </button>
+                      {photo.caption && (
+                        <p className="text-xs text-muted-foreground line-clamp-2">{photo.caption}</p>
+                      )}
+                      <div className="flex gap-1">
+                        {!photo.approved && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="flex-1 h-7 text-xs"
+                            disabled={guestPhotoActionId === photo.id}
+                            onClick={() => handleGuestPhotoAction(photo.id, "approve")}
+                          >
+                            {guestPhotoActionId === photo.id ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <><Check className="h-3 w-3 mr-1" /> Approve</>
+                            )}
+                          </Button>
+                        )}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="flex-1 h-7 text-xs text-red-600 hover:text-red-700"
+                          disabled={guestPhotoActionId === photo.id}
+                          onClick={() => handleGuestPhotoAction(photo.id, "reject")}
+                        >
+                          {guestPhotoActionId === photo.id ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <><XCircle className="h-3 w-3 mr-1" /> Reject</>
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
+
+      {/* Guest Photo Detail Sheet */}
+      <Sheet open={!!selectedGuestPhoto} onOpenChange={(open) => !open && setSelectedGuestPhoto(null)}>
+        <SheetContent side="right" className="flex flex-col p-0" style={{ width: "min(95vw, 1100px)", maxWidth: "none" }}>
+          <SheetHeader className="px-4 pt-4 pb-3 border-b shrink-0">
+            <SheetTitle className="text-base">
+              {selectedGuestPhoto?.caption || "Guest Photo"}
+            </SheetTitle>
+            <SheetDescription>
+              {selectedGuestPhoto?.guest_name ? `${selectedGuestPhoto.guest_name} · ` : ""}
+              {selectedGuestPhoto?.created_at && new Date(selectedGuestPhoto.created_at).toLocaleString()}
+              {selectedGuestPhoto?.approved ? " · Approved" : ""}
+            </SheetDescription>
+          </SheetHeader>
+          {selectedGuestPhoto && (
+            <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+              <div className="relative flex-1 min-h-0 bg-muted overflow-hidden">
+                {selectedGuestPhoto.url && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={selectedGuestPhoto.url}
+                    alt={selectedGuestPhoto.caption || "Guest photo"}
+                    className="absolute inset-0 w-full h-full object-contain"
+                  />
+                )}
+              </div>
+              <div className="border-t px-4 py-3 flex gap-2 shrink-0">
+                {!selectedGuestPhoto.approved && (
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    disabled={guestPhotoActionId === selectedGuestPhoto.id}
+                    onClick={() => handleGuestPhotoAction(selectedGuestPhoto.id, "approve")}
+                  >
+                    <Check className="h-4 w-4 mr-1" /> Approve for public album
+                  </Button>
+                )}
+                <Button
+                  variant="outline"
+                  className="flex-1 text-red-600 hover:text-red-700"
+                  disabled={guestPhotoActionId === selectedGuestPhoto.id}
+                  onClick={() => handleGuestPhotoAction(selectedGuestPhoto.id, "reject")}
+                >
+                  <XCircle className="h-4 w-4 mr-1" /> Reject &amp; delete
+                </Button>
+              </div>
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
 
       {/* Photo EXIF Drawer */}
       <Sheet open={!!selectedPhoto} onOpenChange={(open) => !open && setSelectedPhoto(null)}>
