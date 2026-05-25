@@ -1,7 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 import { QuickLinks } from "./quick-links";
-import { GuestPhotoCarousel } from "@/components/guest/guest-photo-carousel";
 import { InstagramFeedSection } from "@/components/guest/instagram-feed";
 import { ReviewsCarousel } from "@/components/guest/reviews-carousel";
 
@@ -33,8 +32,6 @@ export default async function PropertyHomePage({
           </p>
         )}
       </div>
-
-      <GuestPhotoCarousel propertyId={property.id} propertySlug={slug} />
 
       <QuickLinks slug={slug} />
 

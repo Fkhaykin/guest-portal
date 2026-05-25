@@ -30,7 +30,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { BookingCalendar } from "./booking-widget";
-import { GuestPhotoCarousel } from "@/components/guest/guest-photo-carousel";
 import { ReviewsCarousel } from "@/components/guest/reviews-carousel";
 
 /* ------------------------------------------------------------------ */
@@ -443,9 +442,6 @@ export function PropertyPage({
         </div>
 
       </div>
-
-      {/* Guest Photos */}
-      <GuestPhotoCarousel propertyId={property.id} />
 
       {/* Reviews */}
       <ReviewsCarousel ctaHref="#booking" propertyName={property.name} />

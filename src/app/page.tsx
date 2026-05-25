@@ -15,7 +15,6 @@ import { createClient } from "@/lib/supabase/client";
 import {
   clearGuestToken,
 } from "@/lib/guest-session";
-import { GuestPhotoCarousel } from "@/components/guest/guest-photo-carousel";
 import { InstagramFeedSection } from "@/components/guest/instagram-feed";
 import { ReviewsCarousel } from "@/components/guest/reviews-carousel";
 import { REVIEWS } from "@/lib/reviews-data";
@@ -1098,12 +1097,6 @@ export default function HomeV2Page() {
           </div>
         </div>
       </section>
-
-      {/* ============================================================ */}
-      {/*  GUEST PHOTOS                                                 */}
-      {/* ============================================================ */}
-      <Separator className="max-w-6xl mx-auto" />
-      <GuestPhotoCarousel />
 
       {/* ============================================================ */}
       {/*  GUEST REVIEWS                                                */}

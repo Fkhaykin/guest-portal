@@ -126,6 +126,49 @@ export type GuestMessageSettings = {
 
 export type GuestMessageKey = keyof GuestMessageSettings;
 
+// ============ Guest Marketing ============
+
+export type SegmentFilter = {
+  stayed_from?: string | null;        // ISO date, inclusive (check_out_date >= this)
+  stayed_until?: string | null;       // ISO date, inclusive (check_out_date <= this)
+  property_ids?: string[] | null;     // null/empty = all properties
+  min_stays?: number | null;          // inclusive
+  max_stays?: number | null;          // inclusive
+};
+
+export type CampaignKind = "manual" | "drip";
+export type CampaignStatus = "draft" | "active" | "paused" | "sent" | "archived";
+export type CampaignChannel = "auto" | "email" | "sms";
+export type CampaignSendStatus = "pending" | "sent" | "failed" | "skipped_capped";
+export type CampaignSendChannel = "email" | "sms";
+
+// Tokens available in campaign templates
+export type CampaignTokenVars = {
+  first_name: string;
+  last_name: string;
+  full_name: string;
+  property_name: string;
+  property_address: string;
+  last_check_in: string;       // formatted "Apr 12, 2026"
+  last_check_out: string;
+  stay_count: string;
+  discount_code: string;
+  direct_book_link: string;
+};
+
+export const CAMPAIGN_TOKENS: { token: keyof CampaignTokenVars; label: string }[] = [
+  { token: "first_name",       label: "Guest first name" },
+  { token: "last_name",        label: "Guest last name" },
+  { token: "full_name",        label: "Guest full name" },
+  { token: "property_name",    label: "Property name" },
+  { token: "property_address", label: "Property address" },
+  { token: "last_check_in",    label: "Last check-in date" },
+  { token: "last_check_out",   label: "Last check-out date" },
+  { token: "stay_count",       label: "Total number of stays" },
+  { token: "discount_code",    label: "Campaign discount code" },
+  { token: "direct_book_link", label: "Direct booking link" },
+];
+
 export type Database = {
   public: {
     Tables: {
@@ -138,6 +181,9 @@ export type Database = {
           signature_url: string | null;
           notification_settings: NotificationSettings;
           guest_message_settings: GuestMessageSettings | null;
+          marketing_send_cap_days: number;
+          marketing_from_email: string | null;
+          marketing_from_name: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -149,6 +195,9 @@ export type Database = {
           signature_url?: string | null;
           notification_settings?: NotificationSettings;
           guest_message_settings?: GuestMessageSettings | null;
+          marketing_send_cap_days?: number;
+          marketing_from_email?: string | null;
+          marketing_from_name?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -160,6 +209,9 @@ export type Database = {
           signature_url?: string | null;
           notification_settings?: NotificationSettings;
           guest_message_settings?: GuestMessageSettings | null;
+          marketing_send_cap_days?: number;
+          marketing_from_email?: string | null;
+          marketing_from_name?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -344,7 +396,6 @@ export type Database = {
           signature_url: string | null;
           booking_source: string | null;
           total_amount_cents: number;
-          photo_reward_claimed: boolean;
           payment_plan: "full" | "split";
           deposit_paid_at: string | null;
           balance_paid_at: string | null;
@@ -377,7 +428,6 @@ export type Database = {
           signature_url?: string | null;
           booking_source?: string | null;
           total_amount_cents?: number;
-          photo_reward_claimed?: boolean;
           payment_plan?: "full" | "split";
           deposit_paid_at?: string | null;
           balance_paid_at?: string | null;
@@ -410,7 +460,6 @@ export type Database = {
           signature_url?: string | null;
           booking_source?: string | null;
           total_amount_cents?: number;
-          photo_reward_claimed?: boolean;
           payment_plan?: "full" | "split";
           deposit_paid_at?: string | null;
           balance_paid_at?: string | null;
@@ -423,38 +472,6 @@ export type Database = {
           stripe_balance_invoice_id?: string | null;
           created_at?: string;
           updated_at?: string;
-        };
-      };
-      guest_photo: {
-        Row: {
-          id: string;
-          registration_id: string;
-          property_id: string;
-          file_path: string;
-          caption: string | null;
-          guest_name: string | null;
-          approved: boolean;
-          created_at: string;
-        };
-        Insert: {
-          id?: string;
-          registration_id: string;
-          property_id: string;
-          file_path: string;
-          caption?: string | null;
-          guest_name?: string | null;
-          approved?: boolean;
-          created_at?: string;
-        };
-        Update: {
-          id?: string;
-          registration_id?: string;
-          property_id?: string;
-          file_path?: string;
-          caption?: string | null;
-          guest_name?: string | null;
-          approved?: boolean;
-          created_at?: string;
         };
       };
       vehicle: {
@@ -1002,6 +1019,170 @@ export type Database = {
           sort_order?: number;
           created_at?: string;
           updated_at?: string;
+        };
+      };
+      guest_segment: {
+        Row: {
+          id: string;
+          host_id: string;
+          name: string;
+          description: string | null;
+          filter: SegmentFilter;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          host_id: string;
+          name: string;
+          description?: string | null;
+          filter?: SegmentFilter;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          host_id?: string;
+          name?: string;
+          description?: string | null;
+          filter?: SegmentFilter;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      marketing_campaign: {
+        Row: {
+          id: string;
+          host_id: string;
+          segment_id: string | null;
+          name: string;
+          kind: CampaignKind;
+          status: CampaignStatus;
+          default_channel: CampaignChannel;
+          send_cap_days: number | null;
+          discount_code: string | null;
+          direct_book_url: string | null;
+          sent_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          host_id: string;
+          segment_id?: string | null;
+          name: string;
+          kind: CampaignKind;
+          status?: CampaignStatus;
+          default_channel?: CampaignChannel;
+          send_cap_days?: number | null;
+          discount_code?: string | null;
+          direct_book_url?: string | null;
+          sent_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          host_id?: string;
+          segment_id?: string | null;
+          name?: string;
+          kind?: CampaignKind;
+          status?: CampaignStatus;
+          default_channel?: CampaignChannel;
+          send_cap_days?: number | null;
+          discount_code?: string | null;
+          direct_book_url?: string | null;
+          sent_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      marketing_campaign_step: {
+        Row: {
+          id: string;
+          campaign_id: string;
+          step_order: number;
+          delay_days_after_checkout: number | null;
+          subject: string | null;
+          html_body: string | null;
+          text_body: string | null;
+          channel_override: CampaignChannel | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          campaign_id: string;
+          step_order?: number;
+          delay_days_after_checkout?: number | null;
+          subject?: string | null;
+          html_body?: string | null;
+          text_body?: string | null;
+          channel_override?: CampaignChannel | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          campaign_id?: string;
+          step_order?: number;
+          delay_days_after_checkout?: number | null;
+          subject?: string | null;
+          html_body?: string | null;
+          text_body?: string | null;
+          channel_override?: CampaignChannel | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      marketing_campaign_send: {
+        Row: {
+          id: string;
+          campaign_id: string;
+          step_id: string;
+          guest_id: string;
+          registration_id: string | null;
+          channel: CampaignSendChannel;
+          status: CampaignSendStatus;
+          recipient: string;
+          subject: string | null;
+          body: string;
+          sent_at: string | null;
+          error: string | null;
+          provider_message_id: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          campaign_id: string;
+          step_id: string;
+          guest_id: string;
+          registration_id?: string | null;
+          channel: CampaignSendChannel;
+          status: CampaignSendStatus;
+          recipient: string;
+          subject?: string | null;
+          body: string;
+          sent_at?: string | null;
+          error?: string | null;
+          provider_message_id?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          campaign_id?: string;
+          step_id?: string;
+          guest_id?: string;
+          registration_id?: string | null;
+          channel?: CampaignSendChannel;
+          status?: CampaignSendStatus;
+          recipient?: string;
+          subject?: string | null;
+          body?: string;
+          sent_at?: string | null;
+          error?: string | null;
+          provider_message_id?: string | null;
+          created_at?: string;
         };
       };
     };
