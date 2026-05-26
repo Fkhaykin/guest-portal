@@ -35,7 +35,7 @@ const NIGHTS_SUBTOTAL = NIGHTLY * NIGHTS;
 const TOTAL = NIGHTS_SUBTOTAL + CLEANING + TAX + PET;
 const PROPERTY = "The Summit Lakehouse (Demo)";
 const COVER =
-  "https://a0.muscache.com/im/pictures/11d2c493-87e1-4534-acdc-e1ff0f1f5832.jpg?im_w=1920";
+  "https://a0.muscache.com/im/pictures/0e486a34-6ae4-45cb-bce1-22ce19b09e06.jpg?im_w=1920";
 
 export default function PayDemoPage() {
   return (
