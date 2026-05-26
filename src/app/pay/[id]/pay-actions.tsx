@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Loader2, CreditCard, AlertCircle } from "lucide-react";
+import { Loader2, CreditCard, AlertCircle, Info } from "lucide-react";
 
 const SPLIT_MIN_LEAD_DAYS = 60;
 
@@ -17,6 +17,7 @@ interface Props {
   splitAllowed: boolean;
   daysUntilCheckin: number;
   hasInvoice: boolean;
+  demoMode?: boolean;
 }
 
 export function PayActions({
@@ -26,11 +27,19 @@ export function PayActions({
   splitAllowed,
   daysUntilCheckin,
   hasInvoice,
+  demoMode,
 }: Props) {
   const [submitting, setSubmitting] = useState<"full" | "split" | "existing" | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [demoNotice, setDemoNotice] = useState<string | null>(null);
+
+  function showDemoNotice(action: string) {
+    setDemoNotice(`Demo mode — in production this would redirect you to Stripe to ${action}.`);
+    setTimeout(() => setDemoNotice(null), 4000);
+  }
 
   async function payExisting() {
+    if (demoMode) return showDemoNotice("complete payment");
     setSubmitting("existing");
     setError(null);
     try {
@@ -49,6 +58,7 @@ export function PayActions({
   }
 
   async function pickPlan(picked: "full" | "split") {
+    if (demoMode) return showDemoNotice(picked === "full" ? "pay the full amount" : "pay the 50% deposit");
     setSubmitting(picked);
     setError(null);
     try {
@@ -160,6 +170,13 @@ export function PayActions({
         <p className="text-sm text-destructive flex items-start gap-2">
           <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
           {error}
+        </p>
+      )}
+
+      {demoNotice && (
+        <p className="text-sm text-blue-700 dark:text-blue-300 flex items-start gap-2 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900 rounded-md p-2">
+          <Info className="h-4 w-4 shrink-0 mt-0.5" />
+          {demoNotice}
         </p>
       )}
     </div>

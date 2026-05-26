@@ -19,9 +19,10 @@ interface Props {
   registrationId: string;
   guestId: string;
   initial: ContactValues;
+  demoMode?: boolean;
 }
 
-export function EditContactForm({ registrationId, guestId, initial }: Props) {
+export function EditContactForm({ registrationId, guestId, initial, demoMode }: Props) {
   const [editing, setEditing] = useState(false);
   const [values, setValues] = useState<ContactValues>(initial);
   const [savedValues, setSavedValues] = useState<ContactValues>(initial);
@@ -42,6 +43,16 @@ export function EditContactForm({ registrationId, guestId, initial }: Props) {
   async function save() {
     setSaving(true);
     setError(null);
+    if (demoMode) {
+      // Pretend it saved — no backing record exists for the demo.
+      await new Promise((r) => setTimeout(r, 300));
+      setSavedValues(values);
+      setEditing(false);
+      setSaving(false);
+      setSavedAt(Date.now());
+      setTimeout(() => setSavedAt(null), 3000);
+      return;
+    }
     try {
       const res = await fetch("/api/guest/contact", {
         method: "POST",
