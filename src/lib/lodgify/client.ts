@@ -228,7 +228,7 @@ export async function getQuote(
   arrival: string,
   departure: string,
   guests: number = 2
-): Promise<{ total: number; currency: string } | null> {
+): Promise<{ total: number; roomRate: number | null; currency: string } | null> {
   try {
     // Get room type ID (required by Lodgify quote API)
     const rooms = await lodgifyFetch<{ id: number }[]>(
@@ -242,6 +242,7 @@ export async function getQuote(
         total_including_vat: number | null;
         total_excluding_vat: number;
         currency_code: string;
+        room_types?: { price_types?: { type: number; subtotal: number }[] }[];
       }[]
     >(`/v2/quote/${propertyId}`, {
       arrival,
@@ -253,8 +254,20 @@ export async function getQuote(
     const quote = data[0];
     if (!quote) return null;
 
+    // Lodgify breaks the quote into price_types: 0 = Room rate, 1 = Promotion,
+    // 2 = Fees (cleaning etc.), 4 = Taxes. We want just the room rate so
+    // callers that add their own fees + taxes don't double-count.
+    const roomRateSubtotals = (quote.room_types ?? [])
+      .flatMap((rt) => rt.price_types ?? [])
+      .filter((p) => p.type === 0)
+      .map((p) => p.subtotal);
+    const roomRate = roomRateSubtotals.length
+      ? roomRateSubtotals.reduce((a, b) => a + b, 0)
+      : null;
+
     return {
       total: quote.total_including_vat ?? quote.total_excluding_vat,
+      roomRate,
       currency: quote.currency_code,
     };
   } catch {

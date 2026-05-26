@@ -61,9 +61,13 @@ export async function buildBookingQuote(input: BookingQuoteInput): Promise<Booki
     try {
       nightlyRates = await getNightlyRates(input.lodgifyPropertyId, roomId, input.checkIn, input.checkOut);
     } catch {
+      // PriceLabs didn't return rates (e.g. listing not configured there).
+      // Fall back to Lodgify, but use the ROOM RATE subtotal — not total —
+      // so we don't double-count cleaning fees and taxes which we add below.
       const quote = await getQuote(input.lodgifyPropertyId, input.checkIn, input.checkOut, input.guests);
-      if (quote) {
-        const avg = Math.round(Math.round(quote.total * 100) / nights);
+      const roomDollars = quote?.roomRate ?? null;
+      if (roomDollars !== null) {
+        const avg = Math.round(Math.round(roomDollars * 100) / nights);
         const d = new Date(input.checkIn + "T00:00:00");
         for (let i = 0; i < nights; i++) {
           const y = d.getFullYear();
