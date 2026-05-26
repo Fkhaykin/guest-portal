@@ -122,6 +122,9 @@ export type GuestMessageSettings = {
   day_of_checkin: GuestMessageEvent;
   post_checkout: GuestMessageEvent;
   registration_reminder: GuestMessageEvent;
+  booking_invoice_full: GuestMessageEvent;
+  booking_invoice_deposit: GuestMessageEvent;
+  booking_plan_picker: GuestMessageEvent;
 };
 
 export type GuestMessageKey = keyof GuestMessageSettings;

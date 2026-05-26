@@ -3,17 +3,42 @@ export type GuestMessageType =
   | "pre_arrival"
   | "day_of_checkin"
   | "post_checkout"
-  | "registration_reminder";
+  | "registration_reminder"
+  | "booking_invoice_full"
+  | "booking_invoice_deposit"
+  | "booking_plan_picker";
 
 export type GuestMessageChannel = "lodgify" | "email";
 
-export interface TemplateVars {
+export type TemplateVars = {
   guest_name: string;
   property_name: string;
   check_in_date: string;
   check_out_date: string;
   portal_link: string;
-}
+} & Record<string, string>;
+
+export type BookingInvoiceVars = {
+  guest_name: string;
+  property_name: string;
+  check_in_date: string;
+  check_out_date: string;
+  total: string;
+  amount_due: string;
+  invoice_url: string;
+  discount_line: string;
+  balance_line: string;
+} & Record<string, string>;
+
+export type BookingPlanPickerVars = {
+  guest_name: string;
+  property_name: string;
+  check_in_date: string;
+  check_out_date: string;
+  total: string;
+  options_line: string;
+  pick_plan_url: string;
+} & Record<string, string>;
 
 export const TEMPLATES: Record<GuestMessageType, { subject: string; body: string }> = {
   booking_confirmation: {
@@ -63,24 +88,103 @@ Hope to host you again soon!`,
     subject: "Please complete your guest registration",
     body: `Hi {{guest_name}}, your stay at {{property_name}} starts {{check_in_date}}. Please complete your guest registration to avoid delays at check-in: {{portal_link}}`,
   },
+  booking_invoice_full: {
+    subject: "Action required: payment for your stay at {{property_name}}",
+    body: `Hi {{guest_name}},
+
+Your booking at {{property_name}} for {{check_in_date}} – {{check_out_date}} is reserved pending payment.
+
+Booking total: {{total}}{{discount_line}}
+Due now: {{amount_due}}
+
+Pay your invoice here: {{invoice_url}}
+
+Reply to this email if you have any questions.`,
+  },
+  booking_invoice_deposit: {
+    subject: "Action required: 50% deposit for your stay at {{property_name}}",
+    body: `Hi {{guest_name}},
+
+Your booking at {{property_name}} for {{check_in_date}} – {{check_out_date}} is reserved pending payment.
+
+Booking total: {{total}}{{discount_line}}
+Due now (50% deposit): {{amount_due}}
+
+Pay your invoice here: {{invoice_url}}{{balance_line}}
+
+Reply to this email if you have any questions.`,
+  },
+  booking_plan_picker: {
+    subject: "Action required: choose how to pay for your stay at {{property_name}}",
+    body: `Hi {{guest_name}},
+
+Your booking at {{property_name}} for {{check_in_date}} – {{check_out_date}} is reserved pending payment.
+
+Booking total: {{total}}
+{{options_line}}
+
+Pick your payment plan: {{pick_plan_url}}
+
+Reply to this email if you have any questions.`,
+  },
 };
 
-export function interpolate(template: string, vars: TemplateVars): string {
-  return template
-    .replace(/\{\{guest_name\}\}/g, vars.guest_name)
-    .replace(/\{\{property_name\}\}/g, vars.property_name)
-    .replace(/\{\{check_in_date\}\}/g, vars.check_in_date)
-    .replace(/\{\{check_out_date\}\}/g, vars.check_out_date)
-    .replace(/\{\{portal_link\}\}/g, vars.portal_link);
+// Generic substitution: replace every {{key}} with vars[key]. Unknown keys
+// pass through unchanged so previewing/editing is forgiving.
+export function interpolate(template: string, vars: Record<string, string>): string {
+  return template.replace(/\{\{(\w+)\}\}/g, (_, key) => {
+    return key in vars ? vars[key] : `{{${key}}}`;
+  });
 }
 
 export function renderTemplate(
   type: GuestMessageType,
-  vars: TemplateVars
+  vars: Record<string, string>,
+  override?: { subject?: string; message?: string }
 ): { subject: string; body: string } {
   const tpl = TEMPLATES[type];
   return {
-    subject: interpolate(tpl.subject, vars),
-    body: interpolate(tpl.body, vars),
+    subject: interpolate(override?.subject ?? tpl.subject, vars),
+    body: interpolate(override?.message ?? tpl.body, vars),
   };
 }
+
+// Variables exposed in the admin editor for each template, used to populate
+// the "available variables" badges. Keep in sync with the *Vars interfaces.
+export const TEMPLATE_VARIABLES: Record<GuestMessageType, string[]> = {
+  booking_confirmation: ["guest_name", "property_name", "check_in_date", "check_out_date", "portal_link"],
+  pre_arrival: ["guest_name", "property_name", "check_in_date", "check_out_date", "portal_link"],
+  day_of_checkin: ["guest_name", "property_name", "check_in_date", "check_out_date", "portal_link"],
+  post_checkout: ["guest_name", "property_name", "check_in_date", "check_out_date", "portal_link"],
+  registration_reminder: ["guest_name", "property_name", "check_in_date", "check_out_date", "portal_link"],
+  booking_invoice_full: [
+    "guest_name",
+    "property_name",
+    "check_in_date",
+    "check_out_date",
+    "total",
+    "amount_due",
+    "discount_line",
+    "invoice_url",
+  ],
+  booking_invoice_deposit: [
+    "guest_name",
+    "property_name",
+    "check_in_date",
+    "check_out_date",
+    "total",
+    "amount_due",
+    "discount_line",
+    "balance_line",
+    "invoice_url",
+  ],
+  booking_plan_picker: [
+    "guest_name",
+    "property_name",
+    "check_in_date",
+    "check_out_date",
+    "total",
+    "options_line",
+    "pick_plan_url",
+  ],
+};

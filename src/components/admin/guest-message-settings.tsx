@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Save, RotateCcw, Loader2 } from "lucide-react";
-import { TEMPLATES } from "@/lib/guest-messages/templates";
+import { TEMPLATES, TEMPLATE_VARIABLES } from "@/lib/guest-messages/templates";
 import type { GuestMessageSettings as GuestMessageSettingsType, GuestMessageKey } from "@/types/database";
 
 const EVENT_META: Record<GuestMessageKey, { label: string; description: string; channel: string }> = {
@@ -39,9 +39,22 @@ const EVENT_META: Record<GuestMessageKey, { label: string; description: string; 
     description: "Sent at 10, 7, 6, 5, 4, 3, 2, and 1 days before check-in to guests who have not completed registration.",
     channel: "Lodgify message (VRBO) · Email (Direct) · SMS (when phone on file)",
   },
+  booking_invoice_full: {
+    label: "Booking Invoice — Full Payment",
+    description: "Sent when an admin creates a booking with the “Pay in full” plan. Contains the Stripe invoice link.",
+    channel: "Email",
+  },
+  booking_invoice_deposit: {
+    label: "Booking Invoice — 50% Deposit",
+    description: "Sent when an admin creates a booking with the “Split (50% now, 50% later)” plan. Contains the Stripe deposit invoice link and the auto-charge balance date.",
+    channel: "Email",
+  },
+  booking_plan_picker: {
+    label: "Booking Payment Plan Picker",
+    description: "Sent when an admin creates a booking with the “Let guest choose” plan. Links to a page where the guest picks full vs split.",
+    channel: "Email",
+  },
 };
-
-const VARIABLES = ["guest_name", "property_name", "check_in_date", "check_out_date", "portal_link"];
 
 function defaultSettings(): GuestMessageSettingsType {
   return {
@@ -50,6 +63,9 @@ function defaultSettings(): GuestMessageSettingsType {
     day_of_checkin: { enabled: true, subject: TEMPLATES.day_of_checkin.subject, message: TEMPLATES.day_of_checkin.body },
     post_checkout: { enabled: true, subject: TEMPLATES.post_checkout.subject, message: TEMPLATES.post_checkout.body },
     registration_reminder: { enabled: true, subject: TEMPLATES.registration_reminder.subject, message: TEMPLATES.registration_reminder.body },
+    booking_invoice_full: { enabled: true, subject: TEMPLATES.booking_invoice_full.subject, message: TEMPLATES.booking_invoice_full.body },
+    booking_invoice_deposit: { enabled: true, subject: TEMPLATES.booking_invoice_deposit.subject, message: TEMPLATES.booking_invoice_deposit.body },
+    booking_plan_picker: { enabled: true, subject: TEMPLATES.booking_plan_picker.subject, message: TEMPLATES.booking_plan_picker.body },
   };
 }
 
@@ -188,7 +204,7 @@ export function GuestMessageSettings() {
                       />
                     </div>
                     <div className="flex flex-wrap gap-1">
-                      {VARIABLES.map((v) => (
+                      {TEMPLATE_VARIABLES[key].map((v) => (
                         <Badge key={v} variant="secondary" className="text-xs font-mono">
                           {`{{${v}}}`}
                         </Badge>

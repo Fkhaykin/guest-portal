@@ -1051,14 +1051,18 @@ export default function ReservationDetailPage() {
                   <p className="text-sm text-muted-foreground">No emails sent yet.</p>
                 ) : (
                   emailLogs.map((log) => {
-                    const body = log.is_update
+                    const isPepoa = log.email_type === "pepoa";
+                    const badgeLabel = isPepoa
+                      ? log.is_update ? "Update" : "New Registration"
+                      : EMAIL_TYPE_LABELS[log.email_type] ?? log.email_type;
+                    const pepoaBody = log.is_update
                       ? "An updated tenant registration form has been submitted."
                       : "A new tenant registration form has been submitted.";
                     return (
                       <div key={log.id} className="border rounded-lg overflow-hidden text-sm">
                         <div className="bg-muted/40 px-3 py-2 flex items-center justify-between gap-2">
                           <Badge variant="secondary" className="text-xs shrink-0">
-                            {log.is_update ? "Update" : "New Registration"}
+                            {badgeLabel}
                           </Badge>
                           <span className="text-xs text-muted-foreground">
                             {new Date(log.created_at).toLocaleString()}
@@ -1078,33 +1082,41 @@ export default function ReservationDetailPage() {
                             <span className="font-medium">{log.subject ?? "—"}</span>
                           </div>
                         </div>
-                        <div className="px-3 py-3 space-y-1 text-xs text-muted-foreground border-b">
-                          <p>{body}</p>
-                          {log.body_summary && <p>Changes: {log.body_summary}</p>}
-                          <p>The {log.is_update ? "updated" : "completed"} Short-Term Tenant Registration Form and Lease is attached as a PDF.</p>
-                        </div>
-                        <div className="px-3 py-2 flex items-center gap-2">
-                          <Mail className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                          <span className="text-xs text-muted-foreground mr-auto">PDF attachment</span>
-                          <a
-                            href={`/api/pepoa/generate?registration_id=${id}&disposition=inline`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                          >
-                            <Button variant="ghost" size="sm" className="h-7 text-xs">
-                              <Eye className="h-3 w-3 mr-1" /> View
-                            </Button>
-                          </a>
-                          <a
-                            href={`/api/pepoa/generate?registration_id=${id}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                          >
-                            <Button variant="ghost" size="sm" className="h-7 text-xs">
-                              <Download className="h-3 w-3 mr-1" /> Download
-                            </Button>
-                          </a>
-                        </div>
+                        {isPepoa ? (
+                          <>
+                            <div className="px-3 py-3 space-y-1 text-xs text-muted-foreground border-b">
+                              <p>{pepoaBody}</p>
+                              {log.body_summary && <p>Changes: {log.body_summary}</p>}
+                              <p>The {log.is_update ? "updated" : "completed"} Short-Term Tenant Registration Form and Lease is attached as a PDF.</p>
+                            </div>
+                            <div className="px-3 py-2 flex items-center gap-2">
+                              <Mail className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                              <span className="text-xs text-muted-foreground mr-auto">PDF attachment</span>
+                              <a
+                                href={`/api/pepoa/generate?registration_id=${id}&disposition=inline`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                              >
+                                <Button variant="ghost" size="sm" className="h-7 text-xs">
+                                  <Eye className="h-3 w-3 mr-1" /> View
+                                </Button>
+                              </a>
+                              <a
+                                href={`/api/pepoa/generate?registration_id=${id}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                              >
+                                <Button variant="ghost" size="sm" className="h-7 text-xs">
+                                  <Download className="h-3 w-3 mr-1" /> Download
+                                </Button>
+                              </a>
+                            </div>
+                          </>
+                        ) : (
+                          <div className="px-3 py-3 text-xs text-muted-foreground whitespace-pre-wrap wrap-break-word">
+                            {log.body_summary || "(no body stored)"}
+                          </div>
+                        )}
                       </div>
                     );
                   })
@@ -1177,6 +1189,12 @@ function decodeColorSpace(cs: string | undefined | null): string | null {
   if (n === 65535) return "Uncalibrated";
   return cs;
 }
+
+const EMAIL_TYPE_LABELS: Record<string, string> = {
+  booking_invoice_full: "Invoice — Full Payment",
+  booking_invoice_deposit: "Invoice — 50% Deposit",
+  booking_plan_picker: "Payment Plan Picker",
+};
 
 const ADMIN_EDIT_FIELD_LABELS: Record<string, string> = {
   guest_name: "Guest Name",

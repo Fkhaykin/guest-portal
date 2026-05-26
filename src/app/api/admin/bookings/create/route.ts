@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
   // Load property
   const { data: property } = await admin
     .from("property")
-    .select("id, name, nickname, lodgify_property_id, guest_cleaning_fee_cents, guest_pet_fee_cents")
+    .select("id, name, nickname, lodgify_property_id, guest_cleaning_fee_cents, guest_pet_fee_cents, host_id")
     .eq("id", body.property_id)
     .single();
   if (!property || !property.lodgify_property_id) {
@@ -185,6 +185,8 @@ export async function POST(request: NextRequest) {
         totalCents: quote.totalCents,
         splitAllowed: daysUntilCheckin >= SPLIT_MIN_LEAD_DAYS,
         pickPlanUrl,
+        hostId: property.host_id,
+        registrationId: registration.id,
       });
     } catch (err) {
       console.error("[admin/bookings/create] Plan-picker email failed:", err);
@@ -264,6 +266,8 @@ export async function POST(request: NextRequest) {
         balanceDueDate,
         discountLabel: quote.discountCents > 0 ? discountLabel : null,
         discountCents: quote.discountCents,
+        hostId: property.host_id,
+        registrationId: registration.id,
       });
     } catch (err) {
       console.error("[admin/bookings/create] Invoice email failed:", err);
