@@ -64,13 +64,24 @@ export async function getNightlyRates(
 
   // Use user_price (the customized price actually pushed to the PMS like
   // Lodgify) instead of price (PriceLabs's raw recommendation). Falls back
-  // to price if user_price isn't present on a given night.
-  // Filter to check-in through day-before-checkout (checkout day is not charged).
-  return listing.data
-    .filter((d) => d.date >= checkIn && d.date < checkOut)
-    .map((d) => ({
+  // to price if user_price isn't present or is -1 (sentinel PriceLabs uses
+  // for already-booked nights). Filter to check-in through day-before-
+  // checkout (checkout day is not charged).
+  const nights = listing.data.filter((d) => d.date >= checkIn && d.date < checkOut);
+  const rates = nights.map((d) => {
+    const userPrice = typeof d.user_price === "number" && d.user_price > 0 ? d.user_price : null;
+    const price = typeof d.price === "number" && d.price > 0 ? d.price : null;
+    const chosen = userPrice ?? price;
+    if (chosen === null) {
+      throw new Error(
+        `PriceLabs returned no usable price for ${listingId} on ${d.date} (user_price=${d.user_price}, price=${d.price}) — likely already booked.`
+      );
+    }
+    return {
       date: d.date,
-      price_cents: Math.round((d.user_price ?? d.price) * 100),
+      price_cents: Math.round(chosen * 100),
       min_stay: d.min_stay,
-    }));
+    };
+  });
+  return rates;
 }
