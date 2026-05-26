@@ -3,7 +3,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 
-type AvailabilityPeriod = { start: string; end: string; available: number };
+type AvailabilityPeriod = {
+  start: string;
+  end: string;
+  available: number;
+  // null on open periods; true/false on blocked periods only.
+  confirmed: boolean | null;
+};
 
 const MONTH_NAMES = [
   "January", "February", "March", "April", "May", "June",
@@ -84,21 +90,24 @@ export function BookingDatePicker({
       .finally(() => setLoading(false));
   }, [lodgifyPropertyId, monthsToShow, today]);
 
-  const bookedDates = useMemo(() => {
-    const set = new Set<string>();
+  const { bookedDates, tentativeDates } = useMemo(() => {
+    const booked = new Set<string>();
+    const tentative = new Set<string>();
     for (const p of periods) {
-      if (p.available === 0) {
-        const start = parseDate(p.start);
-        const end = parseDate(p.end);
-        for (let d = new Date(start); d < end; d.setDate(d.getDate() + 1)) {
-          set.add(toDateStr(d));
-        }
+      if (p.available !== 0) continue;
+      const start = parseDate(p.start);
+      const end = parseDate(p.end);
+      for (let d = new Date(start); d < end; d.setDate(d.getDate() + 1)) {
+        const s = toDateStr(d);
+        if (p.confirmed) booked.add(s);
+        else tentative.add(s);
       }
     }
-    return set;
+    return { bookedDates: booked, tentativeDates: tentative };
   }, [periods]);
 
   function isBooked(s: string) { return bookedDates.has(s); }
+  function isTentative(s: string) { return tentativeDates.has(s); }
   function isPast(d: Date) { return d < today; }
   function inRange(s: string) {
     return checkIn && checkOut ? s >= checkIn && s <= checkOut : false;
@@ -155,6 +164,7 @@ export function BookingDatePicker({
             const d = new Date(year, month, day);
             const dateStr = toDateStr(d);
             const booked = isBooked(dateStr);
+            const tentative = isTentative(dateStr);
             const past = isPast(d);
             const disabled = booked || past || !lodgifyPropertyId;
             const inSel = inRange(dateStr);
@@ -166,10 +176,12 @@ export function BookingDatePicker({
                 type="button"
                 disabled={disabled}
                 onClick={() => handleClick(dateStr)}
+                title={tentative ? "Tentative hold in Lodgify — click to override and book anyway" : undefined}
                 className={[
                   "h-9 text-sm relative transition-colors",
                   past || !lodgifyPropertyId ? "text-muted-foreground/30 cursor-not-allowed" : "",
                   booked && !past ? "bg-red-100 dark:bg-red-950/40 text-red-400 dark:text-red-500 cursor-not-allowed line-through" : "",
+                  tentative && !booked && !past ? "bg-amber-100 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300" : "",
                   !disabled ? "hover:bg-primary/10 cursor-pointer" : "",
                   inSel && !start && !end ? "bg-primary/10" : "",
                   start ? "bg-primary text-primary-foreground rounded-l-md" : "",
@@ -223,10 +235,11 @@ export function BookingDatePicker({
         </div>
       )}
 
-      <div className="flex items-center gap-4 text-xs text-muted-foreground pt-2 border-t">
+      <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground pt-2 border-t">
         <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm bg-primary" />Selected</span>
         <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm bg-primary/10" />In range</span>
         <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm bg-red-100 dark:bg-red-950/40" />Booked</span>
+        <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm bg-amber-100 dark:bg-amber-950/40" />Tentative (clickable)</span>
       </div>
     </div>
   );
