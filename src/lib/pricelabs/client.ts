@@ -51,7 +51,7 @@ export async function getNightlyRates(
 
   const data = (await res.json()) as {
     id: string;
-    data: { date: string; price: number; min_stay: number }[];
+    data: { date: string; price: number; user_price?: number | null; min_stay: number }[];
     error_status?: string;
   }[];
 
@@ -62,12 +62,15 @@ export async function getNightlyRates(
     );
   }
 
-  // Filter to check-in through day-before-checkout (checkout day is not charged)
+  // Use user_price (the customized price actually pushed to the PMS like
+  // Lodgify) instead of price (PriceLabs's raw recommendation). Falls back
+  // to price if user_price isn't present on a given night.
+  // Filter to check-in through day-before-checkout (checkout day is not charged).
   return listing.data
     .filter((d) => d.date >= checkIn && d.date < checkOut)
     .map((d) => ({
       date: d.date,
-      price_cents: Math.round(d.price * 100),
+      price_cents: Math.round((d.user_price ?? d.price) * 100),
       min_stay: d.min_stay,
     }));
 }
