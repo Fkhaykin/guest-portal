@@ -251,6 +251,9 @@ export async function POST(request: NextRequest) {
     ? new Date(checkInTs - 30 * 86_400_000).toISOString().slice(0, 10)
     : undefined;
 
+  const baseUrlForInvoice = (process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/+$/, "");
+  const payPageUrl = `${baseUrlForInvoice}/pay/${registration.id}`;
+
   if (invoice.hosted_invoice_url) {
     try {
       await sendBookingInvoiceEmail({
@@ -261,7 +264,7 @@ export async function POST(request: NextRequest) {
         checkOutDate: body.check_out_date,
         amountCents: dueNowCents,
         totalCents: quote.totalCents,
-        hostedInvoiceUrl: invoice.hosted_invoice_url,
+        hostedInvoiceUrl: payPageUrl,
         isDeposit: isSplit,
         balanceDueDate,
         discountLabel: quote.discountCents > 0 ? discountLabel : null,
