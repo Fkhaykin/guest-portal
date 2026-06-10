@@ -63,6 +63,12 @@ export default async function CalendarPage() {
     }
   }
 
+  // Map each property row to its physical-property key (nickname || name). A single house can exist as
+  // multiple `property` rows (duplicate Lodgify listings), and back-to-back detection must group by house.
+  const propertyPhysKey = new Map<string, string>(
+    (allProperties || []).map((p) => [p.id, (p.nickname || p.name || "").toLowerCase().trim()])
+  );
+
   // Wide range: 60 days back, 90 days forward
   const calendarStart = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000)
     .toISOString()
@@ -100,14 +106,18 @@ export default async function CalendarPage() {
     }
   }
 
-  // Detect back-to-back per reservation: same property, same-day handoff
+  // Detect back-to-back per reservation: same physical property, same-day handoff. Match on the
+  // physical-property key (see propertyPhysKey above), not the raw property_id, or a turnover that
+  // crosses from one listing row of a house to its sister row would be missed.
   type BackToBackKind = "checkin" | "checkout" | "both";
+  const physKey = (id: string) => propertyPhysKey.get(id) || id;
   const backToBackMap = new Map<string, BackToBackKind>();
   for (const reg of calendarRegs) {
+    const regPhys = physKey(reg.property_id);
     let isCheckin = false;
     let isCheckout = false;
     for (const other of calendarRegs) {
-      if (reg.id === other.id || reg.property_id !== other.property_id) continue;
+      if (reg.id === other.id || physKey(other.property_id) !== regPhys) continue;
       if (reg.check_out_date === other.check_in_date) isCheckout = true;
       if (reg.check_in_date === other.check_out_date) isCheckin = true;
     }

@@ -106,17 +106,25 @@ export default async function CleanerDashboard() {
   // Re-sort by check-in ascending for display
   regs.sort((a, b) => a.check_in_date.localeCompare(b.check_in_date));
 
-  // Detect back-to-back per reservation: same property, same-day checkout/checkin handoff
+  // Detect back-to-back per reservation: same physical property, same-day checkout/checkin handoff.
+  // A single house can exist as multiple `property` rows (e.g. duplicate Lodgify listings), so we match
+  // on the physical-property key (nickname || name) rather than the raw property_id — otherwise a
+  // turnover that crosses from one listing row to its sister row would be missed.
   // - "checkout": this reg's check-out is another reg's check-in (someone arrives the day this guest leaves)
   // - "checkin":  this reg's check-in is another reg's check-out (someone left the day this guest arrives)
   // - "both":     both conditions true
   type BackToBackKind = "checkin" | "checkout" | "both";
+  const physKey = (propertyId: string) => {
+    const p = propertyMap.get(propertyId);
+    return p ? (p.nickname || p.name || "").toLowerCase().trim() : propertyId;
+  };
   const backToBackMap = new Map<string, BackToBackKind>();
   for (const reg of regs) {
+    const regPhys = physKey(reg.property_id);
     let isCheckin = false;
     let isCheckout = false;
     for (const other of regs) {
-      if (reg.id === other.id || reg.property_id !== other.property_id) continue;
+      if (reg.id === other.id || physKey(other.property_id) !== regPhys) continue;
       if (reg.check_out_date === other.check_in_date) isCheckout = true;
       if (reg.check_in_date === other.check_out_date) isCheckin = true;
     }
