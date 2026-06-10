@@ -17,6 +17,4 @@ WHERE upsells IS NOT NULL
     WHERE elem -> 'meta' ->> 'source' = 'photo_reward'
   );
 
--- Drop storage bucket and any leftover objects.
-DELETE FROM storage.objects WHERE bucket_id = 'guest-photos';
-DELETE FROM storage.buckets WHERE id = 'guest-photos';
+-- Storage bucket "guest-photos" and its objects are removed separately via the Storage API.
