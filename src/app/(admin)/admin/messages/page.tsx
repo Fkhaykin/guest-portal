@@ -22,6 +22,7 @@ import {
 import { cn } from "@/lib/utils";
 import type { LodgifyMessage, ConversationThread } from "@/lib/lodgify/messages";
 import { GuestMessageSettings } from "@/components/admin/guest-message-settings";
+import { ReplyTraining } from "@/components/admin/reply-training";
 import {
   QuickReplySuggestions,
   QuickReplyPicker,
@@ -46,6 +47,11 @@ export default function AdminMessagesPage() {
   // Exact text of the last auto-inserted draft; if the composer still equals
   // it, the content is replaceable (user hasn't edited).
   const autoDraftRef = useRef<string | null>(null);
+  // Where the inserted text came from — only AI drafts feed the training loop.
+  const autoDraftSourceRef = useRef<"ai" | "quick-reply" | null>(null);
+  const [fixOpen, setFixOpen] = useState(false);
+  const [fixNote, setFixNote] = useState("");
+  const [fixing, setFixing] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [timeFilter, setTimeFilter] = useState<"all" | "current" | "past" | "future">("all");
   const [syncing, setSyncing] = useState(false);
@@ -134,7 +140,10 @@ export default function AdminMessagesPage() {
       // and comparing against an already-nulled ref would keep the stale draft.
       const prevDraft = autoDraftRef.current;
       autoDraftRef.current = null;
+      autoDraftSourceRef.current = null;
       setNewMessage((cur) => (cur === prevDraft ? "" : cur));
+      setFixOpen(false);
+      setFixNote("");
 
       try {
         const res = await fetch(`/api/admin/messages/${bookingId}`);
@@ -168,6 +177,27 @@ export default function AdminMessagesPage() {
   async function handleSend() {
     if (!newMessage.trim() || !selectedBookingId || sending) return;
 
+    // Implicit training: the host edited an AI draft before sending — record
+    // the (draft -> sent) pair as a correction example for future drafts.
+    const sentText = newMessage.trim();
+    const draftAtSend = autoDraftSourceRef.current === "ai" ? autoDraftRef.current : null;
+    const normalize = (s: string) => s.replace(/\s+/g, " ").trim();
+    if (draftAtSend && normalize(draftAtSend) !== normalize(sentText)) {
+      fetch("/api/admin/messages/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          source: "edit",
+          bookingId: selectedBookingId,
+          guestMessage: lastGuestMessage,
+          badDraft: draftAtSend,
+          correctedDraft: sentText,
+        }),
+      }).catch(() => {
+        // training capture is best-effort
+      });
+    }
+
     setSending(true);
     try {
       const res = await fetch(`/api/admin/messages/${selectedBookingId}`, {
@@ -191,6 +221,9 @@ export default function AdminMessagesPage() {
         ]);
         setNewMessage("");
         autoDraftRef.current = null;
+        autoDraftSourceRef.current = null;
+        setFixOpen(false);
+        setFixNote("");
 
         // Re-fetch to get the canonical state
         const refreshRes = await fetch(
@@ -265,6 +298,20 @@ export default function AdminMessagesPage() {
     [selectedConversation]
   );
 
+  function buildDraftPayload() {
+    const conv = selectedConversation;
+    return {
+      guestName: conv?.guest_name ?? null,
+      propertyName: conv?.property_name ?? null,
+      arrival: conv?.arrival ?? null,
+      departure: conv?.departure ?? null,
+      status: conv?.status ?? null,
+      messages: messages
+        .filter((m) => m.type.toLowerCase() !== "comment")
+        .map((m) => ({ type: m.type, text: m.message })),
+    };
+  }
+
   // Auto-draft: whenever the guest spoke last, generate a suggested reply and
   // prepopulate the composer (unless the admin already typed something).
   useEffect(() => {
@@ -278,28 +325,19 @@ export default function AdminMessagesPage() {
     if (!composerUntouched) return;
 
     const bookingId = selectedBookingId;
-    const conv = selectedConversation;
     let cancelled = false;
     setDraftLoading(true);
 
     fetch(`/api/admin/messages/${bookingId}/suggest`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        guestName: conv?.guest_name ?? null,
-        propertyName: conv?.property_name ?? null,
-        arrival: conv?.arrival ?? null,
-        departure: conv?.departure ?? null,
-        status: conv?.status ?? null,
-        messages: messages
-          .filter((m) => m.type.toLowerCase() !== "comment")
-          .map((m) => ({ type: m.type, text: m.message })),
-      }),
+      body: JSON.stringify(buildDraftPayload()),
     })
       .then((res) => res.json())
       .then((data: { draft?: string | null }) => {
         if (cancelled || !data.draft) return;
         autoDraftRef.current = data.draft;
+        autoDraftSourceRef.current = "ai";
         setNewMessage((current) => {
           // Re-check at set time — admin may have started typing meanwhile
           if (current.trim() && current !== autoDraftRef.current) return current;
@@ -318,6 +356,38 @@ export default function AdminMessagesPage() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedBookingId, messagesBookingId, lastGuestMessage, loadingMessages]);
+
+  // "Fix" flow: host says what's wrong with the draft — saves a standing
+  // training rule and regenerates a corrected reply for this ticket.
+  async function handleFix() {
+    const badDraft = autoDraftRef.current;
+    if (!selectedBookingId || !badDraft || !fixNote.trim() || fixing) return;
+    setFixing(true);
+    try {
+      const res = await fetch(`/api/admin/messages/${selectedBookingId}/suggest`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...buildDraftPayload(),
+          feedback: { badDraft, note: fixNote.trim() },
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.draft) {
+        autoDraftRef.current = data.draft;
+        autoDraftSourceRef.current = "ai";
+        setNewMessage(data.draft);
+        setFixNote("");
+        setFixOpen(false);
+      } else {
+        setMessageError(data.error || "Failed to regenerate draft");
+      }
+    } catch {
+      setMessageError("Failed to regenerate draft");
+    } finally {
+      setFixing(false);
+    }
+  }
 
   function formatDate(dateStr: string) {
     return new Date(dateStr + "T00:00:00").toLocaleDateString("en-US", {
@@ -367,7 +437,8 @@ export default function AdminMessagesPage() {
           <TabsTrigger value="auto-messages">Auto Messages</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="auto-messages" className="overflow-y-auto mt-0">
+        <TabsContent value="auto-messages" className="overflow-y-auto mt-0 space-y-4">
+          <ReplyTraining />
           <GuestMessageSettings />
         </TabsContent>
 
@@ -661,6 +732,7 @@ export default function AdminMessagesPage() {
                     vars={quickReplyVars}
                     onInsert={(text) => {
                       autoDraftRef.current = text;
+                      autoDraftSourceRef.current = "quick-reply";
                       setNewMessage(text);
                     }}
                   />
@@ -672,18 +744,60 @@ export default function AdminMessagesPage() {
                   </div>
                 )}
                 {!draftLoading && newMessage && newMessage === autoDraftRef.current && (
-                  <div className="flex items-center gap-2 pb-2 text-xs text-muted-foreground">
-                    <Sparkles className="h-3 w-3 text-amber-500" />
-                    Suggested reply — review, edit, or hit send
-                    <button
-                      className="underline hover:text-foreground"
-                      onClick={() => {
-                        setNewMessage("");
-                        autoDraftRef.current = null;
-                      }}
-                    >
-                      Discard
-                    </button>
+                  <div className="pb-2 space-y-2">
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Sparkles className="h-3 w-3 text-amber-500" />
+                      Suggested reply — review, edit, or hit send
+                      {autoDraftSourceRef.current === "ai" && (
+                        <button
+                          className="underline hover:text-foreground"
+                          onClick={() => setFixOpen((v) => !v)}
+                        >
+                          Fix…
+                        </button>
+                      )}
+                      <button
+                        className="underline hover:text-foreground"
+                        onClick={() => {
+                          setNewMessage("");
+                          autoDraftRef.current = null;
+                          autoDraftSourceRef.current = null;
+                          setFixOpen(false);
+                          setFixNote("");
+                        }}
+                      >
+                        Discard
+                      </button>
+                    </div>
+                    {fixOpen && (
+                      <div className="flex gap-2">
+                        <Input
+                          value={fixNote}
+                          onChange={(e) => setFixNote(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              handleFix();
+                            }
+                          }}
+                          placeholder='What&apos;s wrong? e.g. "Never offer free late checkout on Sundays"'
+                          className="h-8 text-xs"
+                          autoFocus
+                        />
+                        <Button
+                          size="sm"
+                          className="h-8 text-xs shrink-0"
+                          onClick={handleFix}
+                          disabled={!fixNote.trim() || fixing}
+                        >
+                          {fixing ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            "Fix & retrain"
+                          )}
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 )}
                 <div className="flex gap-2">

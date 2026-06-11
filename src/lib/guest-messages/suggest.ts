@@ -35,6 +35,20 @@ export interface DraftContext {
   messages: DraftMessage[];
 }
 
+export interface DraftGuidance {
+  /** Standing rules from host feedback — followed over the base playbook. */
+  rules: string[];
+  /** Recent (rejected/edited draft -> what the host actually wanted) pairs. */
+  examples: { bad: string; good: string }[];
+}
+
+export interface DraftFeedback {
+  /** The draft the host rejected. */
+  badDraft: string;
+  /** What's wrong with it / what it should say instead. */
+  note: string;
+}
+
 // Keep this prompt byte-stable — it is the cached prefix for every draft call.
 const SYSTEM_PROMPT = `You are the guest-messaging assistant for Summit Lakeside Rentals, a family-run group of Poconos vacation homes in East Stroudsburg, PA. You draft replies that the host (Feliks) reviews and sends from his own account. Write AS the host, in his exact voice.
 
@@ -79,7 +93,11 @@ export function isDraftConfigured(): boolean {
   return !!process.env.ANTHROPIC_API_KEY;
 }
 
-export async function generateDraftReply(ctx: DraftContext): Promise<string | null> {
+export async function generateDraftReply(
+  ctx: DraftContext,
+  guidance?: DraftGuidance,
+  feedback?: DraftFeedback
+): Promise<string | null> {
   if (!isDraftConfigured()) return null;
 
   const client = new Anthropic();
@@ -90,6 +108,36 @@ export async function generateDraftReply(ctx: DraftContext): Promise<string | nu
     .map((m) => `${m.type.toLowerCase() === "owner" ? "HOST" : "GUEST"}: ${m.text}`)
     .join("\n\n");
 
+  // Learned guidance goes in a SECOND system block so the large base prompt
+  // stays byte-stable and cached; only this small block varies.
+  const guidanceBlocks: string[] = [];
+  if (guidance?.rules.length) {
+    guidanceBlocks.push(
+      `HOST CORRECTIONS — standing rules from the host's feedback on past drafts. These OVERRIDE the base instructions above when they conflict:\n${guidance.rules
+        .map((r, i) => `${i + 1}. ${r}`)
+        .join("\n")}`
+    );
+  }
+  if (guidance?.examples.length) {
+    guidanceBlocks.push(
+      `PAST CORRECTIONS — drafts the host rejected or rewrote, with what was actually sent. Match the corrected style and substance:\n${guidance.examples
+        .map((e) => `REJECTED DRAFT: ${e.bad.slice(0, 400)}\nHOST'S VERSION: ${e.good.slice(0, 400)}`)
+        .join("\n---\n")}`
+    );
+  }
+
+  const feedbackSection = feedback
+    ? `
+
+The host REJECTED this draft you proposed:
+---
+${feedback.badDraft}
+---
+The host's feedback: "${feedback.note}"
+
+Write a corrected reply that addresses the feedback. Apply the feedback fully — do not repeat the rejected approach.`
+    : "";
+
   const userPrompt = `Booking context:
 - Guest: ${ctx.guestName ?? "Unknown"}
 - Property: ${ctx.propertyName ?? "Unknown"}
@@ -99,21 +147,27 @@ export async function generateDraftReply(ctx: DraftContext): Promise<string | nu
 Conversation so far (oldest first):
 
 ${transcript}
+${feedbackSection}
 
 Write the host's next reply to the guest.`;
+
+  const system: Anthropic.TextBlockParam[] = [
+    {
+      type: "text",
+      text: SYSTEM_PROMPT,
+      cache_control: { type: "ephemeral" },
+    },
+  ];
+  if (guidanceBlocks.length) {
+    system.push({ type: "text", text: guidanceBlocks.join("\n\n") });
+  }
 
   const response = await client.messages.create({
     model: "claude-opus-4-8",
     max_tokens: 1024,
     thinking: { type: "adaptive" },
     output_config: { effort: "low" },
-    system: [
-      {
-        type: "text",
-        text: SYSTEM_PROMPT,
-        cache_control: { type: "ephemeral" },
-      },
-    ],
+    system,
     messages: [{ role: "user", content: userPrompt }],
   });
 
