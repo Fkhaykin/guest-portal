@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { stripe } from "@/lib/stripe/client";
 import { verifyGuestToken } from "@/lib/guest-token";
+import { validateTimingUpsellPrices } from "@/lib/upsells/timing";
 
 export async function POST(request: Request) {
   let body: {
@@ -38,12 +39,18 @@ export async function POST(request: Request) {
   // Verify registration exists
   const { data: reg } = await supabase
     .from("registration")
-    .select("id, property_id, upsells")
+    .select("id, property_id, upsells, check_in_date, check_out_date")
     .eq("id", registration_id)
     .single();
 
   if (!reg) {
     return NextResponse.json({ error: "Registration not found" }, { status: 404 });
+  }
+
+  // Enforce authoritative server-side pricing for timing upsells (holiday surcharge).
+  const priceError = validateTimingUpsellPrices(items, reg.check_in_date, reg.check_out_date);
+  if (priceError) {
+    return NextResponse.json({ error: priceError }, { status: 400 });
   }
 
   // Get property slug for redirect

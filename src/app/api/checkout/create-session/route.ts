@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { stripe } from "@/lib/stripe/client";
 import { getNightlyRates } from "@/lib/pricelabs/client";
 import { getQuote } from "@/lib/lodgify/client";
+import { validateTimingUpsellPrices } from "@/lib/upsells/timing";
 
 const PA_STATE_TAX_RATE = 0.06;
 const MONROE_COUNTY_TAX_RATE = 0.03;
@@ -56,6 +57,12 @@ export async function POST(request: Request) {
 
   if (pets > 3) {
     return NextResponse.json({ error: "Maximum 3 pets allowed" }, { status: 400 });
+  }
+
+  // Enforce authoritative server-side pricing for timing upsells (holiday surcharge).
+  const priceError = validateTimingUpsellPrices(upsells || [], check_in, check_out);
+  if (priceError) {
+    return NextResponse.json({ error: priceError }, { status: 400 });
   }
 
   const supabase = createAdminClient();
