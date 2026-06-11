@@ -192,6 +192,10 @@ function formatDollars(v: number) {
   return `$${v.toLocaleString()}`;
 }
 
+function formatCompactDollars(v: number) {
+  return `$${new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 }).format(v)}`;
+}
+
 function getPresetRange(preset: DatePreset): [Date | null, Date | null] {
   if (preset === "all" || preset === "custom") return [null, null];
   const now = today();
@@ -781,45 +785,48 @@ export function AnalyticsCharts() {
       )}
 
       {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Revenue</CardTitle>
-            <CreditCard className="h-4 w-4 text-muted-foreground" />
+      <div className="grid grid-cols-4 gap-2 sm:gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Card className="py-2.5 gap-1 sm:py-4 sm:gap-4">
+          <CardHeader className="flex flex-row items-center justify-between px-2.5 sm:px-4 pb-0 sm:pb-2">
+            <CardTitle className="text-[11px] sm:text-sm font-medium truncate">Revenue</CardTitle>
+            <CreditCard className="h-4 w-4 text-muted-foreground hidden sm:block" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatDollars(stats.totalRevenue / 100)}</div>
-            <p className="text-xs text-muted-foreground">In selected range</p>
+          <CardContent className="px-2.5 sm:px-4">
+            <div className="text-sm sm:text-2xl font-bold truncate">
+              <span className="sm:hidden">{formatCompactDollars(stats.totalRevenue / 100)}</span>
+              <span className="hidden sm:inline">{formatDollars(stats.totalRevenue / 100)}</span>
+            </div>
+            <p className="text-xs text-muted-foreground hidden sm:block">In selected range</p>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Bookings</CardTitle>
-            <Building2 className="h-4 w-4 text-muted-foreground" />
+        <Card className="py-2.5 gap-1 sm:py-4 sm:gap-4">
+          <CardHeader className="flex flex-row items-center justify-between px-2.5 sm:px-4 pb-0 sm:pb-2">
+            <CardTitle className="text-[11px] sm:text-sm font-medium truncate">Bookings</CardTitle>
+            <Building2 className="h-4 w-4 text-muted-foreground hidden sm:block" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalBookings}</div>
-            <p className="text-xs text-muted-foreground">{stats.activeBookings} currently active</p>
+          <CardContent className="px-2.5 sm:px-4">
+            <div className="text-sm sm:text-2xl font-bold truncate">{stats.totalBookings}</div>
+            <p className="text-xs text-muted-foreground hidden sm:block">{stats.activeBookings} currently active</p>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Properties</CardTitle>
-            <Building2 className="h-4 w-4 text-muted-foreground" />
+        <Card className="py-2.5 gap-1 sm:py-4 sm:gap-4">
+          <CardHeader className="flex flex-row items-center justify-between px-2.5 sm:px-4 pb-0 sm:pb-2">
+            <CardTitle className="text-[11px] sm:text-sm font-medium truncate">Properties</CardTitle>
+            <Building2 className="h-4 w-4 text-muted-foreground hidden sm:block" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{raw.properties.length}</div>
-            <p className="text-xs text-muted-foreground">Synced from Lodgify</p>
+          <CardContent className="px-2.5 sm:px-4">
+            <div className="text-sm sm:text-2xl font-bold truncate">{raw.properties.length}</div>
+            <p className="text-xs text-muted-foreground hidden sm:block">Synced from Lodgify</p>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">QR Scans</CardTitle>
-            <QrCode className="h-4 w-4 text-muted-foreground" />
+        <Card className="py-2.5 gap-1 sm:py-4 sm:gap-4">
+          <CardHeader className="flex flex-row items-center justify-between px-2.5 sm:px-4 pb-0 sm:pb-2">
+            <CardTitle className="text-[11px] sm:text-sm font-medium truncate">QR Scans</CardTitle>
+            <QrCode className="h-4 w-4 text-muted-foreground hidden sm:block" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{raw.qrScans.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">Total across all codes</p>
+          <CardContent className="px-2.5 sm:px-4">
+            <div className="text-sm sm:text-2xl font-bold truncate">{raw.qrScans.toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground hidden sm:block">Total across all codes</p>
           </CardContent>
         </Card>
       </div>
