@@ -15,6 +15,7 @@ import {
   Menu,
   X,
   Truck,
+  Megaphone,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -27,6 +28,7 @@ const navItems = [
   { label: "Reservations", href: "/admin/reservations", icon: ClipboardList },
   { label: "Deliveries", href: "/admin/deliveries", icon: Truck },
   { label: "Messages", href: "/admin/messages", icon: MessageSquare },
+  { label: "Campaigns", href: "/admin/campaigns", icon: Megaphone },
   { label: "AirCover Claims", href: "/admin/aircover-claims", icon: ShieldAlert },
   { label: "Invoices", href: "/admin/invoices", icon: Receipt },
   { label: "Settings", href: "/admin/settings", icon: Settings },
