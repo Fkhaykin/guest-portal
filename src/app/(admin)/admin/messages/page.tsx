@@ -17,6 +17,7 @@ import {
   CalendarDays,
   RefreshCw,
   ChevronLeft,
+  Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { LodgifyMessage, ConversationThread } from "@/lib/lodgify/messages";
@@ -38,6 +39,10 @@ export default function AdminMessagesPage() {
   const [messageError, setMessageError] = useState<string | null>(null);
   const [newMessage, setNewMessage] = useState("");
   const [sending, setSending] = useState(false);
+  const [draftLoading, setDraftLoading] = useState(false);
+  // Exact text of the last auto-inserted draft; if the composer still equals
+  // it, the content is replaceable (user hasn't edited).
+  const autoDraftRef = useRef<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [timeFilter, setTimeFilter] = useState<"all" | "current" | "past" | "future">("all");
   const [syncing, setSyncing] = useState(false);
@@ -119,6 +124,9 @@ export default function AdminMessagesPage() {
       setLoadingMessages(true);
       setMessageError(null);
       setMessages([]);
+      // Clear any untouched auto-draft from the previous conversation
+      setNewMessage((cur) => (cur === autoDraftRef.current ? "" : cur));
+      autoDraftRef.current = null;
 
       try {
         const res = await fetch(`/api/admin/messages/${selectedBookingId}`);
@@ -173,6 +181,7 @@ export default function AdminMessagesPage() {
           },
         ]);
         setNewMessage("");
+        autoDraftRef.current = null;
 
         // Re-fetch to get the canonical state
         const refreshRes = await fetch(
@@ -246,6 +255,58 @@ export default function AdminMessagesPage() {
     }),
     [selectedConversation]
   );
+
+  // Auto-draft: whenever the guest spoke last, generate a suggested reply and
+  // prepopulate the composer (unless the admin already typed something).
+  useEffect(() => {
+    if (!selectedBookingId || !lastGuestMessage || loadingMessages) return;
+
+    // Don't clobber the admin's own text; an untouched prior draft is fair game.
+    const composerUntouched =
+      !newMessage.trim() || newMessage === autoDraftRef.current;
+    if (!composerUntouched) return;
+
+    const bookingId = selectedBookingId;
+    const conv = selectedConversation;
+    let cancelled = false;
+    setDraftLoading(true);
+
+    fetch(`/api/admin/messages/${bookingId}/suggest`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        guestName: conv?.guest_name ?? null,
+        propertyName: conv?.property_name ?? null,
+        arrival: conv?.arrival ?? null,
+        departure: conv?.departure ?? null,
+        status: conv?.status ?? null,
+        messages: messages
+          .filter((m) => m.type.toLowerCase() !== "comment")
+          .map((m) => ({ type: m.type, text: m.message })),
+      }),
+    })
+      .then((res) => res.json())
+      .then((data: { draft?: string | null }) => {
+        if (cancelled || !data.draft) return;
+        autoDraftRef.current = data.draft;
+        setNewMessage((current) => {
+          // Re-check at set time — admin may have started typing meanwhile
+          if (current.trim() && current !== autoDraftRef.current) return current;
+          return data.draft as string;
+        });
+      })
+      .catch(() => {
+        // silent — quick-reply chips remain as fallback
+      })
+      .finally(() => {
+        if (!cancelled) setDraftLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedBookingId, lastGuestMessage, loadingMessages]);
 
   function formatDate(dateStr: string) {
     return new Date(dateStr + "T00:00:00").toLocaleDateString("en-US", {
@@ -585,9 +646,34 @@ export default function AdminMessagesPage() {
                 {!newMessage.trim() && (
                   <QuickReplySuggestions
                     lastGuestMessage={lastGuestMessage}
+                    propertyName={selectedConversation?.property_name ?? null}
                     vars={quickReplyVars}
-                    onInsert={setNewMessage}
+                    onInsert={(text) => {
+                      autoDraftRef.current = text;
+                      setNewMessage(text);
+                    }}
                   />
+                )}
+                {draftLoading && !newMessage.trim() && (
+                  <div className="flex items-center gap-1.5 pb-2 text-xs text-muted-foreground">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    Drafting a suggested reply…
+                  </div>
+                )}
+                {!draftLoading && newMessage && newMessage === autoDraftRef.current && (
+                  <div className="flex items-center gap-2 pb-2 text-xs text-muted-foreground">
+                    <Sparkles className="h-3 w-3 text-amber-500" />
+                    Suggested reply — review, edit, or hit send
+                    <button
+                      className="underline hover:text-foreground"
+                      onClick={() => {
+                        setNewMessage("");
+                        autoDraftRef.current = null;
+                      }}
+                    >
+                      Discard
+                    </button>
+                  </div>
                 )}
                 <div className="flex gap-2">
                   <Textarea
@@ -604,8 +690,12 @@ export default function AdminMessagesPage() {
                     className="min-h-10 max-h-30 resize-none"
                   />
                   <QuickReplyPicker
+                    propertyName={selectedConversation?.property_name ?? null}
                     vars={quickReplyVars}
-                    onInsert={setNewMessage}
+                    onInsert={(text) => {
+                      autoDraftRef.current = text;
+                      setNewMessage(text);
+                    }}
                   />
                   <Button
                     onClick={handleSend}
