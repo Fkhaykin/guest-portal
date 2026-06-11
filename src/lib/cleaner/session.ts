@@ -1,25 +1,20 @@
 import { cookies } from "next/headers";
-
-const COOKIE_NAME = "cleaner_session";
-const MAX_AGE = 72 * 60 * 60; // 72 hours in seconds
+import {
+  CLEANER_COOKIE_NAME,
+  cleanerCookieOptions,
+} from "@/lib/cleaner/cookie";
 
 export async function getSessionToken(): Promise<string | undefined> {
   const cookieStore = await cookies();
-  return cookieStore.get(COOKIE_NAME)?.value;
+  return cookieStore.get(CLEANER_COOKIE_NAME)?.value;
 }
 
 export async function setSessionCookie(token: string) {
   const cookieStore = await cookies();
-  cookieStore.set(COOKIE_NAME, token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    maxAge: MAX_AGE,
-  });
+  cookieStore.set(CLEANER_COOKIE_NAME, token, cleanerCookieOptions());
 }
 
 export async function clearSessionCookie() {
   const cookieStore = await cookies();
-  cookieStore.delete(COOKIE_NAME);
+  cookieStore.delete(CLEANER_COOKIE_NAME);
 }

@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { sendPushToCleaner } from "@/lib/push/send-push";
 import type { NotificationSettings, NotificationEventKey } from "@/types/database";
 
 const TEXTBELT_KEY = process.env.TEXTBELT_API_KEY?.trim();
@@ -84,19 +85,25 @@ function formatAddress(raw: string): string {
   return parts[0] || raw;
 }
 
-function cleanerPortalUrl(registrationId: string): string {
+function managerOrigin(): string {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "";
-  if (!appUrl || !registrationId) return "";
+  if (!appUrl) return "";
   try {
     const url = new URL(appUrl);
     url.hostname = url.hostname.replace(/^(guest|admin)\./, "");
     if (!url.hostname.startsWith("manager.")) {
       url.hostname = `manager.${url.hostname}`;
     }
-    return `${url.origin}/reservations/${registrationId}`;
+    return url.origin;
   } catch {
     return "";
   }
+}
+
+function cleanerPortalUrl(registrationId: string): string {
+  const origin = managerOrigin();
+  if (!origin || !registrationId) return "";
+  return `${origin}/reservations/${registrationId}`;
 }
 
 /**
@@ -138,12 +145,19 @@ async function getEventSettings(
 }
 
 /**
- * Send an SMS to all active cleaners assigned to a property.
+ * Send an SMS and a web push notification to all active cleaners assigned to
+ * a property. SMS goes to cleaners with a phone on file; push goes to every
+ * device the cleaner enabled notifications on in the portal PWA.
  */
 async function sendToCleaners(
   propertyId: string,
   body: string,
-  meta: { eventType: string; lodgifyBookingId?: number }
+  meta: {
+    eventType: string;
+    lodgifyBookingId?: number;
+    pushTitle?: string;
+    pushUrl?: string;
+  }
 ) {
   const supabase = createAdminClient();
 
@@ -158,20 +172,33 @@ async function sendToCleaners(
     .from("cleaner")
     .select("id, name, phone")
     .in("id", assignments.map((a) => a.cleaner_id))
-    .eq("is_active", true)
-    .not("phone", "is", null);
+    .eq("is_active", true);
 
   if (!cleaners?.length) return;
 
   await Promise.all(
-    cleaners.map((cleaner) =>
-      sendSms(cleaner.phone!, body, {
-        recipientName: cleaner.name ?? undefined,
-        eventType: meta.eventType,
-        propertyId,
-        lodgifyBookingId: meta.lodgifyBookingId,
-      })
-    )
+    cleaners.flatMap((cleaner) => {
+      const sends: Promise<void>[] = [
+        sendPushToCleaner(cleaner.id, {
+          title: meta.pushTitle ?? "Summit Cleaning",
+          body,
+          url: meta.pushUrl,
+        }).catch((err) => {
+          console.error("[push] Notification failed:", err);
+        }),
+      ];
+      if (cleaner.phone) {
+        sends.push(
+          sendSms(cleaner.phone, body, {
+            recipientName: cleaner.name ?? undefined,
+            eventType: meta.eventType,
+            propertyId,
+            lodgifyBookingId: meta.lodgifyBookingId,
+          })
+        );
+      }
+      return sends;
+    })
   );
 }
 
@@ -201,7 +228,12 @@ export async function notifyCleanersOfNewBooking(params: NotifyParams) {
     link,
   });
 
-  await sendToCleaners(params.propertyId, body, { eventType: "cleaner_new_booking", lodgifyBookingId: undefined });
+  await sendToCleaners(params.propertyId, body, {
+    eventType: "cleaner_new_booking",
+    lodgifyBookingId: undefined,
+    pushTitle: `New booking — ${config.propertyName}`,
+    pushUrl: link,
+  });
 }
 
 export async function notifyCleanersOfCancellation(params: NotifyParams) {
@@ -216,7 +248,11 @@ export async function notifyCleanersOfCancellation(params: NotifyParams) {
     check_out: formatDate(params.checkOut),
   });
 
-  await sendToCleaners(params.propertyId, body, { eventType: "cleaner_cancellation" });
+  await sendToCleaners(params.propertyId, body, {
+    eventType: "cleaner_cancellation",
+    pushTitle: `Booking cancelled — ${config.propertyName}`,
+    pushUrl: cleanerPortalUrl(params.registrationId),
+  });
 }
 
 export async function notifyCleanersOfCheckout(params: {
@@ -234,7 +270,11 @@ export async function notifyCleanersOfCheckout(params: {
     link: cleanerPortalUrl(params.registrationId),
   });
 
-  await sendToCleaners(params.propertyId, body, { eventType: "cleaner_checkout" });
+  await sendToCleaners(params.propertyId, body, {
+    eventType: "cleaner_checkout",
+    pushTitle: `Guest checked out — ${config.propertyName}`,
+    pushUrl: cleanerPortalUrl(params.registrationId),
+  });
 }
 
 export async function notifyCleanersOfPetAdded(params: {
@@ -256,7 +296,11 @@ export async function notifyCleanersOfPetAdded(params: {
     link: cleanerPortalUrl(params.registrationId),
   });
 
-  await sendToCleaners(params.propertyId, body, { eventType: "cleaner_pet_added" });
+  await sendToCleaners(params.propertyId, body, {
+    eventType: "cleaner_pet_added",
+    pushTitle: `Pet added — ${config.propertyName}`,
+    pushUrl: cleanerPortalUrl(params.registrationId),
+  });
 }
 
 export async function notifyCleanersOfEarlyCheckin(params: {
@@ -276,7 +320,11 @@ export async function notifyCleanersOfEarlyCheckin(params: {
     link: cleanerPortalUrl(params.registrationId),
   });
 
-  await sendToCleaners(params.propertyId, body, { eventType: "cleaner_early_checkin" });
+  await sendToCleaners(params.propertyId, body, {
+    eventType: "cleaner_early_checkin",
+    pushTitle: `Early check-in — ${config.propertyName}`,
+    pushUrl: cleanerPortalUrl(params.registrationId),
+  });
 }
 
 export async function notifyCleanersOfLateCheckout(params: {
@@ -296,7 +344,11 @@ export async function notifyCleanersOfLateCheckout(params: {
     link: cleanerPortalUrl(params.registrationId),
   });
 
-  await sendToCleaners(params.propertyId, body, { eventType: "cleaner_late_checkout" });
+  await sendToCleaners(params.propertyId, body, {
+    eventType: "cleaner_late_checkout",
+    pushTitle: `Late checkout — ${config.propertyName}`,
+    pushUrl: cleanerPortalUrl(params.registrationId),
+  });
 }
 
 export async function notifyCleanerOfInvoicePaid(params: {
@@ -339,8 +391,22 @@ export async function notifyCleanerOfInvoicePaid(params: {
     period_end: formatDate(params.periodEnd),
   });
 
-  await sendSms(cleaner.phone, body, {
-    recipientName: cleaner.name ?? undefined,
-    eventType: "cleaner_invoice_paid",
-  });
+  const sends: Promise<void>[] = [
+    sendPushToCleaner(cleaner.id, {
+      title: `Invoice ${params.invoiceNumber} paid`,
+      body,
+      url: managerOrigin() ? `${managerOrigin()}/invoices` : undefined,
+    }).catch((err) => {
+      console.error("[push] Notification failed:", err);
+    }),
+  ];
+  if (cleaner.phone) {
+    sends.push(
+      sendSms(cleaner.phone, body, {
+        recipientName: cleaner.name ?? undefined,
+        eventType: "cleaner_invoice_paid",
+      })
+    );
+  }
+  await Promise.all(sends);
 }

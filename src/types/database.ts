@@ -3,6 +3,15 @@
 //
 // For now, we define the types manually to match our schema.
 
+export type WebPushSubscriptionJson = {
+  endpoint: string;
+  expirationTime?: number | null;
+  keys: {
+    p256dh: string;
+    auth: string;
+  };
+};
+
 export type GuestListEntry = {
   first_name: string;
   last_name: string;
@@ -885,6 +894,32 @@ export type Database = {
           cleaner_id?: string;
           token?: string;
           expires_at?: string;
+          created_at?: string;
+        };
+      };
+      push_subscription: {
+        Row: {
+          id: string;
+          cleaner_id: string;
+          endpoint: string;
+          subscription: WebPushSubscriptionJson;
+          user_agent: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          cleaner_id: string;
+          endpoint: string;
+          subscription: WebPushSubscriptionJson;
+          user_agent?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          cleaner_id?: string;
+          endpoint?: string;
+          subscription?: WebPushSubscriptionJson;
+          user_agent?: string | null;
           created_at?: string;
         };
       };

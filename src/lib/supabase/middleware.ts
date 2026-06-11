@@ -1,5 +1,9 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import {
+  CLEANER_COOKIE_NAME,
+  cleanerCookieOptions,
+} from "@/lib/cleaner/cookie";
 
 // ---------------------------------------------------------------------------
 // Subdomain routing
@@ -43,7 +47,12 @@ function shouldSkipRewrite(pathname: string): boolean {
   return (
     pathname.startsWith("/api") ||
     pathname.startsWith("/auth") ||
-    pathname.startsWith("/_next")
+    pathname.startsWith("/_next") ||
+    // PWA assets live in /public and must resolve on every subdomain —
+    // prefixing them (e.g. /cleaner/sw.js) 404s and silently breaks
+    // standalone install + push on the manager/admin subdomains.
+    pathname === "/manifest.json" ||
+    pathname === "/sw.js"
   );
 }
 
@@ -58,15 +67,23 @@ export async function updateSession(request: NextRequest) {
   // Guest subdomain: rewrite only the root to /checkin (other paths stay as-is)
   const isGuestRoot = subdomain === "guest" && pathname === "/";
 
+  // Manager subdomain gets its own PWA manifest so the cleaner portal installs
+  // as a standalone app ("Summit Cleaning") rather than a Safari bookmark.
+  const isManagerManifest =
+    subdomain === "manager" && pathname === "/manifest.json";
+
   // Compute the internal path that Next.js will serve
   const needsRewrite =
     isGuestRoot ||
+    isManagerManifest ||
     (!!prefix && !shouldSkipRewrite(pathname) && !pathname.startsWith(prefix));
-  const internalPath = isGuestRoot
-    ? "/checkin"
-    : needsRewrite
-      ? `${prefix}${pathname === "/" ? "" : pathname}`
-      : pathname;
+  const internalPath = isManagerManifest
+    ? "/manifest-manager.json"
+    : isGuestRoot
+      ? "/checkin"
+      : needsRewrite
+        ? `${prefix}${pathname === "/" ? "" : pathname}`
+        : pathname;
 
   // Helper: create the base response (rewrite or next) preserving the request
   function makeResponse() {
@@ -134,13 +151,20 @@ export async function updateSession(request: NextRequest) {
     internalPath.startsWith("/cleaner") &&
     !internalPath.startsWith("/cleaner/login")
   ) {
-    const sessionToken = request.cookies.get("cleaner_session")?.value;
+    const sessionToken = request.cookies.get(CLEANER_COOKIE_NAME)?.value;
     if (!sessionToken) {
       const url = request.nextUrl.clone();
       // On the manager subdomain, redirect to /login (which rewrites to /cleaner/login)
       url.pathname = subdomain === "manager" ? "/login" : "/cleaner/login";
       return NextResponse.redirect(url);
     }
+    // Sliding renewal: re-issue the cookie on every visit so its maxAge never
+    // runs out for an active cleaner (DB expiry is extended in the layout).
+    supabaseResponse.cookies.set(
+      CLEANER_COOKIE_NAME,
+      sessionToken,
+      cleanerCookieOptions()
+    );
   }
 
   return supabaseResponse;

@@ -3,6 +3,7 @@ import { validateCleanerSession } from "@/lib/cleaner/auth";
 import { getSessionToken } from "@/lib/cleaner/session";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { CleanerSidebar } from "@/components/cleaner/sidebar";
+import { PushPrompt } from "@/components/cleaner/push-prompt";
 
 export default async function CleanerProtectedLayout({
   children,
@@ -67,6 +68,7 @@ export default async function CleanerProtectedLayout({
         completedTasks={completedTasks}
       />
       <main className="md:ml-56 px-4 sm:px-6 py-6 pt-16 md:pt-6 pb-20 md:pb-6">
+        <PushPrompt />
         {children}
       </main>
     </div>
