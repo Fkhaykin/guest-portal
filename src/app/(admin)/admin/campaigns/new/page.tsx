@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getAuthenticatedUser } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { evaluateSegment } from "@/lib/marketing/segments";
 import { CampaignComposer } from "@/components/admin/marketing/campaign-composer";
@@ -10,7 +10,7 @@ import type { SegmentFilter } from "@/types/database";
 
 export default async function NewCampaignPage() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthenticatedUser(supabase);
   if (!user) redirect("/auth/login");
 
   const { data: host } = await supabase

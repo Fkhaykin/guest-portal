@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getAuthenticatedUser } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TabsContent } from "@/components/ui/tabs";
 import { SettingsTabs } from "@/components/admin/settings-tabs";
@@ -9,9 +9,7 @@ import { LodgifyWebhooksSection } from "@/components/admin/lodgify-webhooks-sect
 
 export default async function SettingsPage() {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthenticatedUser(supabase);
 
   const { data: host } = await supabase
     .from("host")

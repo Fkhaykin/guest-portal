@@ -1,10 +1,10 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getAuthenticatedUser } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { CampaignsPageShell } from "@/components/admin/marketing/campaigns-page-shell";
 
 export default async function CampaignsPage() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthenticatedUser(supabase);
   if (!user) redirect("/auth/login");
 
   const { data: host } = await supabase

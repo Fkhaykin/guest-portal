@@ -146,9 +146,14 @@ export async function updateSession(request: NextRequest) {
   // Protect admin routes
   if (internalPath.startsWith("/admin") && !isAuthenticated) {
     const url = request.nextUrl.clone();
+    // Send the user back to the exact page they asked for after login —
+    // pathname is the external (pre-rewrite) path, valid on any subdomain.
+    // Keep the query string so deep links (e.g. /messages?booking=X from a
+    // push notification) survive the round-trip.
+    const redirectTo = `${pathname}${url.search}`;
     url.pathname = "/auth/login";
-    // On the admin subdomain, redirect back to / (which rewrites to /admin)
-    url.searchParams.set("redirect", subdomain === "admin" ? "/" : internalPath);
+    url.search = "";
+    url.searchParams.set("redirect", redirectTo);
     return NextResponse.redirect(url);
   }
 

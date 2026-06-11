@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getAuthenticatedUser } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { AdminInvoiceTabs } from "@/components/admin/invoice-tabs";
 import type { InvoiceLineItem, InvoiceStatus } from "@/types/database";
@@ -43,9 +43,7 @@ export type AdminUnpaidCleaning = {
 export default async function AdminInvoicesPage() {
   const supabase = await createClient();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthenticatedUser(supabase);
   if (!user) redirect("/auth/login");
 
   const { data: host } = await supabase

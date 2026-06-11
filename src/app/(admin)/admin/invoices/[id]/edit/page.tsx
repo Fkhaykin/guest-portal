@@ -1,5 +1,8 @@
 import { redirect, notFound } from "next/navigation";
-import { createClient as createServerClient } from "@/lib/supabase/server";
+import {
+  createClient as createServerClient,
+  getAuthenticatedUser,
+} from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { InvoiceForm } from "@/components/cleaner/invoice-form";
 import type { InvoiceLineItem, InvoiceAdjustment, InvoiceAttachment } from "@/types/database";
@@ -14,9 +17,7 @@ export default async function AdminInvoiceEditPage({
   const { id } = await params;
   const supabase = await createServerClient();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthenticatedUser(supabase);
   if (!user) redirect("/auth/login");
 
   const { data: host } = await supabase

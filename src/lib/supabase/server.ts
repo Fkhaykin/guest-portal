@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import type { User } from "@supabase/supabase-js";
 
 export async function createClient() {
   const cookieStore = await cookies();
@@ -25,4 +26,30 @@ export async function createClient() {
       },
     }
   );
+}
+
+/**
+ * getUser() with the same transient-failure fallback as the middleware
+ * (lib/supabase/middleware.ts): getUser() always makes a network call to
+ * Supabase, and on mobile PWA cold-start it can fail with a retryable fetch
+ * error even though the session cookie is valid. Without the fallback that
+ * null bounces a logged-in user to /auth/login.
+ */
+export async function getAuthenticatedUser(
+  supabase: Awaited<ReturnType<typeof createClient>>
+): Promise<User | null> {
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser();
+  if (user) return user;
+
+  if (error?.name === "AuthRetryableFetchError") {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    return session?.user ?? null;
+  }
+
+  return null;
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,7 +25,22 @@ function LoginForm() {
   const [error, setError] = useState<string | null>(
     searchParams.get("error")
   );
-  const redirect = searchParams.get("redirect") || "/";
+  // Only same-site paths — the param feeds window.location
+  const rawRedirect = searchParams.get("redirect") || "/";
+  const redirect =
+    rawRedirect.startsWith("/") && !rawRedirect.startsWith("//")
+      ? rawRedirect
+      : "/";
+
+  useEffect(() => {
+    // A transient server-side auth failure can land a signed-in user here
+    // (e.g. PWA cold start from a push notification). If the session is in
+    // fact valid, skip the form and continue to where they were headed.
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) window.location.replace(redirect);
+    });
+  }, [redirect]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
