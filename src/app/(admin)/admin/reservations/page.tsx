@@ -293,7 +293,8 @@ export default function AdminReservationsPage() {
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Reservations</h1>
           <p className="text-sm md:text-base text-muted-foreground">All reservations across properties</p>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
+        {/* mr-12 clears the fixed mobile menu toggle */}
+        <div className="flex items-center gap-2 shrink-0 mr-12 md:mr-0">
           <button
             onClick={() => router.push("/admin/reservations/new")}
             aria-label="New booking"

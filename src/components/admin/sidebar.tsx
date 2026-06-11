@@ -59,11 +59,12 @@ export function AdminSidebar({
 
   return (
     <>
-      {/* Mobile toggle */}
+      {/* Mobile toggle — sits in line with the page H1; top-3 put it under the
+          iOS status bar in standalone PWA mode where taps don't register */}
       <Button
         variant="ghost"
         size="icon"
-        className="fixed top-3 left-3 z-50 md:hidden"
+        className="fixed top-16 right-4 z-50 md:hidden border bg-background/80 backdrop-blur"
         onClick={() => setOpen(!open)}
       >
         {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
