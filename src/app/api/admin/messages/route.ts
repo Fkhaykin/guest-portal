@@ -39,7 +39,18 @@ export async function GET() {
   // Pull all thread summaries at once and index by thread_uid + booking_id.
   const { data: threads } = await admin
     .from("guest_message_thread")
-    .select("thread_uid, lodgify_booking_id, guest_name, last_message_at, last_message_preview, unread_count");
+    .select("thread_uid, lodgify_booking_id, guest_name, last_message_at, last_message_preview, unread_count, lodgify_property_id, arrival, departure, booking_status");
+
+  // House names for inquiry threads, which have no registration to join on.
+  const { data: allProperties } = await admin
+    .from("property")
+    .select("lodgify_property_id, name, nickname");
+  const propertyNameByLodgifyId = new Map<number, string>();
+  for (const p of allProperties ?? []) {
+    if (p.lodgify_property_id != null && !propertyNameByLodgifyId.has(p.lodgify_property_id)) {
+      propertyNameByLodgifyId.set(p.lodgify_property_id, p.nickname || p.name);
+    }
+  }
 
   const threadByBooking = new Map<number, {
     last_message_at: string | null;
@@ -123,11 +134,18 @@ export async function GET() {
       booking_id: t.lodgify_booking_id ?? `thread:${t.thread_uid}`,
       guest_name: t.guest_name ?? "Unknown Guest",
       guest_email: null,
-      property_id: 0,
-      property_name: null,
-      arrival: "",
-      departure: "",
-      status: "inquiry",
+      property_id: t.lodgify_property_id ?? 0,
+      property_name:
+        t.lodgify_property_id != null
+          ? propertyNameByLodgifyId.get(t.lodgify_property_id) ?? null
+          : null,
+      arrival: t.arrival ?? "",
+      departure: t.departure ?? "",
+      // Lodgify calls inquiries "Open" — keep the friendlier label.
+      status:
+        t.booking_status && t.booking_status.toLowerCase() !== "open"
+          ? t.booking_status.toLowerCase()
+          : "inquiry",
       source: null,
       date_created: null,
       last_message_at: t.last_message_at,

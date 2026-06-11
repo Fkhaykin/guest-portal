@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createHmac, timingSafeEqual } from "crypto";
 import { syncBookingById } from "@/lib/lodgify/sync";
-import { fetchThreadMessages } from "@/lib/lodgify/messages";
+import { fetchBookingDetail, fetchThreadMessages } from "@/lib/lodgify/messages";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { notifyHostOfGuestMessage } from "@/lib/push/notify-host";
 
@@ -152,7 +152,7 @@ async function persistGuestMessage(event: GuestMessageEvent): Promise<{ outcome:
   const preview = (event.message ?? "").slice(0, 200);
   const { data: existingThread } = await supabase
     .from("guest_message_thread")
-    .select("unread_count")
+    .select("unread_count, lodgify_property_id")
     .eq("thread_uid", threadUid)
     .maybeSingle();
   const unreadCount = (existingThread?.unread_count ?? 0) + (isNewMessage ? 1 : 0);
@@ -172,6 +172,28 @@ async function persistGuestMessage(event: GuestMessageEvent): Promise<{ outcome:
       { onConflict: "thread_uid" }
     );
   if (threadErr) throw new Error(`guest_message_thread upsert failed: ${threadErr.message}`);
+
+  // Inquiries (Open/Tentative) never get a registration row — the sync skips
+  // them — so resolve the booking once for house + stay-date context. Without
+  // it the inbox can't show the property and AI drafts go in blind.
+  if (bookingIdHint && existingThread?.lodgify_property_id == null) {
+    try {
+      const detail = await fetchBookingDetail(bookingIdHint);
+      if (detail) {
+        await supabase
+          .from("guest_message_thread")
+          .update({
+            lodgify_property_id: detail.property_id,
+            arrival: detail.arrival,
+            departure: detail.departure,
+            booking_status: detail.status,
+          })
+          .eq("thread_uid", threadUid);
+      }
+    } catch (err) {
+      console.error("[lodgify-webhook] Booking context fetch failed:", err);
+    }
+  }
 
   // Push the new message to the host's devices. Awaited — Vercel can freeze
   // the function as soon as the response is returned, killing in-flight sends.

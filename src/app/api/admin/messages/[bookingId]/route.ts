@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
-  fetchMessagesForBooking,
+  fetchBookingDetail,
   fetchThreadMessages,
   sendMessage,
   type LodgifyMessage,
@@ -40,7 +40,7 @@ function toLodgifyMessage(row: GuestMessageRow): LodgifyMessage {
 async function upsertMessages(
   admin: ReturnType<typeof createAdminClient>,
   threadUid: string,
-  bookingId: number,
+  bookingId: number | null,
   messages: LodgifyMessage[]
 ) {
   if (!messages.length) return;
@@ -49,7 +49,8 @@ async function upsertMessages(
     .map((m) => ({
       lodgify_message_id: Number(m.id),
       thread_uid: threadUid,
-      lodgify_booking_id: bookingId,
+      // Omit when unknown — overwriting with null would erase webhook hints.
+      ...(bookingId != null ? { lodgify_booking_id: bookingId } : {}),
       message_type: m.type || "Comment",
       subject: m.subject ?? null,
       message: m.message ?? "",
@@ -61,18 +62,22 @@ async function upsertMessages(
     .from("guest_message")
     .upsert(rows, { onConflict: "lodgify_message_id", ignoreDuplicates: false });
 
-  // Refresh thread summary from the latest message in the batch.
-  const latest = [...messages].sort((a, b) => (b.created_at || "").localeCompare(a.created_at || ""))[0];
+  // Refresh thread summary from the latest message in the batch. The guest
+  // name comes from the latest Renter message — when the latest message is
+  // ours, keep the existing name instead of nulling it out.
+  const sorted = [...messages].sort((a, b) => (b.created_at || "").localeCompare(a.created_at || ""));
+  const latest = sorted[0];
+  const guestName = sorted.find((m) => m.type === "Renter")?.sender_name ?? null;
   if (latest) {
     await admin
       .from("guest_message_thread")
       .upsert(
         {
           thread_uid: threadUid,
-          lodgify_booking_id: bookingId,
+          ...(bookingId != null ? { lodgify_booking_id: bookingId } : {}),
           last_message_at: latest.created_at || null,
           last_message_preview: (latest.message ?? "").slice(0, 200),
-          guest_name: latest.type === "Owner" ? null : latest.sender_name,
+          ...(guestName ? { guest_name: guestName } : {}),
           updated_at: new Date().toISOString(),
         },
         { onConflict: "thread_uid" }
@@ -99,6 +104,12 @@ export async function GET(
   if (bookingId.startsWith("thread:")) {
     const threadUid = bookingId.slice("thread:".length);
     const admin = createAdminClient();
+    // Live-refresh first: Lodgify only webhooks guest messages, so Owner
+    // replies sent from the Lodgify/Airbnb inbox only land here via this pull.
+    const live = await fetchThreadMessages(threadUid);
+    if (live.length) {
+      await upsertMessages(admin, threadUid, null, live);
+    }
     const { data: rows } = await admin
       .from("guest_message")
       .select("id, lodgify_message_id, thread_uid, message_type, subject, message, creation_time, guest_name, has_attachments")
@@ -150,69 +161,71 @@ export async function GET(
 
   let threadUid = reg?.lodgify_thread_uid ?? null;
 
-  // Prefer DB reads — order by creation_time so oldest is first.
-  let messages: LodgifyMessage[] = [];
-  if (threadUid) {
-    const { data: rows } = await admin
-      .from("guest_message")
-      .select("lodgify_message_id, thread_uid, message_type, subject, message, creation_time, guest_name, has_attachments")
-      .eq("thread_uid", threadUid)
-      .order("creation_time", { ascending: true });
-    messages = (rows ?? []).map((r) => toLodgifyMessage(r as GuestMessageRow));
-  } else {
-    // Thread not known — try by booking_id (webhook-written rows where we
-    // resolved the booking link afterwards).
-    const { data: rows } = await admin
-      .from("guest_message")
-      .select("lodgify_message_id, thread_uid, message_type, subject, message, creation_time, guest_name, has_attachments")
+  // Fall back to the webhook-written thread row keyed by booking id.
+  if (!threadUid) {
+    const { data: threadRow } = await admin
+      .from("guest_message_thread")
+      .select("thread_uid")
       .eq("lodgify_booking_id", id)
-      .order("creation_time", { ascending: true });
-    if (rows && rows.length) {
-      threadUid = (rows[0] as GuestMessageRow).thread_uid;
-      messages = rows.map((r) => toLodgifyMessage(r as GuestMessageRow));
+      .maybeSingle();
+    threadUid = threadRow?.thread_uid ?? null;
+  }
+
+  // Pull the booking detail when the thread is unknown OR has no registration
+  // — it carries thread_uid plus the property/dates context inquiries need
+  // (the sync skips Open/Tentative bookings, so nothing else records it).
+  let detail = null;
+  if (!threadUid || !reg) {
+    detail = await fetchBookingDetail(id);
+    if (detail?.thread_uid) {
+      threadUid = threadUid ?? detail.thread_uid;
+      if (reg?.id && !reg.lodgify_thread_uid) {
+        await admin
+          .from("registration")
+          .update({ lodgify_thread_uid: detail.thread_uid })
+          .eq("id", reg.id);
+      }
     }
   }
 
-  // Fallback: if we have nothing in DB yet, hit Lodgify and cache the result.
-  if (messages.length === 0) {
-    const live = await fetchMessagesForBooking(id);
-    messages = live;
-
-    // Cache to DB for next time. We need thread_uid to upsert — pull from the
-    // live response if we don't have it yet (the v2 thread endpoint doesn't
-    // echo thread_uid, so derive from fetchMessagesForBooking -> booking
-    // detail lookup, which is already inside that call).
-    if (!threadUid) {
-      // fetchMessagesForBooking has already resolved thread_uid internally;
-      // re-fetch it here via the booking detail so we can persist.
-      try {
-        const res = await fetch(
-          `https://api.lodgify.com/v2/reservations/bookings/${id}`,
-          {
-            headers: {
-              "X-ApiKey": process.env.LODGIFY_API_KEY ?? "",
-              Accept: "application/json",
-            },
-            cache: "no-store",
-          }
-        );
-        if (res.ok) {
-          const detail = (await res.json()) as { thread_uid?: string };
-          threadUid = detail.thread_uid ?? null;
-          if (threadUid && reg?.id) {
-            await admin
-              .from("registration")
-              .update({ lodgify_thread_uid: threadUid })
-              .eq("id", reg.id);
-          }
-        }
-      } catch (err) {
-        console.error("[admin-messages] Failed to resolve thread_uid:", err);
-      }
-    }
-
-    if (threadUid && live.length) {
+  // Live-refresh from Lodgify on every open: Lodgify only webhooks guest
+  // messages, so Owner replies sent from the Lodgify/Airbnb inbox would
+  // otherwise never reach our DB once the thread has any cached rows.
+  let messages: LodgifyMessage[] = [];
+  if (threadUid) {
+    const live = await fetchThreadMessages(threadUid);
+    if (live.length) {
+      messages = live;
       await upsertMessages(admin, threadUid, id, live);
+    }
+    // Inquiry threads have no registration; stamp booking context on the
+    // thread row so the conversation list and AI drafts know the house.
+    if (!reg && detail) {
+      await admin
+        .from("guest_message_thread")
+        .update({
+          lodgify_booking_id: id,
+          lodgify_property_id: detail.property_id,
+          arrival: detail.arrival,
+          departure: detail.departure,
+          booking_status: detail.status,
+        })
+        .eq("thread_uid", threadUid);
+    }
+  }
+
+  // Lodgify unreachable or thread empty — serve whatever we have cached.
+  if (messages.length === 0) {
+    const query = admin
+      .from("guest_message")
+      .select("lodgify_message_id, thread_uid, message_type, subject, message, creation_time, guest_name, has_attachments")
+      .order("creation_time", { ascending: true });
+    const { data: rows } = threadUid
+      ? await query.eq("thread_uid", threadUid)
+      : await query.eq("lodgify_booking_id", id);
+    if (rows && rows.length) {
+      threadUid = threadUid ?? (rows[0] as GuestMessageRow).thread_uid;
+      messages = rows.map((r) => toLodgifyMessage(r as GuestMessageRow));
     }
   }
 
@@ -283,7 +296,16 @@ export async function POST(
     .select("id, lodgify_thread_uid")
     .eq("lodgify_booking_id", id)
     .maybeSingle();
-  const threadUid = reg?.lodgify_thread_uid ?? null;
+  let threadUid = reg?.lodgify_thread_uid ?? null;
+  if (!threadUid) {
+    // Inquiry threads have no registration — the webhook thread row has it.
+    const { data: threadRow } = await admin
+      .from("guest_message_thread")
+      .select("thread_uid")
+      .eq("lodgify_booking_id", id)
+      .maybeSingle();
+    threadUid = threadRow?.thread_uid ?? null;
+  }
   if (threadUid) {
     try {
       const live = await fetchThreadMessages(threadUid);

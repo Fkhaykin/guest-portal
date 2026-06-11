@@ -56,6 +56,48 @@ export async function fetchMessagesForBooking(
   }
 }
 
+export interface LodgifyBookingDetail {
+  thread_uid: string | null;
+  property_id: number | null;
+  arrival: string | null;
+  departure: string | null;
+  status: string | null;
+}
+
+/**
+ * Fetch the booking detail fields we care about: thread_uid plus the
+ * property/dates/status context that inquiry threads (which the sync skips)
+ * have no other source for.
+ */
+export async function fetchBookingDetail(
+  bookingId: number
+): Promise<LodgifyBookingDetail | null> {
+  try {
+    const res = await fetch(
+      `${LODGIFY_BASE_URL}/v2/reservations/bookings/${bookingId}`,
+      {
+        headers: { "X-ApiKey": getApiKey(), Accept: "application/json" },
+        cache: "no-store",
+      }
+    );
+    if (!res.ok) {
+      console.error("[lodgify-messages] Booking detail returned", res.status);
+      return null;
+    }
+    const b = (await res.json()) as Record<string, unknown>;
+    return {
+      thread_uid: typeof b.thread_uid === "string" ? b.thread_uid : null,
+      property_id: typeof b.property_id === "number" ? b.property_id : null,
+      arrival: typeof b.arrival === "string" ? b.arrival.slice(0, 10) : null,
+      departure: typeof b.departure === "string" ? b.departure.slice(0, 10) : null,
+      status: typeof b.status === "string" ? b.status : null,
+    };
+  } catch (err) {
+    console.error("[lodgify-messages] Booking detail error:", err);
+    return null;
+  }
+}
+
 /**
  * Fetch messages from the v2 messaging thread endpoint.
  * Response shape: { thread_uid, guest_name, guest_email, last_message_date,
