@@ -339,7 +339,7 @@ export function GuestMessageSettings() {
                       />
                     </div>
                     <div className="flex flex-wrap gap-1">
-                      {["guest_name", "property_name", "check_in_date", "check_out_date", "portal_link"].map((v) => (
+                      {["guest_name", "property_name", "check_in_date", "check_out_date", "check_in_time", "check_out_time", "portal_link"].map((v) => (
                         <Badge key={v} variant="secondary" className="text-xs font-mono">
                           {`{{${v}}}`}
                         </Badge>

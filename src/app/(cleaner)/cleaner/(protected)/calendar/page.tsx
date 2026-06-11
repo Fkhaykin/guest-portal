@@ -4,6 +4,7 @@ import { validateCleanerSession } from "@/lib/cleaner/auth";
 import { getSessionToken } from "@/lib/cleaner/session";
 import { CalendarView } from "@/components/cleaner/calendar-view";
 import { maskGuestName } from "@/lib/cleaner/format";
+import { effectiveStayTimes } from "@/lib/upsells/timing";
 import type { UpsellEntry, GuestListEntry, PetEntry } from "@/types/database";
 
 export const dynamic = "force-dynamic";
@@ -140,6 +141,7 @@ export default async function CalendarPage() {
 
   const calendarData = calendarRegs.map((r) => {
     const paid = ((r.upsells as unknown as UpsellEntry[] | null) || []).filter((u) => u.status === "paid");
+    const stayTimes = effectiveStayTimes(paid);
     const guest = r.guest as unknown as { full_name: string } | null;
     const property = r.property as unknown as { name: string; nickname: string | null; cover_image_url: string | null; cleaning_fee_cents: number; pet_fee_cents: number } | null;
     const colorIdx = seenProperties.get(r.property_id) ?? 0;
@@ -169,8 +171,10 @@ export default async function CalendarPage() {
       bookedAt: (r as unknown as { created_at: string }).created_at || null,
       status: r.status,
       nights,
-      hasEarlyCheckin: paid.some((u) => u.type === "early_checkin"),
-      hasLateCheckout: paid.some((u) => u.type === "late_checkout"),
+      hasEarlyCheckin: stayTimes.hasEarlyCheckin,
+      hasLateCheckout: stayTimes.hasLateCheckout,
+      checkInTime: stayTimes.checkInTime,
+      checkOutTime: stayTimes.checkOutTime,
       cleaningFeeCents,
       petFeeCents,
       cleanerRevenueCents,

@@ -15,6 +15,10 @@ export type TemplateVars = {
   property_name: string;
   check_in_date: string;
   check_out_date: string;
+  // Effective times — shifted when the guest paid for early check-in / late
+  // check-out (see stayTimeVars in @/lib/upsells/timing).
+  check_in_time: string;
+  check_out_time: string;
   portal_link: string;
 } & Record<string, string>;
 
@@ -152,11 +156,11 @@ export function renderTemplate(
 // Variables exposed in the admin editor for each template, used to populate
 // the "available variables" badges. Keep in sync with the *Vars interfaces.
 export const TEMPLATE_VARIABLES: Record<GuestMessageType, string[]> = {
-  booking_confirmation: ["guest_name", "property_name", "check_in_date", "check_out_date", "portal_link"],
-  pre_arrival: ["guest_name", "property_name", "check_in_date", "check_out_date", "portal_link"],
-  day_of_checkin: ["guest_name", "property_name", "check_in_date", "check_out_date", "portal_link"],
+  booking_confirmation: ["guest_name", "property_name", "check_in_date", "check_out_date", "check_in_time", "check_out_time", "portal_link"],
+  pre_arrival: ["guest_name", "property_name", "check_in_date", "check_out_date", "check_in_time", "check_out_time", "portal_link"],
+  day_of_checkin: ["guest_name", "property_name", "check_in_date", "check_out_date", "check_in_time", "check_out_time", "portal_link"],
   post_checkout: ["guest_name", "property_name", "check_in_date", "check_out_date", "portal_link"],
-  registration_reminder: ["guest_name", "property_name", "check_in_date", "check_out_date", "portal_link"],
+  registration_reminder: ["guest_name", "property_name", "check_in_date", "check_out_date", "check_in_time", "check_out_time", "portal_link"],
   booking_invoice_full: [
     "guest_name",
     "property_name",

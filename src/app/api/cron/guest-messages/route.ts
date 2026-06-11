@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { sendGuestAutomatedMessage, sendHouseCheckinInstructions } from "@/lib/guest-messages/send";
 import { sendRegistrationReminder, REMINDER_DAYS, type ReminderDay } from "@/lib/guest-messages/reminders";
 import type { GuestMessageType, GuestMessageChannel } from "@/lib/guest-messages/templates";
+import type { UpsellEntry } from "@/types/database";
 
 export const maxDuration = 60;
 
@@ -26,6 +27,7 @@ export async function GET(request: Request) {
     booking_source: string | null;
     check_in_date: string;
     check_out_date: string;
+    upsells: UpsellEntry[] | null;
     guest: { full_name: string; email: string | null };
     property: { name: string; slug: string; nickname: string | null; host_id: string };
   };
@@ -41,7 +43,7 @@ export async function GET(request: Request) {
   for (const batch of batches) {
     const { data: rows, error } = await supabase
       .from("registration")
-      .select("id, lodgify_booking_id, booking_source, check_in_date, check_out_date, guest:guest_id(full_name, email), property:property_id(name, slug, nickname, host_id)")
+      .select("id, lodgify_booking_id, booking_source, check_in_date, check_out_date, upsells, guest:guest_id(full_name, email), property:property_id(name, slug, nickname, host_id)")
       .eq(batch.dateCol, batch.dateVal)
       .eq("status", batch.status)
       .not("booking_source", "ilike", "%airbnb%")
@@ -78,6 +80,7 @@ export async function GET(request: Request) {
           checkInDate: row.check_in_date,
           checkOutDate: row.check_out_date,
           hostId: property.host_id,
+          upsells: row.upsells,
         };
         await sendGuestAutomatedMessage(sendParams);
         if (batch.type === "day_of_checkin") {
@@ -102,6 +105,7 @@ export async function GET(request: Request) {
     check_in_date: string;
     check_out_date: string;
     signature_url: string | null;
+    upsells: UpsellEntry[] | null;
     guest: { full_name: string; email: string | null; phone: string | null };
     property: { name: string; slug: string; nickname: string | null; host_id: string };
   };
@@ -112,7 +116,7 @@ export async function GET(request: Request) {
     const targetDate = offsetDate(days);
     const { data: rows, error } = await supabase
       .from("registration")
-      .select("id, lodgify_booking_id, booking_source, check_in_date, check_out_date, signature_url, guest:guest_id(full_name, email, phone), property:property_id(name, slug, nickname, host_id)")
+      .select("id, lodgify_booking_id, booking_source, check_in_date, check_out_date, signature_url, upsells, guest:guest_id(full_name, email, phone), property:property_id(name, slug, nickname, host_id)")
       .eq("check_in_date", targetDate)
       .eq("status", "active")
       .is("signature_url", null);
@@ -144,6 +148,7 @@ export async function GET(request: Request) {
           checkInDate: row.check_in_date,
           checkOutDate: row.check_out_date,
           hostId: property.host_id,
+          upsells: row.upsells,
         });
         if (result === "sent") sent++;
         else skipped++;

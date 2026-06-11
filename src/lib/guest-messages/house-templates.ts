@@ -40,7 +40,7 @@ const QUIET_TRASH = `QUIET HOURS:
 TRASH:
 All trash should be placed in the bins just outside the garage door, they are mixed use trash and recycling so either works. It is picked up between Monday morning and Tuesday night directly from where they are, so no need to bring anything to the street. If they are filled up and you are checking out prior to pick up, just place your bags next to the bins and we will take care of it from there.`;
 
-const CHECKOUT = `Check-out: 11am
+const CHECKOUT = `Check-out: {{check_out_time}}
 
 Late checkout can be booked and paid directly in our guest portal under Add-Ons (guest.summitlakeside.com) — $25/hr, until 12pm or 1pm, subject to availability. Please contact us if you have an issue; leaving after check out without prior notice will incur a $50 fee.
 
@@ -58,8 +58,8 @@ const HEADER = `Hey {{guest_name}},
 
 We're so excited to host your stay in the beautiful Poconos! Below you will find check-in instructions as well as some general information about the home.
 
-Check-in: {{check_in_date}} at 4:00 PM
-Check-out: {{check_out_date}} at 11:00 AM`;
+Check-in: {{check_in_date}} at {{check_in_time}}
+Check-out: {{check_out_date}} at {{check_out_time}}`;
 
 export const HOUSE_CHECKIN_SUBJECT = "Check-in instructions — {{property_name}}";
 

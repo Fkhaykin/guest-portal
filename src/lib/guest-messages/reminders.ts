@@ -2,7 +2,8 @@ import { Resend } from "resend";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendMessage } from "@/lib/lodgify/messages";
 import { TEMPLATES, interpolate, type TemplateVars } from "./templates";
-import type { GuestMessageSettings } from "@/types/database";
+import { stayTimeVars } from "@/lib/upsells/timing";
+import type { GuestMessageSettings, UpsellEntry } from "@/types/database";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://guest.summitlakeside.com";
 const TEXTBELT_KEY = process.env.TEXTBELT_API_KEY?.trim();
@@ -23,6 +24,7 @@ interface SendReminderParams {
   checkInDate: string;
   checkOutDate: string;
   hostId: string;
+  upsells?: UpsellEntry[] | null;
 }
 
 async function getHostSettings(hostId: string): Promise<GuestMessageSettings | null> {
@@ -99,6 +101,7 @@ export async function sendRegistrationReminder(params: SendReminderParams): Prom
     property_name: params.propertyName,
     check_in_date: params.checkInDate,
     check_out_date: params.checkOutDate,
+    ...stayTimeVars(params.upsells),
     portal_link: `${APP_URL}/p/${params.propertySlug}/register`,
   };
 

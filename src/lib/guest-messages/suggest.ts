@@ -32,6 +32,8 @@ export interface DraftContext {
   arrival: string | null;
   departure: string | null;
   status: string | null;
+  /** Labels of paid add-ons on this booking, e.g. "Late Check-Out (1:00 PM)". */
+  purchasedAddOns?: string[] | null;
   messages: DraftMessage[];
 }
 
@@ -138,11 +140,15 @@ The host's feedback: "${feedback.note}"
 Write a corrected reply that addresses the feedback. Apply the feedback fully — do not repeat the rejected approach.`
     : "";
 
+  const addOnsLine = ctx.purchasedAddOns?.length
+    ? `\n- Add-ons already purchased and PAID for this booking: ${ctx.purchasedAddOns.join(", ")}. Honor these — quote the adjusted check-in/checkout time from the add-on, and never re-sell something they already bought.`
+    : "";
+
   const userPrompt = `Booking context:
 - Guest: ${ctx.guestName ?? "Unknown"}
 - Property: ${ctx.propertyName ?? "Unknown"}
 - Stay: ${ctx.arrival ?? "?"} to ${ctx.departure ?? "?"} (today is ${new Date().toISOString().slice(0, 10)})
-- Booking status: ${ctx.status ?? "unknown"}
+- Booking status: ${ctx.status ?? "unknown"}${addOnsLine}
 
 Conversation so far (oldest first):
 

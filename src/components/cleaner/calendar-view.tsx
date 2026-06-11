@@ -52,6 +52,8 @@ export type CalendarReservation = {
   nights: number;
   hasEarlyCheckin: boolean;
   hasLateCheckout: boolean;
+  checkInTime: string;
+  checkOutTime: string;
   cleaningFeeCents: number;
   petFeeCents: number;
   cleanerRevenueCents: number;
@@ -637,8 +639,8 @@ export function CalendarView({
               const petCount =
                 selected.pets?.filter((p) => p.name?.trim()).length ?? 0;
               const hasBreakdown = selected.guestList && selected.guestList.length > 0;
-              const checkInTime = selected.hasEarlyCheckin ? "1:00 PM (early)" : "4:00 PM";
-              const checkOutTime = selected.hasLateCheckout ? "2:00 PM (late)" : "11:00 AM";
+              const checkInTime = selected.hasEarlyCheckin ? `${selected.checkInTime} (early)` : selected.checkInTime;
+              const checkOutTime = selected.hasLateCheckout ? `${selected.checkOutTime} (late)` : selected.checkOutTime;
 
               return (
                 <>

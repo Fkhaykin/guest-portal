@@ -10,6 +10,7 @@ import {
   type DraftFeedback,
 } from "@/lib/guest-messages/suggest";
 import { loadGuidance } from "@/lib/guest-messages/guidance";
+import type { UpsellEntry } from "@/types/database";
 
 export const maxDuration = 60;
 
@@ -86,6 +87,20 @@ export async function POST(
       bad_draft: body.feedback.badDraft?.slice(0, 4000) ?? null,
       note: body.feedback.note.trim().slice(0, 2000),
     });
+  }
+
+  // Attach paid add-ons (server-side truth) so drafts quote adjusted
+  // check-in/checkout times instead of the standard schedule.
+  if (Number.isFinite(bookingId)) {
+    const { data: reg } = await admin
+      .from("registration")
+      .select("upsells")
+      .eq("lodgify_booking_id", bookingId)
+      .maybeSingle();
+    const paid = ((reg?.upsells as UpsellEntry[] | null) ?? []).filter((u) => u.status === "paid");
+    if (paid.length) {
+      body.purchasedAddOns = paid.map((u) => u.label || u.type);
+    }
   }
 
   try {

@@ -4,7 +4,8 @@ import { sendMessage } from "@/lib/lodgify/messages";
 import { TEMPLATES, interpolate, type GuestMessageType, type GuestMessageChannel, type TemplateVars } from "./templates";
 import { HOUSE_CHECKIN_TEMPLATES, HOUSE_CHECKIN_SUBJECT } from "./house-templates";
 import { houseForProperty } from "./quick-replies";
-import type { GuestMessageSettings } from "@/types/database";
+import { stayTimeVars } from "@/lib/upsells/timing";
+import type { GuestMessageSettings, UpsellEntry } from "@/types/database";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://guest.summitlakeside.com";
 
@@ -20,6 +21,7 @@ interface SendParams {
   checkInDate: string;
   checkOutDate: string;
   hostId: string;
+  upsells?: UpsellEntry[] | null;
 }
 
 async function getHostSettings(hostId: string): Promise<GuestMessageSettings | null> {
@@ -57,6 +59,7 @@ export async function sendGuestAutomatedMessage(params: SendParams): Promise<voi
     property_name: params.propertyName,
     check_in_date: params.checkInDate,
     check_out_date: params.checkOutDate,
+    ...stayTimeVars(params.upsells),
     portal_link: `${APP_URL}/p/${params.propertySlug}/register`,
   };
 
@@ -123,6 +126,7 @@ export async function sendHouseCheckinInstructions(params: SendParams): Promise<
     property_name: params.propertyName,
     check_in_date: params.checkInDate,
     check_out_date: params.checkOutDate,
+    ...stayTimeVars(params.upsells),
     portal_link: `${APP_URL}/p/${params.propertySlug}/register`,
   };
 

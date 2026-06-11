@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { getGuestToken, setGuestToken, clearGuestToken } from "@/lib/guest-session";
+import { effectiveStayTimes } from "@/lib/upsells/timing";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -155,6 +156,7 @@ type PurchasedUpsell = {
   label: string;
   price_cents: number;
   status: string;
+  meta?: Record<string, unknown> | null;
 };
 
 type DeliveryEntry = {
@@ -209,8 +211,7 @@ function GuestDashboard({
       .catch(() => {});
   }, [reservation.id]);
 
-  const hasEarlyCheckin = purchasedUpsells.some((u) => u.type === "early_checkin" && u.status === "paid");
-  const hasLateCheckout = purchasedUpsells.some((u) => u.type === "late_checkout" && u.status === "paid");
+  const { checkInTime, checkOutTime, hasEarlyCheckin, hasLateCheckout } = effectiveStayTimes(purchasedUpsells);
 
   const countdownLabel =
     daysUntil === 0
@@ -349,7 +350,7 @@ function GuestDashboard({
                   {formatShortDate(reservation.check_in_date)}
                 </p>
                 <p className={`text-sm ${hasEarlyCheckin ? "text-blue-700 dark:text-blue-400 font-medium" : "text-muted-foreground"}`}>
-                  After {hasEarlyCheckin ? "1:00 PM" : lodgify?.check_in_time ? formatTime(lodgify.check_in_time) : "4:00 PM"}
+                  After {hasEarlyCheckin ? checkInTime : lodgify?.check_in_time ? formatTime(lodgify.check_in_time) : "4:00 PM"}
                 </p>
               </div>
               <div className={`relative rounded-lg border p-4 space-y-1 overflow-hidden ${hasLateCheckout ? "border-purple-300 bg-purple-50/50 dark:border-purple-700 dark:bg-purple-950/30" : ""}`}>
@@ -366,7 +367,7 @@ function GuestDashboard({
                   {formatShortDate(reservation.check_out_date)}
                 </p>
                 <p className={`text-sm ${hasLateCheckout ? "text-purple-700 dark:text-purple-400 font-medium" : "text-muted-foreground"}`}>
-                  By {hasLateCheckout ? "2:00 PM" : lodgify?.check_out_time ? formatTime(lodgify.check_out_time) : "11:00 AM"}
+                  By {hasLateCheckout ? checkOutTime : lodgify?.check_out_time ? formatTime(lodgify.check_out_time) : "11:00 AM"}
                 </p>
               </div>
             </div>
