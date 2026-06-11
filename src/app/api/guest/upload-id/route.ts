@@ -20,10 +20,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const allowedTypes = ["application/pdf", "image/jpeg", "image/png", "image/webp"];
+  const allowedTypes = [
+    "application/pdf",
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "image/heic",
+    "image/heif",
+  ];
   if (!allowedTypes.includes(file.type)) {
     return NextResponse.json(
-      { error: "File must be a PDF, JPEG, PNG, or WebP" },
+      { error: "File must be a PDF, JPEG, PNG, WebP, or HEIC image" },
       { status: 400 }
     );
   }
