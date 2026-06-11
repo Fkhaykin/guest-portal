@@ -1,4 +1,4 @@
-const CACHE_NAME = "summit-v1";
+const CACHE_NAME = "summit-v2";
 const PRECACHE_URLS = ["/", "/manifest.json"];
 
 self.addEventListener("install", (event) => {
@@ -31,7 +31,7 @@ self.addEventListener("push", (event) => {
     self.registration.showNotification(data.title || "Summit Lakeside", {
       body: data.body || "",
       icon: "/icons/icon-192.png",
-      badge: "/icons/icon-192.png",
+      badge: "/icons/badge-96.png",
       data: { url: data.url || "/" },
     })
   );
