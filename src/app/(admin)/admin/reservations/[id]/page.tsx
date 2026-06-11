@@ -41,6 +41,7 @@ import {
   Sparkles,
   Check,
   MapPin,
+  MessageSquare,
 } from "lucide-react";
 import { EditRegistrationDialog } from "@/components/admin/edit-registration-dialog";
 import type { GuestListEntry, PetEntry, UpsellEntry, CleaningPhoto, CleaningPhotoExif, CleaningChecklistItem, InvoiceLineItem, InvoiceStatus } from "@/types/database";
@@ -464,6 +465,11 @@ export default function ReservationDetailPage() {
 
       {/* Quick Actions */}
       <div className="flex flex-wrap gap-2">
+        {reg.lodgify_booking_id && (
+          <Button variant="outline" size="sm" onClick={() => router.push(`/admin/messages?booking=${reg.lodgify_booking_id}`)}>
+            <MessageSquare className="h-4 w-4 mr-1" /> Messages
+          </Button>
+        )}
         {lodgifyBookingUrl && (
           <a href={lodgifyBookingUrl} target="_blank" rel="noopener noreferrer">
             <Button variant="outline" size="sm">
