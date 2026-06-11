@@ -662,27 +662,11 @@ export function AnalyticsCharts() {
 
   return (
     <div className="space-y-3">
-      {/* Row 1: date presets */}
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:flex-wrap">
+      {/* Date preset chips (desktop only — mobile uses the dropdown below) */}
+      <div className="hidden sm:flex sm:items-center sm:flex-wrap gap-2">
         <div className="flex items-center gap-2">
           <CalendarRange className="h-4 w-4 shrink-0 text-muted-foreground" />
-          {/* Mobile: compact dropdown */}
-          <Select value={preset} onValueChange={(v) => setPreset(v as DatePreset)}>
-            <SelectTrigger size="sm" className="flex-1 sm:hidden">
-              <SelectValue>
-                {PRESETS.find((p) => p.value === preset)?.label}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              {PRESETS.map((p) => (
-                <SelectItem key={p.value} value={p.value}>
-                  {p.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {/* Desktop: one-tap chips */}
-          <div className="hidden sm:flex flex-wrap items-center gap-1">
+          <div className="flex flex-wrap items-center gap-1">
             {PRESETS.map((p) => (
               <Button
                 key={p.value}
@@ -705,8 +689,22 @@ export function AnalyticsCharts() {
         )}
       </div>
 
-      {/* Row 2: property filter + group by */}
+      {/* Controls row: date range (mobile) + property filter + group by */}
       <div className="flex items-center gap-2">
+        <Select value={preset} onValueChange={(v) => setPreset(v as DatePreset)}>
+          <SelectTrigger size="sm" className="flex-1 min-w-0 sm:hidden">
+            <SelectValue>
+              {PRESETS.find((p) => p.value === preset)?.label}
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            {PRESETS.map((p) => (
+              <SelectItem key={p.value} value={p.value}>
+                {p.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         {raw && (
           <DropdownMenu>
             <DropdownMenuTrigger className="inline-flex items-center gap-1.5 h-8 px-3 rounded-md border border-input bg-background text-xs font-medium hover:bg-accent hover:text-accent-foreground transition-colors shrink-0">
@@ -759,9 +757,9 @@ export function AnalyticsCharts() {
           </DropdownMenu>
         )}
         <div className="ml-auto flex items-center gap-1.5 shrink-0">
-          <span className="text-xs text-muted-foreground">Group by</span>
+          <span className="text-xs text-muted-foreground hidden sm:inline">Group by</span>
           <Select value={groupBy} onValueChange={(v) => setGroupBy(v as GroupBy)}>
-            <SelectTrigger size="sm" className="w-28">
+            <SelectTrigger size="sm" className="w-24 sm:w-28">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -772,6 +770,15 @@ export function AnalyticsCharts() {
           </Select>
         </div>
       </div>
+
+      {/* Custom range inputs (mobile) */}
+      {preset === "custom" && (
+        <div className="sm:hidden flex items-center gap-1.5">
+          <Input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} className="h-8 flex-1 text-xs" />
+          <span className="text-xs text-muted-foreground">to</span>
+          <Input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} className="h-8 flex-1 text-xs" />
+        </div>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
