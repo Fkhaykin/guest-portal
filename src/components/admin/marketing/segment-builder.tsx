@@ -29,6 +29,16 @@ interface Props {
   submitLabel?: string;
 }
 
+type DateMode = "all" | "rolling" | "fixed";
+
+const ROLLING_PRESETS = [30, 90, 180, 365];
+
+function initialDateMode(filter: SegmentFilter): DateMode {
+  if (filter.stayed_within_days != null) return "rolling";
+  if (filter.stayed_from || filter.stayed_until) return "fixed";
+  return "all";
+}
+
 export function SegmentBuilder({
   properties,
   initialName = "",
@@ -40,6 +50,7 @@ export function SegmentBuilder({
   const [name, setName] = useState(initialName);
   const [description, setDescription] = useState(initialDescription);
   const [filter, setFilter] = useState<SegmentFilter>(initialFilter);
+  const [dateMode, setDateMode] = useState<DateMode>(initialDateMode(initialFilter));
   const [preview, setPreview] = useState<PreviewResult | null>(null);
   const [previewing, setPreviewing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -68,6 +79,17 @@ export function SegmentBuilder({
     }, 300);
     return () => clearTimeout(handle);
   }, [filter]);
+
+  function switchDateMode(mode: DateMode) {
+    setDateMode(mode);
+    if (mode === "all") {
+      setFilter({ ...filter, stayed_within_days: null, stayed_from: null, stayed_until: null });
+    } else if (mode === "rolling") {
+      setFilter({ ...filter, stayed_within_days: filter.stayed_within_days ?? 180, stayed_from: null, stayed_until: null });
+    } else {
+      setFilter({ ...filter, stayed_within_days: null });
+    }
+  }
 
   function toggleProperty(id: string) {
     const current = filter.property_ids ?? [];
@@ -111,25 +133,90 @@ export function SegmentBuilder({
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1.5">
-          <Label htmlFor="stayed-from">Stayed from (check-out)</Label>
-          <Input
-            id="stayed-from"
-            type="date"
-            value={filter.stayed_from ?? ""}
-            onChange={(e) => setFilter({ ...filter, stayed_from: e.target.value || null })}
-          />
+      <div className="space-y-2">
+        <Label>Stay window</Label>
+        <div className="flex gap-1.5">
+          {(
+            [
+              ["all", "All time"],
+              ["rolling", "Rolling window"],
+              ["fixed", "Fixed dates"],
+            ] as [DateMode, string][]
+          ).map(([mode, label]) => (
+            <Button
+              key={mode}
+              type="button"
+              size="sm"
+              variant={dateMode === mode ? "default" : "outline"}
+              onClick={() => switchDateMode(mode)}
+            >
+              {label}
+            </Button>
+          ))}
         </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="stayed-until">Stayed until (check-out)</Label>
-          <Input
-            id="stayed-until"
-            type="date"
-            value={filter.stayed_until ?? ""}
-            onChange={(e) => setFilter({ ...filter, stayed_until: e.target.value || null })}
-          />
-        </div>
+
+        {dateMode === "rolling" && (
+          <div className="space-y-2 rounded-md border p-3">
+            <div className="flex items-center gap-2">
+              <Label htmlFor="stayed-within" className="shrink-0">
+                Checked out in the last
+              </Label>
+              <Input
+                id="stayed-within"
+                type="number"
+                min={1}
+                className="w-24"
+                value={filter.stayed_within_days ?? ""}
+                onChange={(e) =>
+                  setFilter({
+                    ...filter,
+                    stayed_within_days: e.target.value ? parseInt(e.target.value, 10) : null,
+                  })
+                }
+              />
+              <span className="text-sm text-muted-foreground">days</span>
+            </div>
+            <div className="flex gap-1.5">
+              {ROLLING_PRESETS.map((days) => (
+                <Button
+                  key={days}
+                  type="button"
+                  size="sm"
+                  variant={filter.stayed_within_days === days ? "secondary" : "ghost"}
+                  onClick={() => setFilter({ ...filter, stayed_within_days: days })}
+                >
+                  {days >= 365 ? "1 year" : `${days}d`}
+                </Button>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Updates automatically — guests join as they check out and age out as the window moves.
+            </p>
+          </div>
+        )}
+
+        {dateMode === "fixed" && (
+          <div className="grid grid-cols-2 gap-3 rounded-md border p-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="stayed-from">Stayed from (check-out)</Label>
+              <Input
+                id="stayed-from"
+                type="date"
+                value={filter.stayed_from ?? ""}
+                onChange={(e) => setFilter({ ...filter, stayed_from: e.target.value || null })}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="stayed-until">Stayed until (check-out)</Label>
+              <Input
+                id="stayed-until"
+                type="date"
+                value={filter.stayed_until ?? ""}
+                onChange={(e) => setFilter({ ...filter, stayed_until: e.target.value || null })}
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="space-y-1.5">

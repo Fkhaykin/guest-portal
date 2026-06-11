@@ -46,8 +46,15 @@ export async function evaluateSegment(
     .in("status", ["active", "completed"])
     .order("check_out_date", { ascending: false });
 
-  if (filter.stayed_from) query = query.gte("check_out_date", filter.stayed_from);
-  if (filter.stayed_until) query = query.lte("check_out_date", filter.stayed_until);
+  if (filter.stayed_within_days != null) {
+    // Rolling window resolved at evaluation time, so the segment stays current on its own.
+    const from = new Date();
+    from.setUTCDate(from.getUTCDate() - filter.stayed_within_days);
+    query = query.gte("check_out_date", from.toISOString().slice(0, 10));
+  } else {
+    if (filter.stayed_from) query = query.gte("check_out_date", filter.stayed_from);
+    if (filter.stayed_until) query = query.lte("check_out_date", filter.stayed_until);
+  }
   if (filter.property_ids && filter.property_ids.length > 0) {
     query = query.in("property_id", filter.property_ids);
   }

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, Users, Mail, Phone, Trash2, Pencil, Loader2 } from "lucide-react";
+import { Plus, Users, Mail, Phone, Trash2, Pencil, Loader2, RefreshCw, CalendarRange } from "lucide-react";
 import { SegmentBuilder } from "./segment-builder";
 import { toast } from "sonner";
 import type { SegmentFilter } from "@/types/database";
@@ -24,6 +24,16 @@ interface Segment {
   reachable_email: number;
   reachable_sms: number;
   created_at: string;
+}
+
+function windowSummary(f: SegmentFilter): { label: string; rolling: boolean } | null {
+  if (f.stayed_within_days != null) {
+    return { label: `Last ${f.stayed_within_days} days · auto-updates`, rolling: true };
+  }
+  if (f.stayed_from && f.stayed_until) return { label: `${f.stayed_from} – ${f.stayed_until}`, rolling: false };
+  if (f.stayed_from) return { label: `Since ${f.stayed_from}`, rolling: false };
+  if (f.stayed_until) return { label: `Until ${f.stayed_until}`, rolling: false };
+  return null;
 }
 
 export function SegmentsTab({ properties }: { properties: Property[] }) {
@@ -96,7 +106,8 @@ export function SegmentsTab({ properties }: { properties: Property[] }) {
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <p className="text-sm text-muted-foreground">
-          Group guests by stay date, property, and how many times they've stayed.
+          Group guests by stay date, property, and how many times they&apos;ve stayed. Segments
+          are live — new guests join automatically as they meet the conditions.
         </p>
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
           <DialogTrigger render={<Button size="sm" />}>
@@ -147,6 +158,20 @@ export function SegmentsTab({ properties }: { properties: Property[] }) {
                       <Phone className="h-3.5 w-3.5" />
                       {s.reachable_sms}
                     </span>
+                    {(() => {
+                      const w = windowSummary(s.filter);
+                      if (!w) return null;
+                      return (
+                        <span className="flex items-center gap-1">
+                          {w.rolling ? (
+                            <RefreshCw className="h-3.5 w-3.5" />
+                          ) : (
+                            <CalendarRange className="h-3.5 w-3.5" />
+                          )}
+                          {w.label}
+                        </span>
+                      );
+                    })()}
                   </div>
                 </div>
                 <div className="flex items-center gap-1">
