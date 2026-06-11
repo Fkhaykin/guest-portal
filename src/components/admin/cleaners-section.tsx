@@ -25,7 +25,7 @@ import type { Tables } from "@/types/database";
 
 type CleanerWithCount = Tables<"cleaner"> & { property_count: number };
 
-export default function AdminCleanersPage() {
+export function CleanersSection() {
   const [cleaners, setCleaners] = useState<CleanerWithCount[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Tables<"cleaner"> | null>(null);
@@ -39,7 +39,6 @@ export default function AdminCleanersPage() {
   }, []);
 
   async function loadCleaners() {
-    // Get cleaners
     const { data: cleanerRows } = await supabase
       .from("cleaner")
       .select("*")
@@ -50,7 +49,6 @@ export default function AdminCleanersPage() {
       return;
     }
 
-    // Get property counts per cleaner
     const { data: assignments } = await supabase
       .from("cleaner_property")
       .select("cleaner_id");
@@ -88,13 +86,11 @@ export default function AdminCleanersPage() {
       : 0;
 
     if (editing) {
-      // Update cleaner fields
       await supabase
         .from("cleaner")
         .update({ name, phone, email, company, tax_id, address, payment_method, monthly_fee_cents, pet_fee_cents })
         .eq("id", editing.id);
 
-      // Update password if provided
       if (password && password.length >= 6) {
         const res = await fetch("/api/cleaner/hash-password", {
           method: "POST",
@@ -110,7 +106,6 @@ export default function AdminCleanersPage() {
         }
       }
     } else {
-      // Create new cleaner
       if (!password || password.length < 6) {
         setLoading(false);
         return;
@@ -127,7 +122,6 @@ export default function AdminCleanersPage() {
         return;
       }
 
-      // Get current host id
       const {
         data: { user },
       } = await supabase.auth.getUser();
@@ -182,9 +176,8 @@ export default function AdminCleanersPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold tracking-tight">Cleaners</h1>
+    <div className="space-y-4">
+      <div className="flex items-center justify-end">
         <Dialog
           open={dialogOpen}
           onOpenChange={(open) => {
@@ -353,7 +346,7 @@ export default function AdminCleanersPage() {
               <CardHeader className="flex flex-row items-center justify-between py-3">
                 <div
                   className="cursor-pointer flex-1"
-                  onClick={() => router.push(`/admin/cleaners/${cleaner.id}`)}
+                  onClick={() => router.push(`/admin/settings/cleaners/${cleaner.id}`)}
                 >
                   <CardTitle className="text-base">{cleaner.name}</CardTitle>
                   <p className="text-sm text-muted-foreground">

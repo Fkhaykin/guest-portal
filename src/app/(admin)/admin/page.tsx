@@ -15,7 +15,7 @@ export default async function AdminDashboardPage() {
 
       <div>
         <Link
-          href="/admin/properties"
+          href="/admin/settings?tab=properties"
           className="text-sm font-medium text-primary hover:underline"
         >
           Manage your properties →

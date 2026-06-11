@@ -60,7 +60,7 @@ function SortablePropertyCard({ property }: { property: Property }) {
         >
           <GripVertical className="h-4 w-4 text-muted-foreground" />
         </button>
-        <Link href={`/admin/properties/${property.id}`}>
+        <Link href={`/admin/settings/properties/${property.id}`}>
           <div className="relative aspect-4/3 bg-muted">
             {property.cover_image_url ? (
               <Image

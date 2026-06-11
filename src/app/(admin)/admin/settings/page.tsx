@@ -1,8 +1,11 @@
-import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { TabsContent } from "@/components/ui/tabs";
+import { SettingsTabs } from "@/components/admin/settings-tabs";
 import { NotificationSettings } from "@/components/admin/notification-settings";
+import { PropertiesSection } from "@/components/admin/properties-section";
+import { CleanersSection } from "@/components/admin/cleaners-section";
+import { LodgifyWebhooksSection } from "@/components/admin/lodgify-webhooks-section";
 
 export default async function SettingsPage() {
   const supabase = await createClient();
@@ -16,33 +19,16 @@ export default async function SettingsPage() {
     .eq("auth_user_id", user?.id ?? "")
     .single();
 
-  const tabLinkClass =
-    "inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground";
-
   return (
-    <div className="space-y-6 max-w-2xl">
+    <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
         <p className="text-muted-foreground">Manage your account</p>
       </div>
 
-      <Tabs defaultValue="profile">
-        <TabsList>
-          <TabsTrigger value="profile">Profile</TabsTrigger>
-          <TabsTrigger value="notifications">Notifications</TabsTrigger>
-          <Link href="/admin/properties" className={tabLinkClass}>
-            Properties
-          </Link>
-          <Link href="/admin/cleaners" className={tabLinkClass}>
-            Cleaners
-          </Link>
-          <Link href="/admin/lodgify-webhooks" className={tabLinkClass}>
-            Lodgify Webhooks
-          </Link>
-        </TabsList>
-
+      <SettingsTabs>
         <TabsContent value="profile">
-          <Card>
+          <Card className="max-w-2xl">
             <CardHeader>
               <CardTitle>Profile</CardTitle>
             </CardHeader>
@@ -60,12 +46,26 @@ export default async function SettingsPage() {
         </TabsContent>
 
         <TabsContent value="notifications">
-          <NotificationSettings
-            hostId={host?.id ?? ""}
-            initialSettings={host?.notification_settings ?? null}
-          />
+          <div className="max-w-2xl">
+            <NotificationSettings
+              hostId={host?.id ?? ""}
+              initialSettings={host?.notification_settings ?? null}
+            />
+          </div>
         </TabsContent>
-      </Tabs>
+
+        <TabsContent value="properties">
+          <PropertiesSection />
+        </TabsContent>
+
+        <TabsContent value="cleaners">
+          <CleanersSection />
+        </TabsContent>
+
+        <TabsContent value="lodgify-webhooks">
+          <LodgifyWebhooksSection />
+        </TabsContent>
+      </SettingsTabs>
     </div>
   );
 }

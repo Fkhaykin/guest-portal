@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Check, Building2, Mail, Phone, DollarSign, PawPrint, FileText, MapPin, CreditCard } from "lucide-react";
+import { Breadcrumbs } from "@/components/admin/breadcrumbs";
 import type { Tables } from "@/types/database";
 
 export default function AdminCleanerDetailPage({
@@ -91,8 +92,19 @@ export default function AdminCleanerDetailPage({
 
   return (
     <div className="space-y-6">
+      <Breadcrumbs
+        items={[
+          { label: "Settings", href: "/admin/settings" },
+          { label: "Cleaners", href: "/admin/settings?tab=cleaners" },
+          { label: cleaner.name },
+        ]}
+      />
       <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={() => router.push("/admin/cleaners")}>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => router.push("/admin/settings?tab=cleaners")}
+        >
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div>

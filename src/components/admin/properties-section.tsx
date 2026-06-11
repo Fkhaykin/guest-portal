@@ -1,14 +1,11 @@
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-} from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Plus } from "lucide-react";
 import { SortablePropertiesGrid } from "@/components/admin/sortable-properties-grid";
 
-export default async function PropertiesListPage() {
+export async function PropertiesSection() {
   const supabase = await createClient();
 
   const { data: host } = await supabase
@@ -23,13 +20,10 @@ export default async function PropertiesListPage() {
     .order("sort_order", { ascending: true });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Properties</h1>
-          <p className="text-muted-foreground">Manage your rental properties — drag to reorder</p>
-        </div>
-        <Link href="/admin/properties/new">
+        <p className="text-sm text-muted-foreground">Drag to reorder.</p>
+        <Link href="/admin/settings/properties/new">
           <Button>
             <Plus className="h-4 w-4 mr-2" />
             Add Property
@@ -45,7 +39,7 @@ export default async function PropertiesListPage() {
             <p className="text-muted-foreground mb-4">
               No properties yet. Add your first property to get started.
             </p>
-            <Link href="/admin/properties/new">
+            <Link href="/admin/settings/properties/new">
               <Button>
                 <Plus className="h-4 w-4 mr-2" />
                 Add Property

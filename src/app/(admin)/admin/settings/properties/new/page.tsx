@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Breadcrumbs } from "@/components/admin/breadcrumbs";
 
 function slugify(text: string): string {
   return text
@@ -68,12 +69,19 @@ export default function NewPropertyPage() {
       setError(insertError.message);
       setLoading(false);
     } else {
-      router.push("/admin/properties");
+      router.push("/admin/settings?tab=properties");
     }
   }
 
   return (
-    <div className="max-w-2xl">
+    <div className="max-w-2xl space-y-4">
+      <Breadcrumbs
+        items={[
+          { label: "Settings", href: "/admin/settings" },
+          { label: "Properties", href: "/admin/settings?tab=properties" },
+          { label: "New Property" },
+        ]}
+      />
       <h1 className="text-3xl font-bold tracking-tight mb-6">
         New Property
       </h1>

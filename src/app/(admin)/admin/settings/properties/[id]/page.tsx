@@ -109,7 +109,7 @@ export default async function PropertyDetailPage({
         {sections.map((section) => (
           <Link
             key={section.label}
-            href={`/admin/properties/${id}${section.href}`}
+            href={`/admin/settings/properties/${id}${section.href}`}
           >
             <Card className="h-full hover:bg-accent/50 transition-colors cursor-pointer">
               <CardHeader className="flex flex-row items-start gap-3">
