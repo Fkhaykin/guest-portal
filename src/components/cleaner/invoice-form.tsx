@@ -30,6 +30,7 @@ import type { InvoiceLineItem, InvoiceAdjustment, InvoiceAttachment } from "@/ty
 type Property = {
   id: string;
   name: string;
+  nickname: string | null;
   cleaningFeeCents: number;
   petFeeCents: number;
 };
@@ -38,6 +39,7 @@ type UnbilledCleaning = {
   registration_id: string;
   property_id: string;
   property_name: string;
+  property_nickname: string | null;
   check_out_date: string;
   has_pets: boolean;
 };
@@ -124,11 +126,11 @@ export function InvoiceForm({
   }
 
   function addCleaningLines() {
-    const propMap = new Map(properties.map((p) => [p.id, p]));
     const newLines = properties.map((p) => ({
-      description: `Cleaning — ${p.name}`,
+      description: `Cleaning — ${p.nickname || p.name}`,
       type: "cleaning" as const,
       property_name: p.name,
+      property_nickname: p.nickname ?? undefined,
       amount: p.cleaningFeeCents,
     }));
     setLines((prev) => [...prev, ...newLines]);
@@ -144,11 +146,14 @@ export function InvoiceForm({
       const prop = propMap.get(cleaning.property_id);
       if (!prop) continue;
 
+      const propLabel = cleaning.property_nickname || cleaning.property_name;
+
       // Add cleaning line
       newLines.push({
-        description: `Cleaning — ${cleaning.property_name} (${cleaning.check_out_date})`,
+        description: `Cleaning — ${propLabel} (${cleaning.check_out_date})`,
         type: "cleaning",
         property_name: cleaning.property_name,
+        property_nickname: cleaning.property_nickname ?? undefined,
         registration_id: cleaning.registration_id,
         amount: prop.cleaningFeeCents,
       });
@@ -156,9 +161,10 @@ export function InvoiceForm({
       // Add pet fee if pets were present
       if (cleaning.has_pets && prop.petFeeCents > 0) {
         newLines.push({
-          description: `Pet Fee — ${cleaning.property_name} (${cleaning.check_out_date})`,
+          description: `Pet Fee — ${propLabel} (${cleaning.check_out_date})`,
           type: "pet_fee",
           property_name: cleaning.property_name,
+          property_nickname: cleaning.property_nickname ?? undefined,
           registration_id: cleaning.registration_id,
           amount: prop.petFeeCents,
         });
@@ -382,7 +388,8 @@ export function InvoiceForm({
                         const prop = properties.find((p) => p.name === val);
                         updateLine(idx, {
                           property_name: val || undefined,
-                          description: `Cleaning — ${val}`,
+                          property_nickname: prop?.nickname ?? undefined,
+                          description: `Cleaning — ${prop?.nickname || val}`,
                           amount: prop?.cleaningFeeCents || line.amount,
                         });
                       }}
@@ -393,7 +400,7 @@ export function InvoiceForm({
                       <SelectContent>
                         {properties.map((p) => (
                           <SelectItem key={p.id} value={p.name}>
-                            {p.name}
+                            {p.nickname || p.name}
                           </SelectItem>
                         ))}
                       </SelectContent>

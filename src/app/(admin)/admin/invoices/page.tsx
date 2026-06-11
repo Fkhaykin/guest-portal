@@ -293,9 +293,13 @@ export default async function AdminInvoicesPage() {
     const cleanerName =
       (inv.cleaner as { name: string } | null)?.name || "Unknown";
     const isBianca = items.some((item) => {
-      const propName = item.property_name;
-      if (!propName) return false;
-      const nickname = propertyNicknameMap.get(propName);
+      // Prefer the nickname captured on the line item (set when the cleaner
+      // picks a property); fall back to resolving it from the property name.
+      const nickname =
+        item.property_nickname ??
+        (item.property_name
+          ? propertyNicknameMap.get(item.property_name)
+          : undefined);
       return nickname?.toLowerCase().includes("bianca") ?? false;
     });
     const isMonthly = items.some((item) => item.type === "monthly_fee");

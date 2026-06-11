@@ -41,6 +41,7 @@ export type UnpaidCleaning = {
 export type RecentBooking = {
   id: string;
   propertyName: string;
+  propertyNickname: string | null;
   guestName: string | null;
   checkInDate: string;
   checkOutDate: string;
@@ -67,7 +68,7 @@ export default async function InvoicesPage() {
 
   const { data: properties } = await supabase
     .from("property")
-    .select("id, name, cover_image_url, cleaning_fee_cents")
+    .select("id, name, nickname, cover_image_url, cleaning_fee_cents")
     .in("id", propertyIds.length > 0 ? propertyIds : ["_none_"]);
 
   const propMap = new Map(
@@ -164,6 +165,7 @@ export default async function InvoicesPage() {
       return {
         id: r.id,
         propertyName: prop.name,
+        propertyNickname: prop.nickname,
         guestName: maskGuestName(guest?.full_name),
         checkInDate: r.check_in_date,
         checkOutDate: r.check_out_date,
@@ -174,7 +176,11 @@ export default async function InvoicesPage() {
     <InvoiceTabs
       unpaidCleanings={unpaidCleanings}
       invoices={(invoices || []) as InvoiceRow[]}
-      properties={(properties || []).map((p) => ({ id: p.id, name: p.name }))}
+      properties={(properties || []).map((p) => ({
+        id: p.id,
+        name: p.name,
+        nickname: p.nickname,
+      }))}
       recentBookings={recentBookings}
     />
   );

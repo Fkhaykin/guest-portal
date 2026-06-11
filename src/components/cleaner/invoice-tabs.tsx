@@ -97,7 +97,7 @@ export function InvoiceTabs({
 }: {
   unpaidCleanings: UnpaidCleaning[];
   invoices: InvoiceRow[];
-  properties: { id: string; name: string }[];
+  properties: { id: string; name: string; nickname: string | null }[];
   recentBookings: RecentBooking[];
 }) {
   const [tab, setTab] = useState<"unpaid" | "history">("unpaid");

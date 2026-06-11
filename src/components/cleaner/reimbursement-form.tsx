@@ -25,11 +25,13 @@ import type { InvoiceAttachment } from "@/types/database";
 type Property = {
   id: string;
   name: string;
+  nickname: string | null;
 };
 
 type RecentBooking = {
   id: string;
   propertyName: string;
+  propertyNickname: string | null;
   guestName: string | null;
   checkInDate: string;
   checkOutDate: string;
@@ -166,6 +168,8 @@ export function ReimbursementModal({
       description: `Reimbursement — ${description.trim()}`,
       type: "reimbursement" as const,
       property_name: selectedProperty?.name || selectedBooking?.propertyName,
+      property_nickname:
+        selectedProperty?.nickname ?? selectedBooking?.propertyNickname ?? undefined,
       registration_id: resolvedBookingId,
       amount,
     };
@@ -279,7 +283,7 @@ export function ReimbursementModal({
                   <SelectItem value="">None</SelectItem>
                   {properties.map((p) => (
                     <SelectItem key={p.id} value={p.id}>
-                      {p.name}
+                      {p.nickname || p.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -299,7 +303,7 @@ export function ReimbursementModal({
                   <SelectItem value="">None</SelectItem>
                   {recentBookings.map((b) => (
                     <SelectItem key={b.id} value={b.id}>
-                      {b.propertyName} — {b.guestName || "No guest"} ({formatDate(b.checkInDate)} – {formatDate(b.checkOutDate)})
+                      {b.propertyNickname || b.propertyName} — {b.guestName || "No guest"} ({formatDate(b.checkInDate)} – {formatDate(b.checkOutDate)})
                     </SelectItem>
                   ))}
                 </SelectContent>

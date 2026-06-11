@@ -26,7 +26,7 @@ export default async function NewInvoicePage() {
 
   const { data: properties } = await supabase
     .from("property")
-    .select("id, name, cleaning_fee_cents")
+    .select("id, name, nickname, cleaning_fee_cents")
     .in("id", propertyIds.length > 0 ? propertyIds : ["_none_"])
     .order("name");
 
@@ -60,6 +60,7 @@ export default async function NewInvoicePage() {
     registration_id: string;
     property_id: string;
     property_name: string;
+    property_nickname: string | null;
     check_out_date: string;
     has_pets: boolean;
   }> = [];
@@ -84,6 +85,7 @@ export default async function NewInvoicePage() {
           registration_id: r.id,
           property_id: r.property_id,
           property_name: prop.name,
+          property_nickname: prop.nickname,
           check_out_date: r.check_out_date,
           has_pets: hasPets,
         };
@@ -96,6 +98,7 @@ export default async function NewInvoicePage() {
       properties={(properties || []).map((p) => ({
         id: p.id,
         name: p.name,
+        nickname: p.nickname,
         cleaningFeeCents: p.cleaning_fee_cents ?? 0,
         petFeeCents: cleaner.pet_fee_cents ?? 0,
       }))}

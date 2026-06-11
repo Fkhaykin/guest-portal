@@ -47,13 +47,14 @@ export default async function AdminInvoiceEditPage({
   // Load properties for the form (needed for cleaning line property selectors)
   const { data: properties } = await admin
     .from("property")
-    .select("id, name, cleaning_fee_cents")
+    .select("id, name, nickname, cleaning_fee_cents")
     .eq("host_id", host.id)
     .order("name");
 
   const formProperties = (properties || []).map((p) => ({
     id: p.id,
     name: p.name,
+    nickname: p.nickname,
     cleaningFeeCents: p.cleaning_fee_cents || 0,
     petFeeCents: cleanerPetFee,
   }));
