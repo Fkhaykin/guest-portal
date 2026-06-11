@@ -41,6 +41,11 @@ type UpsellOption = {
     per_guest_cost?: number;
     per_guest_per_day_cost?: number;
     vendor_url?: string;
+    duration_options?: Array<{
+      hours: number;
+      time_label: string;
+      price_cents: number;
+    }>;
     menu_options?: Array<{
       menu: string;
       ingredient_cost_per_guest: number;
@@ -123,6 +128,8 @@ export default function AddOnsPage() {
   const [chefMenu, setChefMenu] = useState("");
   const [picnicDate, setPicnicDate] = useState("");
   const [breakfastDays, setBreakfastDays] = useState<Array<{ date: string; servings: number; time: string }>>([]);
+  // Selected duration (in hours) per timing upsell type, e.g. { early_checkin: 1, late_checkout: 2 }
+  const [timingHours, setTimingHours] = useState<Record<string, number>>({});
   const [tips, setTips] = useState({ breakfast: "", delivery: "", cleaning: "" });
   const [requestSending, setRequestSending] = useState<string | null>(null);
   const [requestSent, setRequestSent] = useState<Set<string>>(new Set());
@@ -310,7 +317,7 @@ export default function AddOnsPage() {
                             <p className="font-medium text-sm">{option.label}</p>
                             <p className="text-xs text-muted-foreground leading-snug">{option.description}</p>
                           </div>
-                          {option.type !== "private_chef" && (
+                          {option.type !== "private_chef" && !option.meta?.duration_options && (
                             <span className="text-sm font-semibold whitespace-nowrap shrink-0">
                               {formatCents(option.price_cents)}
                               {option.meta?.per_guest_cost && (
@@ -329,7 +336,43 @@ export default function AddOnsPage() {
                             </Badge>
                           </div>
                         )}
-                        {!option.purchased && option.available && !hasConfig(option.type) && (
+                        {!option.purchased && option.available && option.meta?.duration_options && (() => {
+                          const durations = option.meta.duration_options;
+                          const selectedHours = timingHours[option.type] ?? durations[0].hours;
+                          return (
+                            <div className="mt-2 space-y-2">
+                              <div className="flex flex-wrap gap-2">
+                                {durations.map((d) => {
+                                  const selected = selectedHours === d.hours;
+                                  return (
+                                    <button key={d.hours} type="button" disabled={inCart}
+                                      onClick={() => setTimingHours((prev) => ({ ...prev, [option.type]: d.hours }))}
+                                      className={`flex-1 min-w-28 rounded-lg border px-3 py-2 text-left text-xs transition-colors disabled:opacity-60 ${selected ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}`}>
+                                      <span className="block font-medium">+{d.hours} hr{d.hours !== 1 ? "s" : ""} · {d.time_label}</span>
+                                      <span className="block font-semibold">{formatCents(d.price_cents)}</span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                              {inCart ? (
+                                <Button type="button" variant="outline" size="sm"
+                                  onClick={() => removeFromCart(option.type)}>
+                                  <X className="h-3 w-3 mr-1" /> Remove
+                                </Button>
+                              ) : (
+                                <Button type="button" variant="secondary" size="sm"
+                                  className="hover:bg-primary hover:text-primary-foreground transition-colors"
+                                  onClick={() => {
+                                    const tier = durations.find((d) => d.hours === selectedHours) || durations[0];
+                                    addToCart({ type: option.type, label: `${option.label} (${tier.time_label})`, price_cents: tier.price_cents, meta: { hours: tier.hours } });
+                                  }}>
+                                  <ShoppingCart className="h-3 w-3 mr-1" /> Add to cart
+                                </Button>
+                              )}
+                            </div>
+                          );
+                        })()}
+                        {!option.purchased && option.available && !option.meta?.duration_options && !hasConfig(option.type) && (
                           <div className="mt-2">
                             {inCart ? (
                               <Button type="button" variant="outline" size="sm"

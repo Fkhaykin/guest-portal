@@ -24,8 +24,8 @@ import { CompletedCleaningDialog } from "./completed-cleaning-dialog";
 import { useNewIds } from "./new-ids-provider";
 
 const UPSELL_LABELS: Record<string, string> = {
-  early_checkin: "Early Check-In (1 PM)",
-  late_checkout: "Late Check-Out (2 PM)",
+  early_checkin: "Early Check-In",
+  late_checkout: "Late Check-Out",
   new_sheets: "New Sheets & Pillowcases",
   firewood: "Firewood Delivery",
   private_chef: "Private Chef",

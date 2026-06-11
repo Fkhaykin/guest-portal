@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { stayIncludesHoliday } from "@/lib/holidays";
 
 type Property = {
   id: string;
@@ -53,12 +54,28 @@ type PromoResult = {
 
 // Available upsells
 const UPSELLS = [
-  { type: "early_checkin", label: "Early Check-In (1:00 PM)", price_cents: 10000 },
-  { type: "late_checkout", label: "Late Check-Out (2:00 PM)", price_cents: 10000 },
   { type: "new_sheets", label: "Brand New Sheets & Pillowcases", price_cents: 25000 },
   { type: "firewood", label: "Firewood Delivery", price_cents: 3500 },
   { type: "baby_high_chair", label: "Baby High Chair Rental", price_cents: 2500 },
 ];
+
+// Timing upsells are tiered: pick 1 or 2 extra hours, in either direction.
+// Billed per extra hour: $25/hr normally, $50/hr on holiday stays.
+const TIMING_UPSELL_DEFS = [
+  { type: "early_checkin", label: "Early Check-In", time_labels: ["3:00 PM", "2:00 PM"] },
+  { type: "late_checkout", label: "Late Check-Out", time_labels: ["12:00 PM", "1:00 PM"] },
+];
+
+function buildTimingUpsells(hourlyCents: number) {
+  return TIMING_UPSELL_DEFS.map((u) => ({
+    type: u.type,
+    label: u.label,
+    tiers: [
+      { hours: 1, time_label: u.time_labels[0], price_cents: hourlyCents },
+      { hours: 2, time_label: u.time_labels[1], price_cents: hourlyCents * 2 },
+    ],
+  }));
+}
 
 function fmt(cents: number) {
   return `$${(cents / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -87,6 +104,8 @@ export function CheckoutForm({
 
   // Upsells
   const [selectedUpsells, setSelectedUpsells] = useState<Set<string>>(new Set());
+  // Timing upsells: selected hours per type (null/absent = not selected)
+  const [timingHours, setTimingHours] = useState<Record<string, number | null>>({});
 
   // Promo
   const [promoCode, setPromoCode] = useState("");
@@ -101,6 +120,10 @@ export function CheckoutForm({
     (new Date(checkOut + "T00:00:00").getTime() - new Date(checkIn + "T00:00:00").getTime()) /
       (1000 * 60 * 60 * 24)
   );
+
+  // Timing upsells cost $50/hr when the stay overlaps a holiday, else $25/hr.
+  const isHolidayStay = stayIncludesHoliday(checkIn, checkOut);
+  const timingUpsells = buildTimingUpsells(isHolidayStay ? 5000 : 2500);
 
   // Fetch pricing
   useEffect(() => {
@@ -128,7 +151,21 @@ export function CheckoutForm({
     });
   }
 
-  const upsellItems = UPSELLS.filter((u) => selectedUpsells.has(u.type));
+  const timingItems = timingUpsells.flatMap((u) => {
+    const hours = timingHours[u.type];
+    if (!hours) return [];
+    const tier = u.tiers.find((t) => t.hours === hours) ?? u.tiers[0];
+    return [{
+      type: u.type,
+      label: `${u.label} (${tier.time_label})`,
+      price_cents: tier.price_cents,
+      meta: { hours: tier.hours },
+    }];
+  });
+  const upsellItems = [
+    ...UPSELLS.filter((u) => selectedUpsells.has(u.type)),
+    ...timingItems,
+  ];
   const upsellTotalCents = upsellItems.reduce((sum, u) => sum + u.price_cents, 0);
   const discountCents = promoResult?.valid ? promoResult.discount_cents || 0 : 0;
   const grandTotalCents = pricing
@@ -258,6 +295,11 @@ export function CheckoutForm({
             <Card>
               <CardContent className="p-5 space-y-4">
                 <h2 className="font-semibold text-lg">Add-ons</h2>
+                {isHolidayStay && (
+                  <p className="text-xs text-amber-600">
+                    Holiday rate: early check-in & late check-out are $50/hour.
+                  </p>
+                )}
                 <div className="space-y-2">
                   {UPSELLS.map((upsell) => {
                     const selected = selectedUpsells.has(upsell.type);
@@ -285,6 +327,64 @@ export function CheckoutForm({
                         </div>
                         <span className="text-sm font-semibold">{fmt(upsell.price_cents)}</span>
                       </button>
+                    );
+                  })}
+
+                  {/* Timing upsells (tiered: early check-in / late check-out) */}
+                  {timingUpsells.map((upsell) => {
+                    const selectedHours = timingHours[upsell.type];
+                    return (
+                      <div
+                        key={upsell.type}
+                        className={`rounded-lg border transition-colors ${
+                          selectedHours ? "border-primary bg-primary/5" : "border-border"
+                        }`}
+                      >
+                        <button
+                          onClick={() =>
+                            setTimingHours((prev) => ({
+                              ...prev,
+                              [upsell.type]: prev[upsell.type] ? null : upsell.tiers[0].hours,
+                            }))
+                          }
+                          className="w-full flex items-center justify-between p-3 text-left"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div
+                              className={`h-5 w-5 rounded border flex items-center justify-center transition-colors ${
+                                selectedHours
+                                  ? "bg-primary border-primary text-primary-foreground"
+                                  : "border-muted-foreground/30"
+                              }`}
+                            >
+                              {selectedHours && <Check className="h-3 w-3" />}
+                            </div>
+                            <span className="text-sm font-medium">{upsell.label}</span>
+                          </div>
+                          <span className="text-sm font-semibold">from {fmt(upsell.tiers[0].price_cents)}</span>
+                        </button>
+                        {selectedHours && (
+                          <div className="flex gap-2 px-3 pb-3">
+                            {upsell.tiers.map((tier) => {
+                              const selected = selectedHours === tier.hours;
+                              return (
+                                <button
+                                  key={tier.hours}
+                                  onClick={() => setTimingHours((prev) => ({ ...prev, [upsell.type]: tier.hours }))}
+                                  className={`flex-1 rounded-lg border px-3 py-2 text-left text-xs transition-colors ${
+                                    selected
+                                      ? "border-primary bg-primary/10"
+                                      : "border-border hover:border-primary/50"
+                                  }`}
+                                >
+                                  <span className="block font-medium">+{tier.hours} hr{tier.hours !== 1 ? "s" : ""} · {tier.time_label}</span>
+                                  <span className="block font-semibold">{fmt(tier.price_cents)}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
                     );
                   })}
                 </div>

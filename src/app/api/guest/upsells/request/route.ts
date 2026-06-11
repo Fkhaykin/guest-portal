@@ -82,7 +82,7 @@ export async function POST(request: Request) {
     });
 
     const isBML = (property.hoa_type || "pepoa") === "bmlc";
-    const label = isEarly ? "Early Check-In (1:00 PM)" : "Late Check-Out (2:00 PM)";
+    const label = isEarly ? "Early Check-In" : "Late Check-Out";
     const lotPart = isBML ? "" : ` — Lot/Section ${property.lot_section || "N/A"}`;
     const subject = `${label} Request${lotPart} — ${formattedDate}`;
 

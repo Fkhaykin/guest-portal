@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { verifyGuestToken } from "@/lib/guest-token";
+import { stayIncludesHoliday } from "@/lib/holidays";
+import { timingHourlyCents } from "@/lib/upsells/timing";
 
 const INGREDIENT_COSTS_PER_GUEST: Record<string, number> = {
   Hibachi: 3500,   // $35 per guest
@@ -182,29 +184,49 @@ export async function POST(request: Request) {
   // Already purchased upsells
   const purchased = (reg.upsells as Array<{ type: string; status: string }>) || [];
 
+  // Timing upsells (early check-in / late check-out) are billed per extra hour:
+  // $25/hr normally, $50/hr if any night of the stay overlaps a US federal holiday.
+  const holidayStay = stayIncludesHoliday(reg.check_in_date, reg.check_out_date);
+  const hourlyCents = timingHourlyCents(reg.check_in_date, reg.check_out_date);
+  const holidayNote = holidayStay ? " Holiday rate applies." : "";
+
   // Build available upsells
   const upsells = [
     {
       type: "early_checkin",
       group: "timing",
-      label: "Early Check-In (1:00 PM)",
-      description: "Standard check-in is 4:00 PM. Arrive 3 hours early.",
-      price_cents: 10000,
+      label: "Early Check-In",
+      description: `Standard check-in is 4:00 PM. Arrive 1 hour (3:00 PM) or 2 hours (2:00 PM) early.${holidayNote}`,
+      price_cents: hourlyCents,
       image: UPSELL_IMAGES.early_checkin,
       available: earlyCheckinAvailable && !purchased.some((u) => u.type === "early_checkin" && u.status === "paid"),
       unavailable_reason: earlyCheckinReason,
       request_only: earlyCheckinRequestOnly,
+      meta: {
+        holiday_rate: holidayStay,
+        duration_options: [
+          { hours: 1, time_label: "3:00 PM", price_cents: hourlyCents },
+          { hours: 2, time_label: "2:00 PM", price_cents: hourlyCents * 2 },
+        ],
+      },
     },
     {
       type: "late_checkout",
       group: "timing",
-      label: "Late Check-Out (2:00 PM)",
-      description: "Standard check-out is 11:00 AM. Stay 3 extra hours.",
-      price_cents: 10000,
+      label: "Late Check-Out",
+      description: `Standard check-out is 11:00 AM. Add 1 hour (until 12:00 PM) or 2 hours (until 1:00 PM).${holidayNote}`,
+      price_cents: hourlyCents,
       image: UPSELL_IMAGES.late_checkout,
       available: lateCheckoutAvailable && !purchased.some((u) => u.type === "late_checkout" && u.status === "paid"),
       unavailable_reason: lateCheckoutReason,
       request_only: lateCheckoutRequestOnly,
+      meta: {
+        holiday_rate: holidayStay,
+        duration_options: [
+          { hours: 1, time_label: "12:00 PM", price_cents: hourlyCents },
+          { hours: 2, time_label: "1:00 PM", price_cents: hourlyCents * 2 },
+        ],
+      },
     },
     {
       type: "new_sheets",
