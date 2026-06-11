@@ -2,11 +2,12 @@
 
 import { useEffect, useState, useMemo, useRef } from "react";
 import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button-variants";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   Search,
   Send,
@@ -18,11 +19,10 @@ import {
   RefreshCw,
   ChevronLeft,
   Sparkles,
+  Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { LodgifyMessage, ConversationThread } from "@/lib/lodgify/messages";
-import { GuestMessageSettings } from "@/components/admin/guest-message-settings";
-import { ReplyTraining } from "@/components/admin/reply-training";
 import {
   QuickReplySuggestions,
   QuickReplyPicker,
@@ -429,26 +429,27 @@ export default function AdminMessagesPage() {
 
   return (
     <div className="flex flex-col h-[calc(100vh-2rem)]">
-      <div className="mb-4">
-        <h1 className="text-3xl font-bold tracking-tight">Messages</h1>
-        <p className="text-muted-foreground">
-          Guest conversations — Lodgify and direct bookings
-        </p>
+      <div className="mb-4 flex items-start justify-between gap-2">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Messages</h1>
+          <p className="text-muted-foreground">
+            Guest conversations — Lodgify and direct bookings
+          </p>
+        </div>
+        <Link
+          href="/admin/messages/settings"
+          title="Auto messages"
+          className={cn(
+            buttonVariants({ variant: "ghost", size: "icon" }),
+            // mr-12 clears the fixed mobile menu toggle
+            "mr-12 md:mr-0"
+          )}
+        >
+          <Settings className="h-5 w-5" />
+        </Link>
       </div>
 
-      <Tabs defaultValue="inbox" className="flex flex-col flex-1 min-h-0">
-        <TabsList className="w-fit mb-3 shrink-0">
-          <TabsTrigger value="inbox">Inbox</TabsTrigger>
-          <TabsTrigger value="auto-messages">Auto Messages</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="auto-messages" className="overflow-y-auto mt-0 space-y-4">
-          <ReplyTraining />
-          <GuestMessageSettings />
-        </TabsContent>
-
-        <TabsContent value="inbox" className="flex-1 min-h-0 mt-0">
-        <div className="flex h-full rounded-lg border bg-card">
+      <div className="flex flex-1 min-h-0 rounded-lg border bg-card">
         {/* Left panel — Conversation list */}
         <div className={cn(
           "shrink-0 border-r flex-col md:w-80 w-full",
@@ -877,9 +878,7 @@ export default function AdminMessagesPage() {
             </>
           )}
         </div>
-        </div>
-        </TabsContent>
-      </Tabs>
+      </div>
     </div>
   );
 }
