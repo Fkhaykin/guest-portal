@@ -36,6 +36,9 @@ export default function AdminMessagesPage() {
   const [selectedBookingId, setSelectedBookingId] = useState<number | null>(null);
   const [messages, setMessages] = useState<LodgifyMessage[]>([]);
   const [loadingMessages, setLoadingMessages] = useState(false);
+  // Which booking the `messages` state belongs to — guards effects that would
+  // otherwise run against the previous conversation's messages mid-switch.
+  const [messagesBookingId, setMessagesBookingId] = useState<number | null>(null);
   const [messageError, setMessageError] = useState<string | null>(null);
   const [newMessage, setNewMessage] = useState("");
   const [sending, setSending] = useState(false);
@@ -119,17 +122,22 @@ export default function AdminMessagesPage() {
   // Fetch messages when a conversation is selected
   useEffect(() => {
     if (!selectedBookingId) return;
+    const bookingId = selectedBookingId;
 
     async function fetchMessages() {
       setLoadingMessages(true);
       setMessageError(null);
       setMessages([]);
-      // Clear any untouched auto-draft from the previous conversation
-      setNewMessage((cur) => (cur === autoDraftRef.current ? "" : cur));
+      setMessagesBookingId(null);
+      // Clear any untouched auto-draft from the previous conversation.
+      // Capture the ref BEFORE nulling it — the functional updater runs later,
+      // and comparing against an already-nulled ref would keep the stale draft.
+      const prevDraft = autoDraftRef.current;
       autoDraftRef.current = null;
+      setNewMessage((cur) => (cur === prevDraft ? "" : cur));
 
       try {
-        const res = await fetch(`/api/admin/messages/${selectedBookingId}`);
+        const res = await fetch(`/api/admin/messages/${bookingId}`);
         const data = await res.json();
 
         if (!res.ok) {
@@ -141,6 +149,7 @@ export default function AdminMessagesPage() {
         // Sort oldest first (top) → newest last (bottom), like a chat
         msgs.sort((a, b) => (a.created_at || "").localeCompare(b.created_at || ""));
         setMessages(msgs);
+        setMessagesBookingId(bookingId);
       } catch {
         setMessageError("Failed to connect to messaging service");
       } finally {
@@ -260,6 +269,8 @@ export default function AdminMessagesPage() {
   // prepopulate the composer (unless the admin already typed something).
   useEffect(() => {
     if (!selectedBookingId || !lastGuestMessage || loadingMessages) return;
+    // Messages still belong to a different conversation mid-switch — wait.
+    if (messagesBookingId !== selectedBookingId) return;
 
     // Don't clobber the admin's own text; an untouched prior draft is fair game.
     const composerUntouched =
@@ -306,7 +317,7 @@ export default function AdminMessagesPage() {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedBookingId, lastGuestMessage, loadingMessages]);
+  }, [selectedBookingId, messagesBookingId, lastGuestMessage, loadingMessages]);
 
   function formatDate(dateStr: string) {
     return new Date(dateStr + "T00:00:00").toLocaleDateString("en-US", {
