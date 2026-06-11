@@ -30,12 +30,12 @@ export async function sendAircoverClaimEmail({
   const typeLabel =
     claimType === "damage" ? "Damage Report" : "Pet Discrepancy";
 
-  const subject = `New AirCover Claim: ${typeLabel} — ${propertyName}`;
+  const subject = `New Potential Claim: ${typeLabel} — ${propertyName}`;
 
   const bodyLines = [
     `Hi ${hostName},`,
     "",
-    `A new AirCover claim has been filed by your cleaner for ${propertyName}.`,
+    `A new potential claim has been filed by your cleaner for ${propertyName}.`,
     "",
     `Claim Type: ${typeLabel}`,
     `Claim ID: ${claimId}`,
@@ -56,7 +56,7 @@ export async function sendAircoverClaimEmail({
 
   bodyLines.push(
     "",
-    "Please review this claim in your admin dashboard under AirCover Claims.",
+    "Please review this claim in your admin dashboard under Potential Claims.",
     "",
     "— Summit Lakeside",
   );

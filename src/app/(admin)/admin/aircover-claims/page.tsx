@@ -14,6 +14,7 @@ import {
   Loader2,
   ChevronDown,
   ChevronUp,
+  Trash2,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import type { PetEntry, AircoverClaimStatus } from "@/types/database";
@@ -106,6 +107,20 @@ export default function AircoverClaimsPage() {
     setUpdating(null);
   }
 
+  async function deleteClaim(claimId: string) {
+    if (!confirm("Delete this claim? This cannot be undone.")) return;
+    setUpdating(claimId);
+    const res = await fetch("/api/admin/aircover-claims", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: claimId }),
+    });
+    if (res.ok) {
+      setClaims((prev) => prev.filter((c) => c.id !== claimId));
+    }
+    setUpdating(null);
+  }
+
   function toggleExpand(claimId: string) {
     setExpandedClaims((prev) => {
       const next = new Set(prev);
@@ -143,7 +158,7 @@ export default function AircoverClaimsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">AirCover Claims</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Potential Claims</h1>
         <p className="text-muted-foreground">
           Damage reports and pet discrepancy claims from cleaners
         </p>
@@ -184,7 +199,7 @@ export default function AircoverClaimsPage() {
         <Card>
           <CardContent className="py-12 text-center">
             <CheckCircle className="h-12 w-12 text-green-400 mx-auto mb-3" />
-            <p className="text-lg font-medium">No AirCover claims</p>
+            <p className="text-lg font-medium">No potential claims</p>
             <p className="text-sm text-muted-foreground">
               Claims will appear here when cleaners report damages or pet
               discrepancies.
@@ -258,6 +273,7 @@ export default function AircoverClaimsPage() {
                         claim={claim}
                         updating={updating}
                         onUpdateStatus={updateStatus}
+                        onDelete={deleteClaim}
                         getDamagePhotoUrl={getDamagePhotoUrl}
                         photoUrls={photoUrls}
                       />
@@ -277,12 +293,14 @@ function ClaimDetail({
   claim,
   updating,
   onUpdateStatus,
+  onDelete,
   getDamagePhotoUrl,
   photoUrls,
 }: {
   claim: Claim;
   updating: string | null;
   onUpdateStatus: (id: string, status: AircoverClaimStatus) => void;
+  onDelete: (id: string) => void;
   getDamagePhotoUrl: (path: string) => Promise<string | null>;
   photoUrls: Record<string, string>;
 }) {
@@ -461,6 +479,20 @@ function ClaimDetail({
             Reopen
           </Button>
         )}
+        <Button
+          size="sm"
+          variant="ghost"
+          className="text-red-600 hover:bg-red-50 hover:text-red-700 ml-auto"
+          disabled={isUpdating}
+          onClick={() => onDelete(claim.id)}
+        >
+          {isUpdating ? (
+            <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+          ) : (
+            <Trash2 className="h-3.5 w-3.5 mr-1" />
+          )}
+          Delete
+        </Button>
       </div>
     </div>
   );
