@@ -2,7 +2,7 @@
   "crons": [
     {
       "path": "/api/cleaner/invoices/auto-generate",
-      "schedule": "0 6 * * 1"
+      "schedule": "0 6 * * *"
     },
     {
       "path": "/api/lodgify/cron-sync",

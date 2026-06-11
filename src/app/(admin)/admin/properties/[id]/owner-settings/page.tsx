@@ -279,7 +279,8 @@ export default function OwnerSettingsPage({
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
                 <Label>Phone</Label>
-                <Input value={ownerPhone} onChange={(e) => setOwnerPhone(e.target.value)} placeholder="(732) 979-3856" />
+                <Input value={ownerPhone} onChange={(e) => setOwnerPhone(e.target.value)} placeholder="(732) 979-3856, (732) 555-1234" />
+                <p className="text-xs text-muted-foreground">Separate multiple numbers with commas — each gets invoice texts</p>
               </div>
               <div className="space-y-1">
                 <Label>Email</Label>

@@ -3,7 +3,7 @@ import type { NotificationSettings, NotificationEventKey } from "@/types/databas
 
 const TEXTBELT_KEY = process.env.TEXTBELT_API_KEY?.trim();
 
-async function sendSms(
+export async function sendSms(
   to: string,
   message: string,
   meta: { recipientName?: string; eventType: string; propertyId?: string; lodgifyBookingId?: number }
