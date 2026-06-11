@@ -3,6 +3,22 @@
 // 17k real messages) into a frozen system prompt and asks Claude to write the
 // next host reply for a conversation. The admin reviews/edits before sending.
 import Anthropic from "@anthropic-ai/sdk";
+import { createHash } from "node:crypto";
+
+/** Stable key for a conversation state — drafts regenerate when the guest's last message changes. */
+export function hashGuestMessage(text: string): string {
+  return createHash("sha256").update(text.trim()).digest("hex").slice(0, 32);
+}
+
+/** Last non-comment message, if the guest sent it (i.e. a reply is owed). */
+export function lastUnansweredGuestMessage(messages: DraftMessage[]): string | null {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const type = messages[i].type.toLowerCase();
+    if (type === "comment") continue;
+    return type === "renter" ? messages[i].text : null;
+  }
+  return null;
+}
 
 export interface DraftMessage {
   /** "Owner" (host) or "Renter" (guest) */
