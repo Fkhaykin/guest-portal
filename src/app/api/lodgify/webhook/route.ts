@@ -118,6 +118,15 @@ async function persistGuestMessage(event: GuestMessageEvent): Promise<{ outcome:
   const bookingIdHint = parseBookingIdFromInboxUid(event.inbox_uid);
   const creationTime = event.creation_time ?? null;
 
+  // Distinguish first delivery from a Lodgify retry so the unread count
+  // isn't bumped twice for the same message.
+  const { data: existingMsg } = await supabase
+    .from("guest_message")
+    .select("lodgify_message_id")
+    .eq("lodgify_message_id", messageId)
+    .maybeSingle();
+  const isNewMessage = !existingMsg;
+
   // Upsert the message row by lodgify_message_id so retries are idempotent.
   const { error: msgErr } = await supabase
     .from("guest_message")
@@ -141,6 +150,12 @@ async function persistGuestMessage(event: GuestMessageEvent): Promise<{ outcome:
 
   // Upsert the thread summary row so the admin list can read from DB.
   const preview = (event.message ?? "").slice(0, 200);
+  const { data: existingThread } = await supabase
+    .from("guest_message_thread")
+    .select("unread_count")
+    .eq("thread_uid", threadUid)
+    .maybeSingle();
+  const unreadCount = (existingThread?.unread_count ?? 0) + (isNewMessage ? 1 : 0);
   const { error: threadErr } = await supabase
     .from("guest_message_thread")
     .upsert(
@@ -151,14 +166,16 @@ async function persistGuestMessage(event: GuestMessageEvent): Promise<{ outcome:
         guest_name: event.guest_name ?? null,
         last_message_at: creationTime,
         last_message_preview: preview,
+        unread_count: unreadCount,
         updated_at: new Date().toISOString(),
       },
       { onConflict: "thread_uid" }
     );
   if (threadErr) throw new Error(`guest_message_thread upsert failed: ${threadErr.message}`);
 
-  // Push the new message to the host's devices (fire-and-forget)
-  notifyHostOfGuestMessage({
+  // Push the new message to the host's devices. Awaited — Vercel can freeze
+  // the function as soon as the response is returned, killing in-flight sends.
+  await notifyHostOfGuestMessage({
     guestName: event.guest_name ?? null,
     preview,
     lodgifyBookingId: bookingIdHint,

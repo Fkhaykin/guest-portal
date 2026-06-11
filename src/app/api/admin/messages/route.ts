@@ -39,7 +39,7 @@ export async function GET() {
   // Pull all thread summaries at once and index by thread_uid + booking_id.
   const { data: threads } = await admin
     .from("guest_message_thread")
-    .select("thread_uid, lodgify_booking_id, last_message_at, last_message_preview, unread_count");
+    .select("thread_uid, lodgify_booking_id, guest_name, last_message_at, last_message_preview, unread_count");
 
   const threadByBooking = new Map<number, {
     last_message_at: string | null;
@@ -103,6 +103,38 @@ export async function GET() {
         unread_count: summary?.unread_count ?? 0,
       };
     });
+
+  // Threads with no matching registration — inquiries and unconfirmed
+  // bookings that the Lodgify sync skips. Their messages are in our DB but
+  // would otherwise never appear in this list.
+  const matchedBookings = new Set<number>();
+  const matchedThreadUids = new Set<string>();
+  for (const r of (registrations ?? []) as unknown as RegRow[]) {
+    if (r.lodgify_booking_id != null) matchedBookings.add(r.lodgify_booking_id);
+    if (r.lodgify_thread_uid) matchedThreadUids.add(r.lodgify_thread_uid);
+    matchedThreadUids.add(`direct:${r.id}`);
+  }
+  for (const t of threads ?? []) {
+    if (!t.thread_uid || matchedThreadUids.has(t.thread_uid)) continue;
+    if (t.lodgify_booking_id != null && matchedBookings.has(t.lodgify_booking_id)) continue;
+    conversations.push({
+      // Threads without a booking id can only be addressed by thread_uid;
+      // the detail route understands the "thread:" prefix.
+      booking_id: t.lodgify_booking_id ?? `thread:${t.thread_uid}`,
+      guest_name: t.guest_name ?? "Unknown Guest",
+      guest_email: null,
+      property_id: 0,
+      property_name: null,
+      arrival: "",
+      departure: "",
+      status: "inquiry",
+      source: null,
+      date_created: null,
+      last_message_at: t.last_message_at,
+      last_message_preview: t.last_message_preview,
+      unread_count: t.unread_count ?? 0,
+    });
+  }
 
   // Sort: last message first (desc), then most recently booked.
   conversations.sort((a, b) => {

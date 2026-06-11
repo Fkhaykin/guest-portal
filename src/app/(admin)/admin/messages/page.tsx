@@ -257,7 +257,7 @@ export default function AdminMessagesPage() {
     if (timeFilter === "current") {
       result = result.filter((c) => c.arrival <= today && c.departure >= today);
     } else if (timeFilter === "past") {
-      result = result.filter((c) => c.departure < today);
+      result = result.filter((c) => c.departure && c.departure < today);
     } else if (timeFilter === "future") {
       result = result.filter((c) => c.arrival > today);
     }
@@ -393,6 +393,7 @@ export default function AdminMessagesPage() {
   }
 
   function formatDate(dateStr: string) {
+    if (!dateStr) return "";
     return new Date(dateStr + "T00:00:00").toLocaleDateString("en-US", {
       month: "short",
       day: "numeric",
@@ -412,6 +413,7 @@ export default function AdminMessagesPage() {
         return "bg-red-100 text-red-800 border-red-200";
       case "open":
       case "tentative":
+      case "inquiry":
         return "bg-blue-100 text-blue-800 border-blue-200";
       default:
         return "";
@@ -518,6 +520,15 @@ export default function AdminMessagesPage() {
                   onClick={() => {
                     setSelectedBookingId(conv.booking_id);
                     setMobileView("thread");
+                    // Opening the thread marks it read server-side; mirror that
+                    // here so the badge clears without a list refetch.
+                    setConversations((prev) =>
+                      prev.map((c) =>
+                        c.booking_id === conv.booking_id
+                          ? { ...c, unread_count: 0 }
+                          : c
+                      )
+                    );
                   }}
                   className={cn(
                     "w-full text-left p-3 border-b hover:bg-muted/50 transition-colors",
@@ -534,11 +545,25 @@ export default function AdminMessagesPage() {
                           {conv.property_name}
                         </p>
                       )}
-                      <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
-                        <CalendarDays className="h-3 w-3" />
-                        {formatDate(conv.arrival)} –{" "}
-                        {formatDate(conv.departure)}
-                      </div>
+                      {conv.last_message_preview && (
+                        <p
+                          className={cn(
+                            "text-xs truncate mt-0.5",
+                            conv.unread_count > 0
+                              ? "font-medium text-foreground"
+                              : "text-muted-foreground"
+                          )}
+                        >
+                          {conv.last_message_preview}
+                        </p>
+                      )}
+                      {(conv.arrival || conv.departure) && (
+                        <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
+                          <CalendarDays className="h-3 w-3" />
+                          {formatDate(conv.arrival)} –{" "}
+                          {formatDate(conv.departure)}
+                        </div>
+                      )}
                     </div>
                     <div className="flex flex-col items-end gap-1">
                       <Badge
@@ -553,6 +578,11 @@ export default function AdminMessagesPage() {
                       {conv.source && (
                         <span className="text-[10px] text-muted-foreground">
                           {cleanSourceName(conv.source)}
+                        </span>
+                      )}
+                      {conv.unread_count > 0 && (
+                        <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-medium text-primary-foreground">
+                          {conv.unread_count}
                         </span>
                       )}
                     </div>
@@ -603,8 +633,13 @@ export default function AdminMessagesPage() {
                           <span className="opacity-50">|</span>
                         </>
                       )}
-                      {formatDate(selectedConversation.arrival)} –{" "}
-                      {formatDate(selectedConversation.departure)}
+                      {(selectedConversation.arrival ||
+                        selectedConversation.departure) && (
+                        <>
+                          {formatDate(selectedConversation.arrival)} –{" "}
+                          {formatDate(selectedConversation.departure)}
+                        </>
+                      )}
                       {selectedConversation.source && (
                         <>
                           <span className="opacity-50">|</span>

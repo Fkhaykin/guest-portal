@@ -94,6 +94,26 @@ export async function GET(
 
   const { bookingId } = await params;
 
+  // Threads with no linked booking (inquiries the sync skips) are addressed
+  // by "thread:<thread_uid>" — read straight from our DB.
+  if (bookingId.startsWith("thread:")) {
+    const threadUid = bookingId.slice("thread:".length);
+    const admin = createAdminClient();
+    const { data: rows } = await admin
+      .from("guest_message")
+      .select("id, lodgify_message_id, thread_uid, message_type, subject, message, creation_time, guest_name, has_attachments")
+      .eq("thread_uid", threadUid)
+      .order("creation_time", { ascending: true });
+    // Opening the thread marks it read.
+    await admin
+      .from("guest_message_thread")
+      .update({ unread_count: 0 })
+      .eq("thread_uid", threadUid);
+    return NextResponse.json({
+      messages: (rows ?? []).map((r) => toLodgifyMessage(r as GuestMessageRow)),
+    });
+  }
+
   // Direct bookings are addressed by registration UUID; their thread lives
   // entirely in our DB under "direct:<registration_id>".
   if (isRegistrationId(bookingId)) {
@@ -196,6 +216,14 @@ export async function GET(
     }
   }
 
+  // Opening the thread marks it read.
+  if (threadUid) {
+    await admin
+      .from("guest_message_thread")
+      .update({ unread_count: 0 })
+      .eq("thread_uid", threadUid);
+  }
+
   return NextResponse.json({ messages });
 }
 
@@ -217,6 +245,15 @@ export async function POST(
   const text = body?.message;
   if (!text || typeof text !== "string" || !text.trim()) {
     return NextResponse.json({ error: "Message is required" }, { status: 400 });
+  }
+
+  // Lodgify's send API is booking-scoped; a thread with no booking can only
+  // be answered from the Lodgify/Airbnb inbox.
+  if (bookingId.startsWith("thread:")) {
+    return NextResponse.json(
+      { error: "This conversation isn't linked to a booking yet — reply from your Lodgify or Airbnb inbox." },
+      { status: 400 }
+    );
   }
 
   // Direct booking: deliver to the guest's email/phone and record locally.

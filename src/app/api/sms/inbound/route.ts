@@ -109,7 +109,9 @@ export async function POST(request: NextRequest) {
     incrementUnread: true,
   });
 
-  notifyHostOfGuestMessage({
+  // Awaited — Vercel can freeze the function once the response is returned,
+  // killing an in-flight push.
+  await notifyHostOfGuestMessage({
     guestName,
     preview: text.slice(0, 140),
     lodgifyBookingId: null,

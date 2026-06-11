@@ -47,7 +47,11 @@ async function sendPushTo(
   await Promise.all(
     subscriptions.map(async (sub) => {
       try {
-        await webpush.sendNotification(sub.subscription as PushSubscription, body);
+        // High urgency: iOS delivers normal-urgency pushes lazily (or drops
+        // them in Low Power Mode); these are user-facing alerts, not syncs.
+        await webpush.sendNotification(sub.subscription as PushSubscription, body, {
+          urgency: "high",
+        });
       } catch (err) {
         const statusCode = (err as WebPushError).statusCode;
         if (statusCode === 404 || statusCode === 410) {
