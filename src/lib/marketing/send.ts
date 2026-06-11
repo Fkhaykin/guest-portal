@@ -1,6 +1,7 @@
 import { Resend } from "resend";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { interpolateTokens, splitName, formatTokenDate, htmlToPlain } from "./tokens";
+import { stripUrlsForSms } from "@/lib/sms/sanitize";
 import type { SegmentMember } from "./segments";
 import type {
   CampaignChannel,
@@ -222,8 +223,8 @@ export async function sendCampaignStep(
       sendOutcome = await sendEmail(recipient, subject, html || `<p>${text}</p>`, text, hostConfig);
     } else {
       recipient = member.phone!;
-      body = text;
-      sendOutcome = await sendSms(recipient, text);
+      body = stripUrlsForSms(text);
+      sendOutcome = await sendSms(recipient, body);
     }
 
     const insertRow = {

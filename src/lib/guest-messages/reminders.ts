@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { sendMessage } from "@/lib/lodgify/messages";
 import { TEMPLATES, interpolate, type TemplateVars } from "./templates";
 import { stayTimeVars } from "@/lib/upsells/timing";
+import { stripUrlsForSms } from "@/lib/sms/sanitize";
 import type { GuestMessageSettings, UpsellEntry } from "@/types/database";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://guest.summitlakeside.com";
@@ -141,7 +142,11 @@ export async function sendRegistrationReminder(params: SendReminderParams): Prom
   }
 
   if (params.guestPhone) {
-    const smsResult = await sendGuestSms(params.guestPhone, body, {
+    const smsBody = stripUrlsForSms(
+      body,
+      "(use the registration link from your booking confirmation)"
+    );
+    const smsResult = await sendGuestSms(params.guestPhone, smsBody, {
       eventType: messageTypeKey,
       lodgifyBookingId: params.lodgifyBookingId,
       registrationId: params.registrationId,

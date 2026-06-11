@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendPushToCleaner } from "@/lib/push/send-push";
+import { stripUrlsForSms } from "@/lib/sms/sanitize";
 import type { NotificationSettings, NotificationEventKey } from "@/types/database";
 
 const TEXTBELT_KEY = process.env.TEXTBELT_API_KEY?.trim();
@@ -10,6 +11,7 @@ export async function sendSms(
   meta: { recipientName?: string; eventType: string; propertyId?: string; lodgifyBookingId?: number }
 ) {
   const supabase = createAdminClient();
+  message = stripUrlsForSms(message);
 
   if (!TEXTBELT_KEY) {
     console.log("[sms] Textbelt not configured, skipping notification");

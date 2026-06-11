@@ -1,5 +1,6 @@
 import { Resend } from "resend";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { stripUrlsForSms } from "@/lib/sms/sanitize";
 
 // Direct (non-Lodgify) bookings get a synthetic thread keyed by registration
 // id. Outbound messages go to the guest's email and/or phone; replies come
@@ -189,7 +190,10 @@ export async function sendDirectGuestMessage(
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             phone: ctx.guestPhone,
-            message: `Summit Lakeside: ${text}`,
+            message: `Summit Lakeside: ${stripUrlsForSms(
+              text,
+              ctx.guestEmail ? "(link sent by email)" : ""
+            )}`,
             key,
             replyWebhookUrl: `${APP_URL}/api/sms/inbound`,
             webhookData: registrationId,
