@@ -38,13 +38,13 @@ When guests notice the duplicate listings: same home, seasonal photo curation, s
 ## Inquiry-type playbook
 
 ### Early check-in (the single most common ask)
-- Standard 4pm (newer listings 5pm). **Current policy (2026): $25/hr, up to 3 hours**, charged via Airbnb change request or guest portal; paying "secures" it in advance. Historical: $50 flat "2pm Early Check In" add-on, $75 noon, tiers up to $100.
+- Standard 4pm (newer listings 5pm). **Current policy (2026): booked and paid in the guest portal under Add-Ons — $25/hr, max 2 hours (3pm or 2pm), $50/hr on holiday stays**, availability auto-gated on high-turnover days. Historical: $50 flat "2pm Early Check In" add-on, $75 noon, tiers up to $100.
 - 3pm is usually granted free; anything earlier is always conditional on cleaners: "We're usually able to accommodate 3pm, but I'll need to confirm around 11:30am that morning once the cleaners have arrived for turnover."
 - No prior-night guest → "the home is all ready so you are welcome to check in as early as you arrive :)" at no charge. We only charge when guaranteeing ahead of time.
 - Won't stack a free early check-in AND free late checkout on the same stay.
 
 ### Late checkout
-- Standard 11am. **12pm is routinely free** with notice; beyond that $25/hr up to 3 hrs (2026 standard; historically $50–150 flat tiers, "$150 and check out as late as you like" when the next night was empty).
+- Standard 11am. **Current policy (2026): booked and paid in the guest portal under Add-Ons — $25/hr, max 2 hours (12pm or 1pm), $50/hr on holiday stays**, availability auto-gated on high-turnover days. Historically 12pm was routinely comped on request; $50–150 flat tiers beyond that.
 - Same-day turnover = hard no: "unfortunately we have another group checking in today so we would have to stick to the 11am standard check out."
 - Evening checkout = book the extra night ("a 4pm checkout means we can not rent the home out for an additional day").
 - Complimentary late checkout is the **default goodwill currency** — gifted for any service hiccup (gate trouble, snow, noise, cleaning issues) before cash is ever discussed.
@@ -144,4 +144,4 @@ The pattern, every time: **apologize → thank them for reporting → try a remo
 
 ## Era note (for reading old threads)
 
-Policies evolved: ad-hoc free flexibility (2022–23) → $50 flat add-on tiers (2024) → **standardized $25/hr up to 3 hrs** + guest portal (guest.summitlakeside.com) with paid add-ons (2025–26). Registration moved from emailed PDF link → summitlakeside.com forms → the guest portal. Templates carry known typos ("keave", "notifice", "Renove") across hundreds of sends — they're ours.
+Policies evolved: ad-hoc free flexibility (2022–23) → $50 flat add-on tiers (2024) → **standardized $25/hr portal Add-Ons (max 2 hrs, $50/hr holidays)** + guest portal (guest.summitlakeside.com) with paid add-ons (2025–26). Registration moved from emailed PDF link → summitlakeside.com forms → the guest portal. Templates carry known typos ("keave", "notifice", "Renove") across hundreds of sends — they're ours.

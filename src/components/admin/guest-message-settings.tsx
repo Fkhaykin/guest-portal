@@ -11,7 +11,9 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Save, RotateCcw, Loader2 } from "lucide-react";
 import { TEMPLATES, TEMPLATE_VARIABLES } from "@/lib/guest-messages/templates";
-import type { GuestMessageSettings as GuestMessageSettingsType, GuestMessageKey } from "@/types/database";
+import { HOUSE_KEYS, HOUSE_LABELS, HOUSE_CHECKIN_TEMPLATES, HOUSE_CHECKIN_SUBJECT } from "@/lib/guest-messages/house-templates";
+import type { HouseKey } from "@/lib/guest-messages/quick-replies";
+import type { GuestMessageSettings as GuestMessageSettingsType, GuestMessageKey, GuestMessageEvent } from "@/types/database";
 
 const EVENT_META: Record<GuestMessageKey, { label: string; description: string; channel: string }> = {
   booking_confirmation: {
@@ -56,8 +58,18 @@ const EVENT_META: Record<GuestMessageKey, { label: string; description: string; 
   },
 };
 
+function defaultHouseSettings(): Record<string, GuestMessageEvent> {
+  return Object.fromEntries(
+    HOUSE_KEYS.map((house) => [
+      house,
+      { enabled: true, subject: HOUSE_CHECKIN_SUBJECT, message: HOUSE_CHECKIN_TEMPLATES[house] },
+    ])
+  );
+}
+
 function defaultSettings(): GuestMessageSettingsType {
   return {
+    house_checkin_instructions: defaultHouseSettings(),
     booking_confirmation: { enabled: true, subject: TEMPLATES.booking_confirmation.subject, message: TEMPLATES.booking_confirmation.body },
     pre_arrival: { enabled: true, subject: TEMPLATES.pre_arrival.subject, message: TEMPLATES.pre_arrival.body },
     day_of_checkin: { enabled: true, subject: TEMPLATES.day_of_checkin.subject, message: TEMPLATES.day_of_checkin.body },
@@ -90,7 +102,15 @@ export function GuestMessageSettings() {
         setHostId(host.id);
         if (host.guest_message_settings) {
           // Merge with defaults so new fields always have a value
-          const merged = { ...defaultSettings(), ...(host.guest_message_settings as GuestMessageSettingsType) };
+          const saved = host.guest_message_settings as GuestMessageSettingsType;
+          const merged = {
+            ...defaultSettings(),
+            ...saved,
+            house_checkin_instructions: {
+              ...defaultHouseSettings(),
+              ...(saved.house_checkin_instructions ?? {}),
+            },
+          };
           setSettings(merged);
         }
       }
@@ -113,6 +133,39 @@ export function GuestMessageSettings() {
         ...prev[key],
         subject: TEMPLATES[key].subject,
         message: TEMPLATES[key].body,
+      },
+    }));
+  }
+
+  function updateHouseField(house: HouseKey, field: "enabled" | "subject" | "message", value: boolean | string) {
+    setSaved(false);
+    setSettings((prev) => {
+      const current = prev.house_checkin_instructions?.[house] ?? {
+        enabled: true,
+        subject: HOUSE_CHECKIN_SUBJECT,
+        message: HOUSE_CHECKIN_TEMPLATES[house],
+      };
+      return {
+        ...prev,
+        house_checkin_instructions: {
+          ...(prev.house_checkin_instructions ?? defaultHouseSettings()),
+          [house]: { ...current, [field]: value },
+        },
+      };
+    });
+  }
+
+  function resetHouseToDefault(house: HouseKey) {
+    setSaved(false);
+    setSettings((prev) => ({
+      ...prev,
+      house_checkin_instructions: {
+        ...(prev.house_checkin_instructions ?? defaultHouseSettings()),
+        [house]: {
+          enabled: prev.house_checkin_instructions?.[house]?.enabled ?? true,
+          subject: HOUSE_CHECKIN_SUBJECT,
+          message: HOUSE_CHECKIN_TEMPLATES[house],
+        },
       },
     }));
   }
@@ -205,6 +258,88 @@ export function GuestMessageSettings() {
                     </div>
                     <div className="flex flex-wrap gap-1">
                       {TEMPLATE_VARIABLES[key].map((v) => (
+                        <Badge key={v} variant="secondary" className="text-xs font-mono">
+                          {`{{${v}}}`}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>House Check-In Instructions</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Sent the morning of check-in, per home — door code, wifi, gate process, parking, and house rules.
+            Seeded from your Airbnb message history. Sent alongside the Check-In Day message above.
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {HOUSE_KEYS.map((house) => {
+            const event = settings.house_checkin_instructions?.[house] ?? {
+              enabled: true,
+              subject: HOUSE_CHECKIN_SUBJECT,
+              message: HOUSE_CHECKIN_TEMPLATES[house],
+            };
+            return (
+              <div key={house} className="space-y-3 rounded-lg border p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="space-y-0.5">
+                    <Label className="text-sm font-medium">{HOUSE_LABELS[house]}</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Check-in instructions for this home. Verify door code and wifi before enabling.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={event.enabled}
+                    onCheckedChange={(checked) => updateHouseField(house, "enabled", checked)}
+                  />
+                </div>
+
+                {event.enabled && (
+                  <div className="space-y-3">
+                    <div className="space-y-1.5">
+                      <Label htmlFor={`subject-house-${house}`} className="text-xs text-muted-foreground">
+                        Subject (email only)
+                      </Label>
+                      <Input
+                        id={`subject-house-${house}`}
+                        value={event.subject}
+                        onChange={(e) => updateHouseField(house, "subject", e.target.value)}
+                        className="text-sm"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor={`msg-house-${house}`} className="text-xs text-muted-foreground">
+                          Message body
+                        </Label>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 text-xs"
+                          onClick={() => resetHouseToDefault(house)}
+                        >
+                          <RotateCcw className="h-3 w-3 mr-1" />
+                          Reset
+                        </Button>
+                      </div>
+                      <Textarea
+                        id={`msg-house-${house}`}
+                        value={event.message}
+                        onChange={(e) => updateHouseField(house, "message", e.target.value)}
+                        rows={10}
+                        className="text-sm font-mono"
+                      />
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {["guest_name", "property_name", "check_in_date", "check_out_date", "portal_link"].map((v) => (
                         <Badge key={v} variant="secondary" className="text-xs font-mono">
                           {`{{${v}}}`}
                         </Badge>

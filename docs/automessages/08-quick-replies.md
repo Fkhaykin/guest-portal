@@ -124,7 +124,7 @@ I'm so sorry about that — unfortunately it is Airbnb's algorithm flagging the 
 
 ### Early check-in (standard)
 ```
-We're usually able to accommodate a 3pm check-in, but I'll need to confirm around 11:30am that morning once the cleaners have arrived for turnover. Early check-in can also be guaranteed ahead of time for $25/hr (up to 3 hours) — otherwise, if the home is ready early, we'll always let you in at no charge :)
+Early check-in can be booked and paid directly in our guest portal under Add-Ons (guest.summitlakeside.com) :) It's $25/hr — arrive 1 hour (3pm) or 2 hours (2pm) early. The portal shows live availability for your dates, and booking it guarantees the time. If the home happens to be ready early on the day, we'll always let you in at no charge!
 ```
 
 ### Early check-in (home ready)
@@ -134,7 +134,7 @@ Good news — the home is all ready, so you are welcome to check in as early as 
 
 ### Late checkout (no same-day turnover)
 ```
-Hi! Yes, we can accommodate a complimentary 12pm late checkout :) Anything later would be $25/hr for up to 3 hours — just let me know.
+Late checkout can be booked and paid directly in our guest portal under Add-Ons (guest.summitlakeside.com) :) It's $25/hr — stay until 12pm (1 hour) or 1pm (2 hours). The portal shows live availability for your dates, and booking it guarantees the time.
 ```
 
 ### Late checkout (same-day turnover)
@@ -172,7 +172,7 @@ Service dogs do not have any pet fees. We'd just need to know what service the d
 
 ### Firewood
 ```
-We don't supply firewood, but there's often some left over from previous guests. If not, our community store Archie's Corner sells it (you'll pass it on your way in), as do Weis and the local gas stations. I'd recommend grabbing some starter logs as well! Propane for the grill IS provided.
+We don't supply firewood, but you can order a firewood delivery ($35/bundle) right in our guest portal under Add-Ons (guest.summitlakeside.com) and we'll bring it to the home. Otherwise our community store Archie's Corner sells it (you'll pass it on your way in), as do Weis and the local gas stations. I'd recommend grabbing some starter logs as well! Propane for the grill IS provided.
 ```
 
 ### Boats / lake

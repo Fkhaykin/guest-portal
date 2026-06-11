@@ -7,7 +7,7 @@ Hi {{guest_first_name}},
 
 We're excited to host your group at our lakeside home from {{check_in_time}} {{check_in_date}} through {{check_out_time}} {{check_out_date}}.
 
-Early check in or late check out may be available for an additional $25/hr for up to 3 hours. Please let us know if you are interested.
+Early check-in and late checkout can be booked and paid directly in the guest portal under Add-Ons — $25/hr for up to 2 hours, subject to availability for your dates.
 
 To begin your pre-check in process, please complete your registration through our guest portal, located here:
 

@@ -1,6 +1,6 @@
 # Airbnb / Lodgify Automessages
 
-Recreated 2026-06 from the actual send history (the canonical, highest-volume variant of each message, newest generation). Typos fixed ("Renove" → "Remove", "keave" → "leave", "recieved" → "received", "notifice" → "notice", "arive" → "arrive"), policies normalized to the current era ($25/hr early/late up to 3 hrs, guest portal, $50 unannounced-late fee).
+Recreated 2026-06 from the actual send history (the canonical, highest-volume variant of each message, newest generation). Typos fixed ("Renove" → "Remove", "keave" → "leave", "recieved" → "received", "notifice" → "notice", "arive" → "arrive"), policies normalized to the current era (early/late check-in/out booked via guest portal Add-Ons at $25/hr for up to 2 hours, $50/hr on holiday stays; $50 unannounced-late fee).
 
 ## Send schedule
 

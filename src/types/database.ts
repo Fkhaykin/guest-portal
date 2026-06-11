@@ -125,9 +125,11 @@ export type GuestMessageSettings = {
   booking_invoice_full: GuestMessageEvent;
   booking_invoice_deposit: GuestMessageEvent;
   booking_plan_picker: GuestMessageEvent;
+  /** Per-house check-in instruction messages, keyed by HouseKey (lakehouse, chalet, ...). */
+  house_checkin_instructions?: Record<string, GuestMessageEvent>;
 };
 
-export type GuestMessageKey = keyof GuestMessageSettings;
+export type GuestMessageKey = Exclude<keyof GuestMessageSettings, "house_checkin_instructions">;
 
 // ============ Guest Marketing ============
 

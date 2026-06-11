@@ -2,6 +2,8 @@
 // full Airbnb/Lodgify message history (docs/automessages/08-quick-replies.md).
 // Bodies use {{var}} placeholders compatible with interpolate() from templates.ts.
 
+export type HouseKey = "lakehouse" | "chalet" | "manor" | "cottage" | "mansion";
+
 export interface QuickReply {
   id: string;
   title: string;
@@ -9,9 +11,24 @@ export interface QuickReply {
   /** Lowercase keywords/phrases matched against the guest's last message. */
   keywords: string[];
   body: string;
+  /** When set, only offered for conversations at this house. */
+  house?: HouseKey;
+}
+
+/** Map a Lodgify/Airbnb listing name or internal nickname to its house. */
+export function houseForProperty(propertyName: string | null | undefined): HouseKey | null {
+  if (!propertyName) return null;
+  const n = propertyName.toLowerCase();
+  if (n.includes("chalet")) return "chalet";
+  if (n.includes("lake adjacent") || n.includes("manor")) return "manor";
+  if (n.includes("cozy lakefront") || n.includes("cottage")) return "cottage";
+  if (n.includes("mansion") || n.includes("chateau")) return "mansion";
+  if (n.includes("lakefront") || n.includes("lakehouse")) return "lakehouse";
+  return null;
 }
 
 export const QUICK_REPLY_CATEGORIES = [
+  "House Info",
   "Pricing & Booking",
   "Check-in / Checkout",
   "Pets",
@@ -103,10 +120,18 @@ export const QUICK_REPLIES: QuickReply[] = [
   // --- Check-in / Checkout ---
   {
     id: "early-checkin",
-    title: "Early check-in",
+    title: "Early check-in (portal add-on)",
     category: "Check-in / Checkout",
     keywords: ["early check", "check in early", "arrive early", "earlier check", "check in at", "come early", "early arrival"],
-    body: `We're usually able to accommodate a 3pm check-in, but I'll need to confirm around 11:30am that morning once the cleaners have arrived for turnover. Early check-in can also be guaranteed ahead of time for $25/hr (up to 3 hours) — otherwise, if the home is ready early, we'll always let you in at no charge :)`,
+    body: `Early check-in can be booked and paid directly in our guest portal under Add-Ons :)
+
+————GUEST PORTAL————
+
+https://guest.summitlakeside.com
+
+———^^CLICK ABOVE^^———
+
+It's $25/hr — arrive 1 hour (3pm) or 2 hours (2pm) early. The portal shows live availability for your dates, and booking it guarantees the time. If the home happens to be ready early on the day, we'll always let you in at no charge!`,
   },
   {
     id: "early-checkin-ready",
@@ -117,10 +142,18 @@ export const QUICK_REPLIES: QuickReply[] = [
   },
   {
     id: "late-checkout-free",
-    title: "Late checkout — 12pm free",
+    title: "Late checkout (portal add-on)",
     category: "Check-in / Checkout",
     keywords: ["late check", "check out late", "checkout late", "extra hour", "leave later", "extend checkout", "late departure"],
-    body: `Hi! Yes, we can accommodate a complimentary 12pm late checkout :) Anything later would be $25/hr for up to 3 hours — just let me know.`,
+    body: `Late checkout can be booked and paid directly in our guest portal under Add-Ons :)
+
+————GUEST PORTAL————
+
+https://guest.summitlakeside.com
+
+———^^CLICK ABOVE^^———
+
+It's $25/hr — stay until 12pm (1 hour) or 1pm (2 hours). The portal shows live availability for your dates, and booking it guarantees the time.`,
   },
   {
     id: "late-checkout-no",
@@ -166,7 +199,7 @@ export const QUICK_REPLIES: QuickReply[] = [
     title: "Firewood",
     category: "Amenities",
     keywords: ["firewood", "fire wood", "fire pit", "firepit", "bonfire", "wood for the fire"],
-    body: `We don't supply firewood, but there's often some left over from previous guests. If not, our community store Archie's Corner sells it (you'll pass it on your way in), as do Weis and the local gas stations. I'd recommend grabbing some starter logs as well! Propane for the grill IS provided.`,
+    body: `We don't supply firewood, but you can order a firewood delivery ($35/bundle) right in our guest portal under Add-Ons (guest.summitlakeside.com) and we'll bring it to the home. Otherwise our community store Archie's Corner sells it (you'll pass it on your way in), as do Weis and the local gas stations. I'd recommend grabbing some starter logs as well! Propane for the grill IS provided.`,
   },
   {
     id: "boats-lake",
@@ -255,6 +288,110 @@ export const QUICK_REPLIES: QuickReply[] = [
     body: `Let me check with our cleaners! If found, we can ship it back — it's a flat $50 fee for shipping and handling, or you can send a pre-paid shipping label. Just let me know the address.`,
   },
 
+  // --- House-specific ---
+  {
+    id: "house-chalet-beds",
+    title: "Bed layout (Chalet)",
+    category: "House Info",
+    house: "chalet",
+    keywords: ["bed", "bedroom", "sleep", "layout", "bunk", "mattress", "king", "queen"],
+    body: `There are 3 bedrooms with a queen bed in each, and one bedroom with twin bunk beds.
+
+Additionally there is a queen pullout sofa downstairs, and a twin daybed with a twin trundle bed underneath in the loft.
+
+The ground floor has a queen bedroom and a full bathroom. The second floor has a queen bedroom and a full bathroom. The third floor has a queen bedroom, the twin bunk bedroom, the loft, and another full bathroom.
+
+Let me know if you have any other questions!`,
+  },
+  {
+    id: "house-chalet-sauna",
+    title: "Sauna fix (Chalet)",
+    category: "House Info",
+    house: "chalet",
+    keywords: ["sauna"],
+    body: `The sauna is infrared with a 90-minute timer — it takes about 30–45 min to warm up to 120–140°F. If it's not turning on, please check that the extension cord behind the wooden chair (left of the sliding door) is plugged in. If that doesn't do it, I'll send maintenance right over!`,
+  },
+  {
+    id: "house-chalet-key",
+    title: "Lockbox / key (Chalet)",
+    category: "House Info",
+    house: "chalet",
+    keywords: ["key", "lockbox", "lock box", "locked out", "door code"],
+    body: `The key is in the lockbox on the ground-floor door under the deck — the code is in your check-in instructions. Please return the key to the lockbox anytime you head out so you don't get locked out :)`,
+  },
+  {
+    id: "house-mansion-beds",
+    title: "Bed layout (Mansion)",
+    category: "House Info",
+    house: "mansion",
+    keywords: ["bed", "bedroom", "sleep", "layout", "bunk", "mattress", "king", "queen"],
+    body: `The home has 1 king bedroom, 3 queen bedrooms, and a room with 2 full bunk beds plus a full trundle. There are also 2 queen sleeper sofas. Let me know if you have any other questions!`,
+  },
+  {
+    id: "house-mansion-hottub",
+    title: "Hot tub breaker (Mansion)",
+    category: "House Info",
+    house: "mansion",
+    keywords: ["hot tub", "jacuzzi", "tub not", "tub isn't", "tub cold"],
+    body: `So sorry about that! First thing to try: please reset the breaker to the left of the tub against the house. The hot tub stays on at all times, so it should warm right back up. If that doesn't fix it, I'll have someone over right away.`,
+  },
+  {
+    id: "house-mansion-dogs",
+    title: "Leash reminder (Mansion)",
+    category: "House Info",
+    house: "mansion",
+    keywords: ["dog", "pet", "puppy"],
+    body: `One heads-up for this home: please keep dogs leashed when outside — the neighbor on the left is very quick to call security about pets crossing onto their lawn, and we'd hate for you to deal with that during your stay!`,
+  },
+  {
+    id: "house-manor-heater",
+    title: "Game room heater (Manor)",
+    category: "House Info",
+    house: "manor",
+    keywords: ["game room", "garage", "heater", "cold in the"],
+    body: `The game room has an industrial-style heater — it looks complicated, but all you need to do is flip the metal timer switch in the far corner to ON :) Full instructions are in the House Manual as well.`,
+  },
+  {
+    id: "house-manor-lake",
+    title: "Lake access (Manor)",
+    category: "House Info",
+    house: "manor",
+    keywords: ["lake", "canoe", "kayak", "boat"],
+    body: `The path from the home to the lake is very wooded, so you access it via the easement two homes down. The green canoe (labeled 288C) is on rack TL1 at the lake, and the two kayaks are at the house — life jackets are in the entry closet. Enjoy!`,
+  },
+  {
+    id: "house-cottage-arcade",
+    title: "Arcade games (Cottage)",
+    category: "House Info",
+    house: "cottage",
+    keywords: ["arcade", "game room", "pac-man", "pacman", "games"],
+    body: `At the moment we only have the Pac-Man arcade game — the others kept breaking on us 😢 The game room also has the pool table, and there's an outdoor 120" projector (projector in the kitchen closet, screen in the black bag in the garage)!`,
+  },
+  {
+    id: "house-cottage-hotwater",
+    title: "Hot water (Cottage)",
+    category: "House Info",
+    house: "cottage",
+    keywords: ["hot water", "shower", "water cold"],
+    body: `The water heater tank is good for about 30 minutes of showers, then needs about 30 minutes to recover — with a full house we recommend spacing out showers a bit. If it's not recovering at all, let me know and I'll send maintenance right over!`,
+  },
+  {
+    id: "house-lakehouse-hvac",
+    title: "AC/heat mode fix (Lakehouse)",
+    category: "House Info",
+    house: "lakehouse",
+    keywords: ["ac ", "a/c", "heat", "air conditioning", "thermostat", "l3", "error"],
+    body: `The home has split units, and they all need to be set to the SAME mode (all heat or all cool) — if one is on a different mode the system shows an error and shuts down. The sun icon is heat and the snowflake is cool (they look similar!). If it's still acting up, I'll send maintenance over right away.`,
+  },
+  {
+    id: "house-lakehouse-boats",
+    title: "Boats (Lakehouse)",
+    category: "House Info",
+    house: "lakehouse",
+    keywords: ["boat", "kayak", "canoe", "pedal"],
+    body: `The home comes with two kayaks, a canoe, and a pedal boat right in the yard :) Life jackets are in the upstairs closet (kid sizes too). The backyard lake is for boating and catch-and-release fishing — the swimmable beach lake is about a 12-minute walk.`,
+  },
+
   // --- Cancellations & Refunds ---
   {
     id: "cancellation",
@@ -292,20 +429,26 @@ export interface ScoredReply {
 
 /**
  * Score quick replies against the guest's last message. Multi-word keyword
- * hits weigh more than single-word hits. Returns top matches, best first.
+ * hits weigh more than single-word hits; replies specific to the
+ * conversation's house outrank generic ones. Returns top matches, best first.
  */
-export function suggestQuickReplies(guestMessage: string, max = 3): QuickReply[] {
+export function suggestQuickReplies(
+  guestMessage: string,
+  house: HouseKey | null = null,
+  max = 3
+): QuickReply[] {
   const text = guestMessage.toLowerCase();
   const scored: ScoredReply[] = [];
 
   for (const reply of QUICK_REPLIES) {
+    if (reply.house && reply.house !== house) continue;
     let score = 0;
     for (const kw of reply.keywords) {
       if (text.includes(kw)) {
         score += kw.includes(" ") ? 2 : 1;
       }
     }
-    if (score > 0) scored.push({ reply, score });
+    if (score > 0) scored.push({ reply, score: reply.house ? score + 1 : score });
   }
 
   scored.sort((a, b) => b.score - a.score);

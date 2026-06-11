@@ -14,12 +14,15 @@ import {
   QUICK_REPLIES,
   QUICK_REPLY_CATEGORIES,
   suggestQuickReplies,
+  houseForProperty,
   type QuickReply,
 } from "@/lib/guest-messages/quick-replies";
 
 interface QuickRepliesProps {
   /** The guest's most recent message, if they spoke last (drives suggestions). */
   lastGuestMessage: string | null;
+  /** Listing name of the conversation's property — scopes house-specific replies. */
+  propertyName: string | null;
   /** Placeholder values: guest_first_name, max_guests, etc. */
   vars: Record<string, string>;
   /** Called with the interpolated reply text on click. */
@@ -28,12 +31,16 @@ interface QuickRepliesProps {
 
 export function QuickReplySuggestions({
   lastGuestMessage,
+  propertyName,
   vars,
   onInsert,
 }: QuickRepliesProps) {
   const suggestions = useMemo(
-    () => (lastGuestMessage ? suggestQuickReplies(lastGuestMessage) : []),
-    [lastGuestMessage]
+    () =>
+      lastGuestMessage
+        ? suggestQuickReplies(lastGuestMessage, houseForProperty(propertyName))
+        : [],
+    [lastGuestMessage, propertyName]
   );
 
   if (suggestions.length === 0) return null;
@@ -55,22 +62,28 @@ export function QuickReplySuggestions({
   );
 }
 
-export function QuickReplyPicker({ vars, onInsert }: Omit<QuickRepliesProps, "lastGuestMessage">) {
+export function QuickReplyPicker({
+  propertyName,
+  vars,
+  onInsert,
+}: Omit<QuickRepliesProps, "lastGuestMessage">) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
 
   const grouped = useMemo(() => {
     const q = query.trim().toLowerCase();
+    const house = houseForProperty(propertyName);
     const matches = (r: QuickReply) =>
-      !q ||
-      r.title.toLowerCase().includes(q) ||
-      r.body.toLowerCase().includes(q) ||
-      r.keywords.some((k) => k.includes(q));
+      (!r.house || r.house === house) &&
+      (!q ||
+        r.title.toLowerCase().includes(q) ||
+        r.body.toLowerCase().includes(q) ||
+        r.keywords.some((k) => k.includes(q)));
     return QUICK_REPLY_CATEGORIES.map((cat) => ({
       category: cat,
       replies: QUICK_REPLIES.filter((r) => r.category === cat && matches(r)),
     })).filter((g) => g.replies.length > 0);
-  }, [query]);
+  }, [query, propertyName]);
 
   function handleInsert(reply: QuickReply) {
     onInsert(interpolate(reply.body, vars));

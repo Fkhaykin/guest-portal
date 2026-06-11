@@ -11,7 +11,7 @@ We hope you've been having a great time at the lakehouse! Thank you so much for 
 
 Your check out time tomorrow is at {{check_out_time}}.
 
-Late check out may be available for an additional $25/hr for up to 3 hours. Please let us know if you are interested. Please contact us if you have an issue; leaving after check out without prior notice will incur a $50 fee.
+Late checkout can be booked and paid directly in our guest portal under Add-Ons (guest.summitlakeside.com) — $25/hr, until 12pm or 1pm, subject to availability. Please contact us if you have an issue; leaving after check out without prior notice will incur a $50 fee.
 
 Before you head out, please be sure to:
 

@@ -67,7 +67,7 @@ All trash should be placed in the bins just outside the garage door, they are mi
 
 Check-out: 11am
 
-Late check out may be available for an additional $25/hr for up to 3 hours. Please let us know if you are interested. Please contact us if you have an issue; leaving after check out without prior notice will incur a $50 fee.
+Late checkout can be booked and paid directly in our guest portal under Add-Ons (guest.summitlakeside.com) — $25/hr, until 12pm or 1pm, subject to availability. Please contact us if you have an issue; leaving after check out without prior notice will incur a $50 fee.
 
 Please be aware that the cleaning fee is for basic whole house cleaning. Anything out of the ordinary (such as excessive trash, unremovable stains, etc) will incur extra cleaning fees as per the rental agreement.
 
@@ -139,7 +139,7 @@ Our general store inside the community is Archie's Corner (www.archiescorner.com
 
 Check-out: 11am
 
-Late check out may be available for an additional $25/hr for up to 3 hours. Please let us know if you are interested. Please contact us if you have an issue; leaving after check out without prior notice will incur a $50 fee.
+Late checkout can be booked and paid directly in our guest portal under Add-Ons (guest.summitlakeside.com) — $25/hr, until 12pm or 1pm, subject to availability. Please contact us if you have an issue; leaving after check out without prior notice will incur a $50 fee.
 
 The cleaning fee is for basic whole house cleaning. Anything out of the ordinary (such as excessive trash, unremovable stains, etc) will incur extra cleaning fees as per the rental agreement.
 
@@ -211,7 +211,7 @@ All trash should be placed in the bins just outside the garage door, they are mi
 
 Check-out: 11am
 
-Late check out may be available for an additional $25/hr for up to 3 hours. Please let us know if you are interested. Please contact us if you have an issue; leaving after check out without prior notice will incur a $50 fee.
+Late checkout can be booked and paid directly in our guest portal under Add-Ons (guest.summitlakeside.com) — $25/hr, until 12pm or 1pm, subject to availability. Please contact us if you have an issue; leaving after check out without prior notice will incur a $50 fee.
 
 Before Checkout:
 
@@ -304,7 +304,7 @@ To allow a food, Uber, or any other delivery driver through the gate, you must s
 
 Check-out: 11am
 
-Late check out may be available for an additional $25/hr for up to 3 hours. Please let us know if you are interested. Please contact us if you have an issue; leaving after check out without prior notice will incur a $50 fee.
+Late checkout can be booked and paid directly in our guest portal under Add-Ons (guest.summitlakeside.com) — $25/hr, until 12pm or 1pm, subject to availability. Please contact us if you have an issue; leaving after check out without prior notice will incur a $50 fee.
 
 The cleaning fee is for basic whole house cleaning. Anything out of the ordinary (such as excessive trash, unremovable stains, etc) will incur extra cleaning fees as per the rental agreement.
 
@@ -403,7 +403,7 @@ All trash should be placed in the bins just outside the garage door, they are mi
 
 Check-out: 11am
 
-Late check out may be available for an additional $25/hr for up to 3 hours. Please let us know if you are interested. Please contact us if you have an issue; leaving after check out without prior notice will incur a $50 fee.
+Late checkout can be booked and paid directly in our guest portal under Add-Ons (guest.summitlakeside.com) — $25/hr, until 12pm or 1pm, subject to availability. Please contact us if you have an issue; leaving after check out without prior notice will incur a $50 fee.
 
 The cleaning fee is for basic whole house cleaning. Anything out of the ordinary (such as excessive trash, unremovable stains, etc) will incur extra cleaning fees as per the rental agreement.
 

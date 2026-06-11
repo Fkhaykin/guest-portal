@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { sendGuestAutomatedMessage } from "@/lib/guest-messages/send";
+import { sendGuestAutomatedMessage, sendHouseCheckinInstructions } from "@/lib/guest-messages/send";
 import { sendRegistrationReminder, REMINDER_DAYS, type ReminderDay } from "@/lib/guest-messages/reminders";
 import type { GuestMessageType, GuestMessageChannel } from "@/lib/guest-messages/templates";
 
@@ -66,7 +66,7 @@ export async function GET(request: Request) {
       const channel: GuestMessageChannel = isDirect ? "email" : "lodgify";
 
       try {
-        await sendGuestAutomatedMessage({
+        const sendParams = {
           registrationId: row.id,
           lodgifyBookingId: row.lodgify_booking_id,
           messageType: batch.type,
@@ -78,7 +78,11 @@ export async function GET(request: Request) {
           checkInDate: row.check_in_date,
           checkOutDate: row.check_out_date,
           hostId: property.host_id,
-        });
+        };
+        await sendGuestAutomatedMessage(sendParams);
+        if (batch.type === "day_of_checkin") {
+          await sendHouseCheckinInstructions(sendParams);
+        }
         sent++;
       } catch (err) {
         console.error(`[guest-msg-cron] Error sending ${batch.type} for ${row.id}:`, err);

@@ -2,6 +2,8 @@ import { Resend } from "resend";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendMessage } from "@/lib/lodgify/messages";
 import { TEMPLATES, interpolate, type GuestMessageType, type GuestMessageChannel, type TemplateVars } from "./templates";
+import { HOUSE_CHECKIN_TEMPLATES, HOUSE_CHECKIN_SUBJECT } from "./house-templates";
+import { houseForProperty } from "./quick-replies";
 import type { GuestMessageSettings } from "@/types/database";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://guest.summitlakeside.com";
@@ -91,6 +93,71 @@ export async function sendGuestAutomatedMessage(params: SendParams): Promise<voi
 
   if (error) {
     console.error(`[guest-msg] ${params.messageType} failed for registration ${params.registrationId}:`, error);
+  }
+}
+
+// House-specific check-in instructions, sent the morning of check-in alongside
+// day_of_checkin. Template resolved per house (nickname or listing name), with
+// per-house overrides from guest_message_settings.house_checkin_instructions.
+export async function sendHouseCheckinInstructions(params: SendParams): Promise<void> {
+  const house = houseForProperty(params.propertyName);
+  if (!house) return; // unknown house (e.g. Edison NJ) — nothing to send
+
+  const supabase = createAdminClient();
+  const messageTypeKey = `house_checkin_${house}`;
+
+  const { data: existing } = await supabase
+    .from("guest_automated_message_log")
+    .select("id")
+    .eq("registration_id", params.registrationId)
+    .eq("message_type", messageTypeKey)
+    .maybeSingle();
+  if (existing) return;
+
+  const hostSettings = await getHostSettings(params.hostId);
+  const eventSettings = hostSettings?.house_checkin_instructions?.[house];
+  if (eventSettings && eventSettings.enabled === false) return;
+
+  const vars: TemplateVars = {
+    guest_name: params.guestName,
+    property_name: params.propertyName,
+    check_in_date: params.checkInDate,
+    check_out_date: params.checkOutDate,
+    portal_link: `${APP_URL}/p/${params.propertySlug}/register`,
+  };
+
+  const subject = interpolate(eventSettings?.subject ?? HOUSE_CHECKIN_SUBJECT, vars);
+  const body = interpolate(eventSettings?.message ?? HOUSE_CHECKIN_TEMPLATES[house], vars);
+
+  let error: string | null = null;
+
+  if (params.channel === "lodgify") {
+    const result = await sendMessage(params.lodgifyBookingId, body);
+    if (!result.success) error = result.error ?? "Unknown Lodgify error";
+  } else {
+    if (!params.guestEmail) {
+      error = "No guest email on file";
+    } else {
+      const resend = new Resend(process.env.RESEND_API_KEY);
+      const { error: resendError } = await resend.emails.send({
+        from: "Summit Lakeside <contact@summitlakeside.com>",
+        to: params.guestEmail,
+        subject,
+        text: body,
+      });
+      if (resendError) error = resendError.message;
+    }
+  }
+
+  await supabase.from("guest_automated_message_log").insert({
+    registration_id: params.registrationId,
+    message_type: messageTypeKey,
+    channel: params.channel,
+    error,
+  });
+
+  if (error) {
+    console.error(`[guest-msg] ${messageTypeKey} failed for registration ${params.registrationId}:`, error);
   }
 }
 
