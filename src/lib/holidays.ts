@@ -51,6 +51,10 @@ function holidaysForYear(year: number): Set<string> {
     ...fixed(year, 11, 11),      // Veterans Day
     nthWeekday(year, 11, 4, 4),  // Thanksgiving — 4th Thu Nov
     ...fixed(year, 12, 25),      // Christmas Day
+    // Next year's New Year's Day observed on Dec 31 of THIS year (Jan 1 on a
+    // Saturday) — without this, the Dec 31 lookup misses it because it lives
+    // in next year's set.
+    ...fixed(year + 1, 1, 1).filter((d) => d.startsWith(`${year}-`)),
   ]);
 }
 
