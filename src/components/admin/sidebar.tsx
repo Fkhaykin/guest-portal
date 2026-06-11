@@ -45,6 +45,12 @@ export function AdminSidebar({
   const router = useRouter();
   const [open, setOpen] = useState(false);
 
+  // On the admin subdomain paths arrive without the /admin prefix; normalize
+  // so active-state matching works in both cases.
+  const currentPath = pathname.startsWith("/admin")
+    ? pathname
+    : `/admin${pathname === "/" ? "" : pathname}`;
+
   async function handleSignOut() {
     const supabase = createClient();
     await supabase.auth.signOut();
@@ -82,22 +88,30 @@ export function AdminSidebar({
         </div>
 
         <nav className="flex-1 p-3 space-y-1">
-          {navItems.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              onClick={() => setOpen(false)}
-              className={cn(
-                "flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors",
-                pathname === item.href || pathname.startsWith(item.href + "/")
-                  ? "bg-accent text-accent-foreground font-medium"
-                  : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
-              )}
-            >
-              <item.icon className="h-4 w-4" />
-              {item.label}
-            </Link>
-          ))}
+          {navItems.map((item) => {
+            // Dashboard (/admin) is a prefix of every route — exact match only
+            const isActive =
+              item.href === "/admin"
+                ? currentPath === "/admin"
+                : currentPath === item.href || currentPath.startsWith(item.href + "/");
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => setOpen(false)}
+                aria-current={isActive ? "page" : undefined}
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors",
+                  isActive
+                    ? "bg-accent text-accent-foreground font-medium"
+                    : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
+                )}
+              >
+                <item.icon className="h-4 w-4" />
+                {item.label}
+              </Link>
+            );
+          })}
         </nav>
 
         <div className="p-3 border-t space-y-3">

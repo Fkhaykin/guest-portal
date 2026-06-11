@@ -288,41 +288,45 @@ export default function AdminReservationsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Reservations</h1>
-          <p className="text-muted-foreground">All reservations across properties</p>
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Reservations</h1>
+          <p className="text-sm md:text-base text-muted-foreground">All reservations across properties</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           <button
             onClick={() => router.push("/admin/reservations/new")}
-            className="inline-flex items-center gap-2 rounded-md bg-primary text-primary-foreground px-3 py-2 text-sm font-medium hover:opacity-90"
+            aria-label="New booking"
+            title="New booking"
+            className="inline-flex items-center gap-2 rounded-md bg-primary text-primary-foreground p-2.5 sm:px-3 sm:py-2 text-sm font-medium hover:opacity-90"
           >
             <Plus className="h-4 w-4" />
-            New booking
+            <span className="hidden sm:inline">New booking</span>
           </button>
           <button
             onClick={handleRefresh}
             disabled={syncing}
-            className="inline-flex items-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground disabled:opacity-50"
+            aria-label="Refresh from Lodgify"
+            title="Refresh from Lodgify"
+            className="inline-flex items-center gap-2 rounded-md border border-input bg-background p-2.5 sm:px-3 sm:py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground disabled:opacity-50"
           >
             <RefreshCw className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`} />
-            {syncing ? "Syncing..." : "Refresh from Lodgify"}
+            <span className="hidden sm:inline">{syncing ? "Syncing..." : "Refresh from Lodgify"}</span>
           </button>
         </div>
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-wrap items-center gap-2 sm:gap-3">
         {/* Name search */}
-        <div className="relative">
+        <div className="relative w-full sm:w-auto">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
           <input
             type="text"
             placeholder="Search by name..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-8 pr-7 py-2 text-sm rounded-md border border-input bg-background ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 w-48"
+            className="pl-8 pr-7 py-2 text-sm rounded-md border border-input bg-background ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 w-full sm:w-48"
           />
           {searchQuery && (
             <button
@@ -335,7 +339,7 @@ export default function AdminReservationsPage() {
         </div>
         {/* Property dropdown */}
         <Popover>
-          <PopoverTrigger className="inline-flex items-center justify-between gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm font-medium ring-offset-background hover:bg-accent hover:text-accent-foreground w-50 cursor-pointer">
+          <PopoverTrigger className="inline-flex items-center justify-between gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm font-medium ring-offset-background hover:bg-accent hover:text-accent-foreground flex-1 sm:flex-none sm:w-50 cursor-pointer">
               {selectedProperties.size === 0
                 ? "All properties"
                 : selectedProperties.size === 1
@@ -384,7 +388,7 @@ export default function AdminReservationsPage() {
 
         {/* Status dropdown */}
         <Popover>
-          <PopoverTrigger className="inline-flex items-center justify-between gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm font-medium ring-offset-background hover:bg-accent hover:text-accent-foreground w-44 cursor-pointer">
+          <PopoverTrigger className="inline-flex items-center justify-between gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm font-medium ring-offset-background hover:bg-accent hover:text-accent-foreground flex-1 sm:flex-none sm:w-44 cursor-pointer">
               {selectedStatuses.size === 0
                 ? "All statuses"
                 : selectedStatuses.size === 1

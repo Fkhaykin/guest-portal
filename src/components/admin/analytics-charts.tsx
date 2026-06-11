@@ -664,9 +664,9 @@ export function AnalyticsCharts() {
     <div className="space-y-3">
       {/* Row 1: date presets */}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:flex-wrap">
-        <div className="flex items-center gap-2">
-          <CalendarRange className="h-4 w-4 shrink-0 text-muted-foreground" />
-          <div className="flex items-center gap-1 overflow-x-auto">
+        <div className="flex items-start gap-2">
+          <CalendarRange className="h-4 w-4 shrink-0 text-muted-foreground mt-1.5" />
+          <div className="flex flex-wrap items-center gap-1">
             {PRESETS.map((p) => (
               <Button
                 key={p.value}

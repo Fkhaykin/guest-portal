@@ -34,6 +34,12 @@ export function CleanerSidebar({
   const pathname = usePathname();
   const router = useRouter();
 
+  // On the manager subdomain paths arrive without the /cleaner prefix;
+  // normalize so active-state matching works in both cases.
+  const currentPath = pathname.startsWith("/cleaner")
+    ? pathname
+    : `/cleaner${pathname === "/" ? "" : pathname}`;
+
   async function handleLogout() {
     await fetch("/api/cleaner/logout", { method: "POST" });
     router.push("/cleaner/login");
@@ -68,8 +74,8 @@ export function CleanerSidebar({
           {navItems.map((item) => {
             const isActive =
               item.href === "/cleaner"
-                ? pathname === "/cleaner"
-                : pathname.startsWith(item.href);
+                ? currentPath === "/cleaner"
+                : currentPath.startsWith(item.href);
             return (
               <Link
                 key={item.href}
@@ -142,8 +148,8 @@ export function CleanerSidebar({
           {navItems.map((item) => {
             const isActive =
               item.href === "/cleaner"
-                ? pathname === "/cleaner"
-                : pathname.startsWith(item.href);
+                ? currentPath === "/cleaner"
+                : currentPath.startsWith(item.href);
             return (
               <Link
                 key={item.href}

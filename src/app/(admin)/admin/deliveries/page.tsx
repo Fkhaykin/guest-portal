@@ -210,22 +210,20 @@ export default function AdminDeliveriesPage() {
       {loading ? (
         <div className="text-muted-foreground text-sm">Loading properties...</div>
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-2 sm:gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {properties.map((prop) => (
-            <Card key={prop.id} className="flex flex-col">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base leading-snug">
+            <Card key={prop.id} className="py-3">
+              <CardContent className="flex items-center justify-between gap-3 px-4">
+                <p className="font-medium text-sm truncate">
                   {prop.nickname || prop.name}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
+                </p>
                 <Button
-                  className="w-full"
                   size="sm"
+                  className="shrink-0"
                   onClick={() => openDialog(prop)}
                 >
                   <Truck className="h-3.5 w-3.5 mr-1.5" />
-                  Register Delivery
+                  Register
                 </Button>
               </CardContent>
             </Card>
@@ -274,7 +272,7 @@ export default function AdminDeliveriesPage() {
                     onClick={() => setExpandedId(isExpanded ? null : item.id)}
                   >
                     <CardHeader className="pb-3 pt-4 px-4">
-                      <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center justify-between gap-2 min-w-0">
                         <div className="min-w-0 overflow-hidden">
                           <p className="text-sm font-medium leading-snug truncate">
                             {item.email_subject ||

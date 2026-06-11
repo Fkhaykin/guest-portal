@@ -8,7 +8,7 @@ const tabs = [
   { value: "notifications", label: "Notifications" },
   { value: "properties", label: "Properties" },
   { value: "cleaners", label: "Cleaners" },
-  { value: "lodgify-webhooks", label: "Lodgify Webhooks" },
+  { value: "lodgify-webhooks", label: "Webhooks" },
 ];
 
 export function SettingsTabs({ children }: { children: React.ReactNode }) {
@@ -26,13 +26,15 @@ export function SettingsTabs({ children }: { children: React.ReactNode }) {
         )
       }
     >
-      <TabsList>
-        {tabs.map((t) => (
-          <TabsTrigger key={t.value} value={t.value}>
-            {t.label}
-          </TabsTrigger>
-        ))}
-      </TabsList>
+      <div className="overflow-x-auto -mx-6 px-6 md:mx-0 md:px-0">
+        <TabsList>
+          {tabs.map((t) => (
+            <TabsTrigger key={t.value} value={t.value} className="shrink-0">
+              {t.label}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </div>
       {children}
     </Tabs>
   );

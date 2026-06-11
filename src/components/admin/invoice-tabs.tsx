@@ -142,8 +142,10 @@ export function AdminInvoiceTabs({
               : "text-muted-foreground hover:text-foreground"
           }`}
         >
-          <SprayCan className="h-4 w-4" />
-          Unpaid Cleanings
+          <SprayCan className="h-4 w-4 shrink-0" />
+          <span className="whitespace-nowrap">
+            Unpaid<span className="hidden sm:inline"> Cleanings</span>
+          </span>
           {pendingCount > 0 && (
             <Badge
               variant="secondary"
@@ -161,8 +163,10 @@ export function AdminInvoiceTabs({
               : "text-muted-foreground hover:text-foreground"
           }`}
         >
-          <Receipt className="h-4 w-4" />
-          Invoice History
+          <Receipt className="h-4 w-4 shrink-0" />
+          <span className="whitespace-nowrap">
+            <span className="hidden sm:inline">Invoice </span>History
+          </span>
           {invoices.length > 0 && (
             <Badge
               variant="secondary"
