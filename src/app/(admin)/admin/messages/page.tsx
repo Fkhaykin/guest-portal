@@ -21,6 +21,11 @@ import {
 import { cn } from "@/lib/utils";
 import type { LodgifyMessage, ConversationThread } from "@/lib/lodgify/messages";
 import { GuestMessageSettings } from "@/components/admin/guest-message-settings";
+import {
+  QuickReplySuggestions,
+  QuickReplyPicker,
+} from "@/components/admin/quick-replies";
+import { maxGuestsForProperty } from "@/lib/guest-messages/quick-replies";
 
 export default function AdminMessagesPage() {
   const searchParams = useSearchParams();
@@ -220,6 +225,26 @@ export default function AdminMessagesPage() {
 
   const selectedConversation = conversations.find(
     (c) => c.booking_id === selectedBookingId
+  );
+
+  // Guest's latest message, but only when the guest spoke last — that's when
+  // a reply suggestion is useful.
+  const lastGuestMessage = useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const type = messages[i].type.toLowerCase();
+      if (type === "comment") continue;
+      return type === "renter" ? messages[i].message : null;
+    }
+    return null;
+  }, [messages]);
+
+  const quickReplyVars = useMemo(
+    () => ({
+      guest_first_name:
+        selectedConversation?.guest_name?.trim().split(/\s+/)[0] ?? "there",
+      max_guests: maxGuestsForProperty(selectedConversation?.property_name),
+    }),
+    [selectedConversation]
   );
 
   function formatDate(dateStr: string) {
@@ -557,6 +582,13 @@ export default function AdminMessagesPage() {
 
               {/* Message input */}
               <div className="p-3 border-t">
+                {!newMessage.trim() && (
+                  <QuickReplySuggestions
+                    lastGuestMessage={lastGuestMessage}
+                    vars={quickReplyVars}
+                    onInsert={setNewMessage}
+                  />
+                )}
                 <div className="flex gap-2">
                   <Textarea
                     placeholder="Type a message..."
@@ -570,6 +602,10 @@ export default function AdminMessagesPage() {
                     }}
                     rows={1}
                     className="min-h-10 max-h-30 resize-none"
+                  />
+                  <QuickReplyPicker
+                    vars={quickReplyVars}
+                    onInsert={setNewMessage}
                   />
                   <Button
                     onClick={handleSend}
