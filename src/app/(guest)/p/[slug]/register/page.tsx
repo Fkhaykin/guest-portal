@@ -61,6 +61,11 @@ type UpsellOption = {
     per_guest_cost?: number;
     per_guest_per_day_cost?: number;
     vendor_url?: string;
+    duration_options?: Array<{
+      hours: number;
+      time_label: string;
+      price_cents: number;
+    }>;
     menu_options?: Array<{
       menu: string;
       ingredient_cost_per_guest: number;
@@ -157,6 +162,7 @@ function saveRegistrationProgress(data: {
   pets: PetEntry[];
   notes: string;
   vehicles: Vehicle[];
+  usingRentalCar?: boolean;
   needsHighchair?: boolean;
   needsPackNPlay?: boolean;
 }) {
@@ -240,10 +246,14 @@ export default function RegisterPage() {
   const [chefMenu, setChefMenu] = useState("");
   const [picnicDate, setPicnicDate] = useState("");
   const [breakfastDays, setBreakfastDays] = useState<Array<{ date: string; servings: number; time: string }>>([]);
+  // Selected duration (in hours) per timing upsell type, e.g. { early_checkin: 1, late_checkout: 2 }
+  const [timingHours, setTimingHours] = useState<Record<string, number>>({});
   const [tips, setTips] = useState({ breakfast: "", delivery: "", cleaning: "" });
   const [requestSending, setRequestSending] = useState<string | null>(null);
   const [requestSent, setRequestSent] = useState<Set<string>>(new Set());
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [usingRentalCar, setUsingRentalCar] = useState(false);
+  const [vehicleError, setVehicleError] = useState<string | null>(null);
   const [needsHighchair, setNeedsHighchair] = useState(false);
   const [needsPackNPlay, setNeedsPackNPlay] = useState(false);
 
@@ -259,6 +269,7 @@ export default function RegisterPage() {
   const [idBackPath, setIdBackPath] = useState<string | null>(null);
   const [idBackName, setIdBackName] = useState<string | null>(null);
   const [uploadingIdSide, setUploadingIdSide] = useState<string | null>(null);
+  const [idUploadError, setIdUploadError] = useState<string | null>(null);
 
   // Airbnb guests already verified by the platform — skip ID upload
   const isAirbnb = /airbnb/i.test(session?.reservation.booking_source ?? "");
@@ -290,6 +301,7 @@ export default function RegisterPage() {
       setPets(progress.pets || []);
       setNotes(progress.notes || "");
       setVehicles(progress.vehicles || []);
+      setUsingRentalCar(progress.usingRentalCar || false);
       setNeedsHighchair(progress.needsHighchair || false);
       setNeedsPackNPlay(progress.needsPackNPlay || false);
     } else {
@@ -319,8 +331,8 @@ export default function RegisterPage() {
   // Persist progress on changes
   useEffect(() => {
     if (!loaded || !session) return;
-    saveRegistrationProgress({ registrationId: session.reservation.id, step, fullName, email, phone, address, guests, hasPets, pets, notes, vehicles, needsHighchair, needsPackNPlay });
-  }, [session, step, fullName, email, phone, address, guests, hasPets, pets, notes, vehicles, needsHighchair, needsPackNPlay, loaded]);
+    saveRegistrationProgress({ registrationId: session.reservation.id, step, fullName, email, phone, address, guests, hasPets, pets, notes, vehicles, usingRentalCar, needsHighchair, needsPackNPlay });
+  }, [session, step, fullName, email, phone, address, guests, hasPets, pets, notes, vehicles, usingRentalCar, needsHighchair, needsPackNPlay, loaded]);
 
   // Load upsells when entering step 6
   async function loadUpsells() {
@@ -417,7 +429,7 @@ export default function RegisterPage() {
     // Need to pay for the extra pet(s)
     setPetFeeLoading(true);
     // Save current state before redirect
-    saveRegistrationProgress({ registrationId: session.reservation.id, step: 4, fullName, email, phone, address, guests, hasPets: true, pets: petsList, notes, vehicles });
+    saveRegistrationProgress({ registrationId: session.reservation.id, step: 4, fullName, email, phone, address, guests, hasPets: true, pets: petsList, notes, vehicles, usingRentalCar });
     backupForStripeRedirect();
 
     try {
@@ -473,7 +485,7 @@ export default function RegisterPage() {
       if (res.ok) {
         const data = await res.json();
         if (data.url) {
-          saveRegistrationProgress({ registrationId: session!.reservation.id, step: 6, fullName, email, phone, address, guests, hasPets, pets, notes, vehicles, needsHighchair, needsPackNPlay });
+          saveRegistrationProgress({ registrationId: session!.reservation.id, step: 6, fullName, email, phone, address, guests, hasPets, pets, notes, vehicles, usingRentalCar, needsHighchair, needsPackNPlay });
           backupForStripeRedirect();
           window.location.href = data.url;
         }
@@ -546,6 +558,7 @@ export default function RegisterPage() {
   async function handleIdUpload(side: "front" | "back", file: File) {
     if (!session) return;
     setUploadingIdSide(side);
+    setIdUploadError(null);
 
     const formData = new FormData();
     formData.append("file", file);
@@ -568,9 +581,12 @@ export default function RegisterPage() {
           setIdBackPath(data.path);
           setIdBackName(file.name);
         }
+      } else {
+        const data = await res.json().catch(() => null);
+        setIdUploadError(data?.error || `Upload failed (${res.status}). Try a smaller photo or a different format.`);
       }
-    } catch {
-      // Handle error silently
+    } catch (err) {
+      setIdUploadError(`Network error: ${err instanceof Error ? err.message : "please try again"}.`);
     } finally {
       setUploadingIdSide(null);
     }
@@ -888,7 +904,7 @@ export default function RegisterPage() {
                       </span>
                       <input
                         type="file" className="hidden"
-                        accept="image/jpeg,image/png,image/webp,application/pdf"
+                        accept="image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf"
                         disabled={uploadingIdSide === "front"}
                         onChange={(e) => {
                           const file = e.target.files?.[0];
@@ -921,7 +937,7 @@ export default function RegisterPage() {
                       </span>
                       <input
                         type="file" className="hidden"
-                        accept="image/jpeg,image/png,image/webp,application/pdf"
+                        accept="image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf"
                         disabled={uploadingIdSide === "back"}
                         onChange={(e) => {
                           const file = e.target.files?.[0];
@@ -933,12 +949,15 @@ export default function RegisterPage() {
                   )}
                 </div>
                 </div>
+                {idUploadError && (
+                  <p className="text-sm text-destructive">{idUploadError}</p>
+                )}
               </div>
               </>
               )}
             </CardContent>
           </Card>
-          {!isAirbnb && (!idFrontPath || !idBackPath) && (
+          {!isAirbnb && (!idFrontPath || !idBackPath) && !idUploadError && (
             <p className="text-sm text-destructive text-center">
               Please upload both sides of your ID to continue.
             </p>
@@ -1300,7 +1319,22 @@ export default function RegisterPage() {
 
       {/* Step 5: Vehicles */}
       {step === 5 && (
-        <form onSubmit={(e) => { e.preventDefault(); loadUpsells(); setStep(6); }} className="space-y-6">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!usingRentalCar) {
+              const validVehicles = vehicles.filter((v) => v.license_plate.trim());
+              if (validVehicles.length === 0) {
+                setVehicleError("Please add at least one vehicle, or check \"We'll use a rental car\" below.");
+                return;
+              }
+            }
+            setVehicleError(null);
+            loadUpsells();
+            setStep(6);
+          }}
+          className="space-y-6"
+        >
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
@@ -1316,7 +1350,7 @@ export default function RegisterPage() {
                 variant="outline"
                 size="sm"
                 onClick={addVehicle}
-                disabled={vehicles.length >= property.max_vehicles}
+                disabled={usingRentalCar || vehicles.length >= property.max_vehicles}
               >
                 <Plus className="h-4 w-4 mr-1" /> Add
               </Button>
@@ -1325,13 +1359,35 @@ export default function RegisterPage() {
               <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm text-amber-900">
                 All vehicles must be registered prior to arrival. Unregistered vehicles may experience delays at the community security gate.
               </div>
-              {vehicles.length >= property.max_vehicles && (
+
+              <label className="flex items-start gap-3 rounded-lg border p-3 cursor-pointer hover:bg-muted/40">
+                <Checkbox
+                  checked={usingRentalCar}
+                  onCheckedChange={(checked) => {
+                    const next = checked === true;
+                    setUsingRentalCar(next);
+                    if (next) {
+                      setVehicleError(null);
+                      setVehicles([]);
+                    }
+                  }}
+                  className="mt-0.5"
+                />
+                <div className="space-y-0.5">
+                  <div className="text-sm font-medium">We&rsquo;ll use a rental car</div>
+                  <div className="text-xs text-muted-foreground">
+                    Skip vehicle registration now. Please contact us with your plate details once you pick up the rental.
+                  </div>
+                </div>
+              </label>
+
+              {!usingRentalCar && vehicles.length >= property.max_vehicles && (
                 <div className="rounded-lg bg-muted/50 border p-3 text-sm text-muted-foreground">
                   This property allows a maximum of {property.max_vehicles} vehicle{property.max_vehicles !== 1 ? "s" : ""}.
                 </div>
               )}
 
-              {vehicles.length === 0 ? (
+              {usingRentalCar ? null : vehicles.length === 0 ? (
                 <div className="text-center py-6 text-muted-foreground">
                   <Car className="h-8 w-8 mx-auto mb-2 opacity-50" />
                   <p className="text-sm">
@@ -1400,6 +1456,12 @@ export default function RegisterPage() {
                     </div>
                   </div>
                 ))
+              )}
+
+              {vehicleError && (
+                <div className="rounded-lg bg-destructive/10 border border-destructive/30 p-3 text-sm text-destructive">
+                  {vehicleError}
+                </div>
               )}
             </CardContent>
           </Card>
@@ -1473,7 +1535,7 @@ export default function RegisterPage() {
                               <p className="font-medium text-sm">{option.label}</p>
                               <p className="text-xs text-muted-foreground leading-snug">{option.description}</p>
                             </div>
-                            {option.type !== "private_chef" && (
+                            {option.type !== "private_chef" && !option.meta?.duration_options && (
                               <span className="text-sm font-semibold whitespace-nowrap shrink-0">
                                 {formatCents(option.price_cents)}
                                 {option.meta?.per_guest_cost && (
@@ -1484,8 +1546,45 @@ export default function RegisterPage() {
                               </span>
                             )}
                           </div>
+                          {/* Timing upsells: pick 1 or 2 extra hours */}
+                          {option.available && option.meta?.duration_options && (() => {
+                            const durations = option.meta.duration_options;
+                            const selectedHours = timingHours[option.type] ?? durations[0].hours;
+                            return (
+                              <div className="mt-2 space-y-2">
+                                <div className="flex flex-wrap gap-2">
+                                  {durations.map((d) => {
+                                    const selected = selectedHours === d.hours;
+                                    return (
+                                      <button key={d.hours} type="button" disabled={inCart}
+                                        onClick={() => setTimingHours((prev) => ({ ...prev, [option.type]: d.hours }))}
+                                        className={`flex-1 min-w-28 rounded-lg border px-3 py-2 text-left text-xs transition-colors disabled:opacity-60 ${selected ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}`}>
+                                        <span className="block font-medium">+{d.hours} hr{d.hours !== 1 ? "s" : ""} · {d.time_label}</span>
+                                        <span className="block font-semibold">{formatCents(d.price_cents)}</span>
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                                {inCart ? (
+                                  <Button type="button" variant="outline" size="sm"
+                                    onClick={() => removeFromCart(option.type)}>
+                                    <X className="h-3 w-3 mr-1" /> Remove
+                                  </Button>
+                                ) : (
+                                  <Button type="button" variant="secondary" size="sm"
+                                    className="hover:bg-primary hover:text-primary-foreground transition-colors"
+                                    onClick={() => {
+                                      const tier = durations.find((d) => d.hours === selectedHours) || durations[0];
+                                      addToCart({ type: option.type, label: `${option.label} (${tier.time_label})`, price_cents: tier.price_cents, meta: { hours: tier.hours } });
+                                    }}>
+                                    <ShoppingCart className="h-3 w-3 mr-1" /> Add to cart
+                                  </Button>
+                                )}
+                              </div>
+                            );
+                          })()}
                           {/* Inline button for simple items (no config needed) */}
-                          {option.available && !hasConfig(option.type) && (
+                          {option.available && !option.meta?.duration_options && !hasConfig(option.type) && (
                             <div className="mt-2">
                               {inCart ? (
                                 <Button type="button" variant="outline" size="sm"
