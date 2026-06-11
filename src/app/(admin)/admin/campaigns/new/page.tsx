@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { evaluateSegment } from "@/lib/marketing/segments";
 import { CampaignComposer } from "@/components/admin/marketing/campaign-composer";
-import { buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button-variants";
 import { ArrowLeft } from "lucide-react";
 import type { SegmentFilter } from "@/types/database";
 

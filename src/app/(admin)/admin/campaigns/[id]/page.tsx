@@ -5,7 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { evaluateSegment } from "@/lib/marketing/segments";
 import { CampaignComposer } from "@/components/admin/marketing/campaign-composer";
 import { CampaignSendsLog } from "@/components/admin/marketing/campaign-sends-log";
-import { buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button-variants";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ArrowLeft } from "lucide-react";
 import type { SegmentFilter, CampaignChannel, Tables } from "@/types/database";
