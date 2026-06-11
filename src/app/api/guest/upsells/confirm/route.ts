@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { stripe } from "@/lib/stripe/client";
 import { verifyGuestToken } from "@/lib/guest-token";
 import { notifyCleanersOfEarlyCheckin, notifyCleanersOfLateCheckout } from "@/lib/sms/notify-cleaners";
+import { notifyHostOfUpsellPurchase } from "@/lib/push/notify-host";
 
 export async function POST(request: Request) {
   let body: { session_id: string; registration_id: string };
@@ -94,6 +95,15 @@ export async function POST(request: Request) {
         checkOut: reg.check_out_date as string,
       }).catch(() => {});
     }
+  }
+
+  if (justPaid.length > 0) {
+    notifyHostOfUpsellPurchase({
+      propertyId: reg.property_id,
+      guestName,
+      labels: justPaid.map((u) => (u.label as string) || (u.type as string)),
+      totalCents: justPaid.reduce((sum, u) => sum + (Number(u.price_cents) || 0), 0),
+    }).catch(() => {});
   }
 
   return NextResponse.json({ ok: true, upsells: updated.filter((u) => u.status === "paid") });

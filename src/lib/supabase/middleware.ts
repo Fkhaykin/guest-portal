@@ -67,18 +67,24 @@ export async function updateSession(request: NextRequest) {
   // Guest subdomain: rewrite only the root to /checkin (other paths stay as-is)
   const isGuestRoot = subdomain === "guest" && pathname === "/";
 
-  // Manager subdomain gets its own PWA manifest so the cleaner portal installs
-  // as a standalone app ("Summit Cleaning") rather than a Safari bookmark.
-  const isManagerManifest =
-    subdomain === "manager" && pathname === "/manifest.json";
+  // Manager/admin subdomains get their own PWA manifests so each portal
+  // installs as a standalone app rather than a Safari bookmark.
+  const MANIFEST_MAP: Record<string, string> = {
+    manager: "/manifest-manager.json",
+    admin: "/manifest-admin.json",
+  };
+  const manifestOverride =
+    pathname === "/manifest.json" && subdomain
+      ? MANIFEST_MAP[subdomain]
+      : undefined;
 
   // Compute the internal path that Next.js will serve
   const needsRewrite =
     isGuestRoot ||
-    isManagerManifest ||
+    !!manifestOverride ||
     (!!prefix && !shouldSkipRewrite(pathname) && !pathname.startsWith(prefix));
-  const internalPath = isManagerManifest
-    ? "/manifest-manager.json"
+  const internalPath = manifestOverride
+    ? manifestOverride
     : isGuestRoot
       ? "/checkin"
       : needsRewrite

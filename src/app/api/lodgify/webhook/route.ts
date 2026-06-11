@@ -3,6 +3,7 @@ import { createHmac, timingSafeEqual } from "crypto";
 import { syncBookingById } from "@/lib/lodgify/sync";
 import { fetchThreadMessages } from "@/lib/lodgify/messages";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { notifyHostOfGuestMessage } from "@/lib/push/notify-host";
 
 function verifySignature(rawBody: string, signature: string, secrets: string[]): boolean {
   // Lodgify sends signatures as "sha256=<UPPERCASE hex>". createHmac emits
@@ -155,6 +156,15 @@ async function persistGuestMessage(event: GuestMessageEvent): Promise<{ outcome:
       { onConflict: "thread_uid" }
     );
   if (threadErr) throw new Error(`guest_message_thread upsert failed: ${threadErr.message}`);
+
+  // Push the new message to the host's devices (fire-and-forget)
+  notifyHostOfGuestMessage({
+    guestName: event.guest_name ?? null,
+    preview,
+    lodgifyBookingId: bookingIdHint,
+  }).catch((err) => {
+    console.error("[lodgify-webhook] Host push failed:", err);
+  });
 
   // Best-effort: pull full thread from Lodgify to backfill Owner replies and
   // older messages. We don't await completion beyond a short budget — the

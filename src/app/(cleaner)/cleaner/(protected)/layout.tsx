@@ -3,7 +3,7 @@ import { validateCleanerSession } from "@/lib/cleaner/auth";
 import { getSessionToken } from "@/lib/cleaner/session";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { CleanerSidebar } from "@/components/cleaner/sidebar";
-import { PushPrompt } from "@/components/cleaner/push-prompt";
+import { PushPrompt } from "@/components/push-prompt";
 
 export default async function CleanerProtectedLayout({
   children,
@@ -68,7 +68,10 @@ export default async function CleanerProtectedLayout({
         completedTasks={completedTasks}
       />
       <main className="md:ml-56 px-4 sm:px-6 py-6 pt-16 md:pt-6 pb-20 md:pb-6">
-        <PushPrompt />
+        <PushPrompt
+          endpoint="/api/cleaner/push"
+          description="Get notified about new bookings, schedule changes, and paid invoices."
+        />
         {children}
       </main>
     </div>

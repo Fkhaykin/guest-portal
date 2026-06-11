@@ -2,6 +2,7 @@ import { NextResponse, after } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { verifyGuestToken } from "@/lib/guest-token";
 import { notifyCleanersOfPetAdded } from "@/lib/sms/notify-cleaners";
+import { notifyHostOfRegistration } from "@/lib/push/notify-host";
 import { submitPEPOAEmail } from "@/lib/pepoa/submit-email";
 
 type GuestEntry = { first_name: string; last_name: string; age_group: string };
@@ -224,6 +225,13 @@ export async function POST(request: Request) {
     await submitPEPOAEmail({ registrationId: registration_id, isUpdate: true, changeSummary: capturedSummary }).catch((err) => {
       console.error("Failed to send PEPOA update email:", err);
     });
+
+    await notifyHostOfRegistration({
+      propertyId: capturedPropertyId,
+      guestName: capturedGuestName,
+      summary: capturedSummary,
+      isUpdate: true,
+    }).catch(() => {});
 
     if (capturedPetCount > 0 && capturedCheckIn) {
       await notifyCleanersOfPetAdded({

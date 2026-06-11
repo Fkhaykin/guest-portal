@@ -2,6 +2,7 @@ import { NextResponse, after } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { verifyGuestToken } from "@/lib/guest-token";
 import { notifyCleanersOfPetAdded } from "@/lib/sms/notify-cleaners";
+import { notifyHostOfRegistration } from "@/lib/push/notify-host";
 import { submitPEPOAEmail } from "@/lib/pepoa/submit-email";
 
 export async function POST(request: Request) {
@@ -254,6 +255,11 @@ export async function POST(request: Request) {
     await submitPEPOAEmail({ registrationId: reg.id }).catch((err) => {
       console.error("Failed to send PEPOA email:", err);
     });
+
+    await notifyHostOfRegistration({
+      propertyId: reg.property_id,
+      guestName: full_name,
+    }).catch(() => {});
 
     if (cleanPets.length > 0 && reg.check_in_date) {
       await notifyCleanersOfPetAdded({

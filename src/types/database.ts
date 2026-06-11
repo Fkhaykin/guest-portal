@@ -900,7 +900,8 @@ export type Database = {
       push_subscription: {
         Row: {
           id: string;
-          cleaner_id: string;
+          cleaner_id: string | null;
+          host_id: string | null;
           endpoint: string;
           subscription: WebPushSubscriptionJson;
           user_agent: string | null;
@@ -908,7 +909,8 @@ export type Database = {
         };
         Insert: {
           id?: string;
-          cleaner_id: string;
+          cleaner_id?: string | null;
+          host_id?: string | null;
           endpoint: string;
           subscription: WebPushSubscriptionJson;
           user_agent?: string | null;
@@ -916,7 +918,8 @@ export type Database = {
         };
         Update: {
           id?: string;
-          cleaner_id?: string;
+          cleaner_id?: string | null;
+          host_id?: string | null;
           endpoint?: string;
           subscription?: WebPushSubscriptionJson;
           user_agent?: string | null;

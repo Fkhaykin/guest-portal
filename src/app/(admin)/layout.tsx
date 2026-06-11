@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { AdminSidebar } from "@/components/admin/sidebar";
+import { PushPrompt } from "@/components/push-prompt";
 
 export default async function AdminLayout({
   children,
@@ -30,7 +31,13 @@ export default async function AdminLayout({
   return (
     <div className="flex min-h-full">
       <AdminSidebar hostName={host.full_name} hostEmail={host.email} />
-      <main className="flex-1 p-6 pt-16 md:p-8 overflow-auto">{children}</main>
+      <main className="flex-1 p-6 pt-16 md:p-8 overflow-auto">
+        <PushPrompt
+          endpoint="/api/admin/push"
+          description="Get notified when guests message, book, or update a reservation."
+        />
+        {children}
+      </main>
     </div>
   );
 }

@@ -21,11 +21,12 @@ export type PushPayload = {
 };
 
 /**
- * Send a web push notification to every device a cleaner has subscribed.
- * Dead subscriptions (404/410 from the push service) are deleted.
+ * Send a web push notification to every device subscribed for the given
+ * owner. Dead subscriptions (404/410 from the push service) are deleted.
  */
-export async function sendPushToCleaner(
-  cleanerId: string,
+async function sendPushTo(
+  ownerColumn: "cleaner_id" | "host_id",
+  ownerId: string,
   payload: PushPayload
 ) {
   if (!ensureConfigured()) {
@@ -37,7 +38,7 @@ export async function sendPushToCleaner(
   const { data: subscriptions } = await supabase
     .from("push_subscription")
     .select("id, endpoint, subscription")
-    .eq("cleaner_id", cleanerId);
+    .eq(ownerColumn, ownerId);
 
   if (!subscriptions?.length) return;
 
@@ -54,11 +55,22 @@ export async function sendPushToCleaner(
           await supabase.from("push_subscription").delete().eq("id", sub.id);
         } else {
           console.error(
-            `[push] Failed to send to cleaner ${cleanerId}:`,
+            `[push] Failed to send to ${ownerColumn}=${ownerId}:`,
             err instanceof Error ? err.message : err
           );
         }
       }
     })
   );
+}
+
+export async function sendPushToCleaner(
+  cleanerId: string,
+  payload: PushPayload
+) {
+  return sendPushTo("cleaner_id", cleanerId, payload);
+}
+
+export async function sendPushToHost(hostId: string, payload: PushPayload) {
+  return sendPushTo("host_id", hostId, payload);
 }

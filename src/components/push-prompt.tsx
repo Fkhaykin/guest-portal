@@ -18,7 +18,7 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array<ArrayBuffer> {
   return output;
 }
 
-async function subscribe(): Promise<boolean> {
+async function subscribe(endpoint: string): Promise<boolean> {
   const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
   if (!vapidKey) return false;
 
@@ -30,7 +30,7 @@ async function subscribe(): Promise<boolean> {
       applicationServerKey: urlBase64ToUint8Array(vapidKey),
     }));
 
-  const res = await fetch("/api/cleaner/push", {
+  const res = await fetch(endpoint, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ subscription: subscription.toJSON() }),
@@ -38,7 +38,13 @@ async function subscribe(): Promise<boolean> {
   return res.ok;
 }
 
-export function PushPrompt() {
+export function PushPrompt({
+  endpoint,
+  description,
+}: {
+  endpoint: string;
+  description: string;
+}) {
   const [visible, setVisible] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -54,7 +60,7 @@ export function PushPrompt() {
 
     if (Notification.permission === "granted") {
       // Keep the server's copy of this device's subscription fresh
-      subscribe().catch(() => {});
+      subscribe(endpoint).catch(() => {});
       return;
     }
 
@@ -64,14 +70,14 @@ export function PushPrompt() {
     ) {
       setVisible(true);
     }
-  }, []);
+  }, [endpoint]);
 
   async function handleEnable() {
     setLoading(true);
     try {
       const permission = await Notification.requestPermission();
       if (permission === "granted") {
-        await subscribe();
+        await subscribe(endpoint);
       }
     } finally {
       setLoading(false);
@@ -92,10 +98,7 @@ export function PushPrompt() {
         <Bell className="h-5 w-5 shrink-0 text-muted-foreground" />
         <div className="flex-1 text-sm">
           <p className="font-medium">Turn on notifications</p>
-          <p className="text-muted-foreground">
-            Get notified about new bookings, schedule changes, and paid
-            invoices.
-          </p>
+          <p className="text-muted-foreground">{description}</p>
         </div>
         <Button size="sm" onClick={handleEnable} disabled={loading}>
           {loading ? "Enabling..." : "Enable"}

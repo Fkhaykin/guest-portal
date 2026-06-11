@@ -2,6 +2,11 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getBookings, getBookingById, getProperties, type LodgifyBooking } from "./client";
 import { notifyCleanersOfNewBooking, notifyCleanersOfCancellation } from "@/lib/sms/notify-cleaners";
+import {
+  notifyHostOfNewBooking,
+  notifyHostOfCancellation,
+  notifyHostOfBookingChange,
+} from "@/lib/push/notify-host";
 import { sendGuestConfirmationAsync } from "@/lib/guest-messages/send";
 import { submitPEPOAEmail } from "@/lib/pepoa/submit-email";
 
@@ -438,6 +443,16 @@ export async function syncBooking(booking: LodgifyBooking, options?: { skipNotif
         new_data: nextSnap,
       });
 
+      if (!options?.skipNotify) {
+        notifyHostOfBookingChange({
+          propertyId,
+          guestName: booking.guest.name,
+          summary: summaryParts.join("; "),
+        }).catch((err) => {
+          console.error(`[lodgify-sync] Host push failed for booking ${booking.id}:`, err);
+        });
+      }
+
       // Email HOA when check-in or check-out dates change
       const dateChanged = changedKeys.some((k) => k === "check_in_date" || k === "check_out_date");
       if (dateChanged) {
@@ -481,9 +496,15 @@ export async function syncBooking(booking: LodgifyBooking, options?: { skipNotif
       notifyCleanersOfNewBooking(notifyParams).catch((err) => {
         console.error(`[lodgify-sync] Failed to notify cleaners for booking ${booking.id}:`, err);
       });
+      notifyHostOfNewBooking(notifyParams).catch((err) => {
+        console.error(`[lodgify-sync] Host push failed for booking ${booking.id}:`, err);
+      });
     } else if (wasPreviouslyActive && newStatus === "cancelled") {
       notifyCleanersOfCancellation(notifyParams).catch((err) => {
         console.error(`[lodgify-sync] Failed to notify cleaners of cancellation ${booking.id}:`, err);
+      });
+      notifyHostOfCancellation(notifyParams).catch((err) => {
+        console.error(`[lodgify-sync] Host push failed for cancellation ${booking.id}:`, err);
       });
     }
   }
