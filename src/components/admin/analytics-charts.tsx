@@ -664,9 +664,25 @@ export function AnalyticsCharts() {
     <div className="space-y-3">
       {/* Row 1: date presets */}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:flex-wrap">
-        <div className="flex items-start gap-2">
-          <CalendarRange className="h-4 w-4 shrink-0 text-muted-foreground mt-1.5" />
-          <div className="flex flex-wrap items-center gap-1">
+        <div className="flex items-center gap-2">
+          <CalendarRange className="h-4 w-4 shrink-0 text-muted-foreground" />
+          {/* Mobile: compact dropdown */}
+          <Select value={preset} onValueChange={(v) => setPreset(v as DatePreset)}>
+            <SelectTrigger size="sm" className="flex-1 sm:hidden">
+              <SelectValue>
+                {PRESETS.find((p) => p.value === preset)?.label}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {PRESETS.map((p) => (
+                <SelectItem key={p.value} value={p.value}>
+                  {p.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {/* Desktop: one-tap chips */}
+          <div className="hidden sm:flex flex-wrap items-center gap-1">
             {PRESETS.map((p) => (
               <Button
                 key={p.value}
@@ -743,7 +759,7 @@ export function AnalyticsCharts() {
           </DropdownMenu>
         )}
         <div className="ml-auto flex items-center gap-1.5 shrink-0">
-          <span className="text-xs text-muted-foreground hidden sm:block">Group by</span>
+          <span className="text-xs text-muted-foreground">Group by</span>
           <Select value={groupBy} onValueChange={(v) => setGroupBy(v as GroupBy)}>
             <SelectTrigger size="sm" className="w-28">
               <SelectValue />
