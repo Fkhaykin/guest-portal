@@ -449,10 +449,10 @@ export default function AdminMessagesPage() {
         </Link>
       </div>
 
-      <div className="flex flex-1 min-h-0 rounded-lg border bg-card">
+      <div className="flex flex-1 min-h-0 bg-card md:rounded-lg md:border">
         {/* Left panel — Conversation list */}
         <div className={cn(
-          "shrink-0 border-r flex-col md:w-80 w-full",
+          "shrink-0 md:border-r flex-col md:w-80 w-full",
           mobileView === "thread" ? "hidden md:flex" : "flex"
         )}>
           {/* Search + Filters */}
