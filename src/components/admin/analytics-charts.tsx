@@ -9,7 +9,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import {
+  DateRangeFilter,
+  getPresetRange,
+  type DatePreset,
+} from "@/components/admin/date-range-filter";
 import {
   Select,
   SelectContent,
@@ -46,7 +50,6 @@ import {
   Building2,
   CreditCard,
   QrCode,
-  CalendarRange,
   ChevronDown,
 } from "lucide-react";
 
@@ -113,17 +116,6 @@ function SourceLogo({ source, className }: { source: string; className?: string 
 }
 
 type GroupBy = "week" | "month" | "quarter";
-type DatePreset = "30d" | "90d" | "6m" | "ytd" | "1y" | "all" | "custom";
-
-const PRESETS: { value: DatePreset; label: string }[] = [
-  { value: "30d", label: "30 days" },
-  { value: "90d", label: "90 days" },
-  { value: "6m", label: "6 months" },
-  { value: "ytd", label: "Year to date" },
-  { value: "1y", label: "1 year" },
-  { value: "all", label: "All time" },
-  { value: "custom", label: "Custom" },
-];
 
 // ─── Types ───────────────────────────────────────────────────
 
@@ -193,18 +185,6 @@ function formatDollars(v: number) {
 
 function formatCompactDollars(v: number) {
   return `$${new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 }).format(v)}`;
-}
-
-function getPresetRange(preset: DatePreset): [Date | null, Date | null] {
-  if (preset === "all" || preset === "custom") return [null, null];
-  const now = today();
-  const from = new Date(now);
-  if (preset === "30d") from.setDate(from.getDate() - 30);
-  else if (preset === "90d") from.setDate(from.getDate() - 90);
-  else if (preset === "6m") from.setMonth(from.getMonth() - 6);
-  else if (preset === "ytd") { from.setMonth(0); from.setDate(1); }
-  else if (preset === "1y") from.setFullYear(from.getFullYear() - 1);
-  return [from, now];
 }
 
 function toBucketKey(dateStr: string, groupBy: GroupBy): string {
@@ -667,21 +647,16 @@ export function AnalyticsCharts() {
     <div className="space-y-3">
       {/* Controls row: date range + property filter + group by */}
       <div className="flex items-center gap-2">
-        <CalendarRange className="hidden sm:block h-4 w-4 shrink-0 text-muted-foreground" />
-        <Select value={preset} onValueChange={(v) => setPreset(v as DatePreset)}>
-          <SelectTrigger size="sm" className="flex-1 min-w-0 sm:flex-none sm:w-36">
-            <SelectValue>
-              {PRESETS.find((p) => p.value === preset)?.label}
-            </SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            {PRESETS.map((p) => (
-              <SelectItem key={p.value} value={p.value}>
-                {p.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <DateRangeFilter
+          preset={preset}
+          customFrom={customFrom}
+          customTo={customTo}
+          onApply={(p, from, to) => {
+            setPreset(p);
+            setCustomFrom(from);
+            setCustomTo(to);
+          }}
+        />
         {raw && (
           <DropdownMenu>
             <DropdownMenuTrigger className="inline-flex items-center gap-1.5 h-8 px-3 rounded-md border border-input bg-background text-xs font-medium hover:bg-accent hover:text-accent-foreground transition-colors shrink-0">
@@ -747,15 +722,6 @@ export function AnalyticsCharts() {
           </Select>
         </div>
       </div>
-
-      {/* Custom range inputs */}
-      {preset === "custom" && (
-        <div className="flex items-center gap-1.5">
-          <Input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} className="h-8 flex-1 sm:flex-none sm:w-36 text-xs" />
-          <span className="text-xs text-muted-foreground">to</span>
-          <Input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} className="h-8 flex-1 sm:flex-none sm:w-36 text-xs" />
-        </div>
-      )}
 
       {/* Stats */}
       <div className="grid grid-cols-4 gap-2 sm:gap-4 sm:grid-cols-2 lg:grid-cols-4">
