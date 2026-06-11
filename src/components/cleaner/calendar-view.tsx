@@ -178,7 +178,7 @@ export function CalendarView({
     byGroup.set(g.key, { coverImage: g.coverImage, label: g.label, reservations: [] });
   }
   for (const r of reservations) {
-    if (r.checkOut <= rangeStart || r.checkIn > rangeEnd) continue;
+    if (r.checkOut < rangeStart || r.checkIn > rangeEnd) continue;
     const groupKey = (r.propertyNickname || r.propertyName).toLowerCase();
     if (!byGroup.has(groupKey)) {
       byGroup.set(groupKey, { coverImage: r.propertyCoverImage, label: r.propertyNickname || r.propertyName, reservations: [] });
@@ -215,8 +215,8 @@ export function CalendarView({
       }
     }
 
-    // Find last visible day < checkOut (last occupied night)
-    // But we want the bar to bleed into checkout day
+    // Find the visible day matching checkOut; if checkOut is beyond the
+    // visible range, isClampedEnd stays true and the bar runs to the edge
     let endIdx = days.length - 1;
     let isClampedEnd = true;
     for (let i = days.length - 1; i >= 0; i--) {
@@ -225,12 +225,6 @@ export function CalendarView({
         isClampedEnd = days[i].str !== r.checkOut;
         break;
       }
-    }
-
-    // If checkOut is beyond visible range
-    if (r.checkOut > rangeEnd) {
-      endIdx = days.length - 1;
-      isClampedEnd = false;
     }
 
     return { startIdx, endIdx, isClampedStart, isClampedEnd };
@@ -514,9 +508,9 @@ export function CalendarView({
           </Button>
         </div>
 
-        {/* Day headers */}
+        {/* Day headers — px-2 matches the p-2 on the rows container so columns align */}
         <div
-          className="grid gap-0 border-b pb-2 mb-2"
+          className="grid gap-0 border-b pb-2 mb-2 px-2"
           style={{ gridTemplateColumns: `var(--label-w) repeat(${VISIBLE_DAYS}, 1fr)` }}
         >
           <div />
@@ -590,8 +584,9 @@ export function CalendarView({
                       const { startIdx, endIdx, isClampedStart, isClampedEnd } = getBarPosition(r);
 
                       const colPct = 100 / VISIBLE_DAYS;
-                      const leftPct = startIdx * colPct + (isClampedStart ? 0 : colPct * 0.4);
-                      const rightPct = (VISIBLE_DAYS - 1 - endIdx) * colPct + (isClampedEnd ? 0 : colPct * 0.65);
+                      // Half-day overlap: bar starts mid-box on check-in day, ends mid-box on check-out day
+                      const leftPct = startIdx * colPct + (isClampedStart ? 0 : colPct * 0.5);
+                      const rightPct = (VISIBLE_DAYS - 1 - endIdx) * colPct + (isClampedEnd ? 0 : colPct * 0.5);
                       const widthPct = 100 - leftPct - rightPct;
 
                       if (widthPct <= 0) return null;

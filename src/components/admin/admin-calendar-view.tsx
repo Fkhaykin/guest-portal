@@ -135,7 +135,7 @@ export function AdminCalendarView({
     byGroup.set(g.key, { coverImage: g.coverImage, label: g.label, entries: [] });
   }
   for (const e of entries) {
-    if (e.checkOut <= rangeStart || e.checkIn > rangeEnd) continue;
+    if (e.checkOut < rangeStart || e.checkIn > rangeEnd) continue;
     if (e.displayStatus === "cancelled") continue;
     const groupKey = (e.propertyNickname || e.propertyName).toLowerCase();
     if (!byGroup.has(groupKey)) {
@@ -164,10 +164,6 @@ export function AdminCalendarView({
         isClampedEnd = days[i].str !== e.checkOut;
         break;
       }
-    }
-    if (e.checkOut > rangeEnd) {
-      endIdx = days.length - 1;
-      isClampedEnd = false;
     }
     return { startIdx, endIdx, isClampedStart, isClampedEnd };
   }
@@ -200,9 +196,9 @@ export function AdminCalendarView({
           </Button>
         </div>
 
-        {/* Day headers */}
+        {/* Day headers — px-2 matches the p-2 on the rows container so columns align */}
         <div
-          className="grid gap-0 border-b pb-2 mb-2"
+          className="grid gap-0 border-b pb-2 mb-2 px-2"
           style={{ gridTemplateColumns: `var(--label-w) repeat(${VISIBLE_DAYS}, 1fr)` }}
         >
           <div />
@@ -270,8 +266,9 @@ export function AdminCalendarView({
                   {/* Bars */}
                   {propEntries.map((e) => {
                     const { startIdx, endIdx, isClampedStart, isClampedEnd } = getBarPosition(e);
-                    const leftPct = startIdx * colPct + (isClampedStart ? 0 : colPct * 0.4);
-                    const rightPct = (VISIBLE_DAYS - 1 - endIdx) * colPct + (isClampedEnd ? 0 : colPct * 0.65);
+                    // Half-day overlap: bar starts mid-box on check-in day, ends mid-box on check-out day
+                    const leftPct = startIdx * colPct + (isClampedStart ? 0 : colPct * 0.5);
+                    const rightPct = (VISIBLE_DAYS - 1 - endIdx) * colPct + (isClampedEnd ? 0 : colPct * 0.5);
                     const widthPct = 100 - leftPct - rightPct;
                     if (widthPct <= 0) return null;
 
