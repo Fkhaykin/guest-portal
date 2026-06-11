@@ -20,8 +20,11 @@ self.addEventListener("activate", (event) => {
 });
 
 self.addEventListener("fetch", (event) => {
-  // Network-first strategy — always try the network, fall back to cache
   if (event.request.method !== "GET") return;
+
+  // Don't intercept navigations — they may produce opaque-redirect responses
+  // (e.g. /q/[code] QR resolver) that can't be cached or re-served safely.
+  if (event.request.mode === "navigate") return;
 
   event.respondWith(
     fetch(event.request)
