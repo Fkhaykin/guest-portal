@@ -28,6 +28,7 @@ type RegistrationRow = {
   upsells: UpsellEntry[] | null;
   guest_list: GuestListEntry[] | null;
   pets: PetEntry[] | null;
+  lodgify_num_pets: number | null;
   tips: Record<string, unknown> | null;
   created_at: string;
 };
@@ -83,7 +84,7 @@ export default async function CleanerDashboard() {
   const today = new Date().toISOString().split("T")[0];
   const { data: registrations } = await supabase
     .from("registration")
-    .select("id, property_id, check_in_date, check_out_date, num_guests, status, upsells, guest_list, pets, tips, updated_at, created_at")
+    .select("id, property_id, check_in_date, check_out_date, num_guests, status, upsells, guest_list, pets, lodgify_num_pets, tips, updated_at, created_at")
     .in("property_id", propertyIds)
     .in("status", ["active", "completed"])
     .gte("check_out_date", "2026-03-15")
@@ -202,6 +203,7 @@ export default async function CleanerDashboard() {
           cleaningFeeCents={cleaningFeeCents}
           petFeeCents={petFeeCents}
           bookedOn={reg.created_at}
+          lodgifyNumPets={reg.lodgify_num_pets ?? 0}
         />
       );
     });

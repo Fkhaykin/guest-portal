@@ -98,6 +98,7 @@ export function ReservationCard({
   cleaningFeeCents = 0,
   petFeeCents = 0,
   bookedOn,
+  lodgifyNumPets = 0,
 }: {
   registrationId: string;
   propertyName: string;
@@ -121,6 +122,7 @@ export function ReservationCard({
   cleaningFeeCents?: number;
   petFeeCents?: number;
   bookedOn?: string | null;
+  lodgifyNumPets?: number;
 }) {
   const newIds = useNewIds();
   const resolvedIsNew = isNew ?? newIds.has(registrationId);
@@ -425,7 +427,14 @@ export function ReservationCard({
         propertyName={propertyName}
         checkOutDate={checkOut}
         photoAreas={photoAreas}
-        expectedPetCount={pets?.filter((p) => p.name?.trim()).length ?? 0}
+        expectedPetCount={Math.max(
+          // Pets paid via the original booking (Airbnb/Lodgify or direct checkout)
+          // plus pet fees paid during registration — `upsells` here is already
+          // filtered to paid entries by the tasks page
+          lodgifyNumPets + upsells.filter((u) => u.type === "pet_fee").length,
+          // Registration-listed pets are always paid (step 4 gates on payment)
+          pets?.filter((p) => p.name?.trim()).length ?? 0
+        )}
         onComplete={handleCleaningComplete}
       />
 

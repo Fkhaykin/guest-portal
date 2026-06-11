@@ -140,9 +140,8 @@ export async function POST(request: Request) {
   if (pet_report && pet_report.count > 0) {
     const expectedPets = pet_report.expected_pet_count ?? 0;
     const reportedPets = pet_report.count;
-    // Create a claim if there's a discrepancy OR if pets were found at all
-    // (useful for tracking even when counts match)
-    if (reportedPets !== expectedPets || reportedPets > 0) {
+    // Only flag overages — pets the booking didn't account for
+    if (reportedPets > expectedPets) {
       claimsToCreate.push({
         registration_id,
         property_id: reg.property_id,
