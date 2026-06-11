@@ -9,7 +9,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -666,37 +665,11 @@ export function AnalyticsCharts() {
 
   return (
     <div className="space-y-3">
-      {/* Date preset chips (desktop only — mobile uses the dropdown below) */}
-      <div className="hidden sm:flex sm:items-center sm:flex-wrap gap-2">
-        <div className="flex items-center gap-2">
-          <CalendarRange className="h-4 w-4 shrink-0 text-muted-foreground" />
-          <div className="flex flex-wrap items-center gap-1">
-            {PRESETS.map((p) => (
-              <Button
-                key={p.value}
-                variant={preset === p.value ? "default" : "outline"}
-                size="sm"
-                onClick={() => setPreset(p.value)}
-                className="h-7 text-xs px-2.5 shrink-0"
-              >
-                {p.label}
-              </Button>
-            ))}
-          </div>
-        </div>
-        {preset === "custom" && (
-          <div className="flex items-center gap-1.5">
-            <Input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} className="h-7 w-36 text-xs" />
-            <span className="text-xs text-muted-foreground">to</span>
-            <Input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} className="h-7 w-36 text-xs" />
-          </div>
-        )}
-      </div>
-
-      {/* Controls row: date range (mobile) + property filter + group by */}
+      {/* Controls row: date range + property filter + group by */}
       <div className="flex items-center gap-2">
+        <CalendarRange className="hidden sm:block h-4 w-4 shrink-0 text-muted-foreground" />
         <Select value={preset} onValueChange={(v) => setPreset(v as DatePreset)}>
-          <SelectTrigger size="sm" className="flex-1 min-w-0 sm:hidden">
+          <SelectTrigger size="sm" className="flex-1 min-w-0 sm:flex-none sm:w-36">
             <SelectValue>
               {PRESETS.find((p) => p.value === preset)?.label}
             </SelectValue>
@@ -775,12 +748,12 @@ export function AnalyticsCharts() {
         </div>
       </div>
 
-      {/* Custom range inputs (mobile) */}
+      {/* Custom range inputs */}
       {preset === "custom" && (
-        <div className="sm:hidden flex items-center gap-1.5">
-          <Input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} className="h-8 flex-1 text-xs" />
+        <div className="flex items-center gap-1.5">
+          <Input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} className="h-8 flex-1 sm:flex-none sm:w-36 text-xs" />
           <span className="text-xs text-muted-foreground">to</span>
-          <Input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} className="h-8 flex-1 text-xs" />
+          <Input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} className="h-8 flex-1 sm:flex-none sm:w-36 text-xs" />
         </div>
       )}
 
