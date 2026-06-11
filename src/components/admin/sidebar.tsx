@@ -73,7 +73,10 @@ export function AdminSidebar({
       {/* Sidebar */}
       <aside
         className={cn(
+          // Safe-area padding keeps the header below the iOS status bar and the
+          // footer above the home indicator in standalone PWA mode
           "fixed inset-y-0 left-0 z-40 w-64 bg-card border-r flex flex-col transition-transform md:relative md:translate-x-0",
+          "pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]",
           open ? "translate-x-0" : "-translate-x-full"
         )}
       >
