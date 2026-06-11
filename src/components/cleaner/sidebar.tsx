@@ -134,8 +134,11 @@ export function CleanerSidebar({
       </header>
 
       {/* Mobile bottom nav */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 border-t bg-card">
-        <div className="flex justify-around py-2">
+      <nav
+        aria-label="Cleaner portal"
+        className="md:hidden fixed bottom-0 left-0 right-0 z-40 border-t bg-card pb-[env(safe-area-inset-bottom)]"
+      >
+        <div className="flex justify-around py-1">
           {navItems.map((item) => {
             const isActive =
               item.href === "/cleaner"
@@ -145,8 +148,9 @@ export function CleanerSidebar({
               <Link
                 key={item.href}
                 href={item.href}
+                aria-current={isActive ? "page" : undefined}
                 className={cn(
-                  "flex flex-col items-center gap-0.5 px-3 py-1 text-[10px] transition-colors",
+                  "flex flex-col items-center justify-center gap-0.5 px-4 py-2 min-h-12 text-[11px] transition-colors",
                   isActive
                     ? "text-primary font-medium"
                     : "text-muted-foreground"

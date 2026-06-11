@@ -25,6 +25,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Plus, Trash2, Car, ChevronRight, ChevronLeft, Check, User, Mail, Users, PawPrint, Upload, FileCheck, ShoppingCart, Sparkles, X, PenLine, Undo2, Clock, Send, Loader2, Baby } from "lucide-react";
+import { toast } from "sonner";
 import { Checkbox } from "@/components/ui/checkbox";
 
 type AgeGroup = "over_21" | "under_21" | "infant";
@@ -333,6 +334,12 @@ export default function RegisterPage() {
     if (!loaded || !session) return;
     saveRegistrationProgress({ registrationId: session.reservation.id, step, fullName, email, phone, address, guests, hasPets, pets, notes, vehicles, usingRentalCar, needsHighchair, needsPackNPlay });
   }, [session, step, fullName, email, phone, address, guests, hasPets, pets, notes, vehicles, usingRentalCar, needsHighchair, needsPackNPlay, loaded]);
+
+  // Start each step at the top — steps are long enough to leave the user mid-scroll
+  useEffect(() => {
+    if (!loaded) return;
+    window.scrollTo({ top: 0, behavior: "instant" });
+  }, [step, loaded]);
 
   // Load upsells when entering step 6
   async function loadUpsells() {
@@ -658,11 +665,13 @@ export default function RegisterPage() {
         }
       } else {
         const data = await res.json().catch(() => null);
-        alert(data?.error || "Something went wrong. Please try again.");
+        toast.error(data?.error || "Something went wrong. Please try again.", {
+          description: "Your progress is saved — you can retry submitting.",
+        });
       }
     } catch (err) {
       console.error("Registration submit error:", err);
-      alert(`Network error: ${err instanceof Error ? err.message : String(err)}`);
+      toast.error("Couldn't reach the server. Check your connection and try again.");
     } finally {
       setSaving(false);
     }
@@ -772,6 +781,7 @@ export default function RegisterPage() {
                   value={fullName}
                   onChange={(e) => { setFullName(e.target.value); setNameError(null); }}
                   placeholder="As shown on your booking"
+                  autoComplete="name"
                   required
                 />
                 {nameError && <p className="text-sm text-destructive">{nameError}</p>}
@@ -787,7 +797,7 @@ export default function RegisterPage() {
                 <Input
                   id="email" type="email" value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@example.com" required
+                  placeholder="you@example.com" autoComplete="email" required
                 />
                 <p className="text-xs text-muted-foreground">
                   You&apos;ll use this email to access the guest portal and receive updates about your stay.
@@ -805,7 +815,10 @@ export default function RegisterPage() {
       {step === 2 && (
         <form onSubmit={(e) => {
           e.preventDefault();
-          if (!isAirbnb && (!idFrontPath || !idBackPath)) return;
+          if (!isAirbnb && (!idFrontPath || !idBackPath)) {
+            toast.error("Please upload both sides of your government-issued ID to continue.");
+            return;
+          }
           setStep(3);
         }} className="space-y-6">
           <Card>
@@ -821,7 +834,7 @@ export default function RegisterPage() {
                 <Input
                   id="phone" type="tel" value={phone}
                   onChange={(e) => setPhone(e.target.value)}
-                  placeholder="+1 (555) 000-0000" required
+                  placeholder="+1 (555) 000-0000" autoComplete="tel" required
                 />
                 <p className="text-xs text-muted-foreground">
                   We&apos;ll use this to reach you with check-in details and during your stay.
@@ -834,26 +847,26 @@ export default function RegisterPage() {
                   <Label htmlFor="street1" className="text-xs">Street Address</Label>
                   <Input id="street1" value={address.street1}
                     onChange={(e) => setAddress({ ...address, street1: e.target.value })}
-                    placeholder="123 Main St" required />
+                    placeholder="123 Main St" autoComplete="address-line1" required />
                 </div>
                 <div className="space-y-1">
                   <Label htmlFor="street2" className="text-xs">Street Address 2 (optional)</Label>
                   <Input id="street2" value={address.street2}
                     onChange={(e) => setAddress({ ...address, street2: e.target.value })}
-                    placeholder="Apt 4B" />
+                    placeholder="Apt 4B" autoComplete="address-line2" />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <Label htmlFor="city" className="text-xs">City</Label>
                     <Input id="city" value={address.city}
                       onChange={(e) => setAddress({ ...address, city: e.target.value })}
-                      placeholder="New York" required />
+                      placeholder="New York" autoComplete="address-level2" required />
                   </div>
                   <div className="space-y-1">
                     <Label htmlFor="addrState" className="text-xs">State / Province</Label>
                     <Input id="addrState" value={address.state}
                       onChange={(e) => setAddress({ ...address, state: e.target.value })}
-                      placeholder="NY" required />
+                      placeholder="NY" autoComplete="address-level1" required />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
@@ -861,13 +874,13 @@ export default function RegisterPage() {
                     <Label htmlFor="zip" className="text-xs">ZIP / Postal Code</Label>
                     <Input id="zip" value={address.zip}
                       onChange={(e) => setAddress({ ...address, zip: e.target.value })}
-                      placeholder="10001" required />
+                      placeholder="10001" autoComplete="postal-code" inputMode="numeric" required />
                   </div>
                   <div className="space-y-1">
                     <Label htmlFor="country" className="text-xs">Country</Label>
                     <Input id="country" value={address.country}
                       onChange={(e) => setAddress({ ...address, country: e.target.value })}
-                      placeholder="US" required />
+                      placeholder="US" autoComplete="country" required />
                   </div>
                 </div>
               </div>

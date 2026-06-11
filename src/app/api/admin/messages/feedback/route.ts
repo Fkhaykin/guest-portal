@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
   let body: {
     source?: string;
     note?: string;
-    bookingId?: number;
+    bookingId?: number | string;
     guestMessage?: string;
     badDraft?: string;
     correctedDraft?: string;
@@ -72,7 +72,9 @@ export async function POST(request: NextRequest) {
       .from("draft_feedback")
       .insert({
         source: "edit",
-        lodgify_booking_id: body.bookingId ?? null,
+        // Direct bookings send a registration UUID — the column is bigint,
+        // so only persist numeric Lodgify ids.
+        lodgify_booking_id: typeof body.bookingId === "number" ? body.bookingId : null,
         guest_message: body.guestMessage?.slice(0, 2000) ?? null,
         bad_draft: body.badDraft.slice(0, 4000),
         corrected_draft: body.correctedDraft.slice(0, 4000),

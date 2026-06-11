@@ -61,6 +61,7 @@ function VerifyForm() {
                 type="text"
                 inputMode="numeric"
                 pattern="[0-9]*"
+                autoComplete="one-time-code"
                 maxLength={6}
                 placeholder="000000"
                 value={code}
@@ -71,7 +72,7 @@ function VerifyForm() {
             </div>
 
             {error && (
-              <p className="text-sm text-destructive">{error}</p>
+              <p className="text-sm text-destructive" role="alert">{error}</p>
             )}
 
             <Button

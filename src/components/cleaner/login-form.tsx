@@ -21,19 +21,22 @@ export function LoginForm() {
     const name = formData.get("name") as string;
     const password = formData.get("password") as string;
 
-    const res = await fetch("/api/cleaner/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, password }),
-    });
+    try {
+      const res = await fetch("/api/cleaner/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, password }),
+      });
 
-    if (res.ok) {
-      router.push("/cleaner");
-    } else {
-      const data = await res.json();
-      setError(data.error || "Login failed");
+      if (res.ok) {
+        router.push("/cleaner");
+        return;
+      }
+      const data = await res.json().catch(() => null);
+      setError(data?.error || "Login failed");
+    } catch {
+      setError("Couldn't reach the server. Check your connection and try again.");
     }
-
     setLoading(false);
   }
 
@@ -47,6 +50,7 @@ export function LoginForm() {
               id="name"
               name="name"
               placeholder="Your name"
+              autoComplete="username"
               required
               autoFocus
             />
@@ -58,11 +62,12 @@ export function LoginForm() {
               name="password"
               type="password"
               placeholder="Enter password"
+              autoComplete="current-password"
               required
             />
           </div>
           {error && (
-            <p className="text-sm text-destructive">{error}</p>
+            <p className="text-sm text-destructive" role="alert">{error}</p>
           )}
           <Button type="submit" disabled={loading} className="w-full">
             {loading ? "Signing in..." : "Sign in"}

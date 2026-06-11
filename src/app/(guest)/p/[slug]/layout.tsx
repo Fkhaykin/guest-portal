@@ -47,7 +47,7 @@ export default async function PropertyLayout({
 
   return (
     <PropertyProvider property={property}>
-      <div className="flex flex-col min-h-full pb-16 md:pb-0">
+      <div className="flex flex-col min-h-full pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-0">
         <PropertyHeader propertyName={property.name} showBack />
         <GuestNav />
         <main className="flex-1 max-w-4xl mx-auto w-full px-4 py-6">

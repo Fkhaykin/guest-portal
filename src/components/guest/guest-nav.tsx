@@ -44,7 +44,10 @@ export function GuestNav({ slug: slugProp }: { slug?: string } = {}) {
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-background border-t md:relative md:border-t-0 md:border-b">
+    <nav
+      aria-label="Property portal"
+      className="fixed bottom-0 left-0 right-0 z-50 bg-background border-t pb-[env(safe-area-inset-bottom)] md:relative md:border-t-0 md:border-b md:pb-0"
+    >
       <div className="grid grid-cols-5 md:flex md:items-center md:justify-center md:gap-6 px-2 py-2 max-w-4xl mx-auto">
         {navItems.map((item) => {
           const href = item.absolute ? item.href : `${base}${item.href}`;
@@ -57,7 +60,8 @@ export function GuestNav({ slug: slugProp }: { slug?: string } = {}) {
             <Link
               key={item.label}
               href={href}
-              className={`relative flex flex-col items-center gap-1 px-2 py-1 rounded-lg transition-colors md:min-w-[4rem] ${
+              aria-current={isActive ? "page" : undefined}
+              className={`relative flex flex-col items-center justify-center gap-1 px-2 py-1.5 min-h-11 rounded-lg transition-colors md:min-w-16 ${
                 isActive
                   ? "text-primary font-medium bg-primary/10"
                   : "text-muted-foreground hover:text-foreground"

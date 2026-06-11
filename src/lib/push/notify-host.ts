@@ -50,23 +50,26 @@ export async function notifyHostOfGuestMessage(params: {
   guestName: string | null;
   preview: string;
   lodgifyBookingId: number | null;
+  /** Direct (non-Lodgify) bookings are identified by registration id instead. */
+  registrationId?: string | null;
 }) {
+  const threadKey = params.lodgifyBookingId ?? params.registrationId;
   const payload: PushPayload = {
     title: params.guestName
       ? `Message from ${params.guestName}`
       : "New guest message",
     body: params.preview,
-    url: adminUrl("/messages"),
+    url: adminUrl(threadKey ? `/messages?booking=${threadKey}` : "/messages"),
   };
 
   // Tie the message to a host via its booking when we can; otherwise notify all
-  if (params.lodgifyBookingId) {
+  if (params.lodgifyBookingId || params.registrationId) {
     const supabase = createAdminClient();
-    const { data: reg } = await supabase
-      .from("registration")
-      .select("property_id")
-      .eq("lodgify_booking_id", params.lodgifyBookingId)
-      .maybeSingle();
+    const query = supabase.from("registration").select("property_id");
+    const { data: reg } = await (params.lodgifyBookingId
+      ? query.eq("lodgify_booking_id", params.lodgifyBookingId)
+      : query.eq("id", params.registrationId)
+    ).maybeSingle();
     if (reg?.property_id) {
       const property = await getProperty(reg.property_id);
       if (property) {

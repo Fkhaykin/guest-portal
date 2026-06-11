@@ -135,7 +135,8 @@ export async function sendMessage(
 }
 
 export interface ConversationThread {
-  booking_id: number;
+  /** Lodgify booking id, or the registration UUID for direct bookings. */
+  booking_id: number | string;
   guest_name: string;
   guest_email: string | null;
   property_id: number;

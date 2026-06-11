@@ -10,6 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { ShoppingBag } from "lucide-react";
+import { toast } from "sonner";
 import type { Tables } from "@/types/database";
 
 export function ServiceCard({
@@ -23,18 +24,24 @@ export function ServiceCard({
 
   async function handlePurchase() {
     setLoading(true);
-    const response = await fetch("/api/stripe/create-checkout", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        serviceId: service.id,
-        propertySlug,
-      }),
-    });
+    try {
+      const response = await fetch("/api/stripe/create-checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          serviceId: service.id,
+          propertySlug,
+        }),
+      });
 
-    const data = await response.json();
-    if (data.url) {
-      window.location.href = data.url;
+      const data = await response.json().catch(() => null);
+      if (response.ok && data?.url) {
+        window.location.href = data.url;
+        return;
+      }
+      toast.error(data?.error || "Couldn't start checkout. Please try again.");
+    } catch {
+      toast.error("Couldn't reach the server. Check your connection and try again.");
     }
     setLoading(false);
   }

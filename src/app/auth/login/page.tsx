@@ -132,6 +132,7 @@ function LoginForm() {
                 id="auth-input"
                 type="email"
                 placeholder="you@example.com"
+                autoComplete="email"
                 value={value}
                 onChange={(e) => setValue(e.target.value)}
                 required
@@ -145,6 +146,7 @@ function LoginForm() {
                   id="auth-password"
                   type="password"
                   placeholder="Enter password"
+                  autoComplete="current-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
@@ -153,7 +155,7 @@ function LoginForm() {
             )}
 
             {error && (
-              <p className="text-sm text-destructive">{error}</p>
+              <p className="text-sm text-destructive" role="alert">{error}</p>
             )}
 
             <Button type="submit" className="w-full" disabled={loading}>

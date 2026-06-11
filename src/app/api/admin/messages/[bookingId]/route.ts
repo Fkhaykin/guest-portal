@@ -7,9 +7,15 @@ import {
   sendMessage,
   type LodgifyMessage,
 } from "@/lib/lodgify/messages";
+import {
+  isRegistrationId,
+  directThreadUid,
+  sendDirectGuestMessage,
+} from "@/lib/guest-messages/direct";
 
 type GuestMessageRow = {
-  lodgify_message_id: number;
+  id?: string;
+  lodgify_message_id: number | null;
   thread_uid: string;
   message_type: string;
   subject: string | null;
@@ -22,7 +28,7 @@ type GuestMessageRow = {
 function toLodgifyMessage(row: GuestMessageRow): LodgifyMessage {
   const type = row.message_type || "Comment";
   return {
-    id: String(row.lodgify_message_id),
+    id: String(row.lodgify_message_id ?? row.id),
     message: row.message,
     subject: row.subject ?? "",
     type,
@@ -87,6 +93,27 @@ export async function GET(
   }
 
   const { bookingId } = await params;
+
+  // Direct bookings are addressed by registration UUID; their thread lives
+  // entirely in our DB under "direct:<registration_id>".
+  if (isRegistrationId(bookingId)) {
+    const admin = createAdminClient();
+    const threadUid = directThreadUid(bookingId);
+    const { data: rows } = await admin
+      .from("guest_message")
+      .select("id, lodgify_message_id, thread_uid, message_type, subject, message, creation_time, guest_name, has_attachments")
+      .eq("thread_uid", threadUid)
+      .order("creation_time", { ascending: true });
+    // Opening the thread marks it read.
+    await admin
+      .from("guest_message_thread")
+      .update({ unread_count: 0 })
+      .eq("thread_uid", threadUid);
+    return NextResponse.json({
+      messages: (rows ?? []).map((r) => toLodgifyMessage(r as GuestMessageRow)),
+    });
+  }
+
   const id = Number(bookingId);
   if (!id || isNaN(id)) {
     return NextResponse.json({ error: "Invalid booking ID" }, { status: 400 });
@@ -185,15 +212,25 @@ export async function POST(
   }
 
   const { bookingId } = await params;
-  const id = Number(bookingId);
-  if (!id || isNaN(id)) {
-    return NextResponse.json({ error: "Invalid booking ID" }, { status: 400 });
-  }
 
   const body = await request.json();
   const text = body?.message;
   if (!text || typeof text !== "string" || !text.trim()) {
     return NextResponse.json({ error: "Message is required" }, { status: 400 });
+  }
+
+  // Direct booking: deliver to the guest's email/phone and record locally.
+  if (isRegistrationId(bookingId)) {
+    const result = await sendDirectGuestMessage(bookingId, text.trim());
+    if (!result.success) {
+      return NextResponse.json({ error: result.error }, { status: 502 });
+    }
+    return NextResponse.json({ success: true });
+  }
+
+  const id = Number(bookingId);
+  if (!id || isNaN(id)) {
+    return NextResponse.json({ error: "Invalid booking ID" }, { status: 400 });
   }
 
   const result = await sendMessage(id, text.trim());

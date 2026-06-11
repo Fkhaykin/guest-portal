@@ -34,12 +34,14 @@ export default function AdminMessagesPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [conversations, setConversations] = useState<ConversationThread[]>([]);
   const [loadingConversations, setLoadingConversations] = useState(true);
-  const [selectedBookingId, setSelectedBookingId] = useState<number | null>(null);
+  // Lodgify bookings are keyed by numeric booking id; direct bookings by
+  // registration UUID — same key space as ConversationThread.booking_id.
+  const [selectedBookingId, setSelectedBookingId] = useState<number | string | null>(null);
   const [messages, setMessages] = useState<LodgifyMessage[]>([]);
   const [loadingMessages, setLoadingMessages] = useState(false);
   // Which booking the `messages` state belongs to — guards effects that would
   // otherwise run against the previous conversation's messages mid-switch.
-  const [messagesBookingId, setMessagesBookingId] = useState<number | null>(null);
+  const [messagesBookingId, setMessagesBookingId] = useState<number | string | null>(null);
   const [messageError, setMessageError] = useState<string | null>(null);
   const [newMessage, setNewMessage] = useState("");
   const [sending, setSending] = useState(false);
@@ -113,12 +115,13 @@ export default function AdminMessagesPage() {
     }
   }
 
-  // Handle deep link via ?booking=123
+  // Handle deep link via ?booking=123 (Lodgify) or ?booking=<uuid> (direct)
   useEffect(() => {
     const bookingParam = searchParams.get("booking");
     if (bookingParam) {
-      const id = Number(bookingParam);
-      if (id && !isNaN(id)) {
+      const numeric = Number(bookingParam);
+      const id = numeric && !isNaN(numeric) ? numeric : bookingParam;
+      if (id) {
         setSelectedBookingId(id);
         setMobileView("thread");
       }
@@ -427,7 +430,7 @@ export default function AdminMessagesPage() {
       <div className="mb-4">
         <h1 className="text-3xl font-bold tracking-tight">Messages</h1>
         <p className="text-muted-foreground">
-          Lodgify booking conversations
+          Guest conversations — Lodgify and direct bookings
         </p>
       </div>
 
@@ -506,7 +509,7 @@ export default function AdminMessagesPage() {
               <div className="p-6 text-center text-sm text-muted-foreground">
                 {searchQuery
                   ? "No matching conversations"
-                  : "No Lodgify bookings found"}
+                  : "No conversations found"}
               </div>
             ) : (
               filtered.map((conv) => (

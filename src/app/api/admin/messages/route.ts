@@ -20,7 +20,8 @@ export async function GET() {
   const { data: registrations, error: regError } = await admin
     .from("registration")
     .select(
-      `lodgify_booking_id,
+      `id,
+       lodgify_booking_id,
        lodgify_thread_uid,
        check_in_date,
        check_out_date,
@@ -29,8 +30,7 @@ export async function GET() {
        booked_at,
        guest:guest_id ( full_name, email ),
        property:property_id ( name, nickname, lodgify_property_id )`
-    )
-    .not("lodgify_booking_id", "is", null);
+    );
 
   if (regError) {
     return NextResponse.json({ error: regError.message }, { status: 500 });
@@ -62,6 +62,7 @@ export async function GET() {
   }
 
   type RegRow = {
+    id: string;
     lodgify_booking_id: number | null;
     lodgify_thread_uid: string | null;
     check_in_date: string | null;
@@ -77,15 +78,17 @@ export async function GET() {
     } | null;
   };
 
+  // Lodgify bookings are keyed by their Lodgify booking id; direct bookings
+  // (no Lodgify id) by registration UUID, matching the "direct:<id>" thread.
   const conversations: ConversationThread[] = ((registrations ?? []) as unknown as RegRow[])
-    .filter((r) => r.lodgify_booking_id != null)
     .map((r) => {
-      const bookingId = r.lodgify_booking_id as number;
-      const summary =
-        threadByBooking.get(bookingId) ??
-        (r.lodgify_thread_uid ? threadByUid.get(r.lodgify_thread_uid) : undefined);
+      const isDirect = r.lodgify_booking_id == null;
+      const summary = isDirect
+        ? threadByUid.get(`direct:${r.id}`)
+        : threadByBooking.get(r.lodgify_booking_id as number) ??
+          (r.lodgify_thread_uid ? threadByUid.get(r.lodgify_thread_uid) : undefined);
       return {
-        booking_id: bookingId,
+        booking_id: isDirect ? r.id : (r.lodgify_booking_id as number),
         guest_name: r.guest?.full_name ?? "Unknown Guest",
         guest_email: r.guest?.email ?? null,
         property_id: r.property?.lodgify_property_id ?? 0,
@@ -93,7 +96,7 @@ export async function GET() {
         arrival: r.check_in_date ?? "",
         departure: r.check_out_date ?? "",
         status: r.status ?? "",
-        source: r.booking_source,
+        source: r.booking_source ?? (isDirect ? "direct" : null),
         date_created: r.booked_at,
         last_message_at: summary?.last_message_at ?? null,
         last_message_preview: summary?.last_message_preview ?? null,
