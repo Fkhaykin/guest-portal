@@ -116,7 +116,7 @@ We hope you've had a great time at {{property_name}}! Thank you so much for stay
 
 Your check-out time today is {{check_out_time}}.
 
-Late checkout can be booked and paid directly in our guest portal under Add-Ons (guest.summitlakeside.com) — subject to availability. Leaving after check-out without prior notice will incur a $50 fee.
+Need a later check-out? Availability and booking are in our guest portal (guest.summitlakeside.com). Leaving after check-out without prior notice will incur a $50 fee.
 
 Before you head out, please be sure to:
 

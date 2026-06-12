@@ -15,14 +15,9 @@ export const HOUSE_LABELS: Record<HouseKey, string> = {
 
 const PENN_ESTATES_ARRIVAL = `Arriving at the community:
 
-Penn Estates is a gated community with 2 entrances. ALL GUESTS MUST CHECK IN AT THE MAIN GATE, LOCATED AT:
-525 Penn Estates Dr, East Stroudsburg PA, 18301.
+Penn Estates is a gated community — all guests must check in at the Main Gate, where the registered guest presents a valid driver's license to receive a printed gate pass for the duration of the stay.
 
-This is at Penn Estates Dr and Hallet Rd. Make sure your directions don't take you through the back gate to get there (Penn Estates Dr and Cranberry Rd) as entry will not be permitted that way.
-
-Drive up to the gate via the right-side "Visitors" lane, and contact the gate staff through the button on the machine. The registered guest will need to provide a valid driver's license at check-in.
-
-Upon check-in you will receive a printed gate pass, which can be used to enter both the front and back gates for the duration of your stay.
+Detailed driving directions and gate check-in info are in our guest portal: guest.summitlakeside.com
 
 Do not share gate passes or sneak additional vehicles/guests that haven't been registered. I cannot emphasize this enough: they have cameras, security will catch you and give an unreasonably high citation. Let's follow the rules and avoid this please!`;
 
@@ -42,7 +37,7 @@ All trash should be placed in the bins just outside the garage door, they are mi
 
 const CHECKOUT = `Check-out: {{check_out_time}}
 
-Late checkout can be booked and paid directly in our guest portal under Add-Ons (guest.summitlakeside.com) — $25/hr, until 12pm or 1pm, subject to availability. Please contact us if you have an issue; leaving after check out without prior notice will incur a $50 fee.
+Need a later check-out? Availability and booking are in our guest portal (guest.summitlakeside.com). Leaving after check-out without prior notice will incur a $50 fee.
 
 Please be aware that the cleaning fee is for basic whole house cleaning. Anything out of the ordinary (such as excessive trash, unremovable stains, etc) will incur extra cleaning fees as per the rental agreement.
 
