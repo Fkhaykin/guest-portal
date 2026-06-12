@@ -226,9 +226,6 @@ export default function OwnerSettingsPage({
             <p className="text-sm text-muted-foreground font-medium">{propertyName}</p>
           )}
           <h1 className="text-3xl font-bold tracking-tight">Owner / HOA Settings</h1>
-          <p className="text-muted-foreground">
-            Owner and HOA information used on the registration PDF
-          </p>
         </div>
       </div>
 

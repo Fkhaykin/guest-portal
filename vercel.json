@@ -10,7 +10,11 @@
     },
     {
       "path": "/api/cron/guest-messages",
-      "schedule": "0 9 * * *"
+      "schedule": "0 12 * * *"
+    },
+    {
+      "path": "/api/cron/guest-messages-evening",
+      "schedule": "0 22 * * *"
     },
     {
       "path": "/api/cron/charge-balance",

@@ -129,6 +129,9 @@ export type GuestMessageSettings = {
   booking_confirmation: GuestMessageEvent;
   pre_arrival: GuestMessageEvent;
   day_of_checkin: GuestMessageEvent;
+  settling_in: GuestMessageEvent;
+  pulse_check: GuestMessageEvent;
+  checkout_morning: GuestMessageEvent;
   post_checkout: GuestMessageEvent;
   registration_reminder: GuestMessageEvent;
   booking_invoice_full: GuestMessageEvent;

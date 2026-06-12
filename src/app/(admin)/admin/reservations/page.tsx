@@ -291,7 +291,6 @@ export default function AdminReservationsPage() {
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Reservations</h1>
-          <p className="text-sm md:text-base text-muted-foreground">All reservations across properties</p>
         </div>
         {/* mr-12 clears the fixed mobile menu toggle */}
         <div className="flex items-center gap-2 shrink-0 mr-12 md:mr-0">

@@ -19,22 +19,37 @@ const EVENT_META: Record<GuestMessageKey, { label: string; description: string; 
   booking_confirmation: {
     label: "Booking Confirmation",
     description: "Sent immediately when a new booking is synced from Lodgify.",
-    channel: "Lodgify message (VRBO) · Email (Direct)",
+    channel: "Lodgify message (Airbnb/VRBO) · Email (Direct)",
   },
   pre_arrival: {
     label: "Pre-Arrival Reminder",
-    description: "Sent 3 days before check-in.",
-    channel: "Lodgify message (VRBO) · Email (Direct)",
+    description: "Sent 3 days before check-in (morning).",
+    channel: "Lodgify message (Airbnb/VRBO) · Email (Direct)",
   },
   day_of_checkin: {
     label: "Check-In Day",
-    description: "Sent the morning of check-in.",
-    channel: "Lodgify message (VRBO) · Email (Direct)",
+    description: "Sent the morning of check-in, followed by the per-house check-in instructions below.",
+    channel: "Lodgify message (Airbnb/VRBO) · Email (Direct)",
+  },
+  settling_in: {
+    label: "Settling-In Welcome",
+    description: "Sent at ~6pm on check-in day, after the guest has arrived.",
+    channel: "Lodgify message (Airbnb/VRBO) · Email (Direct)",
+  },
+  pulse_check: {
+    label: "Night-2 Pulse Check",
+    description: "Sent the evening of night 2 for stays longer than 2 nights, only if the guest hasn't sent any message since check-in.",
+    channel: "Lodgify message (Airbnb/VRBO) · Email (Direct)",
+  },
+  checkout_morning: {
+    label: "Check-Out Morning",
+    description: "Sent the morning of check-out with check-out instructions.",
+    channel: "Lodgify message (Airbnb/VRBO) · Email (Direct)",
   },
   post_checkout: {
-    label: "Post-Checkout",
-    description: "Sent the day after check-out.",
-    channel: "Lodgify message (VRBO) · Email (Direct)",
+    label: "Post-Checkout Review Request",
+    description: "Sent the morning after check-out. Skipped automatically when the conversation shows the guest had a bad experience.",
+    channel: "Lodgify message (Airbnb/VRBO) · Email (Direct)",
   },
   registration_reminder: {
     label: "Registration Reminder",
@@ -73,6 +88,9 @@ function defaultSettings(): GuestMessageSettingsType {
     booking_confirmation: { enabled: true, subject: TEMPLATES.booking_confirmation.subject, message: TEMPLATES.booking_confirmation.body },
     pre_arrival: { enabled: true, subject: TEMPLATES.pre_arrival.subject, message: TEMPLATES.pre_arrival.body },
     day_of_checkin: { enabled: true, subject: TEMPLATES.day_of_checkin.subject, message: TEMPLATES.day_of_checkin.body },
+    settling_in: { enabled: true, subject: TEMPLATES.settling_in.subject, message: TEMPLATES.settling_in.body },
+    pulse_check: { enabled: true, subject: TEMPLATES.pulse_check.subject, message: TEMPLATES.pulse_check.body },
+    checkout_morning: { enabled: true, subject: TEMPLATES.checkout_morning.subject, message: TEMPLATES.checkout_morning.body },
     post_checkout: { enabled: true, subject: TEMPLATES.post_checkout.subject, message: TEMPLATES.post_checkout.body },
     registration_reminder: { enabled: true, subject: TEMPLATES.registration_reminder.subject, message: TEMPLATES.registration_reminder.body },
     booking_invoice_full: { enabled: true, subject: TEMPLATES.booking_invoice_full.subject, message: TEMPLATES.booking_invoice_full.body },
@@ -197,7 +215,7 @@ export function GuestMessageSettings() {
         <CardHeader>
           <CardTitle>Automated Guest Messages</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Messages sent automatically to VRBO and direct booking guests. Airbnb guests are excluded — Airbnb handles their own messaging. Use{" "}
+            Messages sent automatically to all guests — Airbnb, VRBO, and direct bookings. Lodgify auto-messages are off; this is the single source of automated guest messaging. Use{" "}
             <code className="text-xs bg-muted px-1 py-0.5 rounded">{"{{variable}}"}</code> placeholders in templates.
           </p>
         </CardHeader>

@@ -202,9 +202,6 @@ export default function AdminDeliveriesPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Deliveries</h1>
-        <p className="text-muted-foreground text-sm">
-          Register a delivery or rideshare notification for a property
-        </p>
       </div>
 
       {loading ? (

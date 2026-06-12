@@ -517,10 +517,11 @@ export async function syncBooking(booking: LodgifyBooking, options?: { skipNotif
     }
   }
 
-  // Send automated guest message for non-Airbnb new/reactivated bookings
-  const isAirbnb = /airbnb/i.test(booking.source ?? "");
+  // Send the booking confirmation for new/reactivated bookings. Airbnb
+  // bookings are included (relayed via the Lodgify thread) — Lodgify-side
+  // auto-messages are turned off, so this is the only confirmation sent.
   const isDirect = !booking.source || /direct|lodgify/i.test(booking.source ?? "");
-  if (!options?.skipNotify && (isNewBooking || justBecameActive) && newStatus === "active" && !isAirbnb && savedReg) {
+  if (!options?.skipNotify && (isNewBooking || justBecameActive) && newStatus === "active" && savedReg) {
     await sendGuestConfirmationAsync({
       registrationId: savedReg.id,
       lodgifyBookingId: booking.id,

@@ -17,9 +17,6 @@ export default function AutoMessagesPage() {
         </Link>
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Auto Messages</h1>
-          <p className="text-muted-foreground">
-            Reply training and automated guest message settings
-          </p>
         </div>
       </div>
       <ReplyTraining />

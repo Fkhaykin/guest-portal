@@ -109,7 +109,6 @@ export default function AdminCleanerDetailPage({
         </Button>
         <div>
           <h1 className="text-3xl font-bold tracking-tight">{cleaner.name}</h1>
-          <p className="text-muted-foreground">Assign properties this cleaner can access</p>
         </div>
       </div>
 

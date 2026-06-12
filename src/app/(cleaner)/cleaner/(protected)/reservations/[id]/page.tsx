@@ -58,7 +58,6 @@ export default async function ReservationDetailPage({ params }: { params: { id: 
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Reservation details</h1>
-            <p className="text-sm text-muted-foreground">Checked out reservation for cleaning review</p>
           </div>
           <div className="text-right">
             <p className="text-sm font-medium">{property?.name ?? "Unknown property"}</p>

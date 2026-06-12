@@ -21,7 +21,7 @@ export function houseForProperty(propertyName: string | null | undefined): House
   const n = propertyName.toLowerCase();
   if (n.includes("chalet")) return "chalet";
   if (n.includes("lake adjacent") || n.includes("manor")) return "manor";
-  if (n.includes("cozy lakefront") || n.includes("cottage")) return "cottage";
+  if (n.includes("cozy lakefront") || n.includes("cottage") || n.includes("bianca")) return "cottage";
   if (n.includes("mansion") || n.includes("chateau")) return "mansion";
   if (n.includes("lakefront") || n.includes("lakehouse")) return "lakehouse";
   return null;

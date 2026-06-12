@@ -2,6 +2,9 @@ export type GuestMessageType =
   | "booking_confirmation"
   | "pre_arrival"
   | "day_of_checkin"
+  | "settling_in"
+  | "pulse_check"
+  | "checkout_morning"
   | "post_checkout"
   | "registration_reminder"
   | "booking_invoice_full"
@@ -57,13 +60,17 @@ Please complete your guest registration (required before check-in):
 We look forward to hosting you!`,
   },
   pre_arrival: {
-    subject: "Your stay is 3 days away",
+    subject: "Your stay is just a few days away!",
     body: `Hi {{guest_name}},
 
-Just a reminder — your stay at {{property_name}} starts on {{check_in_date}}.
+Your stay at {{property_name}} starts on {{check_in_date}} — we can't wait to host you!
 
-If you haven't completed your guest registration yet, please do so before arrival:
+You'll receive the exact address, check-in instructions, and everything else you need the morning of your check-in.
+
+If you haven't completed your guest registration yet, please do so before arrival (required to enter the community):
 {{portal_link}}
+
+If you have any questions before then, don't hesitate to reach out — we're here to help.
 
 See you soon!`,
   },
@@ -71,22 +78,76 @@ See you soon!`,
     subject: "Welcome — check-in day!",
     body: `Hi {{guest_name}},
 
-Today's the day! Your stay at {{property_name}} begins today ({{check_in_date}}).
+Today's the day! Your stay at {{property_name}} begins today ({{check_in_date}}) at {{check_in_time}}.
 
 If you still need to complete your registration:
 {{portal_link}}
 
 Enjoy your stay!`,
   },
+  settling_in: {
+    subject: "Welcome — we hope you're settling in!",
+    body: `Hi {{guest_name}},
+
+Welcome to {{property_name}}! I hope you had a smooth arrival and are settling in comfortably.
+
+If there's anything you need during your stay, don't hesitate to reach out by replying to this message or calling +1 732-213-8571.
+
+Enjoy your time at {{property_name}}!
+
+Warm regards,
+Summit Lakeside Rentals`,
+  },
+  pulse_check: {
+    subject: "How is everything going?",
+    body: `Hi {{guest_name}},
+
+Just checking in — how is everything going at {{property_name}} so far?
+
+If anything isn't perfect or you have any questions, just reply here and we'll take care of it.
+
+Enjoy the rest of your stay!`,
+  },
+  checkout_morning: {
+    subject: "Check-out today at {{check_out_time}}",
+    body: `Hi {{guest_name}},
+
+We hope you've had a great time at {{property_name}}! Thank you so much for staying with us.
+
+Your check-out time today is {{check_out_time}}.
+
+Late checkout can be booked and paid directly in our guest portal under Add-Ons (guest.summitlakeside.com) — subject to availability. Leaving after check-out without prior notice will incur a $50 fee.
+
+Before you head out, please be sure to:
+
+1. Remove all personal belongings. Items left behind can be shipped back to you if you provide a pre-paid shipping label ($50 processing fee).
+
+2. Remove all trash. The cleaning fee covers basic whole-house cleaning only — excessive dirt, stains, and garbage left behind will incur additional cleaning fees. If the bins outside are full, place bags next to them and we'll handle it.
+
+3. Report any damages, or if you received a citation from security. Unreported citations incur a $25 processing fee.
+
+All bedding, linens, and towels can be left as they are on beds or floors — we'll take care of them.
+
+Thank you again for staying with us, and we hope to host you again soon!
+
+Thanks,
+Feliks
+Summit Lakeside Rentals`,
+  },
   post_checkout: {
     subject: "Thanks for staying with us!",
     body: `Hi {{guest_name}},
 
-Thank you for staying at {{property_name}}! We hope you had a wonderful time.
+Thanks so much for staying at {{property_name}}. We really appreciate you choosing us and we hope you had a wonderful time.
 
-If you have a moment, we'd really appreciate a review — it means a lot to us.
+If everything was to your liking, please consider leaving a 5-star review — it means a lot to us.
 
-Hope to host you again soon!`,
+If anything was not as described or unsatisfactory, please let us know so we can make it right. We take guest feedback seriously and rely on it to keep improving the home for future guests.
+
+Hope to host you again soon!
+
+Feliks
+Summit Lakeside Rentals`,
   },
   registration_reminder: {
     subject: "Please complete your guest registration",
@@ -159,6 +220,9 @@ export const TEMPLATE_VARIABLES: Record<GuestMessageType, string[]> = {
   booking_confirmation: ["guest_name", "property_name", "check_in_date", "check_out_date", "check_in_time", "check_out_time", "portal_link"],
   pre_arrival: ["guest_name", "property_name", "check_in_date", "check_out_date", "check_in_time", "check_out_time", "portal_link"],
   day_of_checkin: ["guest_name", "property_name", "check_in_date", "check_out_date", "check_in_time", "check_out_time", "portal_link"],
+  settling_in: ["guest_name", "property_name", "check_in_date", "check_out_date", "check_in_time", "check_out_time", "portal_link"],
+  pulse_check: ["guest_name", "property_name", "check_in_date", "check_out_date", "portal_link"],
+  checkout_morning: ["guest_name", "property_name", "check_in_date", "check_out_date", "check_in_time", "check_out_time", "portal_link"],
   post_checkout: ["guest_name", "property_name", "check_in_date", "check_out_date", "portal_link"],
   registration_reminder: ["guest_name", "property_name", "check_in_date", "check_out_date", "check_in_time", "check_out_time", "portal_link"],
   booking_invoice_full: [
