@@ -418,48 +418,51 @@ export default function ReservationDetailPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-start justify-between gap-4">
-        <div className="space-y-1">
-          <Button variant="ghost" size="sm" className="mb-2 -ml-2" onClick={() => router.push("/admin/reservations")}>
-            <ArrowLeft className="h-4 w-4 mr-1" /> Reservations
-          </Button>
-          <h1 className="text-2xl font-bold tracking-tight">
-            {guest?.full_name ?? "Unknown Guest"}
-          </h1>
-          <p className="text-muted-foreground">
-            {property?.nickname || property?.name || "Unknown Property"} &middot; {reg.check_in_date} &rarr; {reg.check_out_date} ({nights} night{nights !== 1 ? "s" : ""})
-          </p>
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          {(() => {
-            const colors = {
-              current: "bg-blue-100 text-blue-800 border-blue-200",
-              future: "bg-green-100 text-green-800 border-green-200",
-              past: "bg-yellow-100 text-yellow-800 border-yellow-200",
-              cancelled: "bg-red-100 text-red-800 border-red-200",
-            };
-            return (
-              <Badge variant="outline" className={`text-sm capitalize ${colors[displayStatus]}`}>
-                {displayStatus}
+      <div>
+        <Button variant="ghost" size="sm" className="mb-2 -ml-2" onClick={() => router.push("/admin/reservations")}>
+          <ArrowLeft className="h-4 w-4 mr-1" /> Reservations
+        </Button>
+        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between md:gap-4">
+          <div className="space-y-1">
+            <h1 className="text-xl md:text-2xl font-bold tracking-tight">
+              {guest?.full_name ?? "Unknown Guest"}
+            </h1>
+            <p className="text-sm md:text-base text-muted-foreground">
+              {property?.nickname || property?.name || "Unknown Property"} &middot;{" "}
+              <span className="whitespace-nowrap">{reg.check_in_date} &rarr; {reg.check_out_date}</span> ({nights} night{nights !== 1 ? "s" : ""})
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 md:shrink-0 md:justify-end">
+            {(() => {
+              const colors = {
+                current: "bg-blue-100 text-blue-800 border-blue-200",
+                future: "bg-green-100 text-green-800 border-green-200",
+                past: "bg-yellow-100 text-yellow-800 border-yellow-200",
+                cancelled: "bg-red-100 text-red-800 border-red-200",
+              };
+              return (
+                <Badge variant="outline" className={`text-sm capitalize ${colors[displayStatus]}`}>
+                  {displayStatus}
+                </Badge>
+              );
+            })()}
+            {hasSignature ? (
+              <Badge variant="outline" className="text-sm gap-1">
+                <CheckCircle2 className="h-3 w-3 text-green-600" /> Registered
               </Badge>
-            );
-          })()}
-          {hasSignature ? (
-            <Badge variant="outline" className="text-sm gap-1">
-              <CheckCircle2 className="h-3 w-3 text-green-600" /> Registered
-            </Badge>
-          ) : (
-            <Badge variant="outline" className="text-sm gap-1 text-muted-foreground">
-              <XCircle className="h-3 w-3" /> Not registered
-            </Badge>
-          )}
-          {hasModifications && (
-            <button type="button" onClick={openHistory}>
-              <Badge variant="outline" className="text-sm gap-1 bg-orange-50 text-orange-700 border-orange-200 cursor-pointer hover:bg-orange-100 transition-colors">
-                <History className="h-3 w-3" /> Modified
+            ) : (
+              <Badge variant="outline" className="text-sm gap-1 text-muted-foreground">
+                <XCircle className="h-3 w-3" /> Not registered
               </Badge>
-            </button>
-          )}
+            )}
+            {hasModifications && (
+              <button type="button" onClick={openHistory}>
+                <Badge variant="outline" className="text-sm gap-1 bg-orange-50 text-orange-700 border-orange-200 cursor-pointer hover:bg-orange-100 transition-colors">
+                  <History className="h-3 w-3" /> Modified
+                </Badge>
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
