@@ -428,7 +428,7 @@ export default function AdminMessagesPage() {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-2rem)]">
+    <div className="flex flex-col h-full">
       <div className="mb-4 flex items-start justify-between gap-2">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Messages</h1>
