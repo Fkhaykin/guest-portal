@@ -194,6 +194,12 @@ Reply to this email if you have any questions.`,
   },
 };
 
+// Messages greet guests by first name only — never "Hi Deven Roucroft,".
+// Applied wherever a full name is turned into the {{guest_name}} variable.
+export function firstNameOf(fullName: string | null | undefined): string {
+  return (fullName ?? "").trim().split(/\s+/)[0] ?? "";
+}
+
 // Generic substitution: replace every {{key}} with vars[key]. Unknown keys
 // pass through unchanged so previewing/editing is forgiving.
 export function interpolate(template: string, vars: Record<string, string>): string {

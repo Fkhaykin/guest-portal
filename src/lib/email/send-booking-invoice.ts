@@ -2,6 +2,7 @@ import { Resend } from "resend";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   renderTemplate,
+  firstNameOf,
   type GuestMessageType,
   type BookingInvoiceVars,
   type BookingPlanPickerVars,
@@ -91,7 +92,7 @@ export async function sendBookingInvoiceEmail(params: InvoiceParams) {
       : "";
 
   const vars: BookingInvoiceVars = {
-    guest_name: params.guestName,
+    guest_name: firstNameOf(params.guestName),
     property_name: params.propertyName,
     check_in_date: formatDate(params.checkInDate),
     check_out_date: formatDate(params.checkOutDate),
@@ -147,7 +148,7 @@ export async function sendBookingPlanPickerEmail(params: PlanPickerParams) {
     : "You can pay in full now (your check-in is too close for our split-pay option).";
 
   const vars: BookingPlanPickerVars = {
-    guest_name: params.guestName,
+    guest_name: firstNameOf(params.guestName),
     property_name: params.propertyName,
     check_in_date: formatDate(params.checkInDate),
     check_out_date: formatDate(params.checkOutDate),

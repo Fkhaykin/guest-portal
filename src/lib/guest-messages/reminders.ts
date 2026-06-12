@@ -1,7 +1,7 @@
 import { Resend } from "resend";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendMessage } from "@/lib/lodgify/messages";
-import { TEMPLATES, interpolate, type TemplateVars } from "./templates";
+import { TEMPLATES, interpolate, firstNameOf, type TemplateVars } from "./templates";
 import { stayTimeVars } from "@/lib/upsells/timing";
 import { stripUrlsForSms } from "@/lib/sms/sanitize";
 import type { GuestMessageSettings, UpsellEntry } from "@/types/database";
@@ -98,7 +98,7 @@ export async function sendRegistrationReminder(params: SendReminderParams): Prom
   if (eventSettings && eventSettings.enabled === false) return "skipped";
 
   const vars: TemplateVars = {
-    guest_name: params.guestName,
+    guest_name: firstNameOf(params.guestName),
     property_name: params.propertyName,
     check_in_date: params.checkInDate,
     check_out_date: params.checkOutDate,

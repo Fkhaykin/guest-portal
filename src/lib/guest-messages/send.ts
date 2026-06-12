@@ -1,7 +1,7 @@
 import { Resend } from "resend";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendMessage } from "@/lib/lodgify/messages";
-import { TEMPLATES, interpolate, type GuestMessageType, type GuestMessageChannel, type TemplateVars } from "./templates";
+import { TEMPLATES, interpolate, firstNameOf, type GuestMessageType, type GuestMessageChannel, type TemplateVars } from "./templates";
 import { HOUSE_CHECKIN_TEMPLATES, HOUSE_CHECKIN_SUBJECT } from "./house-templates";
 import { houseForProperty } from "./quick-replies";
 import { stayTimeVars } from "@/lib/upsells/timing";
@@ -55,7 +55,7 @@ export async function sendGuestAutomatedMessage(params: SendParams): Promise<voi
   if (eventSettings && eventSettings.enabled === false) return;
 
   const vars: TemplateVars = {
-    guest_name: params.guestName,
+    guest_name: firstNameOf(params.guestName),
     property_name: params.propertyName,
     check_in_date: params.checkInDate,
     check_out_date: params.checkOutDate,
@@ -122,7 +122,7 @@ export async function sendHouseCheckinInstructions(params: SendParams): Promise<
   if (eventSettings && eventSettings.enabled === false) return;
 
   const vars: TemplateVars = {
-    guest_name: params.guestName,
+    guest_name: firstNameOf(params.guestName),
     property_name: params.propertyName,
     check_in_date: params.checkInDate,
     check_out_date: params.checkOutDate,
