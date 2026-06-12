@@ -225,7 +225,7 @@ export function CampaignComposer({ segments, initial }: Props) {
   return (
     <div className="space-y-6">
       <Card className="p-5 space-y-4">
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label htmlFor="camp-name">Campaign name</Label>
             <Input id="camp-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Summer direct-book offer" />
@@ -233,7 +233,7 @@ export function CampaignComposer({ segments, initial }: Props) {
           <div className="space-y-1.5">
             <Label>Type</Label>
             <Select value={kind} onValueChange={(v) => v && changeKind(v as CampaignKind)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="manual">Manual (one-time send)</SelectItem>
                 <SelectItem value="drip">Drip (auto-send N days after checkout)</SelectItem>
@@ -242,11 +242,11 @@ export function CampaignComposer({ segments, initial }: Props) {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label>Audience</Label>
             <Select value={segmentId} onValueChange={(v) => v && setSegmentId(v)}>
-              <SelectTrigger><SelectValue placeholder="Pick a segment" /></SelectTrigger>
+              <SelectTrigger className="w-full"><SelectValue placeholder="Pick a segment" /></SelectTrigger>
               <SelectContent>
                 {segments.length === 0 ? (
                   <div className="px-2 py-3 text-sm text-muted-foreground">
@@ -271,7 +271,7 @@ export function CampaignComposer({ segments, initial }: Props) {
           <div className="space-y-1.5">
             <Label>Default channel</Label>
             <Select value={defaultChannel} onValueChange={(v) => v && setDefaultChannel(v as CampaignChannel)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="auto">Auto (SMS if phone, else email)</SelectItem>
                 <SelectItem value="email">Email only</SelectItem>
@@ -281,7 +281,7 @@ export function CampaignComposer({ segments, initial }: Props) {
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid gap-4 sm:grid-cols-3">
           <div className="space-y-1.5">
             <Label htmlFor="cap">Send-cap override (days)</Label>
             <Input
