@@ -78,9 +78,11 @@ export async function POST(request: Request) {
   const guestRow = reg.guest as unknown as { full_name: string } | null;
   const guestName = guestRow?.full_name ?? "Guest";
 
+  // Awaited — Vercel freezes the function once the response is returned,
+  // killing fire-and-forget sends mid-flight.
   for (const u of justPaid) {
     if (u.type === "early_checkin" && reg.check_in_date) {
-      notifyCleanersOfEarlyCheckin({
+      await notifyCleanersOfEarlyCheckin({
         propertyId: reg.property_id,
         registrationId: reg.id,
         guestName,
@@ -88,7 +90,7 @@ export async function POST(request: Request) {
       }).catch(() => {});
     }
     if (u.type === "late_checkout" && reg.check_out_date) {
-      notifyCleanersOfLateCheckout({
+      await notifyCleanersOfLateCheckout({
         propertyId: reg.property_id,
         registrationId: reg.id,
         guestName,
@@ -98,7 +100,7 @@ export async function POST(request: Request) {
   }
 
   if (justPaid.length > 0) {
-    notifyHostOfUpsellPurchase({
+    await notifyHostOfUpsellPurchase({
       propertyId: reg.property_id,
       guestName,
       labels: justPaid.map((u) => (u.label as string) || (u.type as string)),

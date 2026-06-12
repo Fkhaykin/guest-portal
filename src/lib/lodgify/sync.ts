@@ -444,7 +444,9 @@ export async function syncBooking(booking: LodgifyBooking, options?: { skipNotif
       });
 
       if (!options?.skipNotify) {
-        notifyHostOfBookingChange({
+        // Awaited — Vercel freezes the function once the webhook response is
+        // returned, killing fire-and-forget sends mid-flight.
+        await notifyHostOfBookingChange({
           propertyId,
           guestName: booking.guest.name,
           summary: summaryParts.join("; "),
@@ -460,7 +462,7 @@ export async function syncBooking(booking: LodgifyBooking, options?: { skipNotif
           .filter((k) => k === "check_in_date" || k === "check_out_date")
           .map((key) => `${LABEL[key]}: ${existing[key] ?? "—"} → ${newSnap[key] ?? "—"}`)
           .join("; ");
-        submitPEPOAEmail({ registrationId: savedReg.id, isUpdate: true, changeSummary: dateSummary }).catch((err) => {
+        await submitPEPOAEmail({ registrationId: savedReg.id, isUpdate: true, changeSummary: dateSummary }).catch((err) => {
           console.error(`[lodgify-sync] PEPOA date-change email failed for ${savedReg.id}:`, err);
         });
       }
@@ -490,22 +492,28 @@ export async function syncBooking(booking: LodgifyBooking, options?: { skipNotif
   // Notify on new active bookings AND on status transitions to active (e.g. booking
   // was previously in DB as completed/cancelled, or first synced before webhook fired).
   // Batch/full syncs pass skipNotify=true — notifications only fire on the webhook path.
+  // All sends are awaited — Vercel freezes the function once the webhook response
+  // is returned, killing fire-and-forget sends mid-flight.
   const justBecameActive = !isNewBooking && newStatus === "active" && !wasPreviouslyActive;
   if (!options?.skipNotify) {
     if ((isNewBooking || justBecameActive) && newStatus === "active") {
-      notifyCleanersOfNewBooking(notifyParams).catch((err) => {
-        console.error(`[lodgify-sync] Failed to notify cleaners for booking ${booking.id}:`, err);
-      });
-      notifyHostOfNewBooking(notifyParams).catch((err) => {
-        console.error(`[lodgify-sync] Host push failed for booking ${booking.id}:`, err);
-      });
+      await Promise.all([
+        notifyCleanersOfNewBooking(notifyParams).catch((err) => {
+          console.error(`[lodgify-sync] Failed to notify cleaners for booking ${booking.id}:`, err);
+        }),
+        notifyHostOfNewBooking(notifyParams).catch((err) => {
+          console.error(`[lodgify-sync] Host push failed for booking ${booking.id}:`, err);
+        }),
+      ]);
     } else if (wasPreviouslyActive && newStatus === "cancelled") {
-      notifyCleanersOfCancellation(notifyParams).catch((err) => {
-        console.error(`[lodgify-sync] Failed to notify cleaners of cancellation ${booking.id}:`, err);
-      });
-      notifyHostOfCancellation(notifyParams).catch((err) => {
-        console.error(`[lodgify-sync] Host push failed for cancellation ${booking.id}:`, err);
-      });
+      await Promise.all([
+        notifyCleanersOfCancellation(notifyParams).catch((err) => {
+          console.error(`[lodgify-sync] Failed to notify cleaners of cancellation ${booking.id}:`, err);
+        }),
+        notifyHostOfCancellation(notifyParams).catch((err) => {
+          console.error(`[lodgify-sync] Host push failed for cancellation ${booking.id}:`, err);
+        }),
+      ]);
     }
   }
 
@@ -513,7 +521,7 @@ export async function syncBooking(booking: LodgifyBooking, options?: { skipNotif
   const isAirbnb = /airbnb/i.test(booking.source ?? "");
   const isDirect = !booking.source || /direct|lodgify/i.test(booking.source ?? "");
   if (!options?.skipNotify && (isNewBooking || justBecameActive) && newStatus === "active" && !isAirbnb && savedReg) {
-    sendGuestConfirmationAsync({
+    await sendGuestConfirmationAsync({
       registrationId: savedReg.id,
       lodgifyBookingId: booking.id,
       channel: isDirect ? "email" : "lodgify",
