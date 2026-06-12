@@ -446,7 +446,8 @@ export default function AdminMessagesPage() {
         </Link>
       </div>
 
-      <div className="flex flex-1 min-h-0 bg-card md:rounded-lg md:border">
+      {/* -mx-6/-mb-6 cancel the admin layout's p-6 so the list runs edge-to-edge on mobile */}
+      <div className="flex flex-1 min-h-0 bg-card -mx-6 -mb-6 md:mx-0 md:mb-0 md:rounded-lg md:border">
         {/* Left panel — Conversation list */}
         <div className={cn(
           "shrink-0 md:border-r flex-col md:w-80 w-full",
