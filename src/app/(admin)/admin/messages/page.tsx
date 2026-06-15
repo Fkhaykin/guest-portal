@@ -29,6 +29,30 @@ import {
 } from "@/components/admin/quick-replies";
 import { maxGuestsForProperty } from "@/lib/guest-messages/quick-replies";
 
+// Turn bare URLs in a message into tappable links. Splitting on a capturing
+// group keeps the delimiters, so URL chunks become anchors and the rest stays
+// text. break-all lets a long registration link wrap inside the bubble instead
+// of overflowing it.
+const URL_PATTERN = /(https?:\/\/[^\s]+)/g;
+
+function linkifyMessage(text: string) {
+  return text.split(URL_PATTERN).map((part, i) =>
+    /^https?:\/\//.test(part) ? (
+      <a
+        key={i}
+        href={part}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="underline underline-offset-2 break-all hover:opacity-80"
+      >
+        {part}
+      </a>
+    ) : (
+      part
+    )
+  );
+}
+
 export default function AdminMessagesPage() {
   const searchParams = useSearchParams();
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -729,8 +753,8 @@ export default function AdminMessagesPage() {
                               {msg.sender_name}
                             </p>
                           )}
-                          <p className="text-sm whitespace-pre-wrap">
-                            {msg.message}
+                          <p className="text-sm whitespace-pre-wrap wrap-break-word">
+                            {linkifyMessage(msg.message)}
                           </p>
                           {msg.created_at && (
                             <p
@@ -748,6 +772,10 @@ export default function AdminMessagesPage() {
                                   day: "numeric",
                                   hour: "numeric",
                                   minute: "2-digit",
+                                  // Pin to Eastern so timestamps read in the
+                                  // host's/property's local time regardless of
+                                  // the viewer's device timezone.
+                                  timeZone: "America/New_York",
                                 }
                               )}
                             </p>
