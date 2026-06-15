@@ -42,7 +42,10 @@ type UnbilledCleaning = {
   property_nickname: string | null;
   check_out_date: string;
   has_pets: boolean;
+  has_firewood?: boolean;
 };
+
+const FIREWOOD_FEE_CENTS = 1_000;
 
 function emptyLine(type: InvoiceLineItem["type"] = "cleaning"): InvoiceLineItem {
   return { description: "", type, amount: 0 };
@@ -167,6 +170,18 @@ export function InvoiceForm({
           property_nickname: cleaning.property_nickname ?? undefined,
           registration_id: cleaning.registration_id,
           amount: prop.petFeeCents,
+        });
+      }
+
+      // Add firewood delivery fee if the guest purchased one
+      if (cleaning.has_firewood) {
+        newLines.push({
+          description: `Firewood Delivery — ${propLabel} (${cleaning.check_out_date})`,
+          type: "extra",
+          property_name: cleaning.property_name,
+          property_nickname: cleaning.property_nickname ?? undefined,
+          registration_id: cleaning.registration_id,
+          amount: FIREWOOD_FEE_CENTS,
         });
       }
     }

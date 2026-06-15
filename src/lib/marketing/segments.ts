@@ -46,7 +46,10 @@ export async function evaluateSegment(
     .in("status", ["active", "completed"])
     .order("check_out_date", { ascending: false });
 
-  if (filter.stayed_within_days != null) {
+  if (filter.last_stay_older_than_days != null) {
+    // Lapsed-guest window is judged on the guest's MOST RECENT stay, so it must see
+    // all registrations and filter after the per-guest collapse below.
+  } else if (filter.stayed_within_days != null) {
     // Rolling window resolved at evaluation time, so the segment stays current on its own.
     const from = new Date();
     from.setUTCDate(from.getUTCDate() - filter.stayed_within_days);
@@ -81,10 +84,18 @@ export async function evaluateSegment(
     }
   }
 
+  let lapsedCutoff: string | null = null;
+  if (filter.last_stay_older_than_days != null) {
+    const cutoff = new Date();
+    cutoff.setUTCDate(cutoff.getUTCDate() - filter.last_stay_older_than_days);
+    lapsedCutoff = cutoff.toISOString().slice(0, 10);
+  }
+
   const members: SegmentMember[] = [];
   for (const { last, count } of byGuest.values()) {
     if (filter.min_stays != null && count < filter.min_stays) continue;
     if (filter.max_stays != null && count > filter.max_stays) continue;
+    if (lapsedCutoff && last.check_out_date > lapsedCutoff) continue;
 
     const prop = Array.isArray(last.property) ? last.property[0] : last.property;
     const guest = Array.isArray(last.guest) ? last.guest[0] : last.guest;

@@ -27,6 +27,9 @@ interface Segment {
 }
 
 function windowSummary(f: SegmentFilter): { label: string; rolling: boolean } | null {
+  if (f.last_stay_older_than_days != null) {
+    return { label: `Last stay ${f.last_stay_older_than_days}+ days ago · auto-updates`, rolling: true };
+  }
   if (f.stayed_within_days != null) {
     return { label: `Last ${f.stayed_within_days} days · auto-updates`, rolling: true };
   }

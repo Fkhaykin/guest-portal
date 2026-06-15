@@ -29,11 +29,13 @@ interface Props {
   submitLabel?: string;
 }
 
-type DateMode = "all" | "rolling" | "fixed";
+type DateMode = "all" | "rolling" | "lapsed" | "fixed";
 
 const ROLLING_PRESETS = [30, 90, 180, 365];
+const LAPSED_PRESETS = [180, 365, 730];
 
 function initialDateMode(filter: SegmentFilter): DateMode {
+  if (filter.last_stay_older_than_days != null) return "lapsed";
   if (filter.stayed_within_days != null) return "rolling";
   if (filter.stayed_from || filter.stayed_until) return "fixed";
   return "all";
@@ -83,11 +85,13 @@ export function SegmentBuilder({
   function switchDateMode(mode: DateMode) {
     setDateMode(mode);
     if (mode === "all") {
-      setFilter({ ...filter, stayed_within_days: null, stayed_from: null, stayed_until: null });
+      setFilter({ ...filter, stayed_within_days: null, stayed_from: null, stayed_until: null, last_stay_older_than_days: null });
     } else if (mode === "rolling") {
-      setFilter({ ...filter, stayed_within_days: filter.stayed_within_days ?? 180, stayed_from: null, stayed_until: null });
+      setFilter({ ...filter, stayed_within_days: filter.stayed_within_days ?? 180, stayed_from: null, stayed_until: null, last_stay_older_than_days: null });
+    } else if (mode === "lapsed") {
+      setFilter({ ...filter, last_stay_older_than_days: filter.last_stay_older_than_days ?? 365, stayed_within_days: null, stayed_from: null, stayed_until: null });
     } else {
-      setFilter({ ...filter, stayed_within_days: null });
+      setFilter({ ...filter, stayed_within_days: null, last_stay_older_than_days: null });
     }
   }
 
@@ -140,6 +144,7 @@ export function SegmentBuilder({
             [
               ["all", "All time"],
               ["rolling", "Rolling window"],
+              ["lapsed", "Lapsed guests"],
               ["fixed", "Fixed dates"],
             ] as [DateMode, string][]
           ).map(([mode, label]) => (
@@ -191,6 +196,47 @@ export function SegmentBuilder({
             </div>
             <p className="text-xs text-muted-foreground">
               Updates automatically — guests join as they check out and age out as the window moves.
+            </p>
+          </div>
+        )}
+
+        {dateMode === "lapsed" && (
+          <div className="space-y-2 rounded-md border p-3">
+            <div className="flex items-center gap-2">
+              <Label htmlFor="lapsed-days" className="shrink-0">
+                Last stay was over
+              </Label>
+              <Input
+                id="lapsed-days"
+                type="number"
+                min={1}
+                className="w-24"
+                value={filter.last_stay_older_than_days ?? ""}
+                onChange={(e) =>
+                  setFilter({
+                    ...filter,
+                    last_stay_older_than_days: e.target.value ? parseInt(e.target.value, 10) : null,
+                  })
+                }
+              />
+              <span className="text-sm text-muted-foreground">days ago</span>
+            </div>
+            <div className="flex gap-1.5">
+              {LAPSED_PRESETS.map((days) => (
+                <Button
+                  key={days}
+                  type="button"
+                  size="sm"
+                  variant={filter.last_stay_older_than_days === days ? "secondary" : "ghost"}
+                  onClick={() => setFilter({ ...filter, last_stay_older_than_days: days })}
+                >
+                  {days % 365 === 0 ? `${days / 365} year${days > 365 ? "s" : ""}` : `${days}d`}
+                </Button>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Targets guests whose most recent check-out is older than this — guests drop out
+              automatically when they book again.
             </p>
           </div>
         )}

@@ -26,9 +26,9 @@ export default async function AdminLayout({
     redirect("/");
   }
 
+  // h-dvh pins the shell to the viewport so pages scroll inside <main>,
+  // keeping the sidebar fully visible; h-full children fill the content area
   return (
-    {/* h-dvh pins the shell to the viewport so pages scroll inside <main>,
-        keeping the sidebar fully visible; h-full children fill the content area */}
     <div className="flex h-dvh">
       <AdminSidebar hostName={host.full_name} hostEmail={host.email} />
       <main className="flex-1 p-6 pt-16 md:p-8 overflow-auto">

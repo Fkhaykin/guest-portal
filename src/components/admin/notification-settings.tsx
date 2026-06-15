@@ -41,13 +41,13 @@ const EVENT_META: Record<
   },
   cleaner_early_checkin: {
     label: "Early Check-In Purchased",
-    description: "Sent to assigned cleaners when a guest purchases early check-in (1pm).",
-    variables: ["property", "address", "guest", "check_in", "link"],
+    description: "Sent to assigned cleaners when a guest purchases early check-in.",
+    variables: ["property", "address", "guest", "check_in", "check_in_time", "link"],
   },
   cleaner_late_checkout: {
     label: "Late Check-Out Purchased",
-    description: "Sent to assigned cleaners when a guest purchases late check-out (2pm).",
-    variables: ["property", "address", "guest", "check_out", "link"],
+    description: "Sent to assigned cleaners when a guest purchases late check-out.",
+    variables: ["property", "address", "guest", "check_out", "check_out_time", "link"],
   },
   cleaner_invoice_paid: {
     label: "Invoice Paid",
@@ -80,12 +80,12 @@ const DEFAULT_SETTINGS: NotificationSettingsType = {
   cleaner_early_checkin: {
     enabled: true,
     message:
-      "Early check-in purchased — {{property}}, {{address}}: {{guest}}, arriving {{check_in}} at 1pm. View: {{link}}",
+      "Early check-in purchased — {{property}}, {{address}}: {{guest}}, arriving {{check_in}} at {{check_in_time}}. View: {{link}}",
   },
   cleaner_late_checkout: {
     enabled: true,
     message:
-      "Late check-out purchased — {{property}}, {{address}}: {{guest}}, departing {{check_out}} at 2pm. View: {{link}}",
+      "Late check-out purchased — {{property}}, {{address}}: {{guest}}, departing {{check_out}} at {{check_out_time}}. View: {{link}}",
   },
   cleaner_invoice_paid: {
     enabled: true,

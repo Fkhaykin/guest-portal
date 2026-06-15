@@ -19,6 +19,7 @@ import {
   Repeat2,
 } from "lucide-react";
 import type { UpsellEntry, GuestListEntry, PetEntry } from "@/types/database";
+import { timingUpsellTime } from "@/lib/upsells/timing";
 import { CleaningDialog } from "./cleaning-dialog";
 import { CompletedCleaningDialog } from "./completed-cleaning-dialog";
 import { useNewIds } from "./new-ids-provider";
@@ -141,8 +142,12 @@ export function ReservationCard({
     regularUpsells.length > 0 && regularUpsells.every((u) => fulfilled.includes(u.type));
   const isFullyDone = isCleaned && (regularUpsells.length === 0 || allUpsellsDone);
 
-  const hasEarlyCheckin = upsells.some((u) => u.type === "early_checkin");
-  const hasLateCheckout = upsells.some((u) => u.type === "late_checkout");
+  const earlyCheckin = upsells.find((u) => u.type === "early_checkin");
+  const lateCheckout = upsells.find((u) => u.type === "late_checkout");
+  const hasEarlyCheckin = !!earlyCheckin;
+  const hasLateCheckout = !!lateCheckout;
+  const earlyCheckinTime = earlyCheckin ? timingUpsellTime(earlyCheckin) : null;
+  const lateCheckoutTime = lateCheckout ? timingUpsellTime(lateCheckout) : null;
 
   // Relative date labels
   const checkInLabel = getRelativeDayLabel(checkIn);
@@ -355,13 +360,13 @@ export function ReservationCard({
               {hasEarlyCheckin && (
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-orange-100 text-orange-700 dark:bg-orange-950/30 dark:text-orange-300 border border-orange-200 dark:border-orange-900">
                   <ArrowDownToLine className="h-3 w-3" />
-                  Early 1 PM
+                  Early{earlyCheckinTime ? ` ${earlyCheckinTime}` : ""}
                 </span>
               )}
               {hasLateCheckout && (
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-purple-100 text-purple-700 dark:bg-purple-950/30 dark:text-purple-300 border border-purple-200 dark:border-purple-900">
                   <ArrowUpFromLine className="h-3 w-3" />
-                  Late 2 PM
+                  Late{lateCheckoutTime ? ` ${lateCheckoutTime}` : ""}
                 </span>
               )}
               {needsHighchair && (

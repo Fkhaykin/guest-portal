@@ -62,6 +62,10 @@ export interface LodgifyBooking {
   source: string | null;
   notes: string | null;
   total_amount: number | null;
+  // True when total_amount is the gross figure (stay + fees + taxes) from the
+  // v1 list endpoint, which has no subtotals breakdown. Revenue in the DB is
+  // the rent-only subtotals.stay figure, so gross amounts must not overwrite it.
+  total_amount_is_gross: boolean;
   date_created: string | null; // ISO datetime from Lodgify
   thread_uid: string | null;   // Messaging thread id (only present on v2 detail)
 }
@@ -182,6 +186,7 @@ export async function getBookings(params?: {
       source: b.source,
       notes: b.notes,
       total_amount: b.total_amount ?? b.amount ?? b.total ?? null,
+      total_amount_is_gross: true,
       date_created: b.created_at ?? b.date_created ?? null,
       thread_uid: null,
     };
@@ -323,6 +328,7 @@ export async function getBookingById(bookingId: number): Promise<LodgifyBooking>
     source: raw.source,
     notes: raw.notes ?? null,
     total_amount: resolvedAmount,
+    total_amount_is_gross: !(stay && stay > 0),
     date_created: raw.created_at ?? null,
     thread_uid: raw.thread_uid ?? null,
   };

@@ -63,12 +63,13 @@ export default async function NewInvoicePage() {
     property_nickname: string | null;
     check_out_date: string;
     has_pets: boolean;
+    has_firewood: boolean;
   }> = [];
 
   if (unbilledRegIds.length > 0) {
     const { data: regs } = await supabase
       .from("registration")
-      .select("id, property_id, check_out_date, pets")
+      .select("id, property_id, check_out_date, pets, upsells")
       .in("id", unbilledRegIds);
 
     const propMap = new Map(
@@ -81,6 +82,10 @@ export default async function NewInvoicePage() {
         const prop = propMap.get(r.property_id)!;
         const pets = r.pets as Array<{ name?: string }> | null;
         const hasPets = (pets || []).some((p) => p.name?.trim());
+        const upsells = r.upsells as Array<{ type: string; status: string }> | null;
+        const hasFirewood = (upsells || []).some(
+          (u) => u.type === "firewood" && u.status === "paid"
+        );
         return {
           registration_id: r.id,
           property_id: r.property_id,
@@ -88,6 +93,7 @@ export default async function NewInvoicePage() {
           property_nickname: prop.nickname,
           check_out_date: r.check_out_date,
           has_pets: hasPets,
+          has_firewood: hasFirewood,
         };
       })
       .sort((a, b) => a.check_out_date.localeCompare(b.check_out_date));

@@ -149,6 +149,7 @@ export type SegmentFilter = {
   stayed_from?: string | null;        // ISO date, inclusive (check_out_date >= this)
   stayed_until?: string | null;       // ISO date, inclusive (check_out_date <= this)
   stayed_within_days?: number | null; // rolling window: check_out_date >= today - N days (overrides fixed dates)
+  last_stay_older_than_days?: number | null; // rolling lapsed window: guest's most recent check_out_date <= today - N days (overrides other date filters)
   property_ids?: string[] | null;     // null/empty = all properties
   min_stays?: number | null;          // inclusive
   max_stays?: number | null;          // inclusive

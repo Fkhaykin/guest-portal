@@ -20,6 +20,7 @@ import type { InvoiceLineItem } from "@/types/database";
 // marked complete late is picked up on the next run instead of lost.
 
 const BIANCA_MONTHLY_FEE_CENTS = 20_000;
+const FIREWOOD_FEE_CENTS = 1_000;
 
 function isoDate(d: Date): string {
   return d.toISOString().slice(0, 10);
@@ -34,6 +35,7 @@ type RegRow = {
   property_id: string;
   check_out_date: string;
   pets: Array<{ name?: string }> | null;
+  upsells: Array<{ type: string; status: string }> | null;
 };
 
 type PropRow = {
@@ -77,6 +79,21 @@ function buildLineItems(
         property_nickname: prop.nickname ?? undefined,
         registration_id: reg.id,
         amount: petFeeCents,
+      });
+    }
+
+    // Firewood delivery fee — cleaner drops off the bundle
+    const hasFirewood = (reg.upsells || []).some(
+      (u) => u.type === "firewood" && u.status === "paid"
+    );
+    if (hasFirewood) {
+      lineItems.push({
+        description: `Firewood delivery — ${prop.nickname || prop.name} (checkout ${reg.check_out_date})`,
+        type: "extra",
+        property_name: prop.name,
+        property_nickname: prop.nickname ?? undefined,
+        registration_id: reg.id,
+        amount: FIREWOOD_FEE_CENTS,
       });
     }
   }
@@ -224,7 +241,7 @@ async function runAutoGenerate(force?: "weekly" | "monthly") {
     if (unbilledRegIds.length > 0) {
       const { data } = await supabase
         .from("registration")
-        .select("id, property_id, check_out_date, pets")
+        .select("id, property_id, check_out_date, pets, upsells")
         .in("id", unbilledRegIds);
       regs = (data || []) as RegRow[];
     }

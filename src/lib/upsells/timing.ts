@@ -64,10 +64,29 @@ function timeFromLabel(label: string | undefined): string | null {
 }
 
 /**
+ * Effective time committed by a single timing upsell entry. Current purchases
+ * carry meta.hours; legacy entries only embed the time in their label, e.g.
+ * "Early Check-In (1:00 PM)", and fall back to the fixed product time. Returns
+ * null for non-timing upsells.
+ */
+export function timingUpsellTime(upsell: TimingUpsellLike): string | null {
+  const hours = Number((upsell.meta as { hours?: unknown } | null | undefined)?.hours);
+  if (upsell.type === "early_checkin") {
+    return VALID_TIMING_HOURS.includes(hours)
+      ? formatHour(STANDARD_CHECKIN_HOUR - hours)
+      : timeFromLabel(upsell.label) ?? LEGACY_EARLY_CHECKIN_TIME;
+  }
+  if (upsell.type === "late_checkout") {
+    return VALID_TIMING_HOURS.includes(hours)
+      ? formatHour(STANDARD_CHECKOUT_HOUR + hours)
+      : timeFromLabel(upsell.label) ?? LEGACY_LATE_CHECKOUT_TIME;
+  }
+  return null;
+}
+
+/**
  * Effective check-in/check-out times for a stay, accounting for paid
- * early check-in / late check-out upsells. Current purchases carry
- * meta.hours; legacy entries only embed the time in their label,
- * e.g. "Early Check-In (1:00 PM)".
+ * early check-in / late check-out upsells.
  */
 export function effectiveStayTimes(upsells: TimingUpsellLike[] | null | undefined): {
   checkInTime: string;
@@ -79,23 +98,12 @@ export function effectiveStayTimes(upsells: TimingUpsellLike[] | null | undefine
   const early = paid.find((u) => u.type === "early_checkin");
   const late = paid.find((u) => u.type === "late_checkout");
 
-  let checkInTime = STANDARD_CHECKIN_TIME;
-  if (early) {
-    const hours = Number((early.meta as { hours?: unknown } | null | undefined)?.hours);
-    checkInTime = VALID_TIMING_HOURS.includes(hours)
-      ? formatHour(STANDARD_CHECKIN_HOUR - hours)
-      : timeFromLabel(early.label) ?? LEGACY_EARLY_CHECKIN_TIME;
-  }
-
-  let checkOutTime = STANDARD_CHECKOUT_TIME;
-  if (late) {
-    const hours = Number((late.meta as { hours?: unknown } | null | undefined)?.hours);
-    checkOutTime = VALID_TIMING_HOURS.includes(hours)
-      ? formatHour(STANDARD_CHECKOUT_HOUR + hours)
-      : timeFromLabel(late.label) ?? LEGACY_LATE_CHECKOUT_TIME;
-  }
-
-  return { checkInTime, checkOutTime, hasEarlyCheckin: !!early, hasLateCheckout: !!late };
+  return {
+    checkInTime: early ? timingUpsellTime(early) ?? STANDARD_CHECKIN_TIME : STANDARD_CHECKIN_TIME,
+    checkOutTime: late ? timingUpsellTime(late) ?? STANDARD_CHECKOUT_TIME : STANDARD_CHECKOUT_TIME,
+    hasEarlyCheckin: !!early,
+    hasLateCheckout: !!late,
+  };
 }
 
 /**

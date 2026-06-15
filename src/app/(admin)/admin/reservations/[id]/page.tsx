@@ -44,6 +44,7 @@ import {
   MessageSquare,
 } from "lucide-react";
 import { EditRegistrationDialog } from "@/components/admin/edit-registration-dialog";
+import { effectiveStayTimes } from "@/lib/upsells/timing";
 import type { GuestListEntry, PetEntry, UpsellEntry, CleaningPhoto, CleaningPhotoExif, CleaningChecklistItem, InvoiceLineItem, InvoiceStatus } from "@/types/database";
 import { ReceiptText } from "lucide-react";
 
@@ -372,10 +373,7 @@ export default function ReservationDetailPage() {
   const children = guestList.filter((g) => g.age_group === "under_21").length;
   const infants = guestList.filter((g) => g.age_group === "infant").length;
   const nights = Math.max(1, Math.round((new Date(reg.check_out_date).getTime() - new Date(reg.check_in_date).getTime()) / 86400000));
-  const hasEarlyCheckin = upsells.some((u) => u.type === "early_checkin" && u.status === "paid");
-  const hasLateCheckout = upsells.some((u) => u.type === "late_checkout" && u.status === "paid");
-  const checkInTime = hasEarlyCheckin ? "1:00 PM" : "4:00 PM";
-  const checkOutTime = hasLateCheckout ? "2:00 PM" : "11:00 AM";
+  const { checkInTime, checkOutTime, hasEarlyCheckin, hasLateCheckout } = effectiveStayTimes(upsells);
   const hasSignature = !!reg.signature_url;
 
   // Map vehicles to guest list entries by driver name
