@@ -4,6 +4,7 @@ import { buttonVariants } from "@/components/ui/button-variants";
 import { cn } from "@/lib/utils";
 import { ReplyTraining } from "@/components/admin/reply-training";
 import { GuestMessageSettings } from "@/components/admin/guest-message-settings";
+import { LodgifyMessageSync } from "@/components/admin/lodgify-message-sync";
 
 export default function AutoMessagesPage() {
   return (
@@ -19,6 +20,7 @@ export default function AutoMessagesPage() {
           <h1 className="text-3xl font-bold tracking-tight">Auto Messages</h1>
         </div>
       </div>
+      <LodgifyMessageSync />
       <ReplyTraining />
       <GuestMessageSettings />
     </div>
