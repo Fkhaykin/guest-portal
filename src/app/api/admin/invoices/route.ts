@@ -75,6 +75,7 @@ export async function PATCH(request: Request) {
       notifyCleanerOfInvoicePaid({
         cleanerId: invoice.cleaner_id,
         hostId: host.id,
+        invoiceId: invoice.id,
         invoiceNumber: invoice.invoice_number,
         total: invoice.total,
         periodStart: invoice.period_start,

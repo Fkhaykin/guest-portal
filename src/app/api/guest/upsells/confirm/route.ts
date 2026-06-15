@@ -4,6 +4,7 @@ import { stripe } from "@/lib/stripe/client";
 import { verifyGuestToken } from "@/lib/guest-token";
 import { notifyCleanersOfEarlyCheckin, notifyCleanersOfLateCheckout } from "@/lib/sms/notify-cleaners";
 import { notifyHostOfUpsellPurchase } from "@/lib/push/notify-host";
+import { timingUpsellTime, STANDARD_CHECKIN_TIME, STANDARD_CHECKOUT_TIME } from "@/lib/upsells/timing";
 
 export async function POST(request: Request) {
   let body: { session_id: string; registration_id: string };
@@ -81,12 +82,18 @@ export async function POST(request: Request) {
   // Awaited — Vercel freezes the function once the response is returned,
   // killing fire-and-forget sends mid-flight.
   for (const u of justPaid) {
+    const timingLike = {
+      type: u.type as string,
+      label: u.label as string | undefined,
+      meta: u.meta as Record<string, unknown> | null | undefined,
+    };
     if (u.type === "early_checkin" && reg.check_in_date) {
       await notifyCleanersOfEarlyCheckin({
         propertyId: reg.property_id,
         registrationId: reg.id,
         guestName,
         checkIn: reg.check_in_date as string,
+        checkInTime: timingUpsellTime(timingLike) ?? STANDARD_CHECKIN_TIME,
       }).catch(() => {});
     }
     if (u.type === "late_checkout" && reg.check_out_date) {
@@ -95,6 +102,7 @@ export async function POST(request: Request) {
         registrationId: reg.id,
         guestName,
         checkOut: reg.check_out_date as string,
+        checkOutTime: timingUpsellTime(timingLike) ?? STANDARD_CHECKOUT_TIME,
       }).catch(() => {});
     }
   }
@@ -102,6 +110,7 @@ export async function POST(request: Request) {
   if (justPaid.length > 0) {
     await notifyHostOfUpsellPurchase({
       propertyId: reg.property_id,
+      registrationId: reg.id,
       guestName,
       labels: justPaid.map((u) => (u.label as string) || (u.type as string)),
       totalCents: justPaid.reduce((sum, u) => sum + (Number(u.price_cents) || 0), 0),

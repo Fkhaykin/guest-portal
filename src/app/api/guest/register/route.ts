@@ -258,6 +258,7 @@ export async function POST(request: Request) {
 
     await notifyHostOfRegistration({
       propertyId: reg.property_id,
+      registrationId: reg.id,
       guestName: full_name,
     }).catch(() => {});
 

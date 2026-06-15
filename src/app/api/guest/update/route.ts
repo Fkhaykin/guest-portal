@@ -228,6 +228,7 @@ export async function POST(request: Request) {
 
     await notifyHostOfRegistration({
       propertyId: capturedPropertyId,
+      registrationId: registration_id,
       guestName: capturedGuestName,
       summary: capturedSummary,
       isUpdate: true,

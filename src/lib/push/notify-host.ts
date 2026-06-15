@@ -16,6 +16,13 @@ function adminUrl(path: string): string {
   }
 }
 
+/** Deep-link to a specific reservation when we have its id, else the list. */
+function reservationUrl(registrationId?: string | null): string {
+  return adminUrl(
+    registrationId ? `/reservations/${registrationId}` : "/reservations"
+  );
+}
+
 function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString("en-US", {
     month: "short",
@@ -83,6 +90,7 @@ export async function notifyHostOfGuestMessage(params: {
 
 export async function notifyHostOfNewBooking(params: {
   propertyId: string;
+  registrationId?: string | null;
   guestName: string;
   checkIn: string;
   checkOut: string;
@@ -94,12 +102,13 @@ export async function notifyHostOfNewBooking(params: {
   await sendPushToHost(property.hostId, {
     title: `New booking — ${property.name}`,
     body: `${params.guestName} · ${formatDate(params.checkIn)} – ${formatDate(params.checkOut)} · ${params.numGuests} guest${params.numGuests !== 1 ? "s" : ""}`,
-    url: adminUrl("/reservations"),
+    url: reservationUrl(params.registrationId),
   });
 }
 
 export async function notifyHostOfCancellation(params: {
   propertyId: string;
+  registrationId?: string | null;
   guestName: string;
   checkIn: string;
   checkOut: string;
@@ -110,12 +119,13 @@ export async function notifyHostOfCancellation(params: {
   await sendPushToHost(property.hostId, {
     title: `Booking cancelled — ${property.name}`,
     body: `${params.guestName} · ${formatDate(params.checkIn)} – ${formatDate(params.checkOut)}`,
-    url: adminUrl("/reservations"),
+    url: reservationUrl(params.registrationId),
   });
 }
 
 export async function notifyHostOfBookingChange(params: {
   propertyId: string;
+  registrationId?: string | null;
   guestName: string;
   summary: string;
 }) {
@@ -125,12 +135,13 @@ export async function notifyHostOfBookingChange(params: {
   await sendPushToHost(property.hostId, {
     title: `Booking updated — ${property.name}`,
     body: `${params.guestName}: ${params.summary}`,
-    url: adminUrl("/reservations"),
+    url: reservationUrl(params.registrationId),
   });
 }
 
 export async function notifyHostOfRegistration(params: {
   propertyId: string;
+  registrationId?: string | null;
   guestName: string;
   summary?: string;
   isUpdate?: boolean;
@@ -143,12 +154,13 @@ export async function notifyHostOfRegistration(params: {
       ? `Registration updated — ${property.name}`
       : `Registration completed — ${property.name}`,
     body: params.summary || params.guestName,
-    url: adminUrl("/reservations"),
+    url: reservationUrl(params.registrationId),
   });
 }
 
 export async function notifyHostOfUpsellPurchase(params: {
   propertyId: string;
+  registrationId?: string | null;
   guestName: string;
   labels: string[];
   totalCents: number;
@@ -164,6 +176,6 @@ export async function notifyHostOfUpsellPurchase(params: {
   await sendPushToHost(property.hostId, {
     title: `Upsell purchased — ${property.name}`,
     body: `${params.guestName}: ${params.labels.join(", ")} (${amount})`,
-    url: adminUrl("/reservations"),
+    url: reservationUrl(params.registrationId),
   });
 }

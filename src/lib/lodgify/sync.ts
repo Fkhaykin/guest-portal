@@ -333,7 +333,11 @@ export async function syncBooking(booking: LodgifyBooking, options?: { skipNotif
         notes: booking.notes,
         status: mapStatus(booking.status),
         booking_source: booking.source,
-        ...(booking.total_amount ? { total_amount_cents: Math.round(booking.total_amount * 100) } : {}),
+        // Gross (v1 list) amounts only seed brand-new rows; stay-based revenue
+        // from the v2 detail is authoritative and must not be overwritten.
+        ...(booking.total_amount && (isNewBooking || !booking.total_amount_is_gross)
+          ? { total_amount_cents: Math.round(booking.total_amount * 100) }
+          : {}),
         ...(booking.date_created ? { booked_at: booking.date_created } : {}),
         ...(booking.thread_uid ? { lodgify_thread_uid: booking.thread_uid } : {}),
       },
@@ -385,8 +389,9 @@ export async function syncBooking(booking: LodgifyBooking, options?: { skipNotif
       lodgify_num_pets: booking.pets ?? 0,
       status: mapStatus(booking.status),
       notes: booking.notes || null,
-      // Only compare revenue when we have a new value; otherwise keep old to avoid false diffs
-      total_amount_cents: booking.total_amount
+      // Only compare revenue when we have a stay-based value; gross v1 amounts
+      // would diff against stored rent-only revenue and log false changes.
+      total_amount_cents: booking.total_amount && !booking.total_amount_is_gross
         ? Math.round(booking.total_amount * 100)
         : (existingReg.total_amount_cents ?? null),
     };
@@ -448,6 +453,7 @@ export async function syncBooking(booking: LodgifyBooking, options?: { skipNotif
         // returned, killing fire-and-forget sends mid-flight.
         await notifyHostOfBookingChange({
           propertyId,
+          registrationId: savedReg.id,
           guestName: booking.guest.name,
           summary: summaryParts.join("; "),
         }).catch((err) => {
@@ -565,13 +571,13 @@ export async function syncLatestBookings() {
     .in("lodgify_booking_id", lodgifyIds);
   const existingSet = new Set((existing || []).map((r) => r.lodgify_booking_id));
 
-  // Sync all — use v2 detail for bookings where v1 list omits the amount
-  // (common for OTA/Airbnb bookings where the payout isn't exposed on the list endpoint)
+  // Sync all — use v2 detail for new bookings and ones where the v1 list omits
+  // the amount, so revenue is seeded from subtotals.stay rather than the gross total.
   let synced = 0;
   let skipped = 0;
   for (const booking of items) {
     let bookingToSync = booking;
-    if (!booking.total_amount) {
+    if (!booking.total_amount || !existingSet.has(booking.id)) {
       try {
         bookingToSync = await getBookingById(booking.id);
       } catch {
@@ -623,13 +629,29 @@ export async function syncBookingsBatch(options?: {
   let synced = 0;
   let skipped = 0;
 
+  const supabase = createAdminClient();
+
+  // Fetch v2 detail for bookings we don't have yet so their revenue is seeded
+  // from subtotals.stay (the v1 list only carries the gross total).
+  const { data: existingRows } = await supabase
+    .from("registration")
+    .select("lodgify_booking_id")
+    .in("lodgify_booking_id", response.items.map((b) => b.id));
+  const existingIds = new Set((existingRows || []).map((r) => r.lodgify_booking_id));
+
   for (const booking of response.items) {
-    const result = await syncBooking(booking, { skipNotify: true });
+    let bookingToSync = booking;
+    if (!booking.total_amount || !existingIds.has(booking.id)) {
+      try {
+        bookingToSync = await getBookingById(booking.id);
+      } catch {
+        // fall back to v1 data
+      }
+    }
+    const result = await syncBooking(bookingToSync, { skipNotify: true });
     if (result.skipped) skipped++;
     else synced++;
   }
-
-  const supabase = createAdminClient();
 
   const nextOffset = offset + response.items.length;
   const done = nextOffset >= response.total || response.items.length < PAGE_SIZE;

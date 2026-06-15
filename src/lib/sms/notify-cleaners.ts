@@ -310,6 +310,7 @@ export async function notifyCleanersOfEarlyCheckin(params: {
   registrationId: string;
   guestName: string;
   checkIn: string;
+  checkInTime: string;
 }) {
   const config = await getEventSettings(params.propertyId, "cleaner_early_checkin");
   if (!config) return;
@@ -319,6 +320,7 @@ export async function notifyCleanersOfEarlyCheckin(params: {
     address: config.propertyAddress,
     guest: params.guestName,
     check_in: formatDate(params.checkIn),
+    check_in_time: params.checkInTime,
     link: cleanerPortalUrl(params.registrationId),
   });
 
@@ -334,6 +336,7 @@ export async function notifyCleanersOfLateCheckout(params: {
   registrationId: string;
   guestName: string;
   checkOut: string;
+  checkOutTime: string;
 }) {
   const config = await getEventSettings(params.propertyId, "cleaner_late_checkout");
   if (!config) return;
@@ -343,6 +346,7 @@ export async function notifyCleanersOfLateCheckout(params: {
     address: config.propertyAddress,
     guest: params.guestName,
     check_out: formatDate(params.checkOut),
+    check_out_time: params.checkOutTime,
     link: cleanerPortalUrl(params.registrationId),
   });
 
@@ -356,6 +360,7 @@ export async function notifyCleanersOfLateCheckout(params: {
 export async function notifyCleanerOfInvoicePaid(params: {
   cleanerId: string;
   hostId: string;
+  invoiceId: string;
   invoiceNumber: string;
   total: number;
   periodStart: string;
@@ -397,7 +402,9 @@ export async function notifyCleanerOfInvoicePaid(params: {
     sendPushToCleaner(cleaner.id, {
       title: `Invoice ${params.invoiceNumber} paid`,
       body,
-      url: managerOrigin() ? `${managerOrigin()}/invoices` : undefined,
+      url: managerOrigin()
+        ? `${managerOrigin()}/invoices/${params.invoiceId}`
+        : undefined,
     }).catch((err) => {
       console.error("[push] Notification failed:", err);
     }),
