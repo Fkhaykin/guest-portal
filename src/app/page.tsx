@@ -85,6 +85,8 @@ type Promotion = {
   promo_code: string | null;
   discount_percent: number | null;
   discount_amount: number | null;
+  free_cleaning: boolean | null;
+  free_pet_fee: boolean | null;
   valid_from: string | null;
   valid_until: string | null;
   is_active: boolean;
@@ -720,6 +722,16 @@ function PropertyCard({
 /*  Special Offer Card                                                 */
 /* ------------------------------------------------------------------ */
 
+/** Everything a promotion gives the guest, in headline-priority order. */
+function offerPerks(promotion: Promotion): string[] {
+  const perks: string[] = [];
+  if (promotion.discount_percent) perks.push(`${promotion.discount_percent}% off`);
+  if (promotion.discount_amount) perks.push(`$${promotion.discount_amount} off`);
+  if (promotion.free_cleaning) perks.push("Free cleaning fee");
+  if (promotion.free_pet_fee) perks.push("Free pet fee");
+  return perks;
+}
+
 function OfferCard({ promotion }: { promotion: Promotion }) {
   const validUntil = promotion.valid_until
     ? new Date(promotion.valid_until + "T00:00:00")
@@ -749,11 +761,33 @@ function OfferCard({ promotion }: { promotion: Promotion }) {
               <Badge className="bg-amber-600 text-white text-lg font-bold px-3 py-1">
                 ${promotion.discount_amount} OFF
               </Badge>
+            ) : promotion.free_cleaning ? (
+              <Badge className="bg-amber-600 text-white text-sm font-bold px-3 py-1">
+                FREE CLEANING
+              </Badge>
+            ) : promotion.free_pet_fee ? (
+              <Badge className="bg-amber-600 text-white text-sm font-bold px-3 py-1">
+                FREE PET FEE
+              </Badge>
             ) : (
               <Sparkles className="h-6 w-6 text-amber-600" />
             )}
           </div>
         </div>
+        {offerPerks(promotion).length > 1 && (
+          <div className="flex flex-wrap gap-1.5">
+            {offerPerks(promotion)
+              .slice(1)
+              .map((perk) => (
+                <span
+                  key={perk}
+                  className="rounded-full bg-amber-100 dark:bg-amber-900/40 px-2.5 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-300"
+                >
+                  + {perk}
+                </span>
+              ))}
+          </div>
+        )}
         {promotion.promo_code && (
           <div className="flex items-center gap-2">
             <code className="bg-white dark:bg-black/20 border border-dashed border-amber-300 dark:border-amber-700 rounded-lg px-3 py-1.5 text-sm font-mono font-semibold tracking-wider">
@@ -846,7 +880,7 @@ export default function HomeV2Page() {
     // Fetch public promotions (not property-specific)
     supabase
       .from("promotion")
-      .select("id, title, description, promo_code, discount_percent, discount_amount, valid_from, valid_until, is_active")
+      .select("id, title, description, promo_code, discount_percent, discount_amount, free_cleaning, free_pet_fee, valid_from, valid_until, is_active")
       .eq("is_active", true)
       .or(`valid_until.is.null,valid_until.gte.${new Date().toISOString().split("T")[0]}`)
       .order("created_at", { ascending: false })

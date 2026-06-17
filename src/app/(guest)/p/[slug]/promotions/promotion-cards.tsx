@@ -105,17 +105,53 @@ const archiesStyle: PromoStyle = {
   ],
 };
 
+// Perks the host actually configured on the promotion, in headline priority order.
+function getPerks(promo: Promotion): string[] {
+  const perks: string[] = [];
+  if (promo.discount_percent) perks.push(`${promo.discount_percent}% off your stay`);
+  if (promo.discount_amount) perks.push(`$${promo.discount_amount} off your stay`);
+  if (promo.free_cleaning) perks.push("Free cleaning fee");
+  if (promo.free_pet_fee) perks.push("Free pet fee");
+  return perks;
+}
+
+// The big number/word shown in the highlight badge, derived from the top perk.
+function getHighlight(promo: Promotion): { highlight: string; highlightSub: string } | null {
+  if (promo.discount_percent)
+    return { highlight: `${promo.discount_percent}%`, highlightSub: "off your stay" };
+  if (promo.discount_amount)
+    return { highlight: `$${promo.discount_amount}`, highlightSub: "off your stay" };
+  if (promo.free_cleaning) return { highlight: "$0", highlightSub: "cleaning fee" };
+  if (promo.free_pet_fee) return { highlight: "$0", highlightSub: "pet fee" };
+  return null;
+}
+
 function getStyle(promo: Promotion): PromoStyle {
-  if (promo.promo_code && promoStyles[promo.promo_code])
-    return promoStyles[promo.promo_code];
-  if (promo.title.toLowerCase().includes("archie")) return archiesStyle;
-  return {
-    ...archiesStyle,
-    label: "Exclusive",
-    highlight: "",
-    highlightSub: "",
-    emoji: "🎁",
-  };
+  const base =
+    promo.promo_code && promoStyles[promo.promo_code]
+      ? promoStyles[promo.promo_code]
+      : promo.title.toLowerCase().includes("archie")
+        ? archiesStyle
+        : {
+            ...archiesStyle,
+            label: "Exclusive",
+            highlight: "",
+            highlightSub: "",
+            emoji: "🎁",
+          };
+
+  // When the host specified real discounts, let them drive the headline + pills.
+  const offer = getHighlight(promo);
+  if (offer) {
+    const extras = getPerks(promo).slice(1); // headline already shows the first
+    return {
+      ...base,
+      highlight: offer.highlight,
+      highlightSub: offer.highlightSub,
+      terms: extras.length > 0 ? extras : ["Direct bookings only"],
+    };
+  }
+  return base;
 }
 
 function PromoCode({ code, accent }: { code: string; accent: string }) {

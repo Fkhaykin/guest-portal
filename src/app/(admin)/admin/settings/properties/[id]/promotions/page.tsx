@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
@@ -18,6 +19,16 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import type { Tables } from "@/types/database";
 
+/** Human-readable list of what a promotion actually gives the guest. */
+function promoOffer(promo: Tables<"promotion">): string[] {
+  const perks: string[] = [];
+  if (promo.discount_percent) perks.push(`${promo.discount_percent}% off`);
+  if (promo.discount_amount) perks.push(`$${promo.discount_amount} off`);
+  if (promo.free_cleaning) perks.push("Free cleaning");
+  if (promo.free_pet_fee) perks.push("Free pet fee");
+  return perks;
+}
+
 export default function AdminPromotionsPage({
   params,
 }: {
@@ -28,12 +39,20 @@ export default function AdminPromotionsPage({
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Tables<"promotion"> | null>(null);
   const [loading, setLoading] = useState(false);
+  const [freeCleaning, setFreeCleaning] = useState(false);
+  const [freePetFee, setFreePetFee] = useState(false);
 
   const supabase = createClient();
 
   useEffect(() => {
     loadPromotions();
   }, [id]);
+
+  // Seed the (controlled) checkboxes whenever the dialog opens for a promo.
+  useEffect(() => {
+    setFreeCleaning(editing?.free_cleaning ?? false);
+    setFreePetFee(editing?.free_pet_fee ?? false);
+  }, [editing]);
 
   async function loadPromotions() {
     const { data } = await supabase
@@ -54,6 +73,10 @@ export default function AdminPromotionsPage({
       title: formData.get("title") as string,
       description: (formData.get("description") as string) || null,
       promo_code: (formData.get("promo_code") as string) || null,
+      discount_percent: Number(formData.get("discount_percent")) || null,
+      discount_amount: Number(formData.get("discount_amount")) || null,
+      free_cleaning: freeCleaning,
+      free_pet_fee: freePetFee,
       valid_from: (formData.get("valid_from") as string) || null,
       valid_until: (formData.get("valid_until") as string) || null,
       is_active: true,
@@ -124,6 +147,54 @@ export default function AdminPromotionsPage({
                   placeholder="KAYAK20"
                 />
               </div>
+
+              <div className="space-y-3 rounded-lg border p-3">
+                <p className="text-sm font-medium">The Offer</p>
+                <p className="text-xs text-muted-foreground">
+                  Set one or more. Leave blank for a code-only / informational
+                  promotion.
+                </p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="discount_percent">% Off</Label>
+                    <Input
+                      id="discount_percent"
+                      name="discount_percent"
+                      type="number"
+                      min="0"
+                      max="100"
+                      defaultValue={editing?.discount_percent ?? ""}
+                      placeholder="10"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="discount_amount">Amount Off ($)</Label>
+                    <Input
+                      id="discount_amount"
+                      name="discount_amount"
+                      type="number"
+                      min="0"
+                      defaultValue={editing?.discount_amount ?? ""}
+                      placeholder="50"
+                    />
+                  </div>
+                </div>
+                <label className="flex cursor-pointer items-center gap-2 text-sm">
+                  <Checkbox
+                    checked={freeCleaning}
+                    onCheckedChange={(checked) => setFreeCleaning(checked === true)}
+                  />
+                  Free cleaning fee
+                </label>
+                <label className="flex cursor-pointer items-center gap-2 text-sm">
+                  <Checkbox
+                    checked={freePetFee}
+                    onCheckedChange={(checked) => setFreePetFee(checked === true)}
+                  />
+                  Free pet fee
+                </label>
+              </div>
+
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
                   <Label htmlFor="valid_from">Valid From</Label>
@@ -164,10 +235,15 @@ export default function AdminPromotionsPage({
                       {promo.description}
                     </p>
                   )}
-                  <div className="flex gap-2 mt-1">
+                  <div className="flex flex-wrap gap-2 mt-1">
                     {promo.promo_code && (
                       <Badge variant="outline">{promo.promo_code}</Badge>
                     )}
+                    {promoOffer(promo).map((perk) => (
+                      <Badge key={perk} variant="outline" className="font-medium">
+                        {perk}
+                      </Badge>
+                    ))}
                     <Badge variant={promo.is_active ? "default" : "secondary"}>
                       {promo.is_active ? "Active" : "Inactive"}
                     </Badge>

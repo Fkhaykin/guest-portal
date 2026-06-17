@@ -738,6 +738,10 @@ export type Database = {
           description: string | null;
           image_url: string | null;
           promo_code: string | null;
+          discount_percent: number | null;
+          discount_amount: number | null;
+          free_cleaning: boolean;
+          free_pet_fee: boolean;
           valid_from: string | null;
           valid_until: string | null;
           is_active: boolean;
@@ -752,6 +756,10 @@ export type Database = {
           description?: string | null;
           image_url?: string | null;
           promo_code?: string | null;
+          discount_percent?: number | null;
+          discount_amount?: number | null;
+          free_cleaning?: boolean;
+          free_pet_fee?: boolean;
           valid_from?: string | null;
           valid_until?: string | null;
           is_active?: boolean;
@@ -766,6 +774,10 @@ export type Database = {
           description?: string | null;
           image_url?: string | null;
           promo_code?: string | null;
+          discount_percent?: number | null;
+          discount_amount?: number | null;
+          free_cleaning?: boolean;
+          free_pet_fee?: boolean;
           valid_from?: string | null;
           valid_until?: string | null;
           is_active?: boolean;
