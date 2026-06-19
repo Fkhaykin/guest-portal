@@ -408,6 +408,24 @@ export async function unsubscribeWebhook(id: number | string): Promise<void> {
 }
 
 /**
+ * Fetch the first room type id for a Lodgify property. The v1 create-booking
+ * endpoint requires every room in the payload to carry a valid room_type_id,
+ * otherwise it rejects with error 905 ("You must define a rooms for the booking
+ * with valid room type Id"). Our properties are single-unit, so the first room
+ * is the one to book.
+ */
+export async function getRoomTypeId(propertyId: number): Promise<number> {
+  const rooms = await lodgifyFetch<Array<{ id: number }>>(
+    `/v2/properties/${propertyId}/rooms`
+  );
+  const roomTypeId = rooms?.[0]?.id;
+  if (!roomTypeId) {
+    throw new Error(`No room type found for Lodgify property ${propertyId}`);
+  }
+  return roomTypeId;
+}
+
+/**
  * Create a booking on Lodgify via the v1 API.
  * Returns the Lodgify booking ID on success.
  */
@@ -423,6 +441,7 @@ export async function createBooking(params: {
   source: string;
 }): Promise<number> {
   const url = `${LODGIFY_BASE_URL}/v1/reservation/booking`;
+  const roomTypeId = await getRoomTypeId(params.propertyId);
 
   const res = await fetch(url, {
     method: "POST",
@@ -444,6 +463,7 @@ export async function createBooking(params: {
       },
       rooms: [
         {
+          room_type_id: roomTypeId,
           people: params.guests,
         },
       ],
@@ -456,6 +476,22 @@ export async function createBooking(params: {
     throw new Error(`Lodgify create booking error ${res.status}: ${text}`);
   }
 
-  const data = (await res.json()) as { id: number };
-  return data.id;
+  // The live v1 endpoint returns the new booking id as a bare integer; older
+  // docs imply { id }. Handle both so we always capture the id — without it the
+  // local registration never gets linked, and the inbound webhook (which upserts
+  // on lodgify_booking_id) creates a duplicate registration row instead of
+  // matching the one we just pushed.
+  const data: unknown = await res.json();
+  const bookingId =
+    typeof data === "number"
+      ? data
+      : (data as { id?: number; booking_id?: number; reservation_id?: number } | null)?.id ??
+        (data as { booking_id?: number } | null)?.booking_id ??
+        (data as { reservation_id?: number } | null)?.reservation_id;
+
+  if (typeof bookingId !== "number") {
+    throw new Error(`Lodgify create booking returned no id: ${JSON.stringify(data)}`);
+  }
+
+  return bookingId;
 }
