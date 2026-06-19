@@ -10,6 +10,7 @@ import {
   sendBookingInvoiceEmail,
   sendBookingPlanPickerEmail,
 } from "@/lib/email/send-booking-invoice";
+import { pushBookingToLodgify } from "@/lib/lodgify/push";
 
 const SPLIT_MIN_LEAD_DAYS = 60;
 const INVOICE_DUE_DAYS = 7;
@@ -34,6 +35,7 @@ export async function POST(request: NextRequest) {
     num_guests: number;
     num_pets?: number;
     payment_plan: "full" | "split" | "automatic";
+    mark_paid?: boolean;
     discount_cents?: number;
     discount_label?: string | null;
     notes?: string;
@@ -58,13 +60,18 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid payment plan" }, { status: 400 });
   }
 
+  // "Mark as paid" records the booking as confirmed and fully paid with no Stripe
+  // invoice — for payment collected outside the portal. It is always stored as a
+  // full plan, so the split lead-day rule below does not apply.
+  const markPaid = body.mark_paid === true;
+
   // Days until check-in
   const today = new Date();
   today.setUTCHours(0, 0, 0, 0);
   const checkInTs = new Date(body.check_in_date + "T00:00:00Z").getTime();
   const daysUntilCheckin = Math.round((checkInTs - today.getTime()) / 86_400_000);
 
-  if (body.payment_plan === "split" && daysUntilCheckin < SPLIT_MIN_LEAD_DAYS) {
+  if (!markPaid && body.payment_plan === "split" && daysUntilCheckin < SPLIT_MIN_LEAD_DAYS) {
     return NextResponse.json(
       { error: `Split payment requires check-in to be at least ${SPLIT_MIN_LEAD_DAYS} days out` },
       { status: 400 }
@@ -133,8 +140,10 @@ export async function POST(request: NextRequest) {
   }
 
   const discountLabel = body.discount_label?.trim() || null;
+  const nowIso = new Date().toISOString();
 
-  // Create registration in pending_payment with the full breakdown.
+  // Create registration. Normally pending_payment until Stripe confirms; when the
+  // admin marks it paid, it goes straight to active with both payment phases stamped.
   const { data: registration, error: regErr } = await admin
     .from("registration")
     .insert({
@@ -144,7 +153,7 @@ export async function POST(request: NextRequest) {
       check_out_date: body.check_out_date,
       num_guests: body.num_guests || 1,
       lodgify_num_pets: body.num_pets ?? 0,
-      status: "pending_payment",
+      status: markPaid ? "active" : "pending_payment",
       booking_source: "admin",
       total_amount_cents: quote.totalCents,
       cleaning_fee_cents: quote.cleaningFeeCents,
@@ -153,7 +162,9 @@ export async function POST(request: NextRequest) {
       discount_cents: quote.discountCents,
       discount_label: quote.discountCents > 0 ? discountLabel : null,
       nightly_rates_snapshot: quote.nightlyRates,
-      payment_plan: body.payment_plan,
+      payment_plan: markPaid ? "full" : body.payment_plan,
+      deposit_paid_at: markPaid ? nowIso : null,
+      balance_paid_at: markPaid ? nowIso : null,
       notes: body.notes?.trim() || null,
     })
     .select("id")
@@ -165,6 +176,20 @@ export async function POST(request: NextRequest) {
       { error: "Failed to create booking", details: regErr?.message },
       { status: 500 }
     );
+  }
+
+  // Marked paid: no invoice, no Stripe customer, no guest email. Push straight to
+  // Lodgify so the booking blocks the calendar and reaches connected channels.
+  // The helper never throws and records lodgify_sync_status; a deliberate double
+  // booking that Lodgify rejects is recorded as "failed" without failing this request.
+  if (markPaid) {
+    await pushBookingToLodgify(registration.id, admin);
+    return NextResponse.json({
+      ok: true,
+      registration_id: registration.id,
+      marked_paid: true,
+      total_cents: quote.totalCents,
+    });
   }
 
   const propertyLabel = property.nickname || property.name;

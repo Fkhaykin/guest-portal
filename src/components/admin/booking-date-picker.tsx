@@ -43,18 +43,23 @@ interface Props {
   checkIn: string | null;
   checkOut: string | null;
   onChange: (range: { checkIn: string | null; checkOut: string | null }) => void;
+  // Reports whether the current selection overlaps confirmed-booked nights, so the
+  // parent can require the admin to acknowledge a deliberate double booking.
+  onConflictChange?: (conflict: boolean) => void;
   monthsToShow?: number;       // calendar fetch window (default 12)
   monthsVisible?: number;      // months rendered side-by-side (default 2)
 }
 
 // Two-month calendar with Lodgify availability shaded as booked.
 // Selecting a check-in starts a range; selecting check-out before check-in restarts.
-// If a range crosses booked dates, we restart the selection from the new click.
+// Booked dates stay visibly blocked but remain clickable: the admin can deliberately
+// select across them to create a double booking (with acknowledgment in the parent form).
 export function BookingDatePicker({
   lodgifyPropertyId,
   checkIn,
   checkOut,
   onChange,
+  onConflictChange,
   monthsToShow = 12,
   monthsVisible = 2,
 }: Props) {
@@ -113,8 +118,23 @@ export function BookingDatePicker({
     return checkIn && checkOut ? s >= checkIn && s <= checkOut : false;
   }
 
+  // True when any night in the selected range [checkIn, checkOut) is confirmed-booked.
+  const selectionConflict = useMemo(() => {
+    if (!checkIn || !checkOut) return false;
+    for (let d = parseDate(checkIn); d < parseDate(checkOut); d.setDate(d.getDate() + 1)) {
+      if (bookedDates.has(toDateStr(d))) return true;
+    }
+    return false;
+  }, [checkIn, checkOut, bookedDates]);
+
+  useEffect(() => {
+    onConflictChange?.(selectionConflict);
+  }, [selectionConflict, onConflictChange]);
+
   function handleClick(dateStr: string) {
-    if (isBooked(dateStr) || parseDate(dateStr) < today) return;
+    // Past dates stay locked; booked dates are intentionally selectable so the
+    // admin can override and double-book.
+    if (parseDate(dateStr) < today) return;
 
     if (!checkIn || (checkIn && checkOut)) {
       onChange({ checkIn: dateStr, checkOut: null });
@@ -128,15 +148,9 @@ export function BookingDatePicker({
       onChange({ checkIn: null, checkOut: null });
       return;
     }
-    // Range conflict check
-    const start = parseDate(checkIn);
-    const end = parseDate(dateStr);
-    let conflict = false;
-    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-      if (isBooked(toDateStr(d))) { conflict = true; break; }
-    }
-    if (conflict) onChange({ checkIn: dateStr, checkOut: null });
-    else onChange({ checkIn, checkOut: dateStr });
+    // Complete the range even when it crosses booked nights — the overlap is
+    // surfaced as a warning rather than blocked.
+    onChange({ checkIn, checkOut: dateStr });
   }
 
   function renderMonth(monthDate: Date) {
@@ -166,26 +180,38 @@ export function BookingDatePicker({
             const booked = isBooked(dateStr);
             const tentative = isTentative(dateStr);
             const past = isPast(d);
-            const disabled = booked || past || !lodgifyPropertyId;
+            const disabled = past || !lodgifyPropertyId;
             const inSel = inRange(dateStr);
             const start = checkIn === dateStr;
             const end = checkOut === dateStr;
+            const edge = start || end;
             return (
               <button
                 key={dateStr}
                 type="button"
                 disabled={disabled}
                 onClick={() => handleClick(dateStr)}
-                title={tentative ? "Tentative hold in Lodgify — click to override and book anyway" : undefined}
+                title={
+                  booked
+                    ? "Booked in Lodgify — click to override and create a double booking"
+                    : tentative
+                      ? "Tentative hold in Lodgify — click to override and book anyway"
+                      : undefined
+                }
                 className={[
                   "h-9 text-sm relative transition-colors",
                   past || !lodgifyPropertyId ? "text-muted-foreground/30 cursor-not-allowed" : "",
-                  booked && !past ? "bg-red-100 dark:bg-red-950/40 text-red-400 dark:text-red-500 cursor-not-allowed line-through" : "",
+                  // Booked nights stay red so the overlap is always visible, even when selected.
+                  booked && !past ? "bg-red-100 dark:bg-red-950/40 text-red-600 dark:text-red-400" : "",
                   tentative && !booked && !past ? "bg-amber-100 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300" : "",
                   !disabled ? "hover:bg-primary/10 cursor-pointer" : "",
-                  inSel && !start && !end ? "bg-primary/10" : "",
-                  start ? "bg-primary text-primary-foreground rounded-l-md" : "",
-                  end ? "bg-primary text-primary-foreground rounded-r-md" : "",
+                  inSel && !edge && !booked ? "bg-primary/10" : "",
+                  // Selection drawn as a primary ring over booked nights instead of a fill.
+                  inSel && booked ? "ring-1 ring-inset ring-primary" : "",
+                  edge && !booked ? "bg-primary text-primary-foreground" : "",
+                  edge && booked ? "ring-2 ring-inset ring-primary font-semibold" : "",
+                  start ? "rounded-l-md" : "",
+                  end ? "rounded-r-md" : "",
                   start && !checkOut ? "rounded-md" : "",
                 ].join(" ")}
               >
@@ -235,10 +261,16 @@ export function BookingDatePicker({
         </div>
       )}
 
+      {selectionConflict && (
+        <div className="rounded-md border border-red-300 bg-red-50 dark:border-red-900 dark:bg-red-950/40 px-3 py-2 text-xs text-red-700 dark:text-red-300">
+          These dates overlap a confirmed booking. You can still create this as a double booking.
+        </div>
+      )}
+
       <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground pt-2 border-t">
         <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm bg-primary" />Selected</span>
         <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm bg-primary/10" />In range</span>
-        <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm bg-red-100 dark:bg-red-950/40" />Booked</span>
+        <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm bg-red-100 dark:bg-red-950/40" />Booked (click to double-book)</span>
         <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm bg-amber-100 dark:bg-amber-950/40" />Tentative (clickable)</span>
       </div>
     </div>

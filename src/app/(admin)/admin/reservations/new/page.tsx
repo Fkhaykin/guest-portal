@@ -69,8 +69,10 @@ export default function NewReservationPage() {
   const [numPets, setNumPets] = useState("0");
   const [discountDollars, setDiscountDollars] = useState("");
   const [discountLabel, setDiscountLabel] = useState("Loyalty Discount");
-  const [paymentPlan, setPaymentPlan] = useState<"full" | "split" | "automatic">("full");
+  const [paymentPlan, setPaymentPlan] = useState<"full" | "split" | "automatic" | "paid">("full");
   const [notes, setNotes] = useState("");
+  const [dateConflict, setDateConflict] = useState(false);
+  const [ackDoubleBook, setAckDoubleBook] = useState(false);
 
   const [breakdown, setBreakdown] = useState<Breakdown | null>(null);
   const [breakdownLoading, setBreakdownLoading] = useState(false);
@@ -80,6 +82,7 @@ export default function NewReservationPage() {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<{
     plan: "full" | "split" | "automatic";
+    markedPaid: boolean;
     url: string | null;
     pickUrl: string | null;
     balanceDue: string | null;
@@ -174,6 +177,11 @@ export default function NewReservationPage() {
     if (paymentPlan === "split" && !splitAllowed) {
       return setError(`Split payment requires check-in to be at least ${SPLIT_MIN_LEAD_DAYS} days out`);
     }
+    if (dateConflict && !ackDoubleBook) {
+      return setError("These dates overlap an existing booking — confirm the double booking to continue");
+    }
+
+    const markPaid = paymentPlan === "paid";
 
     setSubmitting(true);
     try {
@@ -191,7 +199,8 @@ export default function NewReservationPage() {
           num_pets: parseInt(numPets, 10) || 0,
           discount_cents: discountCents,
           discount_label: discountCents > 0 ? discountLabel.trim() || null : null,
-          payment_plan: paymentPlan,
+          payment_plan: markPaid ? "full" : paymentPlan,
+          mark_paid: markPaid,
           notes,
         }),
       });
@@ -201,7 +210,8 @@ export default function NewReservationPage() {
         return;
       }
       setResult({
-        plan: paymentPlan,
+        plan: markPaid ? "full" : paymentPlan,
+        markedPaid: !!data.marked_paid,
         url: data.hosted_invoice_url ?? null,
         pickUrl: data.pick_plan_url ?? null,
         balanceDue: data.balance_due_date ?? null,
@@ -223,7 +233,9 @@ export default function NewReservationPage() {
         <Card>
           <CardContent className="pt-6 space-y-4">
             <div className="text-sm text-muted-foreground space-y-1">
-              {isAuto ? (
+              {result.markedPaid ? (
+                <p>The booking is confirmed and <strong>marked as paid</strong>. No invoice was sent.</p>
+              ) : isAuto ? (
                 <p>The guest has been emailed a link to choose their payment plan.</p>
               ) : (
                 <p>An invoice for <strong>{fmt(result.dueNowCents)}</strong> has been emailed to the guest.</p>
@@ -249,6 +261,7 @@ export default function NewReservationPage() {
                 setGuestName(""); setGuestEmail(""); setGuestPhone("");
                 setCheckIn(null); setCheckOut(null);
                 setDiscountDollars(""); setNotes("");
+                setAckDoubleBook(false);
               }}>
                 Create another
               </Button>
@@ -300,7 +313,8 @@ export default function NewReservationPage() {
                 lodgifyPropertyId={property?.lodgify_property_id ?? null}
                 checkIn={checkIn}
                 checkOut={checkOut}
-                onChange={(r) => { setCheckIn(r.checkIn); setCheckOut(r.checkOut); }}
+                onChange={(r) => { setCheckIn(r.checkIn); setCheckOut(r.checkOut); setAckDoubleBook(false); }}
+                onConflictChange={setDateConflict}
               />
             </div>
           </CardContent>
@@ -421,7 +435,7 @@ export default function NewReservationPage() {
         <Card>
           <CardHeader><CardTitle>Payment plan</CardTitle></CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
               <button
                 type="button"
                 onClick={() => setPaymentPlan("full")}
@@ -460,6 +474,16 @@ export default function NewReservationPage() {
                     : `Split is offered when check-in is ${SPLIT_MIN_LEAD_DAYS}+ days out; otherwise full only.`}
                 </div>
               </button>
+              <button
+                type="button"
+                onClick={() => setPaymentPlan("paid")}
+                className={`text-left rounded-md border p-3 text-sm transition ${paymentPlan === "paid" ? "border-primary ring-1 ring-primary" : "hover:bg-accent"}`}
+              >
+                <div className="font-medium">Mark as paid — no invoice</div>
+                <div className="text-xs text-muted-foreground mt-1">
+                  Booking is confirmed and recorded as fully paid. Use when payment was already collected outside the portal.
+                </div>
+              </button>
             </div>
 
             <div className="space-y-2">
@@ -467,15 +491,32 @@ export default function NewReservationPage() {
               <Textarea id="notes" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
             </div>
 
+            {dateConflict && (
+              <label className="flex items-start gap-2 rounded-md border border-red-300 bg-red-50 dark:border-red-900 dark:bg-red-950/40 p-3 text-sm text-red-700 dark:text-red-300 cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="mt-0.5"
+                  checked={ackDoubleBook}
+                  onChange={(e) => setAckDoubleBook(e.target.checked)}
+                />
+                <span>
+                  These dates overlap an existing booking. I understand and want to create this
+                  double booking anyway.
+                </span>
+              </label>
+            )}
+
             {error && <p className="text-sm text-destructive">{error}</p>}
 
             <div className="flex gap-3 pt-2">
-              <Button type="submit" disabled={submitting || !breakdown}>
+              <Button type="submit" disabled={submitting || !breakdown || (dateConflict && !ackDoubleBook)}>
                 {submitting
                   ? "Creating…"
-                  : paymentPlan === "automatic"
-                    ? `Create booking & email plan picker${breakdown ? ` (${fmt(breakdown.totalCents)} total)` : ""}`
-                    : `Create booking & send invoice${breakdown ? ` (${fmt(dueNowCents)} due now)` : ""}`}
+                  : paymentPlan === "paid"
+                    ? `Create booking & mark paid${breakdown ? ` (${fmt(breakdown.totalCents)} total)` : ""}`
+                    : paymentPlan === "automatic"
+                      ? `Create booking & email plan picker${breakdown ? ` (${fmt(breakdown.totalCents)} total)` : ""}`
+                      : `Create booking & send invoice${breakdown ? ` (${fmt(dueNowCents)} due now)` : ""}`}
               </Button>
               <Button type="button" variant="outline" onClick={() => router.back()}>
                 Cancel

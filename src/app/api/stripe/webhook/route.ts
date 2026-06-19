@@ -1,48 +1,8 @@
 import { NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe/client";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createBooking } from "@/lib/lodgify/client";
+import { pushBookingToLodgify } from "@/lib/lodgify/push";
 import Stripe from "stripe";
-import type { SupabaseClient } from "@supabase/supabase-js";
-
-async function syncBookingToLodgify(registrationId: string, supabase: SupabaseClient) {
-  const { data: reg } = await supabase
-    .from("registration")
-    .select("*, guest:guest_id(full_name, email, phone), property:property_id(lodgify_property_id)")
-    .eq("id", registrationId)
-    .single();
-
-  if (!reg) return;
-
-  const guest = reg.guest as unknown as { full_name: string; email: string | null; phone: string | null } | null;
-  const prop = reg.property as unknown as { lodgify_property_id: number | null } | null;
-
-  if (!prop?.lodgify_property_id || !guest) {
-    await supabase.from("registration").update({ lodgify_sync_status: "failed" }).eq("id", registrationId);
-    return;
-  }
-
-  try {
-    const bookingId = await createBooking({
-      propertyId: prop.lodgify_property_id,
-      arrival: reg.check_in_date,
-      departure: reg.check_out_date,
-      guestName: guest.full_name,
-      guestEmail: guest.email || "",
-      guestPhone: guest.phone || "",
-      guests: reg.num_guests || 1,
-      totalAmount: (reg.total_amount_cents || 0) / 100,
-      source: "Direct",
-    });
-    await supabase
-      .from("registration")
-      .update({ lodgify_booking_id: bookingId, lodgify_sync_status: "synced" })
-      .eq("id", registrationId);
-  } catch (err) {
-    console.error(`[lodgify-sync] Failed to create booking for registration ${registrationId}:`, err);
-    await supabase.from("registration").update({ lodgify_sync_status: "failed" }).eq("id", registrationId);
-  }
-}
 
 export async function POST(request: Request) {
   const body = await request.text();
@@ -118,7 +78,7 @@ export async function POST(request: Request) {
 
       // Sync to Lodgify (fire-and-forget)
       if (registrationId) {
-        syncBookingToLodgify(registrationId, supabase).catch((err) => {
+        pushBookingToLodgify(registrationId, supabase).catch((err) => {
           console.error("[webhook] Lodgify sync failed:", err);
         });
       }
@@ -191,6 +151,13 @@ export async function POST(request: Request) {
           .from("registration")
           .update({ balance_paid_at: new Date().toISOString() })
           .eq("id", registrationId);
+      }
+
+      // The deposit/full payment confirms the booking — push it to Lodgify so it
+      // blocks the calendar and reaches connected channels. (Balance is a later
+      // charge on an already-synced booking, so it's skipped.) Idempotent.
+      if (phase === "deposit" || phase === "full") {
+        await pushBookingToLodgify(registrationId, supabase);
       }
     }
   }
