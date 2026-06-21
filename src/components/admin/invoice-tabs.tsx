@@ -47,19 +47,12 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
+import { EmptyState } from "@/components/ui/empty-state";
+import { toneBadge, statusTone } from "@/lib/status-styles";
 import type {
   AdminInvoiceRow,
   AdminUnpaidCleaning,
 } from "@/app/(admin)/admin/invoices/page";
-
-const STATUS_STYLES: Record<string, string> = {
-  open: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200",
-  draft: "bg-muted text-muted-foreground",
-  submitted: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
-  approved:
-    "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
-  paid: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
-};
 
 function formatCents(cents: number) {
   return `$${(cents / 100).toFixed(2)}`;
@@ -328,15 +321,11 @@ function UnpaidTab({
 
   if (pendingCleanings.length === 0 && skippedCleanings.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 text-center space-y-3">
-        <CheckCircle2 className="h-12 w-12 text-green-500/30" />
-        <p className="text-muted-foreground">
-          All cleanings have been invoiced.
-        </p>
-        <p className="text-xs text-muted-foreground">
-          New cleanings will appear here after a cleaner completes a task.
-        </p>
-      </div>
+      <EmptyState
+        icon={CheckCircle2}
+        title="All cleanings have been invoiced."
+        description="New cleanings will appear here after a cleaner completes a task."
+      />
     );
   }
 
@@ -506,7 +495,7 @@ function UnpaidTab({
                           {c.guestCount}
                         </span>
                         {c.hasPets && (
-                          <span className="flex items-center gap-1 text-amber-600">
+                          <span className="flex items-center gap-1 text-warning">
                             <PawPrint className="h-3 w-3" />
                             {c.petCount}
                           </span>
@@ -733,13 +722,11 @@ function HistoryTab({ invoices }: { invoices: AdminInvoiceRow[] }) {
       </div>
 
       {filtered.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 text-center space-y-3">
-          <Receipt className="h-12 w-12 text-muted-foreground/30" />
-          <p className="text-muted-foreground">No invoices yet.</p>
-          <p className="text-xs text-muted-foreground">
-            Invoices are generated automatically every Monday.
-          </p>
-        </div>
+        <EmptyState
+          icon={Receipt}
+          title="No invoices yet."
+          description="Invoices are generated automatically every Monday."
+        />
       ) : (
         <div className="flex flex-col gap-4">
           {filtered.map((inv) => {
@@ -751,11 +738,11 @@ function HistoryTab({ invoices }: { invoices: AdminInvoiceRow[] }) {
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
                       <p className="text-sm font-medium">{inv.invoice_number}</p>
-                      <Badge className={STATUS_STYLES[inv.status]}>
+                      <Badge className={toneBadge(statusTone(inv.status))}>
                         {inv.status}
                       </Badge>
                       {pastDue && (
-                        <Badge className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
+                        <Badge className={toneBadge("danger")}>
                           Past due
                         </Badge>
                       )}
@@ -765,7 +752,7 @@ function HistoryTab({ invoices }: { invoices: AdminInvoiceRow[] }) {
                       {formatDateFull(inv.period_start)} &ndash;{" "}
                       {formatDateFull(inv.period_end)}
                     </p>
-                    <p className={`text-xs ${pastDue ? "text-red-600 dark:text-red-400 font-medium" : "text-muted-foreground"}`}>
+                    <p className={`text-xs ${pastDue ? "text-destructive font-medium" : "text-muted-foreground"}`}>
                       Due: {formatDueDate(inv)}
                     </p>
                   </div>

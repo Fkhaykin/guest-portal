@@ -15,6 +15,7 @@ type BookingRow = {
   booking_source: string | null;
   check_in_date: string;
   check_out_date: string;
+  signature_url: string | null;
   upsells: UpsellEntry[] | null;
   guest: { full_name: string; email: string | null };
   property: { name: string; slug: string; nickname: string | null; host_id: string };
@@ -23,7 +24,7 @@ type BookingRow = {
 export type BatchResult = { sent: number; skipped: number; errors: number };
 
 const BOOKING_SELECT =
-  "id, lodgify_booking_id, booking_source, check_in_date, check_out_date, upsells, guest:guest_id(full_name, email), property:property_id(name, slug, nickname, host_id)";
+  "id, lodgify_booking_id, booking_source, check_in_date, check_out_date, signature_url, upsells, guest:guest_id(full_name, email), property:property_id(name, slug, nickname, host_id)";
 
 export function offsetDate(days: number): string {
   const d = new Date();
@@ -87,10 +88,17 @@ async function runBatch(
         checkOutDate: row.check_out_date,
         hostId: property.host_id,
         upsells: row.upsells,
+        registered: !!row.signature_url,
       };
-      await sendGuestAutomatedMessage(sendParams);
+      // For check-in morning, the per-house instructions already lead with the
+      // dates/times, so they REPLACE the generic day_of_checkin for known
+      // houses (avoids two back-to-back messages). Fall back to day_of_checkin
+      // only when there's nothing house-specific to send.
       if (options?.withHouseInstructions) {
-        await sendHouseCheckinInstructions(sendParams);
+        const handled = await sendHouseCheckinInstructions(sendParams);
+        if (!handled) await sendGuestAutomatedMessage(sendParams);
+      } else {
+        await sendGuestAutomatedMessage(sendParams);
       }
       sent++;
     } catch (err) {
@@ -133,6 +141,18 @@ function nights(row: BookingRow): number {
   return Math.round(
     (Date.parse(row.check_out_date) - Date.parse(row.check_in_date)) / 86_400_000
   );
+}
+
+/** True if pre_arrival has already been logged for this booking this run. */
+async function preArrivalAlreadySent(registrationId: string): Promise<boolean> {
+  const supabase = createAdminClient();
+  const { data } = await supabase
+    .from("guest_automated_message_log")
+    .select("id")
+    .eq("registration_id", registrationId)
+    .eq("message_type", "pre_arrival")
+    .maybeSingle();
+  return !!data;
 }
 
 /**
@@ -235,6 +255,12 @@ async function runRegistrationReminders() {
       const property = Array.isArray(row.property) ? row.property[0] : row.property;
       const guest = Array.isArray(row.guest) ? row.guest[0] : row.guest;
       if (!property || !guest) { skipped++; continue; }
+
+      // pre_arrival fires earlier in the same morning run to every active
+      // booking 3 days out and already carries the registration link, so skip
+      // the d3 reminder when it went out (avoids two near-identical emails the
+      // same morning). If pre_arrival was disabled/unsent, the reminder stands.
+      if (days === 3 && (await preArrivalAlreadySent(row.id))) { skipped++; continue; }
 
       try {
         const result = await sendRegistrationReminder({

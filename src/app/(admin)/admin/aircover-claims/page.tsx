@@ -17,6 +17,10 @@ import {
   Trash2,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { toneBadge } from "@/lib/status-styles";
+import { PageHeader } from "@/components/ui/page-header";
+import { StatCard } from "@/components/ui/stat-card";
+import { EmptyState } from "@/components/ui/empty-state";
 import type { PetEntry, AircoverClaimStatus } from "@/types/database";
 
 type Claim = {
@@ -51,22 +55,22 @@ const STATUS_CONFIG: Record<
 > = {
   open: {
     label: "Open",
-    color: "bg-red-100 text-red-800 border-red-200",
+    color: toneBadge("danger"),
     icon: AlertTriangle,
   },
   claim_filed: {
     label: "Claim Filed",
-    color: "bg-blue-100 text-blue-800 border-blue-200",
+    color: toneBadge("info"),
     icon: FileText,
   },
   claim_approved: {
     label: "Claim Approved",
-    color: "bg-green-100 text-green-800 border-green-200",
+    color: toneBadge("success"),
     icon: CheckCircle,
   },
   claim_denied: {
     label: "Claim Denied",
-    color: "bg-gray-100 text-gray-800 border-gray-200",
+    color: toneBadge("neutral"),
     icon: XCircle,
   },
 };
@@ -157,52 +161,25 @@ export default function AircoverClaimsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Potential Claims</h1>
-      </div>
+      <PageHeader title="Potential Claims" />
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="pt-4 pb-3 px-4">
-            <p className="text-2xl font-bold text-red-600">{openCount}</p>
-            <p className="text-xs text-muted-foreground">Open</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4 pb-3 px-4">
-            <p className="text-2xl font-bold text-blue-600">{filedCount}</p>
-            <p className="text-xs text-muted-foreground">Claim Filed</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4 pb-3 px-4">
-            <p className="text-2xl font-bold text-green-600">{approvedCount}</p>
-            <p className="text-xs text-muted-foreground">Approved</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4 pb-3 px-4">
-            <p className="text-2xl font-bold text-gray-600">{deniedCount}</p>
-            <p className="text-xs text-muted-foreground">Denied</p>
-          </CardContent>
-        </Card>
+        <StatCard icon={AlertTriangle} value={openCount} label="Open" tone="danger" />
+        <StatCard icon={FileText} value={filedCount} label="Claim Filed" tone="info" />
+        <StatCard icon={CheckCircle} value={approvedCount} label="Approved" tone="success" />
+        <StatCard icon={XCircle} value={deniedCount} label="Denied" tone="neutral" />
       </div>
 
       {/* Claims list grouped by reservation */}
       {loading ? (
         <p className="text-muted-foreground">Loading claims...</p>
       ) : claims.length === 0 ? (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <CheckCircle className="h-12 w-12 text-green-400 mx-auto mb-3" />
-            <p className="text-lg font-medium">No potential claims</p>
-            <p className="text-sm text-muted-foreground">
-              Claims will appear here when cleaners report damages or pet
-              discrepancies.
-            </p>
-          </CardContent>
-        </Card>
+        <EmptyState
+          icon={CheckCircle}
+          title="No potential claims"
+          description="Claims will appear here when cleaners report damages or pet discrepancies."
+        />
       ) : (
         <div className="space-y-4">
           {Object.entries(grouped).map(([registrationId, regClaims]) => {
@@ -319,9 +296,9 @@ function ClaimDetail({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           {claim.claim_type === "damage" ? (
-            <AlertTriangle className="h-5 w-5 text-red-500" />
+            <AlertTriangle className="h-5 w-5 text-destructive" />
           ) : (
-            <PawPrint className="h-5 w-5 text-amber-500" />
+            <PawPrint className="h-5 w-5 text-warning" />
           )}
           <span className="font-medium text-sm">
             {claim.claim_type === "damage" ? "Damage Report" : "Pet Discrepancy"}
@@ -385,7 +362,7 @@ function ClaimDetail({
             </span>
             <span>
               <span className="text-muted-foreground">Reported:</span>{" "}
-              <span className={`font-medium ${(claim.reported_pet_count ?? 0) !== (claim.expected_pet_count ?? 0) ? "text-red-600" : ""}`}>
+              <span className={`font-medium ${(claim.reported_pet_count ?? 0) !== (claim.expected_pet_count ?? 0) ? "text-destructive" : ""}`}>
                 {claim.reported_pet_count ?? 0} pets
               </span>
             </span>
@@ -438,7 +415,7 @@ function ClaimDetail({
             <Button
               size="sm"
               variant="outline"
-              className="border-green-300 text-green-700 hover:bg-green-50"
+              className="border-success/40 text-success hover:bg-success/10"
               disabled={isUpdating}
               onClick={() => onUpdateStatus(claim.id, "claim_approved")}
             >
@@ -452,7 +429,7 @@ function ClaimDetail({
             <Button
               size="sm"
               variant="outline"
-              className="border-gray-300 text-gray-700 hover:bg-gray-50"
+              className="text-muted-foreground hover:bg-muted"
               disabled={isUpdating}
               onClick={() => onUpdateStatus(claim.id, "claim_denied")}
             >
@@ -479,7 +456,7 @@ function ClaimDetail({
         <Button
           size="sm"
           variant="ghost"
-          className="text-red-600 hover:bg-red-50 hover:text-red-700 ml-auto"
+          className="text-destructive hover:bg-destructive/10 hover:text-destructive ml-auto"
           disabled={isUpdating}
           onClick={() => onDelete(claim.id)}
         >

@@ -1,5 +1,6 @@
 import { createClient, getAuthenticatedUser } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageHeader } from "@/components/ui/page-header";
 import { TabsContent } from "@/components/ui/tabs";
 import { SettingsTabs } from "@/components/admin/settings-tabs";
 import { NotificationSettings } from "@/components/admin/notification-settings";
@@ -19,9 +20,7 @@ export default async function SettingsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
-      </div>
+      <PageHeader title="Settings" />
 
       <SettingsTabs>
         <TabsContent value="profile">

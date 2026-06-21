@@ -61,15 +61,12 @@ export function GuestNav({ slug: slugProp }: { slug?: string } = {}) {
               key={item.label}
               href={href}
               aria-current={isActive ? "page" : undefined}
-              className={`relative flex flex-col items-center justify-center gap-1 px-2 py-1.5 min-h-11 rounded-lg transition-colors md:min-w-16 ${
+              className={`relative flex flex-col items-center justify-center gap-1.5 px-2 py-1.5 min-h-11 rounded-lg transition-colors md:min-w-16 ${
                 isActive
                   ? "text-primary font-medium bg-primary/10"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              {isActive && (
-                <span className="absolute -top-2 left-1/2 -translate-x-1/2 h-1 w-8 rounded-full bg-primary" />
-              )}
               <item.icon className={`h-5 w-5 ${isActive ? "stroke-[2.5]" : ""}`} />
               <span className="text-xs">{item.label}</span>
             </Link>

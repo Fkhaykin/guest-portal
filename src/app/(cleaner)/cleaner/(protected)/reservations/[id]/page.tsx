@@ -7,6 +7,7 @@ import { maskGuestName } from "@/lib/cleaner/format";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { PageHeader } from "@/components/ui/page-header";
 import { ArrowLeft, Home, CalendarDays, Users, CheckCircle2, Clock } from "lucide-react";
 
 export const dynamic = "force-dynamic";
@@ -55,15 +56,15 @@ export default async function ReservationDetailPage({ params }: { params: { id: 
       </div>
 
       <div className="space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Reservation details</h1>
-          </div>
-          <div className="text-right">
-            <p className="text-sm font-medium">{property?.name ?? "Unknown property"}</p>
-            {property?.address && <p className="text-xs text-muted-foreground">{property.address}</p>}
-          </div>
-        </div>
+        <PageHeader
+          title="Reservation details"
+          actions={
+            <div className="text-right">
+              <p className="text-sm font-medium">{property?.name ?? "Unknown property"}</p>
+              {property?.address && <p className="text-xs text-muted-foreground">{property.address}</p>}
+            </div>
+          }
+        />
 
         <Card>
           <CardContent className="space-y-4">

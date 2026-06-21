@@ -1,13 +1,11 @@
 import { Resend } from "resend";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendMessage } from "@/lib/lodgify/messages";
-import { TEMPLATES, interpolate, firstNameOf, type GuestMessageType, type GuestMessageChannel, type TemplateVars } from "./templates";
+import { TEMPLATES, PORTAL_URL, interpolate, firstNameOf, registrationCta, type GuestMessageType, type GuestMessageChannel, type TemplateVars } from "./templates";
 import { HOUSE_CHECKIN_TEMPLATES, HOUSE_CHECKIN_SUBJECT } from "./house-templates";
 import { houseForProperty } from "./quick-replies";
 import { stayTimeVars } from "@/lib/upsells/timing";
 import type { GuestMessageSettings, UpsellEntry } from "@/types/database";
-
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://guest.summitlakeside.com";
 
 interface SendParams {
   registrationId: string;
@@ -22,6 +20,9 @@ interface SendParams {
   checkOutDate: string;
   hostId: string;
   upsells?: UpsellEntry[] | null;
+  /** Whether the guest has completed registration (signed). Drives the
+   *  registration prompt instead of hedged "if you haven't" wording. */
+  registered: boolean;
 }
 
 async function getHostSettings(hostId: string): Promise<GuestMessageSettings | null> {
@@ -60,7 +61,8 @@ export async function sendGuestAutomatedMessage(params: SendParams): Promise<voi
     check_in_date: params.checkInDate,
     check_out_date: params.checkOutDate,
     ...stayTimeVars(params.upsells),
-    portal_link: `${APP_URL}/p/${params.propertySlug}/register`,
+    portal_link: PORTAL_URL,
+    registration_cta: registrationCta(params.messageType, params.registered, PORTAL_URL),
   };
 
   const defaults = TEMPLATES[params.messageType];
@@ -99,12 +101,19 @@ export async function sendGuestAutomatedMessage(params: SendParams): Promise<voi
   }
 }
 
-// House-specific check-in instructions, sent the morning of check-in alongside
-// day_of_checkin. Template resolved per house (nickname or listing name), with
-// per-house overrides from guest_message_settings.house_checkin_instructions.
-export async function sendHouseCheckinInstructions(params: SendParams): Promise<void> {
+// House-specific check-in instructions — the single check-in-morning message
+// for a known house (it already opens with the dates/times, so it replaces the
+// generic day_of_checkin rather than being sent alongside it). Template
+// resolved per house (nickname or listing name), with per-house overrides from
+// guest_message_settings.house_checkin_instructions.
+//
+// Returns true when the check-in message has been handled (sent, errored, or
+// already sent on a prior run) so the caller skips day_of_checkin; returns
+// false when there's nothing house-specific to send (unknown house or the host
+// disabled house instructions) so the caller falls back to day_of_checkin.
+export async function sendHouseCheckinInstructions(params: SendParams): Promise<boolean> {
   const house = houseForProperty(params.propertyName);
-  if (!house) return; // unknown house (e.g. Edison NJ) — nothing to send
+  if (!house) return false; // unknown house (e.g. Edison NJ) — fall back to day_of_checkin
 
   const supabase = createAdminClient();
   const messageTypeKey = `house_checkin_${house}`;
@@ -115,11 +124,11 @@ export async function sendHouseCheckinInstructions(params: SendParams): Promise<
     .eq("registration_id", params.registrationId)
     .eq("message_type", messageTypeKey)
     .maybeSingle();
-  if (existing) return;
+  if (existing) return true; // already sent this check-in's instructions
 
   const hostSettings = await getHostSettings(params.hostId);
   const eventSettings = hostSettings?.house_checkin_instructions?.[house];
-  if (eventSettings && eventSettings.enabled === false) return;
+  if (eventSettings && eventSettings.enabled === false) return false; // opted out → day_of_checkin
 
   const vars: TemplateVars = {
     guest_name: firstNameOf(params.guestName),
@@ -127,7 +136,7 @@ export async function sendHouseCheckinInstructions(params: SendParams): Promise<
     check_in_date: params.checkInDate,
     check_out_date: params.checkOutDate,
     ...stayTimeVars(params.upsells),
-    portal_link: `${APP_URL}/p/${params.propertySlug}/register`,
+    portal_link: PORTAL_URL,
   };
 
   const subject = interpolate(eventSettings?.subject ?? HOUSE_CHECKIN_SUBJECT, vars);
@@ -163,6 +172,8 @@ export async function sendHouseCheckinInstructions(params: SendParams): Promise<
   if (error) {
     console.error(`[guest-msg] ${messageTypeKey} failed for registration ${params.registrationId}:`, error);
   }
+
+  return true; // handled the check-in message — caller skips day_of_checkin
 }
 
 // Wraps property fetch + sendGuestAutomatedMessage for use in sync.ts (fire-and-forget)
@@ -209,5 +220,6 @@ export async function sendGuestConfirmationAsync({
     checkInDate: checkInDate ?? "",
     checkOutDate: checkOutDate ?? "",
     hostId: property.host_id,
+    registered: false, // booking confirmation fires before they could register
   });
 }

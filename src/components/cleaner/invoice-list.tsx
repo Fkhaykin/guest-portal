@@ -4,17 +4,12 @@ import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
+import { EmptyState } from "@/components/ui/empty-state";
+import { toneBadge, statusTone } from "@/lib/status-styles";
 import { Plus, Receipt } from "lucide-react";
 import type { InvoiceRow } from "@/app/(cleaner)/cleaner/(protected)/invoices/page";
 import type { InvoiceLineItem } from "@/types/database";
-
-const STATUS_STYLES: Record<string, string> = {
-  open: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200",
-  draft: "bg-muted text-muted-foreground",
-  submitted: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
-  approved: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
-  paid: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
-};
 
 function formatCents(cents: number) {
   return `$${(cents / 100).toFixed(2)}`;
@@ -43,25 +38,29 @@ function getDueDate(invoice: InvoiceRow): string {
 export function InvoiceList({ invoices }: { invoices: InvoiceRow[] }) {
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold">Invoices</h1>
-        <Link href="/cleaner/invoices/new" className={buttonVariants({ size: "sm" })}>
-          <Plus className="h-4 w-4 mr-1" />
-          New Invoice
-        </Link>
-      </div>
+      <PageHeader
+        title="Invoices"
+        actions={
+          <Link href="/cleaner/invoices/new" className={buttonVariants({ size: "sm" })}>
+            <Plus className="h-4 w-4 mr-1" />
+            New Invoice
+          </Link>
+        }
+      />
 
       {invoices.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 text-center space-y-3">
-          <Receipt className="h-12 w-12 text-muted-foreground/30" />
-          <p className="text-muted-foreground">No invoices yet.</p>
-          <Link
-            href="/cleaner/invoices/new"
-            className={buttonVariants({ size: "sm", variant: "outline" })}
-          >
-            Create your first invoice
-          </Link>
-        </div>
+        <EmptyState
+          icon={Receipt}
+          title="No invoices yet"
+          action={
+            <Link
+              href="/cleaner/invoices/new"
+              className={buttonVariants({ size: "sm", variant: "outline" })}
+            >
+              Create your first invoice
+            </Link>
+          }
+        />
       ) : (
         <div className="space-y-3">
           {invoices.map((inv) => (
@@ -71,7 +70,7 @@ export function InvoiceList({ invoices }: { invoices: InvoiceRow[] }) {
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
                       <p className="text-sm font-medium">{inv.invoice_number}</p>
-                      <Badge className={STATUS_STYLES[inv.status] || ""}>
+                      <Badge className={toneBadge(statusTone(inv.status))}>
                         {inv.status}
                       </Badge>
                     </div>

@@ -166,7 +166,7 @@ function PromoCode({ code, accent }: { code: string; accent: string }) {
       }}
       className={`group/code inline-flex items-center gap-2.5 rounded-full border border-dashed px-4 py-2 transition-all hover:scale-[1.02] active:scale-[0.98] ${accent}`}
     >
-      <span className="text-[10px] font-semibold uppercase tracking-[0.2em] opacity-50">
+      <span className="text-xs font-semibold uppercase tracking-[0.2em] opacity-50">
         Use code
       </span>
       <span className="font-mono text-sm font-bold tracking-[0.12em]">
@@ -184,15 +184,17 @@ function PromoCode({ code, accent }: { code: string; accent: string }) {
 function PromotionCard({
   promo,
   index,
+  total,
 }: {
   promo: Promotion;
   index: number;
+  total: number;
 }) {
   const style = getStyle(promo);
 
   return (
     <article
-      className={`group relative overflow-hidden rounded-2xl border ${style.accentBorder} ${style.accentBg} transition-all duration-300 hover:shadow-md`}
+      className={`group relative overflow-hidden rounded-2xl border ${style.accentBorder} ${style.accentBg} transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md`}
     >
       <div className="relative p-6 sm:p-8">
         {/* Top: label row */}
@@ -200,13 +202,13 @@ function PromotionCard({
           <div className="flex items-center gap-2.5">
             <span className="text-lg">{style.emoji}</span>
             <span
-              className={`text-[10px] font-bold uppercase tracking-[0.25em] ${style.accentMuted}`}
+              className={`text-xs font-bold uppercase tracking-[0.25em] ${style.accentMuted}`}
             >
               {style.label}
             </span>
           </div>
-          <span className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground/40">
-            {String(index + 1).padStart(2, "0")} / 05
+          <span className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground/40">
+            {String(index + 1).padStart(2, "0")} / {String(total).padStart(2, "0")}
           </span>
         </div>
 
@@ -306,7 +308,7 @@ export function PromotionCards({ promotions }: { promotions: Promotion[] }) {
   return (
     <div className="space-y-4">
       {promotions.map((promo, i) => (
-        <PromotionCard key={promo.id} promo={promo} index={i} />
+        <PromotionCard key={promo.id} promo={promo} index={i} total={promotions.length} />
       ))}
 
       <p className="pt-4 text-center text-[11px] leading-relaxed tracking-wide text-muted-foreground/40">

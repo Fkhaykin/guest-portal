@@ -35,15 +35,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { ReimbursementModal } from "@/components/cleaner/reimbursement-form";
 import { OneOffInvoiceModal } from "@/components/cleaner/one-off-invoice-form";
+import { PageHeader } from "@/components/ui/page-header";
+import { EmptyState } from "@/components/ui/empty-state";
+import { toneBadge, statusTone } from "@/lib/status-styles";
 import type { InvoiceRow, UnpaidCleaning, RecentBooking } from "@/app/(cleaner)/cleaner/(protected)/invoices/page";
 import type { InvoiceLineItem } from "@/types/database";
-
-const STATUS_STYLES: Record<string, string> = {
-  draft: "bg-muted text-muted-foreground",
-  submitted: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
-  approved: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
-  paid: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
-};
 
 function formatCents(cents: number) {
   return `$${(cents / 100).toFixed(2)}`;
@@ -109,27 +105,29 @@ export function InvoiceTabs({
 
   return (
     <div className="space-y-4 max-w-3xl mx-auto">
-      <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold">Invoices</h1>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowOneOff(true)}
-          >
-            <Sparkles className="h-4 w-4 mr-1.5" />
-            One-Off Invoice
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowReimbursement(true)}
-          >
-            <ReceiptText className="h-4 w-4 mr-1.5" />
-            Reimbursement
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title="Invoices"
+        actions={
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowOneOff(true)}
+            >
+              <Sparkles className="h-4 w-4 mr-1.5" />
+              One-Off Invoice
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowReimbursement(true)}
+            >
+              <ReceiptText className="h-4 w-4 mr-1.5" />
+              Reimbursement
+            </Button>
+          </>
+        }
+      />
 
       {/* Tab bar */}
       <div className="flex gap-1 bg-muted rounded-lg p-1">
@@ -209,13 +207,11 @@ function UnpaidTab({
 }) {
   if (cleanings.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 text-center space-y-3">
-        <CheckCircle2 className="h-12 w-12 text-green-500/30" />
-        <p className="text-muted-foreground">All cleanings have been invoiced.</p>
-        <p className="text-xs text-muted-foreground">
-          New cleanings will appear here until the next weekly invoice is generated.
-        </p>
-      </div>
+      <EmptyState
+        icon={CheckCircle2}
+        title="All cleanings have been invoiced"
+        description="New cleanings will appear here until the next weekly invoice is generated."
+      />
     );
   }
 
@@ -273,7 +269,7 @@ function UnpaidTab({
                       {c.guestCount}
                     </span>
                     {c.hasPets && (
-                      <span className="flex items-center gap-1 text-amber-600">
+                      <span className="flex items-center gap-1 text-warning">
                         <PawPrint className="h-3 w-3" />
                         Pets
                       </span>
@@ -314,13 +310,11 @@ function HistoryTab({
 }) {
   if (invoices.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 text-center space-y-3">
-        <Receipt className="h-12 w-12 text-muted-foreground/30" />
-        <p className="text-muted-foreground">No invoices yet.</p>
-        <p className="text-xs text-muted-foreground">
-          Invoices are generated automatically every Monday.
-        </p>
-      </div>
+      <EmptyState
+        icon={Receipt}
+        title="No invoices yet"
+        description="Invoices are generated automatically every Monday."
+      />
     );
   }
 
@@ -356,7 +350,7 @@ function HistoryTab({
                 {getDueDate(inv)}
               </TableCell>
               <TableCell>
-                <Badge className={STATUS_STYLES[inv.status] || ""}>{inv.status}</Badge>
+                <Badge className={toneBadge(statusTone(inv.status))}>{inv.status}</Badge>
               </TableCell>
               <TableCell className="text-right text-sm font-semibold">
                 {formatCents(inv.total)}
@@ -396,7 +390,7 @@ function InvoiceModal({
         <DialogHeader>
           <div className="flex items-center justify-between">
             <DialogTitle className="text-base">{invoice.invoice_number}</DialogTitle>
-            <Badge className={STATUS_STYLES[invoice.status] || ""}>{invoice.status}</Badge>
+            <Badge className={toneBadge(statusTone(invoice.status))}>{invoice.status}</Badge>
           </div>
           <p className="text-sm text-muted-foreground">
             {formatDateFull(invoice.period_start)} &ndash; {formatDateFull(invoice.period_end)}
@@ -540,7 +534,7 @@ function InvoiceModal({
             )}
             {invoice.paid_at && (
               <p className="flex items-center gap-1.5">
-                <DollarSign className="h-3 w-3 text-green-600" />
+                <DollarSign className="h-3 w-3 text-success" />
                 Paid {formatTimestamp(invoice.paid_at)}
               </p>
             )}

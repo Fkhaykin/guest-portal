@@ -17,7 +17,7 @@ import {
 } from "@/lib/guest-session";
 import { InstagramFeedSection } from "@/components/guest/instagram-feed";
 import { ReviewsCarousel } from "@/components/guest/reviews-carousel";
-import { REVIEWS } from "@/lib/reviews-data";
+import { REVIEWS, REVIEW_STATS } from "@/lib/reviews-data";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { SiteNav } from "@/components/site-nav";
 import { SiteFooter } from "@/components/site-footer";
@@ -32,7 +32,6 @@ import {
   DoorClosed,
   Star,
   ArrowRight,
-  Sparkles,
   Mountain,
   Waves,
   Flame,
@@ -43,6 +42,10 @@ import {
   TreePine,
   Dices,
   Tent,
+  Check,
+  BadgeCheck,
+  ShieldCheck,
+  KeyRound,
 } from "lucide-react";
 
 
@@ -78,20 +81,6 @@ type Reservation = {
   };
 };
 
-type Promotion = {
-  id: string;
-  title: string;
-  description: string | null;
-  promo_code: string | null;
-  discount_percent: number | null;
-  discount_amount: number | null;
-  free_cleaning: boolean | null;
-  free_pet_fee: boolean | null;
-  valid_from: string | null;
-  valid_until: string | null;
-  is_active: boolean;
-};
-
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                            */
 /* ------------------------------------------------------------------ */
@@ -117,6 +106,103 @@ function getNightCount(checkIn: string, checkOut: string) {
   const d1 = new Date(checkIn + "T00:00:00");
   const d2 = new Date(checkOut + "T00:00:00");
   return Math.round((d2.getTime() - d1.getTime()) / (1000 * 60 * 60 * 24));
+}
+
+/* ------------------------------------------------------------------ */
+/*  Shared layout primitives                                          */
+/* ------------------------------------------------------------------ */
+
+/** One consistent header treatment for every section: a small uppercase
+ *  eyebrow, a tight display heading, and an optional lede. Used everywhere
+ *  so the page reads with a single typographic rhythm. */
+function SectionHeading({
+  eyebrow,
+  title,
+  subtitle,
+  align = "left",
+}: {
+  eyebrow?: string;
+  title: string;
+  subtitle?: string;
+  align?: "left" | "center";
+}) {
+  return (
+    <div
+      className={
+        align === "center"
+          ? "mx-auto max-w-2xl text-center"
+          : "max-w-2xl"
+      }
+    >
+      {eyebrow && (
+        <span className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-primary">
+          <span className="h-1 w-1 rounded-full bg-primary" />
+          {eyebrow}
+        </span>
+      )}
+      <h2 className="mt-2 text-3xl sm:text-4xl font-bold tracking-tight text-balance">
+        {title}
+      </h2>
+      {subtitle && (
+        <p className="mt-2.5 text-base sm:text-lg text-muted-foreground text-pretty">
+          {subtitle}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/** Credibility strip — real, scraped review stats. Funded sites lead with
+ *  proof; this turns 837 reviews into an at-a-glance signal. */
+function TrustBar() {
+  const stats = [
+    {
+      icon: Star,
+      value: REVIEW_STATS.averageRating.toFixed(2),
+      label: "Average guest rating",
+    },
+    {
+      icon: BadgeCheck,
+      value: `${REVIEW_STATS.totalCount.toLocaleString()}+`,
+      label: "Verified reviews",
+    },
+    {
+      icon: KeyRound,
+      value: `${REVIEW_STATS.propertyCount}`,
+      label: "Lakefront homes",
+    },
+    {
+      icon: ShieldCheck,
+      value: "Book direct",
+      label: "No platform fees",
+    },
+  ];
+  return (
+    <section className="border-y bg-card">
+      <div className="mx-auto grid max-w-6xl grid-cols-2 divide-x divide-y divide-border sm:grid-cols-4 sm:divide-y-0">
+        {stats.map(({ icon: Icon, value, label }) => (
+          <div
+            key={label}
+            className="flex flex-col items-center gap-1 px-4 py-6 text-center sm:py-8"
+          >
+            <Icon
+              className={`h-5 w-5 ${
+                Icon === Star
+                  ? "fill-amber-400 text-amber-400"
+                  : "text-primary"
+              }`}
+            />
+            <div className="text-xl sm:text-2xl font-bold tracking-tight">
+              {value}
+            </div>
+            <div className="text-xs sm:text-sm text-muted-foreground">
+              {label}
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
 }
 
 /* ------------------------------------------------------------------ */
@@ -335,17 +421,12 @@ function Carousel({
   };
 
   const cardClass =
-    "group relative flex-shrink-0 w-[280px] h-[180px] rounded-xl overflow-hidden snap-start focus:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+    "group relative flex-shrink-0 w-[280px] sm:w-[300px] h-[200px] rounded-2xl overflow-hidden snap-start ring-1 ring-black/5 shadow-sm transition-shadow hover:shadow-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
   return (
-    <section className="space-y-4">
+    <section className="space-y-5">
       <div className="px-4 sm:px-6">
-        <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">
-          {title}
-        </h2>
-        {subtitle && (
-          <p className="text-muted-foreground mt-1">{subtitle}</p>
-        )}
+        <SectionHeading title={title} subtitle={subtitle} />
       </div>
 
       <div className="relative">
@@ -362,23 +443,26 @@ function Carousel({
             const Icon = item.icon;
             const inner = (
               <>
+                <div className="absolute inset-0 bg-muted" />
                 <img
                   src={item.image}
                   alt={item.title}
-                  className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                  className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
                   onError={(e) => {
                     (e.target as HTMLImageElement).style.display = "none";
                   }}
                 />
-                <div
-                  className={`absolute inset-0 bg-linear-to-t ${item.gradient}`}
-                />
+                {/* One consistent scrim across every card — no per-category rainbow */}
+                <div className="absolute inset-0 bg-linear-to-t from-black/80 via-black/20 to-transparent" />
                 <div className="absolute inset-0 flex flex-col justify-end p-5">
-                  <div className="flex items-center gap-2">
-                    <Icon className="h-5 w-5 text-white/90" />
-                    <span className="text-white font-semibold text-base text-left leading-tight">
+                  <div className="flex items-center gap-2.5">
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/15 backdrop-blur-sm ring-1 ring-white/20">
+                      <Icon className="h-4 w-4 text-white" />
+                    </span>
+                    <span className="text-white font-semibold text-base text-left leading-tight text-balance">
                       {item.title}
                     </span>
+                    <ChevronRight className="ml-auto h-4 w-4 text-white/0 transition-all group-hover:text-white/90 group-hover:translate-x-0.5" />
                   </div>
                 </div>
               </>
@@ -628,7 +712,7 @@ function PropertyCard({
 
   return (
     <Link href={bookUrl} className="block">
-      <Card className="pt-0 overflow-hidden group hover:shadow-lg transition-shadow">
+      <Card className="pt-0 overflow-hidden group ring-1 ring-border/60 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:ring-border">
         <div className="relative h-48 sm:h-56">
           {property.cover_image_url ? (
             <img
@@ -703,115 +787,19 @@ function PropertyCard({
             </p>
           )}
           <div
-            className={`inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors w-full mt-2 h-8 px-3 ${
+            className={`inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-semibold transition-colors w-full mt-3 h-10 px-3 ${
               bookingQuery
-                ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                : "border border-input bg-background hover:bg-accent hover:text-accent-foreground"
+                ? "bg-primary text-primary-foreground group-hover:bg-primary/90"
+                : "border border-input bg-background group-hover:bg-primary group-hover:text-primary-foreground group-hover:border-primary"
             }`}
           >
             <Calendar className="h-4 w-4" />
             {bookingQuery ? "Book Now" : "View Availability"}
+            <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
           </div>
         </CardContent>
       </Card>
     </Link>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/*  Special Offer Card                                                 */
-/* ------------------------------------------------------------------ */
-
-/** Everything a promotion gives the guest, in headline-priority order. */
-function offerPerks(promotion: Promotion): string[] {
-  const perks: string[] = [];
-  if (promotion.discount_percent) perks.push(`${promotion.discount_percent}% off`);
-  if (promotion.discount_amount) perks.push(`$${promotion.discount_amount} off`);
-  if (promotion.free_cleaning) perks.push("Free cleaning fee");
-  if (promotion.free_pet_fee) perks.push("Free pet fee");
-  return perks;
-}
-
-function OfferCard({ promotion }: { promotion: Promotion }) {
-  const validUntil = promotion.valid_until
-    ? new Date(promotion.valid_until + "T00:00:00")
-    : null;
-  const isExpiringSoon =
-    validUntil &&
-    validUntil.getTime() - Date.now() < 7 * 24 * 60 * 60 * 1000;
-
-  return (
-    <Card className="overflow-hidden border-amber-200/50 dark:border-amber-800/30 bg-gradient-to-br from-amber-50/50 to-orange-50/30 dark:from-amber-950/20 dark:to-orange-950/10">
-      <CardContent className="p-5 space-y-3">
-        <div className="flex items-start justify-between gap-2">
-          <div className="space-y-1">
-            <h3 className="font-semibold text-base">{promotion.title}</h3>
-            {promotion.description && (
-              <p className="text-sm text-muted-foreground line-clamp-2">
-                {promotion.description}
-              </p>
-            )}
-          </div>
-          <div className="shrink-0">
-            {promotion.discount_percent ? (
-              <Badge className="bg-amber-600 text-white text-lg font-bold px-3 py-1">
-                {promotion.discount_percent}% OFF
-              </Badge>
-            ) : promotion.discount_amount ? (
-              <Badge className="bg-amber-600 text-white text-lg font-bold px-3 py-1">
-                ${promotion.discount_amount} OFF
-              </Badge>
-            ) : promotion.free_cleaning ? (
-              <Badge className="bg-amber-600 text-white text-sm font-bold px-3 py-1">
-                FREE CLEANING
-              </Badge>
-            ) : promotion.free_pet_fee ? (
-              <Badge className="bg-amber-600 text-white text-sm font-bold px-3 py-1">
-                FREE PET FEE
-              </Badge>
-            ) : (
-              <Sparkles className="h-6 w-6 text-amber-600" />
-            )}
-          </div>
-        </div>
-        {offerPerks(promotion).length > 1 && (
-          <div className="flex flex-wrap gap-1.5">
-            {offerPerks(promotion)
-              .slice(1)
-              .map((perk) => (
-                <span
-                  key={perk}
-                  className="rounded-full bg-amber-100 dark:bg-amber-900/40 px-2.5 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-300"
-                >
-                  + {perk}
-                </span>
-              ))}
-          </div>
-        )}
-        {promotion.promo_code && (
-          <div className="flex items-center gap-2">
-            <code className="bg-white dark:bg-black/20 border border-dashed border-amber-300 dark:border-amber-700 rounded-lg px-3 py-1.5 text-sm font-mono font-semibold tracking-wider">
-              {promotion.promo_code}
-            </code>
-            {isExpiringSoon && (
-              <span className="text-xs text-red-600 dark:text-red-400 font-medium">
-                Expires soon!
-              </span>
-            )}
-          </div>
-        )}
-        {validUntil && (
-          <p className="text-xs text-muted-foreground">
-            Valid through{" "}
-            {validUntil.toLocaleDateString("en-US", {
-              month: "long",
-              day: "numeric",
-              year: "numeric",
-            })}
-          </p>
-        )}
-      </CardContent>
-    </Card>
   );
 }
 
@@ -828,7 +816,6 @@ export default function HomeV2Page() {
     reservation: Reservation;
   } | null>(null);
   const [properties, setProperties] = useState<Property[]>([]);
-  const [promotions, setPromotions] = useState<Promotion[]>([]);
   const [loaded, setLoaded] = useState(false);
 
   // Rotate hero slides — images advance on a timer, videos advance on ended
@@ -875,17 +862,6 @@ export default function HomeV2Page() {
       .order("sort_order", { ascending: true })
       .then(({ data }) => {
         if (data) setProperties(data);
-      });
-
-    // Fetch public promotions (not property-specific)
-    supabase
-      .from("promotion")
-      .select("id, title, description, promo_code, discount_percent, discount_amount, free_cleaning, free_pet_fee, valid_from, valid_until, is_active")
-      .eq("is_active", true)
-      .or(`valid_until.is.null,valid_until.gte.${new Date().toISOString().split("T")[0]}`)
-      .order("created_at", { ascending: false })
-      .then(({ data }) => {
-        if (data) setPromotions(data);
       });
   }, []);
 
@@ -948,19 +924,35 @@ export default function HomeV2Page() {
             )}
           </div>
         ))}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/40 to-black/70" />
+        <div className="absolute inset-0 bg-linear-to-b from-black/60 via-black/35 to-black/80" />
+        <div className="absolute inset-0 bg-radial-[at_50%_30%] from-transparent to-black/40" />
 
         {/* Floating Nav */}
         <SiteNav variant="transparent" />
 
         {/* Hero content */}
         <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-4 sm:px-6 text-center">
-          <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-white tracking-tight max-w-3xl leading-tight">
-            Your Poconos Getaway Starts Here
+          {/* Trust pill — real rating, surfaced before the fold */}
+          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 backdrop-blur-md">
+            <span className="flex items-center gap-0.5">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Star key={i} className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
+              ))}
+            </span>
+            <span className="text-sm font-medium text-white">
+              {REVIEW_STATS.averageRating.toFixed(2)}
+            </span>
+            <span className="text-sm text-white/70">
+              · {REVIEW_STATS.totalCount.toLocaleString()}+ verified reviews
+            </span>
+          </div>
+
+          <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-white tracking-tight max-w-3xl leading-[1.05] text-balance">
+            Your Poconos lakehouse, booked direct
           </h1>
-          <p className="mt-3 text-lg sm:text-xl text-white/80 max-w-xl">
-            Lakefront homes with hot tubs, game rooms, and direct lake access.
-            Book direct and save.
+          <p className="mt-4 text-lg sm:text-xl text-white/85 max-w-xl text-pretty">
+            Lakefront homes with hot tubs, saunas, game rooms, and private
+            water access — no platform fees, no markup.
           </p>
 
           {/* Booking search card */}
@@ -1001,6 +993,11 @@ export default function HomeV2Page() {
       </section>
 
       {/* ============================================================ */}
+      {/*  TRUST BAR — credibility strip from real review stats        */}
+      {/* ============================================================ */}
+      <TrustBar />
+
+      {/* ============================================================ */}
       {/*  TRIP SUMMARY (shown below hero when logged in)               */}
       {/* ============================================================ */}
       {session && (
@@ -1024,14 +1021,13 @@ export default function HomeV2Page() {
       {/*  OUR HOMES                                                    */}
       {/* ============================================================ */}
       {properties.length > 0 && (
-        <section className="px-4 sm:px-6 py-10 max-w-6xl mx-auto w-full">
-          <div className="space-y-1 mb-6">
-            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">
-              Our Homes
-            </h2>
-            <p className="text-muted-foreground">
-              Handpicked lakefront retreats in the Pocono Mountains
-            </p>
+        <section className="px-4 sm:px-6 py-16 sm:py-20 max-w-6xl mx-auto w-full">
+          <div className="mb-8">
+            <SectionHeading
+              eyebrow="The Collection"
+              title="Our lakefront homes"
+              subtitle="Handpicked retreats on private Pocono Mountain lakes — each with hot tubs, boats, and direct water access."
+            />
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {properties.map((property) => (
@@ -1044,60 +1040,37 @@ export default function HomeV2Page() {
       {/* ============================================================ */}
       {/*  UPSCALE EXPERIENCE                                           */}
       {/* ============================================================ */}
-      <section className="px-4 sm:px-6 py-16 max-w-6xl mx-auto w-full">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-10 items-start">
+      <section className="px-4 sm:px-6 py-16 sm:py-20 max-w-6xl mx-auto w-full">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-10 lg:gap-16 items-center">
           <div className="space-y-8">
-            <div className="space-y-4">
-              <h2 className="text-2xl font-bold">
-                Upscale experience
-              </h2>
-              <p className="text-muted-foreground leading-relaxed">
-                Each lakehouse is thoughtfully designed with premium furnishings,
-                elegant d&eacute;cor, and modern amenities to ensure a comfortable and
-                sophisticated stay. From serene lakeside views to private outdoor
-                spaces, every detail is curated for relaxation and indulgence.
-                Personalized services and exclusive features, such as gourmet
-                kitchens and hot tubs, elevate the guest experience, making Summit
-                Lakeside the ideal retreat for those seeking both tranquility and
-                luxury.
-              </p>
-            </div>
+            <SectionHeading
+              eyebrow="The Summit Standard"
+              title="An upscale stay, down to the detail"
+              subtitle="Every lakehouse is newly renovated and thoughtfully furnished — gourmet kitchens, hot tubs, and private outdoor space, with seamless self check-in and everything stocked before you arrive."
+            />
 
-            <div className="space-y-4">
-              <h3 className="text-xl font-semibold text-amber-500">
-                Thoughtful convenience
-              </h3>
-              <p className="text-muted-foreground leading-relaxed">
-                From seamless check-ins to fully stocked essentials, every aspect is
-                designed to ensure effortless comfort. Modern amenities like
-                high-speed Wi-Fi, smart home features, and curated local
-                recommendations make it easy for guests to relax and enjoy their
-                time without hassle.
-              </p>
-            </div>
-
-            <div className="space-y-3">
-              <h3 className="text-xl font-semibold text-amber-500">
-                What you can expect at Summit
-              </h3>
-              <div className="grid grid-cols-2 gap-x-8 gap-y-1.5 text-muted-foreground">
-                <ul className="space-y-1.5 list-disc list-inside">
-                  <li>Stocked Linens &amp; Towels</li>
-                  <li>Kitchen utensils</li>
-                  <li>Toiletries</li>
-                  <li>Blankets</li>
-                </ul>
-                <ul className="space-y-1.5 list-disc list-inside">
-                  <li>USB outlets</li>
-                  <li>Newly Renovated</li>
-                  <li>Games &amp; Toys</li>
-                  <li>Boats &amp; Kayaks</li>
-                </ul>
-              </div>
+            <div className="grid grid-cols-2 gap-x-8 gap-y-3">
+              {[
+                "Stocked linens & towels",
+                "USB outlets throughout",
+                "Full kitchen essentials",
+                "Newly renovated",
+                "Toiletries provided",
+                "Games & toys",
+                "Plush blankets",
+                "Boats & kayaks",
+              ].map((amenity) => (
+                <div key={amenity} className="flex items-center gap-2.5">
+                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10">
+                    <Check className="h-3 w-3 text-primary" />
+                  </span>
+                  <span className="text-sm text-foreground/80">{amenity}</span>
+                </div>
+              ))}
             </div>
           </div>
 
-          <div className="relative w-full aspect-4/5 rounded-lg overflow-hidden">
+          <div className="relative w-full aspect-4/5 rounded-2xl overflow-hidden ring-1 ring-black/5 shadow-xl">
             <img
               src="https://a0.muscache.com/im/pictures/0f3c2d87-7cd0-45bc-bf57-efdcbda6ac7e.jpg?im_w=1200"
               alt="Luxury bathroom with freestanding tub"
@@ -1120,12 +1093,16 @@ export default function HomeV2Page() {
           <div className="absolute inset-0 bg-linear-to-r from-black/70 via-black/40 to-transparent" />
           <div className="absolute inset-0 flex items-center px-6 sm:px-12 md:px-16">
             <div className="max-w-lg space-y-3">
-              <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-white leading-tight">
+              <span className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-white/80">
+                <span className="h-1 w-1 rounded-full bg-white/80" />
+                Pet friendly
+              </span>
+              <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white leading-[1.05] text-balance">
                 No need for a dog sitter.
               </h2>
-              <p className="text-lg sm:text-xl text-white/90 font-medium">
-                Summit Lakeside properties are pet friendly, so you can bring the
-                whole family along!
+              <p className="text-lg sm:text-xl text-white/90 font-medium text-pretty">
+                Every Summit Lakeside home welcomes pets — so the whole family
+                comes along.
               </p>
             </div>
           </div>
@@ -1143,7 +1120,7 @@ export default function HomeV2Page() {
       {/* ============================================================ */}
       {/*  EXPLORE POCONOS CAROUSEL                                     */}
       {/* ============================================================ */}
-      <div className="py-10 max-w-6xl mx-auto w-full">
+      <div className="py-16 sm:py-20 max-w-6xl mx-auto w-full">
         <Carousel
           items={EXPLORE_POCONOS}
           title="Explore the Poconos"
@@ -1156,7 +1133,7 @@ export default function HomeV2Page() {
       {/* ============================================================ */}
       {/*  LOCAL HIGHLIGHTS CAROUSEL                                    */}
       {/* ============================================================ */}
-      <div className="py-10 max-w-6xl mx-auto w-full">
+      <div className="py-16 sm:py-20 max-w-6xl mx-auto w-full">
         <Carousel
           items={LOCAL_HIGHLIGHTS}
           title="Things to Do Nearby"
@@ -1169,31 +1146,6 @@ export default function HomeV2Page() {
       {/* ============================================================ */}
       <Separator className="max-w-6xl mx-auto" />
       <InstagramFeedSection />
-
-      {/* ============================================================ */}
-      {/*  SPECIAL OFFERS                                               */}
-      {/* ============================================================ */}
-      {promotions.length > 0 && (
-        <>
-          <Separator className="max-w-6xl mx-auto" />
-          <section className="px-4 sm:px-6 py-10 max-w-4xl mx-auto w-full">
-            <div className="space-y-1 mb-6">
-              <h2 className="text-2xl sm:text-3xl font-bold tracking-tight flex items-center gap-2">
-                <Star className="h-6 w-6 text-amber-500" />
-                Special Offers
-              </h2>
-              <p className="text-muted-foreground">
-                Exclusive deals available right now
-              </p>
-            </div>
-            <div className="grid gap-4">
-              {promotions.map((promo) => (
-                <OfferCard key={promo.id} promotion={promo} />
-              ))}
-            </div>
-          </section>
-        </>
-      )}
 
       <SiteFooter />
     </div>

@@ -51,7 +51,9 @@ import {
   CreditCard,
   QrCode,
   ChevronDown,
+  CalendarCheck,
 } from "lucide-react";
+import { StatCard } from "@/components/ui/stat-card";
 
 // ─── Constants ───────────────────────────────────────────────
 
@@ -724,50 +726,37 @@ export function AnalyticsCharts() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-4 gap-2 sm:gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card className="py-2.5 gap-1 sm:py-4 sm:gap-4">
-          <CardHeader className="flex flex-row items-center justify-between px-2.5 sm:px-4 pb-0 sm:pb-2">
-            <CardTitle className="text-[11px] sm:text-sm font-medium truncate">Revenue</CardTitle>
-            <CreditCard className="h-4 w-4 text-muted-foreground hidden sm:block" />
-          </CardHeader>
-          <CardContent className="px-2.5 sm:px-4">
-            <div className="text-sm sm:text-2xl font-bold truncate">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+        <StatCard
+          icon={CreditCard}
+          tone="success"
+          value={
+            <>
               <span className="sm:hidden">{formatCompactDollars(stats.totalRevenue / 100)}</span>
               <span className="hidden sm:inline">{formatDollars(stats.totalRevenue / 100)}</span>
-            </div>
-            <p className="text-xs text-muted-foreground hidden sm:block">In selected range</p>
-          </CardContent>
-        </Card>
-        <Card className="py-2.5 gap-1 sm:py-4 sm:gap-4">
-          <CardHeader className="flex flex-row items-center justify-between px-2.5 sm:px-4 pb-0 sm:pb-2">
-            <CardTitle className="text-[11px] sm:text-sm font-medium truncate">Bookings</CardTitle>
-            <Building2 className="h-4 w-4 text-muted-foreground hidden sm:block" />
-          </CardHeader>
-          <CardContent className="px-2.5 sm:px-4">
-            <div className="text-sm sm:text-2xl font-bold truncate">{stats.totalBookings}</div>
-            <p className="text-xs text-muted-foreground hidden sm:block">{stats.activeBookings} currently active</p>
-          </CardContent>
-        </Card>
-        <Card className="py-2.5 gap-1 sm:py-4 sm:gap-4">
-          <CardHeader className="flex flex-row items-center justify-between px-2.5 sm:px-4 pb-0 sm:pb-2">
-            <CardTitle className="text-[11px] sm:text-sm font-medium truncate">Properties</CardTitle>
-            <Building2 className="h-4 w-4 text-muted-foreground hidden sm:block" />
-          </CardHeader>
-          <CardContent className="px-2.5 sm:px-4">
-            <div className="text-sm sm:text-2xl font-bold truncate">{raw.properties.length}</div>
-            <p className="text-xs text-muted-foreground hidden sm:block">Synced from Lodgify</p>
-          </CardContent>
-        </Card>
-        <Card className="py-2.5 gap-1 sm:py-4 sm:gap-4">
-          <CardHeader className="flex flex-row items-center justify-between px-2.5 sm:px-4 pb-0 sm:pb-2">
-            <CardTitle className="text-[11px] sm:text-sm font-medium truncate">QR Scans</CardTitle>
-            <QrCode className="h-4 w-4 text-muted-foreground hidden sm:block" />
-          </CardHeader>
-          <CardContent className="px-2.5 sm:px-4">
-            <div className="text-sm sm:text-2xl font-bold truncate">{raw.qrScans.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground hidden sm:block">Total across all codes</p>
-          </CardContent>
-        </Card>
+            </>
+          }
+          label="Revenue"
+          hint="In selected range"
+        />
+        <StatCard
+          icon={CalendarCheck}
+          value={stats.totalBookings}
+          label="Bookings"
+          hint={`${stats.activeBookings} currently active`}
+        />
+        <StatCard
+          icon={Building2}
+          value={raw.properties.length}
+          label="Properties"
+          hint="Synced from Lodgify"
+        />
+        <StatCard
+          icon={QrCode}
+          value={raw.qrScans.toLocaleString()}
+          label="QR Scans"
+          hint="Total across all codes"
+        />
       </div>
 
       {/* Charts */}

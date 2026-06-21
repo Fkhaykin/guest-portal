@@ -1,6 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
+import { ShoppingBag } from "lucide-react";
 import { ServiceCard } from "@/components/guest/service-card";
+import { EmptyState } from "@/components/ui/empty-state";
 
 export default async function ServicesPage({
   params,
@@ -41,7 +43,11 @@ export default async function ServicesPage({
           ))}
         </div>
       ) : (
-        <p className="text-muted-foreground">No services available.</p>
+        <EmptyState
+          icon={ShoppingBag}
+          title="No services available"
+          description="There are no additional services for this property right now. Check back soon."
+        />
       )}
     </div>
   );

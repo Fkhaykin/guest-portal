@@ -25,6 +25,7 @@ import {
   PawPrint,
   CalendarPlus,
 } from "lucide-react";
+import { toneBadge, toneSolid, statusTone } from "@/lib/status-styles";
 
 export type AdminCalendarEntry = {
   id: string;
@@ -81,17 +82,17 @@ function cleanSource(s: string | null) {
 }
 
 const STATUS_BAR: Record<AdminCalendarEntry["displayStatus"], string> = {
-  future: "bg-teal-700 text-white",
-  current: "bg-blue-600 text-white",
-  past: "bg-teal-700 text-white opacity-40",
-  cancelled: "bg-gray-300 text-gray-500 dark:bg-gray-700 dark:text-gray-400",
+  future: toneSolid("info"),
+  current: toneSolid("success"),
+  past: `${toneSolid("info")} opacity-40`,
+  cancelled: "bg-muted text-muted-foreground",
 };
 
 const STATUS_BADGE: Record<AdminCalendarEntry["displayStatus"], string> = {
-  future: "bg-green-100 text-green-800 border-green-200",
-  current: "bg-blue-100 text-blue-800 border-blue-200",
-  past: "bg-yellow-100 text-yellow-800 border-yellow-200",
-  cancelled: "bg-red-100 text-red-800 border-red-200",
+  future: toneBadge(statusTone("future")),
+  current: toneBadge(statusTone("current")),
+  past: toneBadge(statusTone("past")),
+  cancelled: toneBadge(statusTone("cancelled")),
 };
 
 export function AdminCalendarView({
@@ -349,7 +350,7 @@ export function AdminCalendarView({
                       {s.displayStatus}
                     </Badge>
                     {s.hasRegistration ? (
-                      <Badge variant="default" className="gap-1 text-xs bg-green-600">
+                      <Badge variant="default" className={`gap-1 text-xs ${toneSolid("success")}`}>
                         <FileText className="h-3 w-3" />
                         Registered
                       </Badge>
@@ -388,7 +389,7 @@ export function AdminCalendarView({
                             </span>
                           )}
                           {s.lodgifyPets > 0 && (
-                            <span className="flex items-center gap-1.5 text-amber-600 font-medium">
+                            <span className="flex items-center gap-1.5 text-warning font-medium">
                               <PawPrint className="h-4 w-4" />
                               {s.lodgifyPets} pet{s.lodgifyPets !== 1 ? "s" : ""}
                             </span>

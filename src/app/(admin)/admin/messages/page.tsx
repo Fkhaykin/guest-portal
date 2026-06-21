@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/ui/page-header";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Search,
@@ -21,6 +22,7 @@ import {
   Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { toneBadge, type Tone } from "@/lib/status-styles";
 import type { LodgifyMessage, ConversationThread } from "@/lib/lodgify/messages";
 import {
   QuickReplySuggestions,
@@ -385,23 +387,29 @@ export default function AdminMessagesPage() {
   }
 
   function getStatusColor(status: string) {
+    let tone: Tone;
     switch (status.toLowerCase()) {
       case "active":
       case "booked":
-        return "bg-green-100 text-green-800 border-green-200";
+        tone = "success";
+        break;
       case "completed":
       case "checkedout":
-        return "bg-yellow-100 text-yellow-800 border-yellow-200";
+        tone = "warning";
+        break;
       case "cancelled":
       case "declined":
-        return "bg-red-100 text-red-800 border-red-200";
+        tone = "danger";
+        break;
       case "open":
       case "tentative":
       case "inquiry":
-        return "bg-blue-100 text-blue-800 border-blue-200";
+        tone = "info";
+        break;
       default:
         return "";
     }
+    return toneBadge(tone);
   }
 
   function cleanSourceName(source: string) {
@@ -414,9 +422,7 @@ export default function AdminMessagesPage() {
   return (
     <div className="flex flex-col h-full">
       <div className="mb-4 flex items-start justify-between gap-2">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Messages</h1>
-        </div>
+        <PageHeader title="Messages" />
         <Link
           href="/admin/messages/settings"
           title="Auto messages"
@@ -750,7 +756,7 @@ export default function AdminMessagesPage() {
                 {!draftLoading && newMessage && newMessage === autoDraftRef.current && (
                   <div className="pb-2 space-y-2">
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <Sparkles className="h-3 w-3 text-amber-500" />
+                      <Sparkles className="h-3 w-3 text-primary" />
                       Suggested reply — review, edit, or hit send
                       {autoDraftSourceRef.current === "ai" && (
                         <button

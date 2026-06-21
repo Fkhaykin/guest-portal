@@ -15,6 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { PageHeader } from "@/components/ui/page-header";
 import {
   Plus,
   Trash2,
@@ -274,28 +275,25 @@ export function InvoiceForm({
 
   return (
     <div className="space-y-6 max-w-3xl mx-auto">
-      <h1 className="text-lg font-semibold">
-        {initialData ? "Edit Invoice" : "New Invoice"}
-      </h1>
+      <PageHeader title={initialData ? "Edit Invoice" : "New Invoice"} />
 
       {/* Auto-populate banner */}
       {!initialData && unbilledCleanings && unbilledCleanings.length > 0 && (
-        <Card className="border-blue-200 bg-blue-50/50 dark:bg-blue-950/20 dark:border-blue-900">
+        <Card className="border-info/30 bg-info/10">
           <CardContent className="pt-4">
             <div className="flex items-start gap-3">
-              <Zap className="h-5 w-5 text-blue-500 shrink-0 mt-0.5" />
+              <Zap className="h-5 w-5 text-info shrink-0 mt-0.5" />
               <div className="flex-1 space-y-2">
-                <p className="text-sm font-medium text-blue-800 dark:text-blue-200">
+                <p className="text-sm font-medium">
                   {unbilledCleanings.length} unbilled cleaning{unbilledCleanings.length > 1 ? "s" : ""} found
                 </p>
-                <p className="text-xs text-blue-600 dark:text-blue-400">
+                <p className="text-xs text-muted-foreground">
                   Auto-add all completed cleanings and pet fees with configured rates.
                 </p>
                 <Button
                   type="button"
                   size="sm"
                   onClick={autoPopulateUnbilled}
-                  className="bg-blue-600 hover:bg-blue-700 text-white"
                 >
                   <Zap className="h-3 w-3 mr-1" />
                   Add All Unbilled Items
@@ -568,7 +566,7 @@ export function InvoiceForm({
               <Separator />
               <div className="flex items-center justify-between">
                 <p className="text-sm text-muted-foreground">Adjustment Total</p>
-                <p className={`text-sm font-medium ${adjustmentTotal < 0 ? "text-red-600" : ""}`}>
+                <p className={`text-sm font-medium ${adjustmentTotal < 0 ? "text-destructive" : ""}`}>
                   {adjustmentTotal >= 0 ? "+" : ""}{formatCents(adjustmentTotal)}
                 </p>
               </div>

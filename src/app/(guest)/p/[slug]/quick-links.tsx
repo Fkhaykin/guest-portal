@@ -95,12 +95,18 @@ export function QuickLinks({ slug }: { slug: string }) {
   const quickLinks = [registrationLink, ...baseLinks];
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
       {quickLinks.map((item) => (
-        <Link key={item.label} href={"absolute" in item && item.absolute ? item.href : `/p/${slug}${item.href}`}>
-          <Card className="h-full hover:bg-accent transition-colors cursor-pointer">
+        <Link
+          key={item.label}
+          href={"absolute" in item && item.absolute ? item.href : `/p/${slug}${item.href}`}
+          className="rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+        >
+          <Card className="h-full cursor-pointer ring-1 ring-border/60 transition-all hover:-translate-y-0.5 hover:shadow-md hover:ring-border">
             <CardHeader className="flex flex-col items-center text-center p-4 gap-2">
-              <item.icon className="h-8 w-8 text-primary" />
+              <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10">
+                <item.icon className="h-7 w-7 text-primary" />
+              </div>
               <CardTitle className="text-base">{item.label}</CardTitle>
               <CardDescription className="text-xs">
                 {item.description}

@@ -14,7 +14,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, HelpCircle } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
 import type { Tables } from "@/types/database";
 
 export default function AdminFaqsPage({
@@ -161,7 +162,11 @@ export default function AdminFaqsPage({
           ))}
         </div>
       ) : (
-        <p className="text-muted-foreground">No FAQs yet.</p>
+        <EmptyState
+          icon={HelpCircle}
+          title="No FAQs yet."
+          description="Add common questions and answers to help guests find what they need."
+        />
       )}
     </div>
   );

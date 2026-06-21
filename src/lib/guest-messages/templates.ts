@@ -13,6 +13,12 @@ export type GuestMessageType =
 
 export type GuestMessageChannel = "lodgify" | "email";
 
+// The guest-facing portal link. Always the bare production domain — never
+// derived from NEXT_PUBLIC_APP_URL, which can resolve to localhost or a
+// preview deployment. Every message a guest receives links here and nowhere
+// else. (APP_URL stays for internal endpoints like the SMS inbound webhook.)
+export const PORTAL_URL = "https://guest.summitlakeside.com";
+
 export type TemplateVars = {
   guest_name: string;
   property_name: string;
@@ -22,6 +28,11 @@ export type TemplateVars = {
   // check-out (see stayTimeVars in @/lib/upsells/timing).
   check_in_time: string;
   check_out_time: string;
+  // The portal link is always the bare domain (guest.summitlakeside.com).
+  // Section deep links like /p/<slug>/register can't be opened cold from a
+  // message — the register page bounces a session-less visitor back to "/"
+  // (see register/page.tsx) — so the only link that works is the root, where
+  // the guest looks up their booking and is routed from there.
   portal_link: string;
 } & Record<string, string>;
 
@@ -66,10 +77,7 @@ We look forward to hosting you!`,
 Your stay at {{property_name}} starts on {{check_in_date}} — we can't wait to host you!
 
 You'll receive the exact address, check-in instructions, and everything else you need the morning of your check-in.
-
-If you haven't completed your guest registration yet, please do so before arrival (required to enter the community):
-{{portal_link}}
-
+{{registration_cta}}
 If you have any questions before then, don't hesitate to reach out — we're here to help.
 
 See you soon!`,
@@ -79,10 +87,7 @@ See you soon!`,
     body: `Hi {{guest_name}},
 
 Today's the day! Your stay at {{property_name}} begins today ({{check_in_date}}) at {{check_in_time}}.
-
-If you still need to complete your registration:
-{{portal_link}}
-
+{{registration_cta}}
 Enjoy your stay!`,
   },
   settling_in: {
@@ -116,7 +121,7 @@ We hope you've had a great time at {{property_name}}! Thank you so much for stay
 
 Your check-out time today is {{check_out_time}}.
 
-Need a later check-out? Availability and booking are in our guest portal (guest.summitlakeside.com). Leaving after check-out without prior notice will incur a $50 fee.
+Need a later check-out? Availability and booking are in your guest portal ({{portal_link}}). Leaving after check-out without prior notice will incur a $50 fee.
 
 Before you head out, please be sure to:
 
@@ -200,6 +205,27 @@ export function firstNameOf(fullName: string | null | undefined): string {
   return (fullName ?? "").trim().split(/\s+/)[0] ?? "";
 }
 
+// The registration prompt is driven by actual status (we know whether they've
+// signed), not hedged "if you haven't already registered" wording: registered
+// guests get nothing; unregistered guests get a direct ask with the link. The
+// value carries its own surrounding blank lines so {{registration_cta}} can sit
+// on its own line and collapse cleanly to a single paragraph break when empty.
+export function registrationCta(
+  type: GuestMessageType,
+  registered: boolean,
+  portalLink: string
+): string {
+  if (registered) return "";
+  switch (type) {
+    case "pre_arrival":
+      return `\nPlease complete your guest registration before arrival — it's required to enter the community:\n${portalLink}\n`;
+    case "day_of_checkin":
+      return `\nPlease complete your guest registration to avoid delays at check-in:\n${portalLink}\n`;
+    default:
+      return "";
+  }
+}
+
 // Generic substitution: replace every {{key}} with vars[key]. Unknown keys
 // pass through unchanged so previewing/editing is forgiving.
 export function interpolate(template: string, vars: Record<string, string>): string {
@@ -224,8 +250,8 @@ export function renderTemplate(
 // the "available variables" badges. Keep in sync with the *Vars interfaces.
 export const TEMPLATE_VARIABLES: Record<GuestMessageType, string[]> = {
   booking_confirmation: ["guest_name", "property_name", "check_in_date", "check_out_date", "check_in_time", "check_out_time", "portal_link"],
-  pre_arrival: ["guest_name", "property_name", "check_in_date", "check_out_date", "check_in_time", "check_out_time", "portal_link"],
-  day_of_checkin: ["guest_name", "property_name", "check_in_date", "check_out_date", "check_in_time", "check_out_time", "portal_link"],
+  pre_arrival: ["guest_name", "property_name", "check_in_date", "check_out_date", "check_in_time", "check_out_time", "portal_link", "registration_cta"],
+  day_of_checkin: ["guest_name", "property_name", "check_in_date", "check_out_date", "check_in_time", "check_out_time", "portal_link", "registration_cta"],
   settling_in: ["guest_name", "property_name", "check_in_date", "check_out_date", "check_in_time", "check_out_time", "portal_link"],
   pulse_check: ["guest_name", "property_name", "check_in_date", "check_out_date", "portal_link"],
   checkout_morning: ["guest_name", "property_name", "check_in_date", "check_out_date", "check_in_time", "check_out_time", "portal_link"],

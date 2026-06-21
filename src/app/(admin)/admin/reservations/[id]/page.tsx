@@ -44,6 +44,7 @@ import {
   MessageSquare,
 } from "lucide-react";
 import { EditRegistrationDialog } from "@/components/admin/edit-registration-dialog";
+import { toneBadge, statusTone } from "@/lib/status-styles";
 import { effectiveStayTimes } from "@/lib/upsells/timing";
 import type { GuestListEntry, PetEntry, UpsellEntry, CleaningPhoto, CleaningPhotoExif, CleaningChecklistItem, InvoiceLineItem, InvoiceStatus } from "@/types/database";
 import { ReceiptText } from "lucide-react";
@@ -432,21 +433,15 @@ export default function ReservationDetailPage() {
           </div>
           <div className="flex flex-wrap items-center gap-2 md:shrink-0 md:justify-end">
             {(() => {
-              const colors = {
-                current: "bg-blue-100 text-blue-800 border-blue-200",
-                future: "bg-green-100 text-green-800 border-green-200",
-                past: "bg-yellow-100 text-yellow-800 border-yellow-200",
-                cancelled: "bg-red-100 text-red-800 border-red-200",
-              };
               return (
-                <Badge variant="outline" className={`text-sm capitalize ${colors[displayStatus]}`}>
+                <Badge variant="outline" className={`text-sm capitalize ${toneBadge(statusTone(displayStatus))}`}>
                   {displayStatus}
                 </Badge>
               );
             })()}
             {hasSignature ? (
               <Badge variant="outline" className="text-sm gap-1">
-                <CheckCircle2 className="h-3 w-3 text-green-600" /> Registered
+                <CheckCircle2 className="h-3 w-3 text-success" /> Registered
               </Badge>
             ) : (
               <Badge variant="outline" className="text-sm gap-1 text-muted-foreground">
@@ -455,7 +450,7 @@ export default function ReservationDetailPage() {
             )}
             {hasModifications && (
               <button type="button" onClick={openHistory}>
-                <Badge variant="outline" className="text-sm gap-1 bg-orange-50 text-orange-700 border-orange-200 cursor-pointer hover:bg-orange-100 transition-colors">
+                <Badge variant="outline" className={`text-sm gap-1 cursor-pointer transition-colors ${toneBadge("warning")}`}>
                   <History className="h-3 w-3" /> Modified
                 </Badge>
               </button>
@@ -498,18 +493,18 @@ export default function ReservationDetailPage() {
         <TabsContent value="details" className="space-y-6 mt-4">
           {/* Upsells / Add-Ons — loud callout at top */}
           {upsells.length > 0 && (
-            <div className="rounded-xl border-2 border-amber-400 bg-amber-50 dark:border-amber-500 dark:bg-amber-950/40 p-5 space-y-3 ring-2 ring-amber-300/50 shadow-lg shadow-amber-100 dark:shadow-amber-900/20">
+            <div className="rounded-xl border border-warning/40 bg-warning/10 p-5 space-y-3">
               <div className="flex items-center gap-2">
-                <div className="rounded-full bg-amber-400 dark:bg-amber-500 p-2 shrink-0">
-                  <Sparkles className="h-5 w-5 text-white" />
+                <div className="rounded-full bg-warning/15 text-warning p-2 shrink-0">
+                  <Sparkles className="h-5 w-5" />
                 </div>
-                <h3 className="font-bold text-lg text-amber-900 dark:text-amber-100">
+                <h3 className="font-bold text-lg">
                   Add-Ons ({upsells.length})
                 </h3>
               </div>
               <div className="grid gap-2 sm:grid-cols-2">
                 {upsells.map((u, i) => (
-                  <div key={i} className="flex items-center justify-between rounded-lg bg-white/80 dark:bg-black/20 border border-amber-200 dark:border-amber-700 px-3 py-2 text-sm">
+                  <div key={i} className="flex items-center justify-between rounded-lg bg-card border border-warning/30 px-3 py-2 text-sm">
                     <span className="font-medium">{u.label}</span>
                     <div className="flex items-center gap-2">
                       <span className="font-medium">${(u.price_cents / 100).toFixed(0)}</span>
@@ -539,7 +534,7 @@ export default function ReservationDetailPage() {
                     <span className="text-muted-foreground">·</span>
                     <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{checkInTime}</span>
                     {hasEarlyCheckin && (
-                      <span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
+                      <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${toneBadge("success")}`}>
                         Early Check-In
                       </span>
                     )}
@@ -552,7 +547,7 @@ export default function ReservationDetailPage() {
                     <span className="text-muted-foreground">·</span>
                     <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{checkOutTime}</span>
                     {hasLateCheckout && (
-                      <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+                      <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${toneBadge("warning")}`}>
                         Late Check-Out
                       </span>
                     )}
@@ -601,12 +596,12 @@ export default function ReservationDetailPage() {
 
                       <span className="text-muted-foreground">Pets</span>
                       <span className="text-center">{reg.lodgify_num_pets}</span>
-                      <span className={`text-center ${pets.length > reg.lodgify_num_pets ? "text-amber-600 font-medium" : ""}`}>
+                      <span className={`text-center ${pets.length > reg.lodgify_num_pets ? "text-warning font-medium" : ""}`}>
                         {pets.length > 0 ? pets.length : "—"}
                       </span>
                     </div>
                     {pets.length > reg.lodgify_num_pets && (
-                      <p className="text-xs text-amber-600 mt-2">
+                      <p className="text-xs text-warning mt-2">
                         +{pets.length - reg.lodgify_num_pets} additional pet{pets.length - reg.lodgify_num_pets !== 1 ? "s" : ""} beyond booking
                       </p>
                     )}
@@ -751,7 +746,7 @@ export default function ReservationDetailPage() {
                             : `(${pets.length})`}
                         </span>
                         {pets.length > reg.lodgify_num_pets && reg.lodgify_num_pets > 0 && (
-                          <Badge variant="outline" className="text-xs text-amber-600 border-amber-300 ml-auto normal-case tracking-normal">
+                          <Badge variant="outline" className="text-xs text-warning border-warning/40 ml-auto normal-case tracking-normal">
                             +{pets.length - reg.lodgify_num_pets} extra
                           </Badge>
                         )}
@@ -764,10 +759,10 @@ export default function ReservationDetailPage() {
                                 <span className="font-medium">{p.name}</span>
                                 <span className="text-muted-foreground">({p.kind})</span>
                                 {reg.lodgify_num_pets > 0 && i < reg.lodgify_num_pets && (
-                                  <Badge variant="outline" className="text-xs text-green-700 border-green-300">Pre-paid</Badge>
+                                  <Badge variant="outline" className="text-xs text-success border-success/40">Pre-paid</Badge>
                                 )}
                                 {reg.lodgify_num_pets > 0 && i >= reg.lodgify_num_pets && (
-                                  <Badge variant="outline" className="text-xs text-amber-600 border-amber-300">Add-on</Badge>
+                                  <Badge variant="outline" className="text-xs text-warning border-warning/40">Add-on</Badge>
                                 )}
                               </div>
                               <div className="flex gap-2 mt-1">
@@ -802,7 +797,7 @@ export default function ReservationDetailPage() {
                         </Button>
                       </a>
                       <Button variant="outline" size="sm" onClick={handleEmail} disabled={emailing}>
-                        {emailing ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : emailResult === "success" ? <Mail className="h-4 w-4 mr-1 text-green-600" /> : emailResult === "error" ? <Mail className="h-4 w-4 mr-1 text-red-600" /> : <Mail className="h-4 w-4 mr-1" />}
+                        {emailing ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : emailResult === "success" ? <Mail className="h-4 w-4 mr-1 text-success" /> : emailResult === "error" ? <Mail className="h-4 w-4 mr-1 text-destructive" /> : <Mail className="h-4 w-4 mr-1" />}
                         {emailResult === "success" ? "Sent!" : emailResult === "error" ? "Failed" : "Email to HOA"}
                       </Button>
                     </div>
@@ -832,19 +827,13 @@ export default function ReservationDetailPage() {
               <CardContent>
                 <div className="grid gap-2">
                   {charges.map((c, i) => {
-                    const statusColors: Record<string, string> = {
-                      draft: "bg-muted text-muted-foreground",
-                      submitted: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
-                      approved: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
-                      paid: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
-                    };
                     return (
                       <div key={i} className="bg-muted rounded-md px-3 py-2 text-sm space-y-0.5">
                         <div className="flex items-center justify-between">
                           <span className="font-medium">{c.description}</span>
                           <div className="flex items-center gap-2">
                             <span className="font-medium">${(c.amount / 100).toFixed(2)}</span>
-                            <Badge className={statusColors[c.invoiceStatus] || ""} variant="outline">
+                            <Badge className={toneBadge(statusTone(c.invoiceStatus))} variant="outline">
                               {c.invoiceStatus}
                             </Badge>
                           </div>

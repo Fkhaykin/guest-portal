@@ -1,5 +1,6 @@
 import { createClient, getAuthenticatedUser } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import { PageHeader } from "@/components/ui/page-header";
 import { CampaignsPageShell } from "@/components/admin/marketing/campaigns-page-shell";
 
 export default async function CampaignsPage() {
@@ -22,9 +23,7 @@ export default async function CampaignsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Campaigns</h1>
-      </div>
+      <PageHeader title="Campaigns" />
       <CampaignsPageShell properties={properties ?? []} />
     </div>
   );

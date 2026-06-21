@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,7 +10,17 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Loader2, Plus, Trash2, GripVertical, Send, Save } from "lucide-react";
-import { TiptapEditor } from "./tiptap-editor";
+
+// TipTap pulls in a large editor bundle; only load it when the composer opens.
+const TiptapEditor = dynamic(
+  () => import("./tiptap-editor").then((m) => m.TiptapEditor),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="min-h-50 rounded-md border bg-muted/30 animate-pulse" />
+    ),
+  }
+);
 import { TokenPickerTextarea } from "./token-picker-textarea";
 import { toast } from "sonner";
 import type { CampaignChannel, CampaignKind } from "@/types/database";

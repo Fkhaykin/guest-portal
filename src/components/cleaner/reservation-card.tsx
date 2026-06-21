@@ -19,6 +19,7 @@ import {
   Repeat2,
 } from "lucide-react";
 import type { UpsellEntry, GuestListEntry, PetEntry } from "@/types/database";
+import { toneSolid, toneBadge } from "@/lib/status-styles";
 import { timingUpsellTime } from "@/lib/upsells/timing";
 import { CleaningDialog } from "./cleaning-dialog";
 import { CompletedCleaningDialog } from "./completed-cleaning-dialog";
@@ -156,26 +157,22 @@ export function ReservationCard({
   // Timing badge
   let timingBadge: { text: string; color: string } | null = null;
   if (category === "upcoming" && checkInLabel) {
+    const imminent = checkInLabel === "Today" || checkInLabel === "Tomorrow";
     timingBadge = {
       text: `Checking in ${checkInLabel.toLowerCase()}`,
-      color:
-        checkInLabel === "Today" || checkInLabel === "Tomorrow"
-          ? "bg-blue-500 text-white"
-          : "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
+      color: imminent ? toneSolid("info") : toneBadge("info"),
     };
   } else if (category === "current" && checkOutLabel) {
+    const imminent = checkOutLabel === "Today" || checkOutLabel === "Tomorrow";
     timingBadge = {
       text: `Checking out ${checkOutLabel.toLowerCase()}`,
-      color:
-        checkOutLabel === "Today" || checkOutLabel === "Tomorrow"
-          ? "bg-amber-500 text-white"
-          : "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
+      color: imminent ? toneSolid("warning") : toneBadge("warning"),
     };
   } else if (category === "departed" && !isCleaned) {
     const label = getRelativeDayLabel(checkOut);
     timingBadge = {
       text: label ? `Checked out ${label.toLowerCase()}` : "Checked out",
-      color: "bg-red-500 text-white",
+      color: toneSolid("danger"),
     };
   }
 
@@ -226,13 +223,13 @@ export function ReservationCard({
       <Card
         className={`transition-all ${
           resolvedIsNew
-            ? "ring-2 ring-green-500 bg-green-50/40 dark:bg-green-950/20"
+            ? "ring-2 ring-success bg-success/5"
             : isFullyDone
-              ? "border-green-500/50 bg-green-50/30 dark:bg-green-950/10 opacity-75"
+              ? "border-success/50 bg-success/5 opacity-75"
               : isSkipped
                 ? "border-muted opacity-60"
                 : category === "departed" && !isCleaned
-                  ? "border-red-300 bg-red-50/30 dark:bg-red-950/10"
+                  ? "border-warning/40 bg-warning/5"
                   : ""
         }`}
       >
@@ -259,7 +256,7 @@ export function ReservationCard({
               <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                 <h3 className="font-semibold text-sm truncate">{propertyNickname || propertyName}</h3>
                 {backToBack && (
-                  <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0 bg-rose-600 text-white">
+                  <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${toneSolid("danger")}`}>
                     <Repeat2 className="h-2.5 w-2.5" />
                     {backToBack === "both"
                       ? "Back to Back · Check-in & Check-out"
@@ -284,7 +281,7 @@ export function ReservationCard({
               {isCleaned ? (
                 <button
                   onClick={() => setDetailOpen(true)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-green-600 text-white hover:bg-green-700 transition-colors"
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors hover:opacity-90 ${toneSolid("success")}`}
                 >
                   <Check className="h-3.5 w-3.5" />
                   Cleaned
@@ -337,7 +334,7 @@ export function ReservationCard({
             {(cleaningFeeCents > 0 || petFeeCents > 0) && (
               <>
                 <span className="text-muted-foreground/40">|</span>
-                <span className="inline-flex items-center gap-0.5 whitespace-nowrap font-medium text-green-600 dark:text-green-400">
+                <span className="inline-flex items-center gap-0.5 whitespace-nowrap font-medium text-success">
                   <DollarSign className="h-3 w-3" />
                   {((cleaningFeeCents + petFeeCents) / 100).toFixed(0)}
                   {petFeeCents > 0 && (
@@ -358,25 +355,25 @@ export function ReservationCard({
           {(hasEarlyCheckin || hasLateCheckout || needsHighchair || needsPackNPlay || tipUpsells.length > 0 || regularUpsells.length > 0) && (
             <div className="flex flex-wrap items-center gap-1.5 mt-2 pt-2 border-t border-border/50">
               {hasEarlyCheckin && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-orange-100 text-orange-700 dark:bg-orange-950/30 dark:text-orange-300 border border-orange-200 dark:border-orange-900">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-secondary text-secondary-foreground">
                   <ArrowDownToLine className="h-3 w-3" />
                   Early{earlyCheckinTime ? ` ${earlyCheckinTime}` : ""}
                 </span>
               )}
               {hasLateCheckout && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-purple-100 text-purple-700 dark:bg-purple-950/30 dark:text-purple-300 border border-purple-200 dark:border-purple-900">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-secondary text-secondary-foreground">
                   <ArrowUpFromLine className="h-3 w-3" />
                   Late{lateCheckoutTime ? ` ${lateCheckoutTime}` : ""}
                 </span>
               )}
               {needsHighchair && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-sky-100 text-sky-700 dark:bg-sky-950/30 dark:text-sky-300 border border-sky-200 dark:border-sky-900">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-secondary text-secondary-foreground">
                   <Baby className="h-3 w-3" />
                   Highchair
                 </span>
               )}
               {needsPackNPlay && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-sky-100 text-sky-700 dark:bg-sky-950/30 dark:text-sky-300 border border-sky-200 dark:border-sky-900">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-secondary text-secondary-foreground">
                   <Baby className="h-3 w-3" />
                   Pack &apos;n Play
                 </span>
@@ -393,9 +390,9 @@ export function ReservationCard({
                 return (
                   <span
                     key={tip.type}
-                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-rose-100 text-rose-700 dark:bg-rose-950/30 dark:text-rose-300 border border-rose-200 dark:border-rose-800"
+                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${toneBadge("success")}`}
                   >
-                    <Heart className="h-3 w-3 fill-rose-500 text-rose-500" />
+                    <Heart className="h-3 w-3 fill-current" />
                     {amount} {label}
                   </span>
                 );
@@ -410,7 +407,7 @@ export function ReservationCard({
                     disabled={saving}
                     className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium transition-colors ${
                       isDone
-                        ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 border border-green-200 dark:border-green-800"
+                        ? toneBadge("success")
                         : "bg-muted/50 text-foreground hover:bg-muted border border-border/50"
                     }`}
                   >
@@ -485,7 +482,7 @@ function GuestBreakdownInline({
       <Users className="h-3 w-3" />
       {parts.join("/")}
       {petCount > 0 && (
-        <span className="text-amber-600 dark:text-amber-400 font-medium ml-0.5">
+        <span className="text-warning font-medium ml-0.5">
           +{petCount} pet{petCount !== 1 ? "s" : ""}
         </span>
       )}

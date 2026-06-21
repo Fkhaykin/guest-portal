@@ -24,7 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Trash2, Car, ChevronRight, ChevronLeft, Check, User, Mail, Users, PawPrint, Upload, FileCheck, ShoppingCart, Sparkles, X, PenLine, Undo2, Clock, Send, Loader2, Baby } from "lucide-react";
+import { Plus, Trash2, Car, ChevronRight, ChevronLeft, Check, User, Mail, Users, PawPrint, Upload, FileCheck, ShoppingCart, Sparkles, X, PenLine, Undo2, Clock, Send, Loader2, Baby, CircleAlert } from "lucide-react";
 import { toast } from "sonner";
 import { Checkbox } from "@/components/ui/checkbox";
 
@@ -685,8 +685,8 @@ export default function RegisterPage() {
     return (
       <div className="max-w-lg mx-auto space-y-6 py-8">
         <div className="text-center space-y-4">
-          <div className="mx-auto w-16 h-16 rounded-full bg-green-100 flex items-center justify-center">
-            <Check className="h-8 w-8 text-green-600" />
+          <div className="mx-auto h-20 w-20 rounded-full bg-success/10 flex items-center justify-center">
+            <Check className="h-10 w-10 text-success" />
           </div>
           <h2 className="text-2xl font-bold">Registration Complete!</h2>
           <p className="text-muted-foreground">
@@ -751,7 +751,7 @@ export default function RegisterPage() {
           <span>Step {step} of {totalSteps}</span>
           <span>{stepLabels[step]}</span>
         </div>
-        <div className="h-2 bg-muted rounded-full overflow-hidden">
+        <div className="h-2.5 bg-muted rounded-full overflow-hidden">
           <div
             className="h-full bg-primary rounded-full transition-all duration-300"
             style={{ width: `${(step / totalSteps) * 100}%` }}
@@ -784,7 +784,11 @@ export default function RegisterPage() {
                   autoComplete="name"
                   required
                 />
-                {nameError && <p className="text-sm text-destructive">{nameError}</p>}
+                {nameError && (
+                  <p className="flex items-center gap-1.5 rounded-md bg-destructive/10 px-2.5 py-1.5 text-sm text-destructive">
+                    <CircleAlert className="h-4 w-4 shrink-0" /> {nameError}
+                  </p>
+                )}
                 <p className="text-xs text-muted-foreground">
                   Enter your full legal name as it appears on your ID.
                 </p>
@@ -963,7 +967,9 @@ export default function RegisterPage() {
                 </div>
                 </div>
                 {idUploadError && (
-                  <p className="text-sm text-destructive">{idUploadError}</p>
+                  <p className="flex items-center gap-1.5 rounded-md bg-destructive/10 px-2.5 py-1.5 text-sm text-destructive">
+                    <CircleAlert className="h-4 w-4 shrink-0" /> {idUploadError}
+                  </p>
                 )}
               </div>
               </>
@@ -971,8 +977,8 @@ export default function RegisterPage() {
             </CardContent>
           </Card>
           {!isAirbnb && (!idFrontPath || !idBackPath) && !idUploadError && (
-            <p className="text-sm text-destructive text-center">
-              Please upload both sides of your ID to continue.
+            <p className="mx-auto flex w-fit items-center gap-1.5 rounded-md bg-destructive/10 px-2.5 py-1.5 text-sm text-destructive">
+              <CircleAlert className="h-4 w-4 shrink-0" /> Please upload both sides of your ID to continue.
             </p>
           )}
           {navButtons(1)}
@@ -1114,14 +1120,15 @@ export default function RegisterPage() {
           </Card>
 
           {showGuestCountWarning && (
-            <div className="rounded-lg border-2 border-amber-400 bg-amber-50 p-4 space-y-2">
-              <p className="text-sm font-medium text-amber-900">
+            <div className="rounded-lg border border-warning/30 bg-warning/10 p-4 space-y-2">
+              <p className="flex items-center gap-1.5 text-sm font-medium text-foreground">
+                <CircleAlert className="h-4 w-4 shrink-0 text-warning" />
                 Your booking is for {session?.reservation.num_guests} guest{(session?.reservation.num_guests || 0) !== 1 ? "s" : ""}, but you&apos;ve only listed {guests.length}.
               </p>
-              <p className="text-sm text-amber-800">
+              <p className="text-sm text-foreground">
                 Are you sure you want to continue? All guests staying at the property must be registered.
               </p>
-              <p className="text-xs text-amber-700">
+              <p className="text-xs text-muted-foreground">
                 Click &ldquo;Next&rdquo; again to proceed, or add the remaining guests above.
               </p>
             </div>
@@ -1172,7 +1179,7 @@ export default function RegisterPage() {
               </div>
 
               {hasPets && petFeeCents > 0 && (
-                <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm text-amber-900">
+                <div className="rounded-lg border border-warning/30 bg-warning/10 p-3 text-sm text-foreground">
                   {lodgifyNumPets > 0
                     ? `Your reservation includes ${lodgifyNumPets} pet${lodgifyNumPets !== 1 ? "s" : ""}. A $${(petFeeCents / 100).toFixed(petFeeCents % 100 === 0 ? 0 : 2)} fee applies for each additional pet.`
                     : `A $${(petFeeCents / 100).toFixed(petFeeCents % 100 === 0 ? 0 : 2)} non-refundable pet fee applies per pet.`}
@@ -1369,7 +1376,7 @@ export default function RegisterPage() {
               </Button>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm text-amber-900">
+              <div className="rounded-lg border border-warning/30 bg-warning/10 p-3 text-sm text-foreground">
                 All vehicles must be registered prior to arrival. Unregistered vehicles may experience delays at the community security gate.
               </div>
 

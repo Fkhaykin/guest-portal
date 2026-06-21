@@ -17,7 +17,7 @@ const PENN_ESTATES_ARRIVAL = `Arriving at the community:
 
 Penn Estates is a gated community — all guests must check in at the Main Gate, where the registered guest presents a valid driver's license to receive a printed gate pass for the duration of the stay.
 
-Detailed driving directions and gate check-in info are in our guest portal: guest.summitlakeside.com
+Detailed driving directions and gate check-in info are in your guest portal: {{portal_link}}
 
 Do not share gate passes or sneak additional vehicles/guests that haven't been registered. I cannot emphasize this enough: they have cameras, security will catch you and give an unreasonably high citation. Let's follow the rules and avoid this please!`;
 
@@ -25,7 +25,7 @@ const DELIVERIES = `GUESTS & DELIVERIES:
 
 All guests must be noted on the registration form. Guests who are not on the form will be denied entry at the gate.
 
-To allow a food, Uber, or any other delivery driver through the gate, register the delivery in our guest portal (guest.summitlakeside.com) or send us a message, and we will call it into the gate. Gatehouse staff will not allow any driver through without a registration form or a delivery registration.
+To allow a food, Uber, or any other delivery driver through the gate, register the delivery in your guest portal ({{portal_link}}) or send us a message, and we will call it into the gate. Gatehouse staff will not allow any driver through without a registration form or a delivery registration.
 
 Our general store inside the community is Archie's Corner (www.archiescorner.com) and is available for food and any last minute needs at 443 Penn Estates Dr, next to the pools and community center. We recommend the breakfast sandwich, Italian Hero, and chicken fingers!`;
 
@@ -37,7 +37,7 @@ All trash should be placed in the bins just outside the garage door, they are mi
 
 const CHECKOUT = `Check-out: {{check_out_time}}
 
-Need a later check-out? Availability and booking are in our guest portal (guest.summitlakeside.com). Leaving after check-out without prior notice will incur a $50 fee.
+Need a later check-out? Availability and booking are in your guest portal: {{portal_link}}. Leaving after check-out without prior notice will incur a $50 fee.
 
 Please be aware that the cleaning fee is for basic whole house cleaning. Anything out of the ordinary (such as excessive trash, unremovable stains, etc) will incur extra cleaning fees as per the rental agreement.
 
@@ -79,7 +79,7 @@ Wifi:
 Name: Lakeside
 Password: relax484
 
-Please see the House Manual in our guest portal for all info on Safety, Temperature Control, use of Sauna, Hot Tub, Fireplace, TVs, and more.
+For info on safety, temperature control, the sauna, hot tub, fireplace, TVs, and more, see the how-to videos and FAQ in your guest portal: {{portal_link}}
 
 ${DELIVERIES}
 
@@ -106,7 +106,7 @@ Wifi:
 Name: The Chalet
 Password: relax475
 
-Please see the House Manual in our guest portal for all info on Safety, Temperature Control, use of Sauna, Hot Tub, Fireplace, TVs, and more.
+For info on safety, temperature control, the sauna, hot tub, fireplace, TVs, and more, see the how-to videos and FAQ in your guest portal: {{portal_link}}
 
 ${DELIVERIES}
 
@@ -134,7 +134,7 @@ Wifi:
 Name: Lakeside Manor - 5G
 Password: relax424
 
-Please see the House Manual in our guest portal for all info on Safety, Temperature Control, Hot Tub, Fireplace, TVs, Community Amenities, and Canoes/Kayaks.
+For info on safety, temperature control, the hot tub, fireplace, TVs, community amenities, and canoes/kayaks, see the how-to videos and FAQ in your guest portal: {{portal_link}}
 
 ${DELIVERIES}
 

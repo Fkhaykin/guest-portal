@@ -112,12 +112,12 @@ export function PropertyHeader({
               alt="Summit Lakeside"
               width={120}
               height={60}
-              className="h-7 w-auto invert dark:invert-0"
+              className="h-8 w-auto invert dark:invert-0"
               priority
             />
           </Link>
           <span className="text-muted-foreground hidden sm:inline">|</span>
-          <h1 className="font-semibold text-sm sm:text-lg truncate">
+          <h1 className="font-semibold text-base sm:text-lg truncate">
             {propertyName}
           </h1>
         </div>

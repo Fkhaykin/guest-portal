@@ -4,7 +4,6 @@ import { validateCleanerSession } from "@/lib/cleaner/auth";
 import { getSessionToken } from "@/lib/cleaner/session";
 import { ReservationCard } from "@/components/cleaner/reservation-card";
 import { TasksTabs } from "@/components/cleaner/tasks-tabs";
-import { Card, CardContent } from "@/components/ui/card";
 import {
   AlertTriangle,
   CalendarCheck,
@@ -14,6 +13,9 @@ import {
 } from "lucide-react";
 import { SyncBookingsButton } from "@/components/cleaner/sync-bookings-button";
 import { NewIdsProvider } from "@/components/cleaner/new-ids-provider";
+import { PageHeader } from "@/components/ui/page-header";
+import { StatCard } from "@/components/ui/stat-card";
+import { EmptyState } from "@/components/ui/empty-state";
 import type { UpsellEntry, GuestListEntry, PetEntry } from "@/types/database";
 
 export const dynamic = "force-dynamic";
@@ -59,13 +61,12 @@ export default async function CleanerDashboard() {
 
   if (propertyIds.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 text-center space-y-3">
-        <Home className="h-12 w-12 text-muted-foreground/30" />
-        <p className="text-muted-foreground">
-          No properties assigned yet.
-          <br />
-          Ask your host to assign properties to your account.
-        </p>
+      <div className="max-w-3xl mx-auto py-10">
+        <EmptyState
+          icon={Home}
+          title="No properties assigned yet"
+          description="Ask your host to assign properties to your account."
+        />
       </div>
     );
   }
@@ -216,40 +217,36 @@ export default async function CleanerDashboard() {
     <NewIdsProvider>
     <div className="space-y-6 max-w-3xl mx-auto">
       {/* Header with sync button */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold">Tasks</h1>
-        <SyncBookingsButton />
-      </div>
+      <PageHeader title="Tasks" actions={<SyncBookingsButton />} />
 
       {/* Summary stats */}
       <div className="grid grid-cols-3 gap-3">
-        <Card>
-          <CardContent className="pt-4 pb-3 text-center">
-            <p className="text-2xl font-bold">{current.length}</p>
-            <p className="text-xs text-muted-foreground">In-House</p>
-          </CardContent>
-        </Card>
-        <Card className={needsCleaning > 0 ? "border-red-300 bg-red-50/30 dark:bg-red-950/10" : ""}>
-          <CardContent className="pt-4 pb-3 text-center">
-            <p className={`text-2xl font-bold ${needsCleaning > 0 ? "text-red-600" : ""}`}>
-              {needsCleaning}
-            </p>
-            <p className="text-xs text-muted-foreground">Need Cleaning</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4 pb-3 text-center">
-            <p className="text-2xl font-bold">{upcoming.length}</p>
-            <p className="text-xs text-muted-foreground">Upcoming</p>
-          </CardContent>
-        </Card>
+        <StatCard
+          icon={CalendarCheck}
+          value={current.length}
+          label="In-House"
+          tone="info"
+        />
+        <StatCard
+          icon={AlertTriangle}
+          value={needsCleaning}
+          label="Need Cleaning"
+          tone={needsCleaning > 0 ? "warning" : "neutral"}
+          className={needsCleaning > 0 ? "border-warning/40 bg-warning/5" : ""}
+        />
+        <StatCard
+          icon={CalendarClock}
+          value={upcoming.length}
+          label="Upcoming"
+          tone="neutral"
+        />
       </div>
 
       {/* Needs cleaning alert */}
       {needsCleaning > 0 && (
-        <div className="flex items-center gap-3 rounded-lg border border-red-200 bg-red-50 dark:bg-red-950/20 dark:border-red-900 px-4 py-3">
-          <AlertTriangle className="h-5 w-5 text-red-500 shrink-0" />
-          <p className="text-sm font-medium text-red-800 dark:text-red-300">
+        <div className="flex items-center gap-3 rounded-lg border border-warning/30 bg-warning/10 px-4 py-3">
+          <AlertTriangle className="h-5 w-5 text-warning shrink-0" />
+          <p className="text-sm font-medium text-warning">
             {needsCleaning} departed reservation{needsCleaning > 1 ? "s" : ""} still need
             {needsCleaning === 1 ? "s" : ""} cleaning
           </p>
@@ -263,7 +260,7 @@ export default async function CleanerDashboard() {
           {
             key: "needs-cleaning",
             label: "Needs Cleaning",
-            icon: <AlertTriangle className="h-3.5 w-3.5 text-red-500" />,
+            icon: <AlertTriangle className="h-3.5 w-3.5 text-warning" />,
             count: uncleanedDeparted.length,
             cards: renderCards(uncleanedDeparted, "departed"),
             empty: "All caught up!",
@@ -271,7 +268,7 @@ export default async function CleanerDashboard() {
           {
             key: "in-house",
             label: "In-House",
-            icon: <CalendarCheck className="h-3.5 w-3.5 text-blue-500" />,
+            icon: <CalendarCheck className="h-3.5 w-3.5 text-primary" />,
             count: current.length,
             cards: renderCards(current, "current"),
             empty: "No guests currently in-house.",
@@ -279,7 +276,7 @@ export default async function CleanerDashboard() {
           {
             key: "upcoming",
             label: "Upcoming",
-            icon: <CalendarClock className="h-3.5 w-3.5 text-amber-500" />,
+            icon: <CalendarClock className="h-3.5 w-3.5 text-muted-foreground" />,
             count: upcoming.length,
             cards: renderCards(upcoming, "upcoming"),
             empty: "No upcoming arrivals.",
@@ -287,7 +284,7 @@ export default async function CleanerDashboard() {
           {
             key: "completed",
             label: "Completed",
-            icon: <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />,
+            icon: <CheckCircle2 className="h-3.5 w-3.5 text-success" />,
             count: cleanedDeparted.length,
             cards: renderCards(cleanedDeparted, "departed"),
             empty: "No completed cleanings yet.",

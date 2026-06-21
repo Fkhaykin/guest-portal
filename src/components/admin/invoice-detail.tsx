@@ -25,15 +25,8 @@ import {
   FileText,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { toneBadge, statusTone } from "@/lib/status-styles";
 import type { InvoiceLineItem, InvoiceStatus } from "@/types/database";
-
-const STATUS_STYLES: Record<string, string> = {
-  open: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200",
-  draft: "bg-muted text-muted-foreground",
-  submitted: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
-  approved: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
-  paid: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
-};
 
 const TYPE_ICONS: Record<string, typeof Home> = {
   cleaning: Home,
@@ -349,7 +342,7 @@ export function AdminInvoiceDetail({
             <Trash2 className="h-3.5 w-3.5 mr-1" />
             {deleting ? "Deleting…" : "Delete"}
           </Button>
-          <Badge className={STATUS_STYLES[status]}>{status}</Badge>
+          <Badge className={toneBadge(statusTone(status))}>{status}</Badge>
         </div>
       </div>
 

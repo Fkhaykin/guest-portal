@@ -41,7 +41,7 @@ export function LoginForm() {
   }
 
   return (
-    <Card>
+    <Card className="shadow-lg ring-1 ring-border/60">
       <CardContent className="pt-6">
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">

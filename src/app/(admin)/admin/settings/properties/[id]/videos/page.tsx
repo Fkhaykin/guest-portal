@@ -14,7 +14,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Plus, Trash2, Upload } from "lucide-react";
+import { Plus, Trash2, Upload, Video } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
 import type { Tables } from "@/types/database";
 
 export default function AdminVideosPage({
@@ -174,7 +175,11 @@ export default function AdminVideosPage({
           ))}
         </div>
       ) : (
-        <p className="text-muted-foreground">No videos uploaded yet.</p>
+        <EmptyState
+          icon={Video}
+          title="No videos uploaded yet."
+          description="Upload instructional videos to walk guests through the property."
+        />
       )}
     </div>
   );

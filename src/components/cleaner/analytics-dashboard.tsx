@@ -15,7 +15,11 @@ import {
   X,
   PiggyBank,
   Info,
+  BarChart3,
 } from "lucide-react";
+import { PageHeader } from "@/components/ui/page-header";
+import { StatCard } from "@/components/ui/stat-card";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   BarChart,
   Bar,
@@ -162,7 +166,7 @@ export function AnalyticsDashboard({
 
   return (
     <div className="space-y-6 max-w-3xl mx-auto">
-      <h1 className="text-xl font-bold">Dashboard</h1>
+      <PageHeader title="Dashboard" />
 
       {/* Date filter */}
       <Card>
@@ -211,86 +215,50 @@ export function AnalyticsDashboard({
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 gap-3">
-        <Link href="/cleaner/tasks">
-          <Card className="hover:border-primary/50 transition-colors cursor-pointer">
-            <CardContent className="pt-4 pb-3">
-              <div className="flex items-center gap-3">
-                <div className="rounded-full bg-amber-100 dark:bg-amber-950/30 p-2">
-                  <CalendarClock className="h-4 w-4 text-amber-600" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{upcomingCleanings}</p>
-                  <p className="text-xs text-muted-foreground">
-                    Upcoming Cleanings
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+        <Link href="/cleaner/tasks" className="block">
+          <StatCard
+            icon={CalendarClock}
+            value={upcomingCleanings}
+            label="Upcoming Cleanings"
+            tone="warning"
+            className="hover:border-primary/50 transition-colors cursor-pointer"
+          />
         </Link>
 
-        <Link href="/cleaner/invoices">
-          <Card
-            className={`hover:border-primary/50 transition-colors cursor-pointer ${openBalance > 0 ? "border-green-300 dark:border-green-800" : ""}`}
-          >
-            <CardContent className="pt-4 pb-3">
-              <div className="flex items-center gap-3">
-                <div className="rounded-full bg-green-100 dark:bg-green-950/30 p-2">
-                  <DollarSign className="h-4 w-4 text-green-600" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-green-600">
-                    {formatCents(openBalance)}
-                  </p>
-                  <p className="text-xs text-muted-foreground">Open Balance</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+        <Link href="/cleaner/invoices" className="block">
+          <StatCard
+            icon={DollarSign}
+            value={formatCents(openBalance)}
+            label="Open Balance"
+            tone="success"
+            className={`hover:border-primary/50 transition-colors cursor-pointer ${openBalance > 0 ? "border-success/40" : ""}`}
+          />
         </Link>
 
-        <Card>
-          <CardContent className="pt-4 pb-3">
-            <div className="flex items-center gap-3">
-              <div className="rounded-full bg-blue-100 dark:bg-blue-950/30 p-2">
-                <ClipboardList className="h-4 w-4 text-blue-600" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{totalCleanings}</p>
-                <p className="text-xs text-muted-foreground">
-                  Total Cleanings
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <StatCard
+          icon={ClipboardList}
+          value={totalCleanings}
+          label="Total Cleanings"
+          tone="info"
+        />
 
-        <Card>
-          <CardContent className="pt-4 pb-3">
-            <div className="flex items-center gap-3">
-              <div className="rounded-full bg-purple-100 dark:bg-purple-950/30 p-2">
-                <TrendingUp className="h-4 w-4 text-purple-600" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">
-                  {formatCents(totalRevenue)}
-                </p>
-                <p className="text-xs text-muted-foreground">Earned Revenue</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <StatCard
+          icon={TrendingUp}
+          value={formatCents(totalRevenue)}
+          label="Earned Revenue"
+          tone="success"
+        />
 
         {/* Estimated tax savings tile */}
-        <Card className="col-span-2 border-rose-200 dark:border-rose-900/50">
+        <Card className="col-span-2 border-warning/30">
           <CardContent className="pt-4 pb-3">
             <div className="flex items-center gap-3">
-              <div className="rounded-full bg-rose-100 dark:bg-rose-950/30 p-2">
-                <PiggyBank className="h-4 w-4 text-rose-500" />
+              <div className="rounded-full bg-warning/15 text-warning p-2">
+                <PiggyBank className="h-4 w-4" />
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <p className="text-2xl font-bold text-rose-600 dark:text-rose-400">
+                  <p className="text-2xl font-bold">
                     {formatCents(estimatedTax)}
                   </p>
                   {isEditingRate ? (
@@ -339,13 +307,13 @@ export function AnalyticsDashboard({
 
       {/* Future revenue banner */}
       {futureRevenue > 0 && (
-        <div className="flex items-center gap-3 rounded-lg border border-purple-200 bg-purple-50 dark:bg-purple-950/20 dark:border-purple-900 px-4 py-3">
-          <Sparkles className="h-5 w-5 text-purple-500 shrink-0" />
+        <div className="flex items-center gap-3 rounded-lg border border-info/30 bg-info/10 px-4 py-3">
+          <Sparkles className="h-5 w-5 text-info shrink-0" />
           <p className="text-sm">
-            <span className="font-semibold text-purple-700 dark:text-purple-300">
+            <span className="font-semibold text-info">
               {formatCents(futureRevenue)}
             </span>{" "}
-            <span className="text-purple-600 dark:text-purple-400">
+            <span className="text-muted-foreground">
               projected from upcoming bookings
             </span>
           </p>
@@ -367,9 +335,12 @@ export function AnalyticsDashboard({
               d["Projected Cleaning"] === 0 &&
               d["Projected Pet Fees"] === 0
           ) ? (
-            <div className="flex items-center justify-center h-48 text-sm text-muted-foreground">
-              No revenue data yet
-            </div>
+            <EmptyState
+              icon={BarChart3}
+              title="No revenue data yet"
+              description="Completed cleanings will appear here as monthly revenue."
+              className="border-0 bg-transparent py-10"
+            />
           ) : (
             <ResponsiveContainer width="100%" height={280}>
               <BarChart
@@ -447,9 +418,12 @@ export function AnalyticsDashboard({
         </CardHeader>
         <CardContent>
           {byProperty.length === 0 ? (
-            <div className="flex items-center justify-center h-24 text-sm text-muted-foreground">
-              No cleaning data yet
-            </div>
+            <EmptyState
+              icon={ClipboardList}
+              title="No cleaning data yet"
+              description="Revenue by property shows up once cleanings are logged."
+              className="border-0 bg-transparent py-10"
+            />
           ) : (
             <div className="space-y-3">
               {byProperty.map((p) => (
@@ -462,13 +436,13 @@ export function AnalyticsDashboard({
                     <p className="text-xs text-muted-foreground">
                       {p.cleanings} cleaning{p.cleanings !== 1 ? "s" : ""}
                       {p.petFeeRevenue > 0 && (
-                        <span className="text-amber-600">
+                        <span className="text-warning">
                           {" "}
                           &middot; {formatCents(p.petFeeRevenue)} pet fees
                         </span>
                       )}
                       {p.futureCleanings > 0 && (
-                        <span className="text-purple-500">
+                        <span className="text-info">
                           {" "}
                           &middot; {p.futureCleanings} upcoming
                         </span>
@@ -480,7 +454,7 @@ export function AnalyticsDashboard({
                       {formatCents(p.totalRevenue)}
                     </p>
                     {p.futureRevenue > 0 && (
-                      <p className="text-[11px] text-purple-500 whitespace-nowrap">
+                      <p className="text-[11px] text-info whitespace-nowrap">
                         +{formatCents(p.futureRevenue)} projected
                       </p>
                     )}

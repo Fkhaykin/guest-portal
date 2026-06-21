@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ShoppingCart, Sparkles, X, Clock, Loader2, Check, Flame, BedDouble, UtensilsCrossed, TreePine, Baby, Coffee, DoorOpen, DoorClosed, Send } from "lucide-react";
+import { toneBadge } from "@/lib/status-styles";
 
 type UpsellOption = {
   type: string;
@@ -264,7 +265,7 @@ export default function AddOnsPage() {
     return (
       <div className="max-w-md mx-auto space-y-6">
         <div className="text-center space-y-2">
-          <h1 className="text-2xl font-bold tracking-tight">Add-Ons</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Add-Ons</h1>
           <p className="text-sm text-destructive">{error}</p>
         </div>
       </div>
@@ -274,7 +275,7 @@ export default function AddOnsPage() {
   return (
     <div className="space-y-6 max-w-2xl mx-auto">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Add-Ons</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Add-Ons</h1>
         <p className="text-muted-foreground text-sm">
           Enhance your stay with extras and experiences
         </p>
@@ -331,7 +332,7 @@ export default function AddOnsPage() {
                         {/* Inline button for simple items */}
                         {option.purchased && (
                           <div className="mt-2">
-                            <Badge variant="secondary" className="text-green-700 bg-green-50 border-green-200">
+                            <Badge variant="secondary" className={`border-transparent ${toneBadge("success")}`}>
                               <Check className="h-3 w-3 mr-1" /> Purchased
                             </Badge>
                           </div>
@@ -347,7 +348,7 @@ export default function AddOnsPage() {
                                   return (
                                     <button key={d.hours} type="button" disabled={inCart}
                                       onClick={() => setTimingHours((prev) => ({ ...prev, [option.type]: d.hours }))}
-                                      className={`flex-1 min-w-28 rounded-lg border px-3 py-2 text-left text-xs transition-colors disabled:opacity-60 ${selected ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}`}>
+                                      className={`flex-1 min-w-28 rounded-lg border px-3 py-2.5 text-left text-sm transition-colors disabled:opacity-60 ${selected ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}`}>
                                       <span className="block font-medium">+{d.hours} hr{d.hours !== 1 ? "s" : ""} · {d.time_label}</span>
                                       <span className="block font-semibold">{formatCents(d.price_cents)}</span>
                                     </button>
@@ -398,7 +399,7 @@ export default function AddOnsPage() {
                           <div className="mt-2 space-y-2">
                             <p className="text-xs text-muted-foreground leading-snug">{option.unavailable_reason}</p>
                             {requestSent.has(option.type) ? (
-                              <Badge variant="secondary" className="text-green-700 bg-green-50 border-green-200">
+                              <Badge variant="secondary" className={`border-transparent ${toneBadge("success")}`}>
                                 <Check className="h-3 w-3 mr-1" /> Request sent
                               </Badge>
                             ) : (
@@ -789,9 +790,9 @@ export default function AddOnsPage() {
                 <span>{item.label}</span>
                 <div className="flex items-center gap-2">
                   <span className="font-medium">{formatCents(item.price_cents)}</span>
-                  <Button type="button" variant="ghost" size="icon" className="h-6 w-6"
+                  <Button type="button" variant="ghost" size="icon" className="h-8 w-8"
                     onClick={() => removeFromCart(item.type)}>
-                    <X className="h-3 w-3" />
+                    <X className="h-4 w-4" />
                   </Button>
                 </div>
               </div>

@@ -1,10 +1,14 @@
 import Link from "next/link";
-import { AnalyticsCharts } from "@/components/admin/analytics-charts";
+import { AnalyticsCharts } from "@/components/admin/analytics-charts-lazy";
+import { PageHeader } from "@/components/ui/page-header";
 
 export default async function AdminDashboardPage() {
   return (
     <div className="space-y-8">
-      <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+      <PageHeader
+        title="Dashboard"
+        description="Performance across all your properties at a glance."
+      />
 
       <AnalyticsCharts />
 

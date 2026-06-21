@@ -144,7 +144,7 @@ export function CleanerSidebar({
         aria-label="Cleaner portal"
         className="md:hidden fixed bottom-0 left-0 right-0 z-40 border-t bg-card pb-[env(safe-area-inset-bottom)]"
       >
-        <div className="flex justify-around py-1">
+        <div className="flex justify-around py-2">
           {navItems.map((item) => {
             const isActive =
               item.href === "/cleaner"
@@ -156,7 +156,7 @@ export function CleanerSidebar({
                 href={item.href}
                 aria-current={isActive ? "page" : undefined}
                 className={cn(
-                  "flex flex-col items-center justify-center gap-0.5 px-4 py-2 min-h-12 text-[11px] transition-colors",
+                  "flex flex-col items-center justify-center gap-0.5 px-4 py-2.5 min-h-12 text-xs transition-colors",
                   isActive
                     ? "text-primary font-medium"
                     : "text-muted-foreground"

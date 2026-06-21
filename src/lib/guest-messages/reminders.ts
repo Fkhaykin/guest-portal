@@ -1,12 +1,11 @@
 import { Resend } from "resend";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendMessage } from "@/lib/lodgify/messages";
-import { TEMPLATES, interpolate, firstNameOf, type TemplateVars } from "./templates";
+import { TEMPLATES, PORTAL_URL, interpolate, firstNameOf, type TemplateVars } from "./templates";
 import { stayTimeVars } from "@/lib/upsells/timing";
 import { stripUrlsForSms } from "@/lib/sms/sanitize";
 import type { GuestMessageSettings, UpsellEntry } from "@/types/database";
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://guest.summitlakeside.com";
 const TEXTBELT_KEY = process.env.TEXTBELT_API_KEY?.trim();
 
 export const REMINDER_DAYS = [10, 7, 6, 5, 4, 3, 2, 1] as const;
@@ -103,7 +102,7 @@ export async function sendRegistrationReminder(params: SendReminderParams): Prom
     check_in_date: params.checkInDate,
     check_out_date: params.checkOutDate,
     ...stayTimeVars(params.upsells),
-    portal_link: `${APP_URL}/p/${params.propertySlug}/register`,
+    portal_link: PORTAL_URL,
   };
 
   const defaults = TEMPLATES.registration_reminder;
@@ -142,9 +141,13 @@ export async function sendRegistrationReminder(params: SendReminderParams): Prom
   }
 
   if (params.guestPhone) {
+    // SMS can't carry the link until Textbelt whitelists the key (see
+    // sms/sanitize). Point guests at a path that actually exists — replying
+    // reaches the host via the inbound SMS webhook — instead of a "booking
+    // confirmation" link that was stripped or (for Airbnb) never sent.
     const smsBody = stripUrlsForSms(
       body,
-      "(use the registration link from your booking confirmation)"
+      "(reply to this text and we'll send you the registration link)"
     );
     const smsResult = await sendGuestSms(params.guestPhone, smsBody, {
       eventType: messageTypeKey,

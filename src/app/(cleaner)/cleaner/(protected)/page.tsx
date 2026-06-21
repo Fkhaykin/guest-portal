@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { validateCleanerSession } from "@/lib/cleaner/auth";
 import { getSessionToken } from "@/lib/cleaner/session";
-import { AnalyticsDashboard } from "@/components/cleaner/analytics-dashboard";
+import { AnalyticsDashboard } from "@/components/cleaner/analytics-dashboard-lazy";
 import type { InvoiceLineItem } from "@/types/database";
 
 export const dynamic = "force-dynamic";

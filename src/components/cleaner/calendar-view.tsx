@@ -335,7 +335,7 @@ export function CalendarView({
                           <td className="p-3 text-center">{r.numGuests}</td>
                           <td className="p-3 text-center">
                             {petCount > 0 ? (
-                              <span className="text-amber-600 font-medium">{petCount}</span>
+                              <span className="text-warning font-medium">{petCount}</span>
                             ) : (
                               <span className="text-muted-foreground">—</span>
                             )}
@@ -343,7 +343,7 @@ export function CalendarView({
                           <td className="p-3 text-right">${Math.round(r.cleaningFeeCents / 100)}</td>
                           <td className="p-3 text-right">
                             {r.petFeeCents > 0 ? (
-                              <span className="text-amber-600">${Math.round(r.petFeeCents / 100)}</span>
+                              <span className="text-warning">${Math.round(r.petFeeCents / 100)}</span>
                             ) : (
                               <span className="text-muted-foreground">—</span>
                             )}
@@ -411,7 +411,7 @@ export function CalendarView({
                           <td className="p-3 text-center">{r.numGuests}</td>
                           <td className="p-3 text-center">
                             {petCount > 0 ? (
-                              <span className="text-amber-600 font-medium">{petCount}</span>
+                              <span className="text-warning font-medium">{petCount}</span>
                             ) : (
                               <span className="text-muted-foreground">—</span>
                             )}
@@ -419,7 +419,7 @@ export function CalendarView({
                           <td className="p-3 text-right">${Math.round(r.cleaningFeeCents / 100)}</td>
                           <td className="p-3 text-right">
                             {r.petFeeCents > 0 ? (
-                              <span className="text-amber-600">${Math.round(r.petFeeCents / 100)}</span>
+                              <span className="text-warning">${Math.round(r.petFeeCents / 100)}</span>
                             ) : (
                               <span className="text-muted-foreground">—</span>
                             )}
@@ -466,7 +466,7 @@ export function CalendarView({
                       </div>
                       <p className="text-xs text-muted-foreground mt-0.5">
                         {r.guestName || "Blocked"} · {r.numGuests} guest{r.numGuests !== 1 ? "s" : ""}
-                        {petCount > 0 && <span className="text-amber-600"> · {petCount} pet{petCount !== 1 ? "s" : ""}</span>}
+                        {petCount > 0 && <span className="text-warning"> · {petCount} pet{petCount !== 1 ? "s" : ""}</span>}
                       </p>
                       <p className="text-xs text-muted-foreground mt-1">
                         {formatDateLong(r.checkIn)} → {formatDateLong(r.checkOut)} · {r.nights}n
@@ -476,7 +476,7 @@ export function CalendarView({
                       <p className="font-semibold text-sm">${Math.round(r.cleanerRevenueCents / 100)}</p>
                       <div className="flex flex-col items-end gap-0.5 mt-1">
                         {r.petFeeCents > 0 && (
-                          <span className="text-[10px] text-amber-600">+${Math.round(r.petFeeCents / 100)} pet</span>
+                          <span className="text-[10px] text-warning">+${Math.round(r.petFeeCents / 100)} pet</span>
                         )}
                         <Badge
                           variant={r.isCleaned ? "default" : "outline"}
@@ -749,7 +749,7 @@ export function CalendarView({
                           </span>
                         )}
                         {petCount > 0 && (
-                          <span className="flex items-center gap-1.5 text-amber-600 font-medium">
+                          <span className="flex items-center gap-1.5 text-warning font-medium">
                             <PawPrint className="h-4 w-4" />
                             {petCount} pet{petCount !== 1 ? "s" : ""}
                           </span>

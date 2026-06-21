@@ -1,11 +1,13 @@
 import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
+import { HelpCircle } from "lucide-react";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { EmptyState } from "@/components/ui/empty-state";
 
 export default async function FaqPage({
   params,
@@ -69,7 +71,11 @@ export default async function FaqPage({
           </div>
         ))
       ) : (
-        <p className="text-muted-foreground">No FAQs available yet.</p>
+        <EmptyState
+          icon={HelpCircle}
+          title="No FAQs available yet"
+          description="Questions and answers about your stay will appear here once they're added."
+        />
       )}
     </div>
   );

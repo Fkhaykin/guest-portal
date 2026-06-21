@@ -104,57 +104,73 @@ export async function updateSession(request: NextRequest) {
   // --- Supabase session ---------------------------------------------------
   let supabaseResponse = makeResponse();
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll();
+  // Only the admin portal relies on the Supabase user — for route protection
+  // and session refresh. Guest and marketing routes are anonymous, and cleaner
+  // routes use their own cookie (checked below). So we skip the getUser()
+  // network round-trip everywhere except /admin, which is the bulk of (public)
+  // traffic and the main source of per-navigation latency.
+  if (internalPath.startsWith("/admin")) {
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return request.cookies.getAll();
+          },
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value }) =>
+              request.cookies.set(name, value)
+            );
+            supabaseResponse = makeResponse();
+            cookiesToSet.forEach(({ name, value, options }) =>
+              supabaseResponse.cookies.set(name, value, options)
+            );
+          },
         },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) =>
-            request.cookies.set(name, value)
-          );
-          supabaseResponse = makeResponse();
-          cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
-          );
-        },
-      },
+      }
+    );
+
+    // No Supabase auth cookie at all → definitely signed out. Skip the network
+    // call and go straight to the login redirect.
+    const hasAuthCookie = request.cookies
+      .getAll()
+      .some((c) => c.name.startsWith("sb-") && c.name.includes("auth-token"));
+
+    let isAuthenticated = false;
+    if (hasAuthCookie) {
+      // Refresh the session — important for Server Components — and validate.
+      const {
+        data: { user },
+        error: getUserError,
+      } = await supabase.auth.getUser();
+
+      isAuthenticated = !!user;
+
+      // On mobile PWA cold-start, iOS hasn't established network by the time
+      // middleware runs. getUser() makes a network call and returns null on
+      // failure, which would bounce the user to login even with a valid
+      // session. Fall back to the local session on a transient fetch error.
+      if (!isAuthenticated && getUserError?.name === "AuthRetryableFetchError") {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        isAuthenticated = !!session;
+      }
     }
-  );
 
-  // Refresh the session — important for Server Components
-  const {
-    data: { user },
-    error: getUserError,
-  } = await supabase.auth.getUser();
-
-  // On mobile PWA cold-start, iOS hasn't established network by the time
-  // middleware runs. getUser() always makes a network call and returns null on
-  // failure, which would redirect the user to login even with a valid session.
-  // Fall back to a local getSession() check when it's a transient fetch error.
-  let isAuthenticated = !!user;
-  if (!isAuthenticated && getUserError?.name === "AuthRetryableFetchError") {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    isAuthenticated = !!session;
-  }
-
-  // Protect admin routes
-  if (internalPath.startsWith("/admin") && !isAuthenticated) {
-    const url = request.nextUrl.clone();
-    // Send the user back to the exact page they asked for after login —
-    // pathname is the external (pre-rewrite) path, valid on any subdomain.
-    // Keep the query string so deep links (e.g. /messages?booking=X from a
-    // push notification) survive the round-trip.
-    const redirectTo = `${pathname}${url.search}`;
-    url.pathname = "/auth/login";
-    url.search = "";
-    url.searchParams.set("redirect", redirectTo);
-    return NextResponse.redirect(url);
+    if (!isAuthenticated) {
+      const url = request.nextUrl.clone();
+      // Send the user back to the exact page they asked for after login —
+      // pathname is the external (pre-rewrite) path, valid on any subdomain.
+      // Keep the query string so deep links (e.g. /messages?booking=X from a
+      // push notification) survive the round-trip.
+      const redirectTo = `${pathname}${url.search}`;
+      url.pathname = "/auth/login";
+      url.search = "";
+      url.searchParams.set("redirect", redirectTo);
+      return NextResponse.redirect(url);
+    }
   }
 
   // Protect cleaner routes (cookie presence check only; full validation in layout)

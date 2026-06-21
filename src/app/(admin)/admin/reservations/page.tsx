@@ -17,7 +17,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ArrowDown, ArrowUp, ArrowUpDown, CalendarRange, ChevronDown, List, Plus, RefreshCw, Search, X } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, CalendarRange, ChevronDown, List, Plus, RefreshCw, Search, X, CalendarX } from "lucide-react";
+import { toneBadge, statusTone } from "@/lib/status-styles";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
 import type { GuestListEntry, PetEntry } from "@/types/database";
 import { AdminCalendarView, type AdminCalendarEntry, type AdminPropertyGroup } from "@/components/admin/admin-calendar-view";
 
@@ -289,9 +292,7 @@ export default function AdminReservationsPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Reservations</h1>
-        </div>
+        <PageHeader title="Reservations" className="min-w-0" />
         {/* mr-12 clears the fixed mobile menu toggle */}
         <div className="flex items-center gap-2 shrink-0 mr-12 md:mr-0">
           <button
@@ -505,7 +506,7 @@ export default function AdminReservationsPage() {
                       </TableRow>
                     )}
                     <TableRow
-                      className={`cursor-pointer hover:bg-muted/50 ${newIds.has(reg.id) ? "bg-green-50 dark:bg-green-950/20 border-l-2 border-l-green-500" : ""}`}
+                      className={`cursor-pointer hover:bg-muted/50 ${newIds.has(reg.id) ? "bg-success/5 border-l-2 border-l-success" : ""}`}
                       onClick={() => router.push(`/admin/reservations/${reg.id}`)}
                     >
                       <TableCell>
@@ -546,7 +547,7 @@ export default function AdminReservationsPage() {
                               {breakdown.registered.children > 0 && <span>{breakdown.registered.children}C</span>}
                               {breakdown.registered.infants > 0 && <span>{breakdown.registered.infants}I</span>}
                               {breakdown.registered.pets > 0 && (
-                                <span className={breakdown.extraPets > 0 ? "text-amber-600 font-medium" : ""}>
+                                <span className={breakdown.extraPets > 0 ? "text-warning font-medium" : ""}>
                                   {breakdown.registered.pets}P{breakdown.extraPets > 0 && ` (+${breakdown.extraPets})`}
                                 </span>
                               )}
@@ -574,14 +575,8 @@ export default function AdminReservationsPage() {
                       <TableCell>
                         {(() => {
                           const displayStatus = getDisplayStatus(reg);
-                          const colors = {
-                            current: "bg-blue-100 text-blue-800 border-blue-200",
-                            future: "bg-green-100 text-green-800 border-green-200",
-                            past: "bg-yellow-100 text-yellow-800 border-yellow-200",
-                            cancelled: "bg-red-100 text-red-800 border-red-200",
-                          };
                           return (
-                            <Badge variant="outline" className={colors[displayStatus]}>
+                            <Badge variant="outline" className={toneBadge(statusTone(displayStatus))}>
                               {displayStatus}
                             </Badge>
                           );
@@ -601,12 +596,6 @@ export default function AdminReservationsPage() {
               const guest = reg.guest as Registration["guest"];
               const breakdown = getGuestBreakdown(reg);
               const displayStatus = getDisplayStatus(reg);
-              const statusColors = {
-                current: "bg-blue-100 text-blue-800 border-blue-200",
-                future: "bg-green-100 text-green-800 border-green-200",
-                past: "bg-yellow-100 text-yellow-800 border-yellow-200",
-                cancelled: "bg-red-100 text-red-800 border-red-200",
-              };
               const showDivider = idx === dividerIndex && dividerIndex > 0;
               return (
                 <Fragment key={reg.id}>
@@ -618,7 +607,7 @@ export default function AdminReservationsPage() {
                   </div>
                 )}
                 <div
-                  className={`rounded-lg border bg-card p-4 space-y-3 cursor-pointer active:bg-muted/50 ${newIds.has(reg.id) ? "border-l-4 border-l-green-500" : ""}`}
+                  className={`rounded-lg border bg-card p-4 space-y-3 cursor-pointer active:bg-muted/50 ${newIds.has(reg.id) ? "border-l-4 border-l-success" : ""}`}
                   onClick={() => router.push(`/admin/reservations/${reg.id}`)}
                 >
                   {/* Guest + status */}
@@ -632,7 +621,7 @@ export default function AdminReservationsPage() {
                         {reg.property?.nickname || reg.property?.name || "—"}
                       </p>
                     </div>
-                    <Badge variant="outline" className={`${statusColors[displayStatus]} shrink-0`}>
+                    <Badge variant="outline" className={`${toneBadge(statusTone(displayStatus))} shrink-0`}>
                       {displayStatus}
                     </Badge>
                   </div>
@@ -668,7 +657,7 @@ export default function AdminReservationsPage() {
                             {breakdown.registered.children > 0 && <span>{breakdown.registered.children}C</span>}
                             {breakdown.registered.infants > 0 && <span>{breakdown.registered.infants}I</span>}
                             {breakdown.registered.pets > 0 && (
-                              <span className={breakdown.extraPets > 0 ? "text-amber-600 font-medium" : ""}>
+                              <span className={breakdown.extraPets > 0 ? "text-warning font-medium" : ""}>
                                 {breakdown.registered.pets}P{breakdown.extraPets > 0 && ` (+${breakdown.extraPets})`}
                               </span>
                             )}
@@ -708,7 +697,11 @@ export default function AdminReservationsPage() {
           </div>
         </>
       ) : (
-        <p className="text-muted-foreground">No reservations found.</p>
+        <EmptyState
+          icon={CalendarX}
+          title="No reservations found."
+          description="Try adjusting your filters, or refresh from Lodgify to pull in the latest bookings."
+        />
       ))}
     </div>
   );

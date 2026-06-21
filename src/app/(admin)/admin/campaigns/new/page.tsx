@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { evaluateSegment } from "@/lib/marketing/segments";
 import { CampaignComposer } from "@/components/admin/marketing/campaign-composer";
 import { buttonVariants } from "@/components/ui/button-variants";
+import { PageHeader } from "@/components/ui/page-header";
 import { ArrowLeft } from "lucide-react";
 import type { SegmentFilter } from "@/types/database";
 
@@ -46,9 +47,7 @@ export default async function NewCampaignPage() {
         <Link href="/admin/campaigns" className={buttonVariants({ variant: "ghost", size: "icon" })}>
           <ArrowLeft className="h-4 w-4" />
         </Link>
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">New campaign</h1>
-        </div>
+        <PageHeader title="New campaign" />
       </div>
 
       {segments.length === 0 ? (
