@@ -726,7 +726,7 @@ export function AnalyticsCharts() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+      <div className="stagger-children grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <StatCard
           icon={CreditCard}
           tone="success"
@@ -760,7 +760,7 @@ export function AnalyticsCharts() {
       </div>
 
       {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="stagger-children grid grid-cols-1 lg:grid-cols-2 gap-4">
 
         {/* 1. Revenue Over Time — line chart with checkboxes */}
         <Card className="overflow-visible" onClickCapture={() => setActiveChartId("revenue")}>

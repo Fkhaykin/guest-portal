@@ -160,3 +160,43 @@
     outline: none !important;
   }
 }
+
+/* Staggered entrance: direct children fade up one after another. `backwards`
+   fill keeps each child hidden through its delay so nothing flashes early.
+   Applied to card/grid containers (transforms are unreliable on table rows). */
+@keyframes stagger-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.stagger-children > * {
+  animation: stagger-fade-up 0.4s ease-out backwards;
+}
+.stagger-children > *:nth-child(1) { animation-delay: 40ms; }
+.stagger-children > *:nth-child(2) { animation-delay: 90ms; }
+.stagger-children > *:nth-child(3) { animation-delay: 140ms; }
+.stagger-children > *:nth-child(4) { animation-delay: 190ms; }
+.stagger-children > *:nth-child(5) { animation-delay: 240ms; }
+.stagger-children > *:nth-child(6) { animation-delay: 290ms; }
+.stagger-children > *:nth-child(7) { animation-delay: 340ms; }
+.stagger-children > *:nth-child(8) { animation-delay: 390ms; }
+.stagger-children > *:nth-child(n + 9) { animation-delay: 440ms; }
+
+/* Respect users who ask for less motion: collapse all animations/transitions
+   to near-instant so entrance/slide effects don't play. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

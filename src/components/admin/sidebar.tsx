@@ -93,7 +93,7 @@ export function AdminSidebar({
         className={cn(
           // Safe-area padding keeps the header below the iOS status bar and the
           // footer above the home indicator in standalone PWA mode
-          "fixed inset-y-0 left-0 z-40 w-64 bg-sidebar border-r flex flex-col transition-[transform,width] md:relative md:translate-x-0",
+          "fixed inset-y-0 left-0 z-40 w-64 bg-sidebar border-r flex flex-col transition-[transform,width] duration-300 ease-in-out md:relative md:translate-x-0",
           "pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]",
           collapsed ? "md:w-16" : "md:w-64",
           open ? "translate-x-0" : "-translate-x-full"
@@ -144,7 +144,7 @@ export function AdminSidebar({
                 aria-current={isActive ? "page" : undefined}
                 title={collapsed ? item.label : undefined}
                 className={cn(
-                  "flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors",
+                  "flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-all duration-200 active:scale-[0.98]",
                   collapsed && "md:justify-center md:px-2",
                   isActive
                     ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
@@ -189,13 +189,15 @@ export function AdminSidebar({
         </div>
       </aside>
 
-      {/* Mobile overlay */}
-      {open && (
-        <div
-          className="fixed inset-0 z-30 bg-black/50 md:hidden"
-          onClick={() => setOpen(false)}
-        />
-      )}
+      {/* Mobile overlay — always mounted so it can fade both in and out */}
+      <div
+        className={cn(
+          "fixed inset-0 z-30 bg-black/50 backdrop-blur-[1px] transition-opacity duration-300 md:hidden",
+          open ? "opacity-100" : "opacity-0 pointer-events-none"
+        )}
+        onClick={() => setOpen(false)}
+        aria-hidden={!open}
+      />
     </>
   );
 }
