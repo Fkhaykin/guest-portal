@@ -804,7 +804,8 @@ export default function ReservationDetailPage() {
                   </>
                 )}
 
-                {/* HOA auto-submit toggle — only relevant when an HOA email is configured */}
+                {/* HOA registration auto-submit toggle — only relevant when an HOA email is configured.
+                    Scoped to the registration submission only; delivery/gate notifications are unaffected. */}
                 {property?.hoa_submission_email && (
                   <>
                     <Separator />
@@ -812,19 +813,19 @@ export default function ReservationDetailPage() {
                       <div className="space-y-0.5">
                         <p className="text-sm font-medium flex items-center gap-1.5">
                           <Mail className="h-3.5 w-3.5 text-muted-foreground" />
-                          Automatic HOA emails
+                          Auto-submit registration to HOA
                         </p>
                         <p className="text-xs text-muted-foreground">
                           {reg.hoa_email_disabled
-                            ? "Off — registration and updates won't be auto-sent to the HOA. You can still send manually below."
-                            : "On — submits to the HOA when the guest registers or updates their booking."}
+                            ? "Off — the registration form won't be auto-sent to the HOA on register or update. You can still send manually below. Delivery and gate notifications are unaffected."
+                            : "On — sends the registration form to the HOA when the guest registers or updates their booking. Only affects the registration submission, not deliveries."}
                         </p>
                       </div>
                       <Switch
                         checked={!reg.hoa_email_disabled}
                         disabled={hoaToggling}
                         onCheckedChange={(checked) => toggleHoaEmail(!checked)}
-                        aria-label="Toggle automatic HOA emails"
+                        aria-label="Toggle automatic HOA registration submission"
                       />
                     </div>
                   </>

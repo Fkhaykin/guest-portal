@@ -78,8 +78,8 @@ export async function PATCH(request: NextRequest) {
     changed_by: "admin",
     change_type: "admin_edit",
     summary: body.hoa_email_disabled
-      ? "Automatic HOA emails turned off for this reservation"
-      : "Automatic HOA emails turned on for this reservation",
+      ? "Automatic HOA registration submission turned off for this reservation"
+      : "Automatic HOA registration submission turned on for this reservation",
   });
 
   return NextResponse.json({ ok: true });
