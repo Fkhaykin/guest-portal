@@ -426,6 +426,7 @@ export type Database = {
           stripe_payment_method_id: string | null;
           stripe_deposit_invoice_id: string | null;
           stripe_balance_invoice_id: string | null;
+          hoa_email_disabled: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -459,6 +460,7 @@ export type Database = {
           stripe_payment_method_id?: string | null;
           stripe_deposit_invoice_id?: string | null;
           stripe_balance_invoice_id?: string | null;
+          hoa_email_disabled?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -492,6 +494,7 @@ export type Database = {
           stripe_payment_method_id?: string | null;
           stripe_deposit_invoice_id?: string | null;
           stripe_balance_invoice_id?: string | null;
+          hoa_email_disabled?: boolean;
           created_at?: string;
           updated_at?: string;
         };

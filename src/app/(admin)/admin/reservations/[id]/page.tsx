@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Sheet,
@@ -70,6 +71,7 @@ type FullRegistration = {
   lodgify_children: number;
   lodgify_infants: number;
   lodgify_num_pets: number;
+  hoa_email_disabled: boolean;
   created_at: string;
   updated_at: string;
   guest: {
@@ -172,6 +174,7 @@ export default function ReservationDetailPage() {
   const [charges, setCharges] = useState<IncurredCharge[]>([]);
   const [emailing, setEmailing] = useState(false);
   const [emailResult, setEmailResult] = useState<"success" | "error" | null>(null);
+  const [hoaToggling, setHoaToggling] = useState(false);
   const [expandedDrivers, setExpandedDrivers] = useState<Set<number>>(new Set());
   const [hasModifications, setHasModifications] = useState(false);
 
@@ -185,7 +188,7 @@ export default function ReservationDetailPage() {
         id, property_id, guest_id, check_in_date, check_out_date, num_guests, notes,
         status, booking_source, signature_url, total_amount_cents, guest_list, pets,
         upsells, tips, lodgify_booking_id, lodgify_adults, lodgify_children, lodgify_infants,
-        lodgify_num_pets, created_at, updated_at,
+        lodgify_num_pets, hoa_email_disabled, created_at, updated_at,
         guest:guest_id(id, full_name, email, phone, mailing_address, lodgify_guest_id),
         property:property_id(id, name, nickname, address, slug, max_guests, lodgify_property_id, listing_urls, owner_name, owner_phone, owner_email, hoa_submission_email, emergency_contact_name, emergency_contact_phone)
       `)
@@ -331,6 +334,26 @@ export default function ReservationDetailPage() {
     } finally {
       setEmailing(false);
       setTimeout(() => setEmailResult(null), 3000);
+    }
+  }
+
+  async function toggleHoaEmail(disabled: boolean) {
+    if (!reg) return;
+    setHoaToggling(true);
+    // Optimistic update
+    setReg((prev) => (prev ? { ...prev, hoa_email_disabled: disabled } : prev));
+    try {
+      const res = await fetch("/api/admin/registration", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ registration_id: id, hoa_email_disabled: disabled }),
+      });
+      if (!res.ok) throw new Error("Failed");
+    } catch {
+      // Revert on failure
+      setReg((prev) => (prev ? { ...prev, hoa_email_disabled: !disabled } : prev));
+    } finally {
+      setHoaToggling(false);
     }
   }
 
@@ -777,6 +800,32 @@ export default function ReservationDetailPage() {
                           {reg.lodgify_num_pets} pet{reg.lodgify_num_pets !== 1 ? "s" : ""} booked — not yet registered
                         </p>
                       )}
+                    </div>
+                  </>
+                )}
+
+                {/* HOA auto-submit toggle — only relevant when an HOA email is configured */}
+                {property?.hoa_submission_email && (
+                  <>
+                    <Separator />
+                    <div className="flex items-start justify-between gap-3 rounded-md border px-3 py-2.5">
+                      <div className="space-y-0.5">
+                        <p className="text-sm font-medium flex items-center gap-1.5">
+                          <Mail className="h-3.5 w-3.5 text-muted-foreground" />
+                          Automatic HOA emails
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {reg.hoa_email_disabled
+                            ? "Off — registration and updates won't be auto-sent to the HOA. You can still send manually below."
+                            : "On — submits to the HOA when the guest registers or updates their booking."}
+                        </p>
+                      </div>
+                      <Switch
+                        checked={!reg.hoa_email_disabled}
+                        disabled={hoaToggling}
+                        onCheckedChange={(checked) => toggleHoaEmail(!checked)}
+                        aria-label="Toggle automatic HOA emails"
+                      />
                     </div>
                   </>
                 )}

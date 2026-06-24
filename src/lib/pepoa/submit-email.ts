@@ -32,13 +32,20 @@ export async function submitPEPOAEmail({
   registrationId,
   isUpdate,
   changeSummary,
+  force,
 }: {
   registrationId: string;
   isUpdate?: boolean;
   changeSummary?: string;
+  /** Bypass the per-reservation HOA-email off switch (manual admin override). */
+  force?: boolean;
 }): Promise<void> {
   const data = await fetchRegistrationData(registrationId);
   if (!data) throw new Error("Registration not found");
+
+  // Per-reservation off switch: skip automatic sends. A manual admin send
+  // passes force=true to override.
+  if (!force && data.reg.hoa_email_disabled) return;
 
   const pdfBuffer = await generateRegistrationPDF(data);
 

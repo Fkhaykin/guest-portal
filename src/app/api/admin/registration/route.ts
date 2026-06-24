@@ -39,6 +39,52 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({ registration: reg, vehicles: vehicles ?? [] });
 }
 
+// PATCH — toggle the per-reservation HOA-email off switch (admin)
+export async function PATCH(request: NextRequest) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  let body: { registration_id: string; hoa_email_disabled: boolean };
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+
+  if (!body.registration_id || typeof body.hoa_email_disabled !== "boolean") {
+    return NextResponse.json(
+      { error: "registration_id and hoa_email_disabled are required" },
+      { status: 400 }
+    );
+  }
+
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("registration")
+    .update({ hoa_email_disabled: body.hoa_email_disabled })
+    .eq("id", body.registration_id);
+
+  if (error) {
+    return NextResponse.json({ error: "Failed to update registration" }, { status: 500 });
+  }
+
+  await admin.from("registration_update_log").insert({
+    registration_id: body.registration_id,
+    changed_by: "admin",
+    change_type: "admin_edit",
+    summary: body.hoa_email_disabled
+      ? "Automatic HOA emails turned off for this reservation"
+      : "Automatic HOA emails turned on for this reservation",
+  });
+
+  return NextResponse.json({ ok: true });
+}
+
 // PUT — update registration (admin)
 export async function PUT(request: NextRequest) {
   const supabase = await createClient();

@@ -36,6 +36,9 @@ export async function POST(request: Request) {
       registrationId: registration_id,
       isUpdate: is_update,
       changeSummary: change_summary,
+      // This route is only triggered by the manual "Email to HOA" admin action,
+      // which overrides the per-reservation HOA-email off switch.
+      force: true,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
