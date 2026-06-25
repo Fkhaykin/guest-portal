@@ -76,11 +76,12 @@ export async function POST(request: Request) {
         }
       }
 
-      // Sync to Lodgify (fire-and-forget)
+      // Push to Lodgify so the booking blocks the calendar and reaches connected
+      // channels. Must be awaited: on Vercel the function is frozen once the
+      // webhook response is returned, which kills a fire-and-forget push
+      // mid-flight and leaves lodgify_sync_status stuck at "pending". Idempotent.
       if (registrationId) {
-        pushBookingToLodgify(registrationId, supabase).catch((err) => {
-          console.error("[webhook] Lodgify sync failed:", err);
-        });
+        await pushBookingToLodgify(registrationId, supabase);
       }
     }
   }
