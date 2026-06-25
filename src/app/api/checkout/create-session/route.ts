@@ -110,6 +110,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unable to fetch pricing" }, { status: 502 });
   }
 
+  // Enforce the arrival night's minimum-stay rule (Lodgify keys min-stay to the
+  // arrival date). Without this the site can take payment for a stay Lodgify
+  // refuses to accept — it rejects sub-minimum reservations with error 902,
+  // leaving the booking paid but impossible to sync to the calendar.
+  const minStay = nightlyRates[0].min_stay || 1;
+  if (nights < minStay) {
+    return NextResponse.json(
+      { error: `These dates require a minimum stay of ${minStay} nights. Please adjust your check-in or check-out date.` },
+      { status: 400 }
+    );
+  }
+
   // Calculate totals
   const roomRateCents = nightlyRates.reduce((sum, r) => sum + r.price_cents, 0);
   const cleaningFeeCents = property.guest_cleaning_fee_cents || 0;
