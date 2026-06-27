@@ -13,6 +13,21 @@ export interface LodgifyMessage {
   type: "Owner" | "Renter" | "Comment" | string;
   created_at: string;
   sender_name: string;
+  // The channel the message travelled on (Lodgify's "route": Vrbo, Airbnb,
+  // Booking.com, …). Only some messages carry it; null when unknown.
+  route?: string | null;
+}
+
+/**
+ * Pick the channel for a thread from its messages. Lodgify only stamps "route"
+ * on some messages (often the Owner reply), so take the first non-empty one.
+ */
+export function deriveChannel(messages: LodgifyMessage[]): string | null {
+  for (const m of messages) {
+    const r = m.route?.trim();
+    if (r) return r;
+  }
+  return null;
 }
 
 /**
@@ -271,6 +286,16 @@ export async function fetchAllConversations(
 
 // --- Normalization ---
 
+// Lodgify returns message timestamps as naive UTC with no zone designator
+// (e.g. "2026-06-23T23:10:10"). Without a "Z" the browser's `new Date()`
+// parses them in the viewer's local zone, so display ends up hours off.
+// Tag them as UTC so every consumer reads the correct instant.
+export function toUtcIso(raw: string | null | undefined): string {
+  if (!raw) return "";
+  const hasZone = /([zZ]|[+-]\d{2}:?\d{2})$/.test(raw);
+  return hasZone ? raw : raw + "Z";
+}
+
 /* eslint-disable @typescript-eslint/no-explicit-any */
 function normalizeMessages(raw: any[], guestName: string): LodgifyMessage[] {
   return raw.map((item, index) => normalizeMessage(item, index, guestName));
@@ -283,8 +308,9 @@ function normalizeMessage(raw: any, index: number, guestName: string): LodgifyMe
     message: (raw.message ?? "").replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]+>/g, ""),
     subject: raw.subject ?? "",
     type,
-    created_at: raw.date_created ?? raw.created_at ?? "",
+    created_at: toUtcIso(raw.date_created ?? raw.created_at),
     sender_name: type === "Owner" ? "You" : guestName || "Guest",
+    route: typeof raw.route === "string" && raw.route.trim() ? raw.route.trim() : null,
   };
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */

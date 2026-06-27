@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createHmac, timingSafeEqual } from "crypto";
 import { syncBookingById } from "@/lib/lodgify/sync";
-import { fetchBookingDetail, fetchThreadMessages } from "@/lib/lodgify/messages";
+import { fetchBookingDetail, fetchThreadMessages, deriveChannel } from "@/lib/lodgify/messages";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { notifyHostOfGuestMessage } from "@/lib/push/notify-host";
 
@@ -237,6 +237,17 @@ async function backfillThread(threadUid: string): Promise<void> {
     .from("guest_message")
     .upsert(rows, { onConflict: "lodgify_message_id", ignoreDuplicates: false });
   if (error) console.error("[lodgify-webhook] Thread backfill upsert:", error.message);
+
+  // Stamp the channel (Vrbo/Airbnb/…) so enquiry threads — which have no
+  // registration to read a booking_source from — still show their source.
+  // Only set when found, so a route-less refresh can't wipe a known channel.
+  const channel = deriveChannel(messages);
+  if (channel) {
+    await supabase
+      .from("guest_message_thread")
+      .update({ channel })
+      .eq("thread_uid", threadUid);
+  }
 }
 
 export async function POST(request: Request) {

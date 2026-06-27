@@ -39,7 +39,7 @@ export async function GET() {
   // Pull all thread summaries at once and index by thread_uid + booking_id.
   const { data: threads } = await admin
     .from("guest_message_thread")
-    .select("thread_uid, lodgify_booking_id, guest_name, last_message_at, last_message_preview, unread_count, lodgify_property_id, arrival, departure, booking_status");
+    .select("thread_uid, lodgify_booking_id, guest_name, last_message_at, last_message_preview, unread_count, lodgify_property_id, arrival, departure, booking_status, channel");
 
   // House names for inquiry threads, which have no registration to join on.
   const { data: allProperties } = await admin
@@ -146,7 +146,9 @@ export async function GET() {
         t.booking_status && t.booking_status.toLowerCase() !== "open"
           ? t.booking_status.toLowerCase()
           : "inquiry",
-      source: null,
+      // Enquiries have no registration/booking_source; the channel the thread
+      // arrived on (Vrbo/Airbnb/…) is the only source we can show.
+      source: t.channel ?? null,
       date_created: null,
       last_message_at: t.last_message_at,
       last_message_preview: t.last_message_preview,

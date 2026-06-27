@@ -5,6 +5,7 @@ import {
   fetchBookingDetail,
   fetchThreadMessages,
   sendMessage,
+  deriveChannel,
   type LodgifyMessage,
 } from "@/lib/lodgify/messages";
 import {
@@ -68,6 +69,9 @@ async function upsertMessages(
   const sorted = [...messages].sort((a, b) => (b.created_at || "").localeCompare(a.created_at || ""));
   const latest = sorted[0];
   const guestName = sorted.find((m) => m.type === "Renter")?.sender_name ?? null;
+  // Only stamp the channel when we actually found one — never overwrite a
+  // known channel with null on a refresh that happens to lack route stamps.
+  const channel = deriveChannel(messages);
   if (latest) {
     await admin
       .from("guest_message_thread")
@@ -78,6 +82,7 @@ async function upsertMessages(
           last_message_at: latest.created_at || null,
           last_message_preview: (latest.message ?? "").slice(0, 200),
           ...(guestName ? { guest_name: guestName } : {}),
+          ...(channel ? { channel } : {}),
           updated_at: new Date().toISOString(),
         },
         { onConflict: "thread_uid" }
@@ -260,11 +265,13 @@ export async function POST(
     return NextResponse.json({ error: "Message is required" }, { status: 400 });
   }
 
-  // Lodgify's send API is booking-scoped; a thread with no booking can only
-  // be answered from the Lodgify/Airbnb inbox.
+  // Lodgify's send API is reservation-scoped, but these threads are
+  // pre-booking enquiries (inbox_uid "E<id>") with no reservation — Lodgify
+  // exposes no way to answer them via API. Point the host at the channel the
+  // enquiry actually arrived on rather than hardcoding one OTA.
   if (bookingId.startsWith("thread:")) {
     return NextResponse.json(
-      { error: "This conversation isn't linked to a booking yet — reply from your Lodgify or Airbnb inbox." },
+      { error: "This is a pre-booking enquiry with no reservation yet, so it can't be answered here. Reply from the Airbnb, Vrbo, or Lodgify inbox where it came in." },
       { status: 400 }
     );
   }
