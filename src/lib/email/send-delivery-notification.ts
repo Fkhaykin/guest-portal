@@ -31,8 +31,15 @@ export async function sendDeliveryNotification({
 }) {
   const fromEmail = "contact@summitlakeside.com";
 
+  const toList = Array.isArray(to) ? to : [to];
+  const toLower = new Set(toList.map((e) => e.toLowerCase()));
+
   const cc: string[] = [];
-  if (ownerEmail && ownerEmail.toLowerCase() !== fromEmail.toLowerCase()) {
+  if (
+    ownerEmail &&
+    ownerEmail.toLowerCase() !== fromEmail.toLowerCase() &&
+    !toLower.has(ownerEmail.toLowerCase())
+  ) {
     cc.push(ownerEmail);
   }
 

@@ -123,8 +123,12 @@ export async function POST(request: Request) {
           email_recipients: hoaEmails,
         })
         .eq("id", record.id);
-    } catch {
-      // Email failed — record is already saved, return success anyway
+    } catch (err) {
+      // Email failed — record is already saved, but log so it doesn't look "sent"
+      console.error(
+        `Delivery notification email failed for record ${record.id}:`,
+        err
+      );
     }
   }
 
