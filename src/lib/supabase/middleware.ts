@@ -62,6 +62,32 @@ export async function updateSession(request: NextRequest) {
   const subdomain = getSubdomain(hostname);
   const pathname = request.nextUrl.pathname;
 
+  // Service calendar shorthand: the contractor URL uses ?=N (and ?N) to pick a
+  // house. The empty-name param survives here in middleware but is stripped
+  // from the page's searchParams in production builds, so normalize it to the
+  // canonical ?house=N before the page renders.
+  if (pathname === "/calendar") {
+    const sp = request.nextUrl.searchParams;
+    if (!sp.get("house") && !sp.get("h")) {
+      let idx: string | null = null;
+      const empty = sp.get(""); // ?=4
+      if (empty && /^\d+$/.test(empty)) {
+        idx = empty;
+      } else {
+        for (const [k, v] of sp.entries()) {
+          if (/^\d+$/.test(k) && v === "") { idx = k; break; } // ?4
+          if (v && /^\d+$/.test(v)) { idx = v; break; }
+        }
+      }
+      if (idx) {
+        const url = request.nextUrl.clone();
+        url.search = "";
+        url.searchParams.set("house", idx);
+        return NextResponse.redirect(url);
+      }
+    }
+  }
+
   const prefix = subdomain ? SUBDOMAIN_PREFIX_MAP[subdomain] : undefined;
 
   // Guest subdomain: rewrite only the root to /checkin (other paths stay as-is)

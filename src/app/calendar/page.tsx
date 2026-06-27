@@ -18,6 +18,7 @@ type PropertyRow = {
   id: string;
   name: string;
   nickname: string | null;
+  address: string | null;
   cover_image_url: string | null;
   is_active: boolean;
   sort_order: number;
@@ -37,6 +38,23 @@ function parseHouseIndex(sp: SearchParams): number {
 const prettify = (s: string) =>
   s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
 
+// Addresses are stored street-name-first ("Lakeside Drive, 484, East
+// Stroudsburg, Pennsylvania, 18301"). Reorder to a clean street line plus a
+// locality line. Falls back to the raw string if it doesn't parse.
+function formatAddress(address: string | null): { line1: string; line2: string | null } | null {
+  if (!address) return null;
+  const parts = address.split(",").map((p) => p.trim()).filter(Boolean);
+  if (parts.length === 0) return null;
+  let street = parts[0];
+  let rest = parts.slice(1);
+  // Leading "Street, Number" → "Number Street".
+  if (parts.length > 1 && /^\d+$/.test(parts[1])) {
+    street = `${parts[1]} ${parts[0]}`;
+    rest = parts.slice(2);
+  }
+  return { line1: street, line2: rest.length ? rest.join(", ") : null };
+}
+
 function todayStr() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -53,7 +71,7 @@ export default async function ServiceCalendarPage({
   const supabase = createAdminClient();
   const { data } = await supabase
     .from("property")
-    .select("id, name, nickname, cover_image_url, is_active, sort_order")
+    .select("id, name, nickname, address, cover_image_url, is_active, sort_order")
     .order("sort_order", { ascending: true });
 
   const rows = (data ?? []) as PropertyRow[];
@@ -62,7 +80,12 @@ export default async function ServiceCalendarPage({
 
   // Build the public house index: active houses in sort_order, grouped by
   // nickname so combined (duplicate-row) listings collapse to a single house.
-  const houses: { key: string; label: string; coverImage: string | null }[] = [];
+  const houses: {
+    key: string;
+    label: string;
+    address: string | null;
+    coverImage: string | null;
+  }[] = [];
   const seen = new Set<string>();
   for (const p of rows) {
     if (!p.is_active) continue;
@@ -72,6 +95,7 @@ export default async function ServiceCalendarPage({
     houses.push({
       key,
       label: prettify(p.nickname || p.name || ""),
+      address: p.address,
       coverImage: p.cover_image_url,
     });
   }
@@ -107,24 +131,31 @@ export default async function ServiceCalendarPage({
     }
   }
 
+  const address = formatAddress(house.address);
+
   return (
     <main className="min-h-screen bg-background">
       <div className="mx-auto max-w-3xl px-4 py-6 sm:py-10">
-        <div className="relative overflow-hidden rounded-2xl aspect-video ring-1 ring-black/5 shadow-sm">
+        <div className="relative overflow-hidden rounded-2xl h-28 sm:h-32 ring-1 ring-black/5 shadow-sm">
           {house.coverImage ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={house.coverImage}
-              alt={house.label}
+              alt={address?.line1 ?? house.label}
               className="absolute inset-0 h-full w-full object-cover"
             />
           ) : (
             <div className="absolute inset-0 bg-muted" />
           )}
-          <div className="absolute inset-0 bg-linear-to-t from-black/70 via-black/10 to-transparent" />
-          <h1 className="absolute bottom-4 left-5 text-2xl font-semibold text-white drop-shadow">
-            {house.label}
-          </h1>
+          <div className="absolute inset-0 bg-linear-to-t from-black/75 via-black/20 to-transparent" />
+          <div className="absolute bottom-3 left-5 right-5 text-white drop-shadow">
+            <h1 className="text-xl font-semibold leading-tight">
+              {address?.line1 ?? house.label}
+            </h1>
+            {address?.line2 && (
+              <p className="text-xs text-white/85 mt-0.5">{address.line2}</p>
+            )}
+          </div>
         </div>
 
         <div className="mt-6">
