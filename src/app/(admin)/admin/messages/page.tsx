@@ -35,6 +35,7 @@ import {
   houseForProperty,
   type HouseKey,
 } from "@/lib/guest-messages/quick-replies";
+import { platformGlyph, PlatformLogo } from "@/components/admin/platform-logo";
 
 // Turn bare URLs in a message into tappable links. Splitting on a capturing
 // group keeps the delimiters, so URL chunks become anchors and the rest stays
@@ -292,6 +293,10 @@ export default function AdminMessagesPage() {
     selectedConversation?.property_name
   );
   const houseLabel = conversationHouse ? HOUSE_LABELS[conversationHouse] : null;
+
+  // Official brand glyph for the booking channel (Airbnb, Booking.com, …), or
+  // null when we have no real mark for the source — those fall back to text.
+  const sourceGlyph = platformGlyph(selectedConversation?.source);
 
   // Guest's latest message, but only when the guest spoke last — that's when
   // a reply suggestion is useful.
@@ -654,14 +659,20 @@ export default function AdminMessagesPage() {
                       <p className="font-semibold text-sm truncate">
                         {selectedConversation.guest_name || "Unknown Guest"}
                       </p>
-                      {selectedConversation.source && (
-                        <Badge
-                          variant="secondary"
-                          className="shrink-0 h-4 px-1.5 text-[10px] font-medium"
-                        >
-                          {cleanSourceName(selectedConversation.source)}
-                        </Badge>
-                      )}
+                      {selectedConversation.source &&
+                        (sourceGlyph ? (
+                          <PlatformLogo
+                            glyph={sourceGlyph}
+                            className="h-4 w-4 shrink-0"
+                          />
+                        ) : (
+                          <Badge
+                            variant="secondary"
+                            className="shrink-0 h-4 px-1.5 text-[10px] font-medium"
+                          >
+                            {cleanSourceName(selectedConversation.source)}
+                          </Badge>
+                        ))}
                     </div>
                     <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
                       {selectedConversation.property_name && (
