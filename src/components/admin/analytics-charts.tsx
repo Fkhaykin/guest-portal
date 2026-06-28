@@ -713,7 +713,7 @@ export function AnalyticsCharts() {
         <div className="ml-auto flex items-center gap-1.5 shrink-0">
           <span className="text-xs text-muted-foreground hidden sm:inline">Group by</span>
           <Select value={groupBy} onValueChange={(v) => setGroupBy(v as GroupBy)}>
-            <SelectTrigger size="sm" className="w-24 sm:w-28">
+            <SelectTrigger className="h-8 w-24 sm:w-28 px-3 rounded-md bg-background text-xs font-medium hover:bg-accent hover:text-accent-foreground">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -865,7 +865,7 @@ export function AnalyticsCharts() {
                     trigger="click"
                     cursor={false}
                     allowEscapeViewBox={{ x: true, y: true }}
-                    wrapperStyle={{ zIndex: 10, pointerEvents: "auto" }}
+                    wrapperStyle={{ zIndex: 10, pointerEvents: "auto", transition: "none" }}
                   />
                   <Legend />
                   {propNames.map((name, i) => (
@@ -897,7 +897,7 @@ export function AnalyticsCharts() {
                     trigger="click"
                     cursor={false}
                     allowEscapeViewBox={{ x: true, y: true }}
-                    wrapperStyle={{ zIndex: 10, pointerEvents: "auto" }}
+                    wrapperStyle={{ zIndex: 10, pointerEvents: "auto", transition: "none" }}
                   />
                   <Legend />
                   {propNames.map((name, i) => (
@@ -929,7 +929,7 @@ export function AnalyticsCharts() {
                     trigger="click"
                     cursor={false}
                     allowEscapeViewBox={{ x: true, y: true }}
-                    wrapperStyle={{ zIndex: 10, pointerEvents: "auto" }}
+                    wrapperStyle={{ zIndex: 10, pointerEvents: "auto", transition: "none" }}
                   />
                   <Legend />
                   {propNames.map((name, i) => (
@@ -1048,7 +1048,7 @@ export function AnalyticsCharts() {
                     trigger="click"
                     cursor={false}
                     allowEscapeViewBox={{ x: true, y: true }}
-                    wrapperStyle={{ zIndex: 10, pointerEvents: "auto" }}
+                    wrapperStyle={{ zIndex: 10, pointerEvents: "auto", transition: "none" }}
                   />
                   <Legend />
                   {propNames.map((name, i) => (
@@ -1080,7 +1080,7 @@ export function AnalyticsCharts() {
                     trigger="click"
                     cursor={false}
                     allowEscapeViewBox={{ x: true, y: true }}
-                    wrapperStyle={{ zIndex: 10, pointerEvents: "auto" }}
+                    wrapperStyle={{ zIndex: 10, pointerEvents: "auto", transition: "none" }}
                   />
                   <Legend />
                   {propNames.map((name, i) => (
@@ -1112,7 +1112,7 @@ export function AnalyticsCharts() {
                     trigger="click"
                     cursor={false}
                     allowEscapeViewBox={{ x: true, y: true }}
-                    wrapperStyle={{ zIndex: 10, pointerEvents: "auto" }}
+                    wrapperStyle={{ zIndex: 10, pointerEvents: "auto", transition: "none" }}
                   />
                   <Legend />
                   {charts.addonTypes.map((type, i) => (
@@ -1206,7 +1206,7 @@ function RevenueTooltip({
 
   return (
     <ViewportClamp>
-      <div className="rounded-lg border bg-card px-3 py-2 text-sm shadow-md max-h-80 overflow-y-auto" style={{ minWidth: 220, maxWidth: 360 }}>
+      <div className="rounded-lg border bg-card px-3 py-2 text-sm shadow-md max-h-80 overflow-y-auto" style={{ minWidth: 220, maxWidth: "min(360px, calc(100vw - 16px))" }}>
         <p className="mb-1.5 font-medium">{formatBucketLabel(bucketKey, gb)}</p>
         {sorted.map((entry) => {
           const resList = entry.dataKey !== "Total" ? bucketReservations[entry.dataKey] : undefined;
@@ -1282,7 +1282,7 @@ function BarTooltip({
 
   return (
     <ViewportClamp>
-      <div className="rounded-lg border bg-card px-3 py-2 text-sm shadow-md max-h-80 overflow-y-auto" style={{ minWidth: 220, maxWidth: 360 }}>
+      <div className="rounded-lg border bg-card px-3 py-2 text-sm shadow-md max-h-80 overflow-y-auto" style={{ minWidth: 220, maxWidth: "min(360px, calc(100vw - 16px))" }}>
         <p className="mb-1.5 font-medium">{formatBucketLabel(bucketKey, gb)}</p>
         {sorted.map((entry) => {
           const resList = bucketReservations[entry.dataKey];
@@ -1323,35 +1323,39 @@ function BarTooltip({
 
 function ViewportClamp({ children }: { children: React.ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
-  const offsetRef = useRef({ x: 0, y: 0 });
-  const [offset, setOffset] = useState({ x: 0, y: 0 });
 
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
-    // Temporarily remove transform to measure natural position
-    el.style.transform = "";
-    const rect = el.getBoundingClientRect();
-    let dx = 0;
-    let dy = 0;
-    if (rect.right > window.innerWidth - 8) dx = window.innerWidth - 8 - rect.right;
-    if (rect.left < 8) dx = 8 - rect.left;
-    if (rect.bottom > window.innerHeight - 8) dy = window.innerHeight - 8 - rect.bottom;
-    if (rect.top < 8) dy = 8 - rect.top;
-    dx = Math.round(dx);
-    dy = Math.round(dy);
-    el.style.transform = `translate(${dx}px, ${dy}px)`;
-    if (dx !== offsetRef.current.x || dy !== offsetRef.current.y) {
-      offsetRef.current = { x: dx, y: dy };
-      setOffset({ x: dx, y: dy });
-    }
+    const M = 8; // min gap from each viewport edge
+
+    const clamp = () => {
+      const node = ref.current;
+      if (!node) return;
+      // Remove our own transform so we measure the natural (Recharts-driven) position
+      node.style.transform = "";
+      const rect = node.getBoundingClientRect();
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      let dx = 0;
+      let dy = 0;
+      // Pull the right/bottom edges in first, then guarantee the left/top
+      // edges stay visible (the left/top guard wins for oversized boxes).
+      if (rect.right > vw - M) dx = vw - M - rect.right;
+      if (rect.left + dx < M) dx = M - rect.left;
+      if (rect.bottom > vh - M) dy = vh - M - rect.bottom;
+      if (rect.top + dy < M) dy = M - rect.top;
+      node.style.transform = `translate(${Math.round(dx)}px, ${Math.round(dy)}px)`;
+    };
+
+    clamp();
+    // Recharts may finish repositioning the wrapper after our first measure,
+    // so re-clamp on the next frame against its final resting position.
+    const raf = requestAnimationFrame(clamp);
+    return () => cancelAnimationFrame(raf);
   }); // eslint-disable-line react-hooks/exhaustive-deps
 
-  return (
-    <div ref={ref} style={{ transform: `translate(${offset.x}px, ${offset.y}px)` }}>
-      {children}
-    </div>
-  );
+  return <div ref={ref}>{children}</div>;
 }
 
 function EmptyState({ label = "No data available" }: { label?: string }) {
