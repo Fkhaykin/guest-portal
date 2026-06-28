@@ -10,6 +10,7 @@ import {
   type DraftFeedback,
 } from "@/lib/guest-messages/suggest";
 import { loadGuidance } from "@/lib/guest-messages/guidance";
+import { houseForProperty } from "@/lib/guest-messages/quick-replies";
 import type { UpsellEntry } from "@/types/database";
 
 export const maxDuration = 60;
@@ -64,6 +65,9 @@ export async function POST(
 
   const admin = createAdminClient();
   const hasFeedback = !!body.feedback?.note?.trim();
+  // House this conversation belongs to — scopes both stored rules and the
+  // guidance loaded for generation (global rules + this house's rules).
+  const house = houseForProperty(body.propertyName);
 
   // Cache hit only for plain requests — feedback always regenerates
   if (!hasFeedback && Number.isFinite(bookingId)) {
@@ -86,6 +90,8 @@ export async function POST(
       guest_message: lastGuest.slice(0, 2000),
       bad_draft: body.feedback.badDraft?.slice(0, 4000) ?? null,
       note: body.feedback.note.trim().slice(0, 2000),
+      // "house" scopes the rule to this home; "global" (default) leaves it null.
+      house: body.feedback.scope === "house" ? house : null,
     });
   }
 
@@ -104,7 +110,7 @@ export async function POST(
   }
 
   try {
-    const guidance = await loadGuidance(admin);
+    const guidance = await loadGuidance(admin, house);
     const draft = await generateDraftReply(body, guidance, hasFeedback ? body.feedback : undefined);
     if (draft && Number.isFinite(bookingId)) {
       await admin.from("message_draft").upsert(

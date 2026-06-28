@@ -20,6 +20,8 @@ import {
   ChevronLeft,
   Sparkles,
   Settings,
+  Maximize2,
+  Minimize2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toneBadge, type Tone } from "@/lib/status-styles";
@@ -28,7 +30,11 @@ import {
   QuickReplySuggestions,
   QuickReplyPicker,
 } from "@/components/admin/quick-replies";
-import { maxGuestsForProperty } from "@/lib/guest-messages/quick-replies";
+import {
+  maxGuestsForProperty,
+  houseForProperty,
+  type HouseKey,
+} from "@/lib/guest-messages/quick-replies";
 
 // Turn bare URLs in a message into tappable links. Splitting on a capturing
 // group keeps the delimiters, so URL chunks become anchors and the rest stays
@@ -54,6 +60,14 @@ function linkifyMessage(text: string) {
   );
 }
 
+const HOUSE_LABELS: Record<HouseKey, string> = {
+  lakehouse: "Lakehouse",
+  chalet: "Chalet",
+  manor: "Manor",
+  cottage: "Cottage",
+  mansion: "Mansion",
+};
+
 export default function AdminMessagesPage() {
   const searchParams = useSearchParams();
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -78,10 +92,14 @@ export default function AdminMessagesPage() {
   const autoDraftSourceRef = useRef<"ai" | "quick-reply" | null>(null);
   const [fixOpen, setFixOpen] = useState(false);
   const [fixNote, setFixNote] = useState("");
-  const [fixing, setFixing] = useState(false);
+  // Which rule save is in flight (drives the per-button spinner), or null.
+  const [fixing, setFixing] = useState<null | "house" | "global">(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [timeFilter, setTimeFilter] = useState<"all" | "current" | "past" | "future">("all");
   const [mobileView, setMobileView] = useState<"list" | "thread">("list");
+  // Full-screen composer: blows the message input up to fill the viewport so
+  // long replies are easier to write, then shrinks back to the inline bar.
+  const [composerExpanded, setComposerExpanded] = useState(false);
 
   async function loadConversations() {
     try {
@@ -213,6 +231,8 @@ export default function AdminMessagesPage() {
         autoDraftSourceRef.current = null;
         setFixOpen(false);
         setFixNote("");
+        // Drop back to the inline composer so the sent message is visible.
+        setComposerExpanded(false);
 
         // Re-fetch to get the canonical state
         const refreshRes = await fetch(
@@ -266,6 +286,12 @@ export default function AdminMessagesPage() {
   const selectedConversation = conversations.find(
     (c) => c.booking_id === selectedBookingId
   );
+
+  // House for the open thread — gates the "Add house rule" button and labels it.
+  const conversationHouse = houseForProperty(
+    selectedConversation?.property_name
+  );
+  const houseLabel = conversationHouse ? HOUSE_LABELS[conversationHouse] : null;
 
   // Guest's latest message, but only when the guest spoke last — that's when
   // a reply suggestion is useful.
@@ -346,19 +372,21 @@ export default function AdminMessagesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedBookingId, messagesBookingId, lastGuestMessage, loadingMessages]);
 
-  // "Fix" flow: host says what's wrong with the draft — saves a standing
-  // training rule and regenerates a corrected reply for this ticket.
-  async function handleFix() {
+  // Rule flow: host says what the draft got wrong — saves it as a standing
+  // rule (scoped to this house, or global) and regenerates a corrected reply.
+  // The note feeds future drafts: house rules only for this home, global for all.
+  async function handleAddRule(scope: "house" | "global") {
     const badDraft = autoDraftRef.current;
     if (!selectedBookingId || !badDraft || !fixNote.trim() || fixing) return;
-    setFixing(true);
+    if (scope === "house" && !conversationHouse) return;
+    setFixing(scope);
     try {
       const res = await fetch(`/api/admin/messages/${selectedBookingId}/suggest`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...buildDraftPayload(),
-          feedback: { badDraft, note: fixNote.trim() },
+          feedback: { badDraft, note: fixNote.trim(), scope },
         }),
       });
       const data = await res.json();
@@ -369,12 +397,44 @@ export default function AdminMessagesPage() {
         setFixNote("");
         setFixOpen(false);
       } else {
-        setMessageError(data.error || "Failed to regenerate draft");
+        setMessageError(data.error || "Failed to save rule");
       }
     } catch {
-      setMessageError("Failed to regenerate draft");
+      setMessageError("Failed to save rule");
     } finally {
-      setFixing(false);
+      setFixing(null);
+    }
+  }
+
+  // On-demand AI draft (the toolbar button in full-screen). The effect above
+  // only fires when the guest spoke last; this lets the host pull a draft —
+  // or regenerate the current one — at any time.
+  async function generateDraft() {
+    if (!selectedBookingId || draftLoading) return;
+    setDraftLoading(true);
+    try {
+      const res = await fetch(
+        `/api/admin/messages/${selectedBookingId}/suggest`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(buildDraftPayload()),
+        }
+      );
+      const data = await res.json();
+      if (res.ok && data.draft) {
+        autoDraftRef.current = data.draft;
+        autoDraftSourceRef.current = "ai";
+        setNewMessage(data.draft);
+        setFixOpen(false);
+        setFixNote("");
+      } else {
+        setMessageError(data.error || "Failed to draft reply");
+      }
+    } catch {
+      setMessageError("Failed to draft reply");
+    } finally {
+      setDraftLoading(false);
     }
   }
 
@@ -590,35 +650,43 @@ export default function AdminMessagesPage() {
                     <User className="h-5 w-5 text-muted-foreground" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-sm">
-                      {selectedConversation.guest_name || "Unknown Guest"}
-                    </p>
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <p className="font-semibold text-sm truncate">
+                        {selectedConversation.guest_name || "Unknown Guest"}
+                      </p>
+                      {selectedConversation.source && (
+                        <Badge
+                          variant="secondary"
+                          className="shrink-0 h-4 px-1.5 text-[10px] font-medium"
+                        >
+                          {cleanSourceName(selectedConversation.source)}
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
                       {selectedConversation.property_name && (
-                        <>
-                          <Home className="h-3 w-3" />
-                          {selectedConversation.property_name}
-                          <span className="opacity-50">|</span>
-                        </>
+                        <span className="flex items-center gap-1 min-w-0 max-w-full">
+                          <Home className="h-3 w-3 shrink-0" />
+                          <span className="truncate">
+                            {selectedConversation.property_name}
+                          </span>
+                        </span>
                       )}
                       {(selectedConversation.arrival ||
                         selectedConversation.departure) && (
-                        <>
+                        <span className="whitespace-nowrap">
                           {formatDate(selectedConversation.arrival)} –{" "}
                           {formatDate(selectedConversation.departure)}
-                        </>
-                      )}
-                      {selectedConversation.source && (
-                        <>
-                          <span className="opacity-50">|</span>
-                          {cleanSourceName(selectedConversation.source)}
-                        </>
+                        </span>
                       )}
                     </div>
                   </div>
                   <Badge
                     variant="outline"
-                    className={getStatusColor(selectedConversation.status)}
+                    className={cn(
+                      "shrink-0",
+                      getStatusColor(selectedConversation.status)
+                    )}
                   >
                     {selectedConversation.status}
                   </Badge>
@@ -734,7 +802,29 @@ export default function AdminMessagesPage() {
               </div>
 
               {/* Message input */}
-              <div className="p-3 border-t">
+              <div
+                className={cn(
+                  composerExpanded
+                    ? "fixed inset-0 z-50 flex flex-col gap-2 bg-background p-4"
+                    : "p-3 border-t"
+                )}
+              >
+                {composerExpanded && (
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-semibold">
+                      {selectedConversation?.guest_name || "Compose message"}
+                    </p>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 shrink-0"
+                      onClick={() => setComposerExpanded(false)}
+                      aria-label="Exit full screen"
+                    >
+                      <Minimize2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
                 {!newMessage.trim() && (
                   <QuickReplySuggestions
                     lastGuestMessage={lastGuestMessage}
@@ -763,7 +853,7 @@ export default function AdminMessagesPage() {
                           className="underline hover:text-foreground"
                           onClick={() => setFixOpen((v) => !v)}
                         >
-                          Fix…
+                          Add rule…
                         </button>
                       )}
                       <button
@@ -780,37 +870,63 @@ export default function AdminMessagesPage() {
                       </button>
                     </div>
                     {fixOpen && (
-                      <div className="flex gap-2">
+                      <div className="space-y-1.5">
                         <Input
                           value={fixNote}
                           onChange={(e) => setFixNote(e.target.value)}
                           onKeyDown={(e) => {
                             if (e.key === "Enter") {
                               e.preventDefault();
-                              handleFix();
+                              handleAddRule(conversationHouse ? "house" : "global");
                             }
                           }}
-                          placeholder='What&apos;s wrong? e.g. "Never offer free late checkout on Sundays"'
+                          placeholder='Rule for the AI, e.g. "Never offer free late checkout on Sundays"'
                           className="h-8 text-xs"
                           autoFocus
                         />
-                        <Button
-                          size="sm"
-                          className="h-8 text-xs shrink-0"
-                          onClick={handleFix}
-                          disabled={!fixNote.trim() || fixing}
-                        >
-                          {fixing ? (
-                            <Loader2 className="h-3 w-3 animate-spin" />
-                          ) : (
-                            "Fix & retrain"
-                          )}
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 text-xs shrink-0"
+                            onClick={() => handleAddRule("house")}
+                            disabled={!fixNote.trim() || !!fixing || !conversationHouse}
+                            title={
+                              conversationHouse
+                                ? `Saved for future ${houseLabel} replies only`
+                                : "No house detected for this conversation"
+                            }
+                          >
+                            {fixing === "house" ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              `Add ${houseLabel ?? "house"} rule`
+                            )}
+                          </Button>
+                          <Button
+                            size="sm"
+                            className="h-8 text-xs shrink-0"
+                            onClick={() => handleAddRule("global")}
+                            disabled={!fixNote.trim() || !!fixing}
+                            title="Saved for every home's future replies"
+                          >
+                            {fixing === "global" ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              "Add global rule"
+                            )}
+                          </Button>
+                        </div>
                       </div>
                     )}
                   </div>
                 )}
-                <div className="flex gap-2">
+                <div
+                  className={cn(
+                    "flex gap-2",
+                    composerExpanded && "flex-1 flex-col"
+                  )}
+                >
                   <Textarea
                     placeholder="Type a message..."
                     value={newMessage}
@@ -822,28 +938,75 @@ export default function AdminMessagesPage() {
                       }
                     }}
                     rows={1}
-                    className="min-h-10 max-h-30 resize-none"
-                  />
-                  <QuickReplyPicker
-                    propertyName={selectedConversation?.property_name ?? null}
-                    vars={quickReplyVars}
-                    onInsert={(text) => {
-                      autoDraftRef.current = text;
-                      setNewMessage(text);
-                    }}
-                  />
-                  <Button
-                    onClick={handleSend}
-                    disabled={!newMessage.trim() || sending}
-                    size="icon"
-                    className="h-10 w-10 shrink-0"
-                  >
-                    {sending ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Send className="h-4 w-4" />
+                    className={cn(
+                      "resize-none",
+                      composerExpanded
+                        ? "min-h-0 max-h-none flex-1"
+                        : "min-h-10 max-h-30"
                     )}
-                  </Button>
+                  />
+                  {/* Inline beside the box when collapsed; a bottom toolbar when
+                      expanded. `contents` lets the buttons sit in the parent row
+                      directly so the collapsed layout is unchanged. */}
+                  <div
+                    className={cn(
+                      composerExpanded ? "flex items-center gap-2" : "contents"
+                    )}
+                  >
+                    {composerExpanded && (
+                      <>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="gap-1.5"
+                          onClick={generateDraft}
+                          disabled={draftLoading || !selectedBookingId}
+                        >
+                          {draftLoading ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Sparkles className="h-4 w-4 text-primary" />
+                          )}
+                          {newMessage && newMessage === autoDraftRef.current
+                            ? "Regenerate"
+                            : "Draft with AI"}
+                        </Button>
+                        {/* Push the reply library + send to the right edge. */}
+                        <div className="flex-1" />
+                      </>
+                    )}
+                    {!composerExpanded && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-10 w-10 shrink-0"
+                        onClick={() => setComposerExpanded(true)}
+                        aria-label="Full screen"
+                      >
+                        <Maximize2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                    <QuickReplyPicker
+                      propertyName={selectedConversation?.property_name ?? null}
+                      vars={quickReplyVars}
+                      onInsert={(text) => {
+                        autoDraftRef.current = text;
+                        setNewMessage(text);
+                      }}
+                    />
+                    <Button
+                      onClick={handleSend}
+                      disabled={!newMessage.trim() || sending}
+                      size="icon"
+                      className="h-10 w-10 shrink-0"
+                    >
+                      {sending ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Send className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
                 </div>
               </div>
             </>

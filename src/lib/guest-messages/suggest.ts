@@ -49,6 +49,9 @@ export interface DraftFeedback {
   badDraft: string;
   /** What's wrong with it / what it should say instead. */
   note: string;
+  /** Where to store the note as a standing rule: scoped to this booking's
+   * house, or applied to every home. Defaults to "global". */
+  scope?: "house" | "global";
 }
 
 // Keep this prompt byte-stable — it is the cached prefix for every draft call.

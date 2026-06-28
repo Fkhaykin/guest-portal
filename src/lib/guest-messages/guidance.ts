@@ -14,14 +14,25 @@ type FeedbackRow = {
   corrected_draft: string | null;
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function loadGuidance(supabase: SupabaseClient<any, any, any>): Promise<DraftGuidance> {
-  const { data } = await supabase
+// `house` scopes which rules load: global rules (house IS NULL) always apply;
+// house-scoped rules only load for that home, so one home's correction never
+// leaks into another's drafts. Pass null/undefined to load global rules only.
+export async function loadGuidance(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: SupabaseClient<any, any, any>,
+  house?: string | null
+): Promise<DraftGuidance> {
+  let query = supabase
     .from("draft_feedback")
     .select("source, note, bad_draft, corrected_draft")
     .eq("active", true)
     .order("created_at", { ascending: false })
     .limit(200);
+
+  // house is a controlled enum (lakehouse/chalet/…), safe to interpolate.
+  query = house ? query.or(`house.is.null,house.eq.${house}`) : query.is("house", null);
+
+  const { data } = await query;
 
   const rows = (data ?? []) as FeedbackRow[];
 
