@@ -1,14 +1,16 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { freeNightsDiscountCents, type PromoNight } from "@/lib/promo/free-nights";
 
 export async function POST(request: Request) {
   const body = await request.json();
-  const { code, property_id, nights, room_rate_cents, cleaning_fee_cents } = body as {
+  const { code, property_id, nights, room_rate_cents, cleaning_fee_cents, nightly_rates } = body as {
     code: string;
     property_id: string;
     nights: number;
     room_rate_cents: number;
     cleaning_fee_cents: number;
+    nightly_rates?: PromoNight[];
   };
 
   if (!code || !property_id || !nights) {
@@ -68,10 +70,18 @@ export async function POST(request: Request) {
       description = `$${(promo.discount_value / 100).toFixed(2)} off`;
       break;
     case "free_nights": {
-      const avgNightly = Math.round(room_rate_cents / nights);
+      const scope = promo.free_nights_scope === "weeknight" ? "weeknight" : "any";
+      if (nightly_rates && nightly_rates.length > 0) {
+        // Comp the cheapest eligible nights, not the average.
+        discount_cents = freeNightsDiscountCents(nightly_rates, promo.discount_value, scope);
+      } else {
+        // Fallback when per-night pricing wasn't supplied: average them out.
+        const avgNightly = Math.round(room_rate_cents / nights);
+        discount_cents = avgNightly * Math.min(promo.discount_value, nights);
+      }
       const freeNights = Math.min(promo.discount_value, nights);
-      discount_cents = avgNightly * freeNights;
-      description = `${freeNights} free night${freeNights > 1 ? "s" : ""}`;
+      const scopeLabel = scope === "weeknight" ? " (weeknights)" : "";
+      description = `${freeNights} free night${freeNights > 1 ? "s" : ""}${scopeLabel}`;
       break;
     }
     case "free_cleaning":

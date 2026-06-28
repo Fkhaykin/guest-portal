@@ -187,6 +187,7 @@ export function CheckoutForm({
           nights,
           room_rate_cents: pricing.room_rate_cents,
           cleaning_fee_cents: pricing.cleaning_fee_cents,
+          nightly_rates: pricing.nightly_rates.map((r) => ({ date: r.date, price_cents: r.price_cents })),
         }),
       });
       const data = await res.json();

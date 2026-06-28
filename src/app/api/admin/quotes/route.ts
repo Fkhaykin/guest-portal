@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { stripe } from "@/lib/stripe/client";
 import { getNightlyRates } from "@/lib/pricelabs/client";
 import { getQuote } from "@/lib/lodgify/client";
+import { freeNightsDiscountCents } from "@/lib/promo/free-nights";
 
 const PA_STATE_TAX_RATE = 0.06;
 const MONROE_COUNTY_TAX_RATE = 0.03;
@@ -90,7 +91,7 @@ export async function POST(request: Request) {
       switch (promo.discount_type) {
         case "percentage": discountCents = Math.round(roomRateCents * promo.discount_value / 100); break;
         case "flat": discountCents = promo.discount_value; break;
-        case "free_nights": discountCents = Math.round(roomRateCents / nights) * Math.min(promo.discount_value, nights); break;
+        case "free_nights": discountCents = freeNightsDiscountCents(nightlyRates, promo.discount_value, promo.free_nights_scope === "weeknight" ? "weeknight" : "any"); break;
         case "free_cleaning": discountCents = cleaningFeeCents; break;
       }
       discountCents = Math.min(discountCents, roomRateCents + cleaningFeeCents);

@@ -4,6 +4,7 @@ import { stripe } from "@/lib/stripe/client";
 import { getNightlyRates } from "@/lib/pricelabs/client";
 import { getQuote } from "@/lib/lodgify/client";
 import { validateTimingUpsellPrices } from "@/lib/upsells/timing";
+import { freeNightsDiscountCents } from "@/lib/promo/free-nights";
 
 const PA_STATE_TAX_RATE = 0.06;
 const MONROE_COUNTY_TAX_RATE = 0.03;
@@ -162,11 +163,14 @@ export async function POST(request: Request) {
           case "flat":
             discountCents = promo.discount_value;
             break;
-          case "free_nights": {
-            const avgNightly = Math.round(roomRateCents / nights);
-            discountCents = avgNightly * Math.min(promo.discount_value, nights);
+          case "free_nights":
+            // Comp the cheapest eligible nights, not the average.
+            discountCents = freeNightsDiscountCents(
+              nightlyRates,
+              promo.discount_value,
+              promo.free_nights_scope === "weeknight" ? "weeknight" : "any"
+            );
             break;
-          }
           case "free_cleaning":
             discountCents = cleaningFeeCents;
             break;
