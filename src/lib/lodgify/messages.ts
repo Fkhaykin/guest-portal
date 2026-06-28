@@ -77,6 +77,8 @@ export interface LodgifyBookingDetail {
   arrival: string | null;
   departure: string | null;
   status: string | null;
+  /** Channel the booking came in on (AirbnbIntegration, HomeAway, …). */
+  source: string | null;
 }
 
 /**
@@ -106,6 +108,7 @@ export async function fetchBookingDetail(
       arrival: typeof b.arrival === "string" ? b.arrival.slice(0, 10) : null,
       departure: typeof b.departure === "string" ? b.departure.slice(0, 10) : null,
       status: typeof b.status === "string" ? b.status : null,
+      source: typeof b.source === "string" && b.source.trim() ? b.source.trim() : null,
     };
   } catch (err) {
     console.error("[lodgify-messages] Booking detail error:", err);

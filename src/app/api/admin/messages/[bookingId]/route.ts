@@ -214,6 +214,11 @@ export async function GET(
           arrival: detail.arrival,
           departure: detail.departure,
           booking_status: detail.status,
+          // Enquiries have no registration to carry a booking_source, and
+          // Lodgify rarely stamps a per-message route — so the booking's own
+          // source is the only reliable channel. Only set when known, never
+          // null over a value deriveChannel may have already found.
+          ...(detail.source ? { channel: detail.source } : {}),
         })
         .eq("thread_uid", threadUid);
     }
