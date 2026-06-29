@@ -2,6 +2,17 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ServiceCalendar } from "@/components/calendar/service-calendar";
+import { HouseSwitcher } from "@/components/calendar/house-switcher";
+import { STANDARD_CHECKIN_TIME, STANDARD_CHECKOUT_TIME } from "@/lib/upsells/timing";
+
+// Curated exterior shots (the stored cover images are mostly interiors), keyed
+// by house key. Houses absent here fall back to their cover image.
+const STORAGE_BASE = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/property-images`;
+const EXTERIOR_PHOTOS: Record<string, string> = {
+  lakehouse: `${STORAGE_BASE}/lodgify-355872/exterior.jpg`,
+  manor: `${STORAGE_BASE}/lodgify-355871/exterior.jpg`,
+  "mansion/bml": `${STORAGE_BASE}/lodgify-368901/exterior.jpg`,
+};
 
 // Unpublished, internal-only page — keep it out of search engines.
 export const metadata: Metadata = {
@@ -116,9 +127,14 @@ export default async function ServiceCalendarPage({
     .in("status", ["active", "completed"])
     .gte("check_out_date", todayStr());
 
-  // Expand each booking into its occupied nights [check-in, check-out).
+  // Expand each booking into its occupied nights [check-in, check-out), and
+  // track arrival/departure days for the tap-a-date detail.
   const bookedSet = new Set<string>();
+  const checkInSet = new Set<string>();
+  const checkOutSet = new Set<string>();
   for (const r of (regs ?? []) as { check_in_date: string; check_out_date: string }[]) {
+    checkInSet.add(r.check_in_date);
+    checkOutSet.add(r.check_out_date);
     const end = new Date(r.check_out_date + "T00:00:00");
     for (
       let d = new Date(r.check_in_date + "T00:00:00");
@@ -132,15 +148,22 @@ export default async function ServiceCalendarPage({
   }
 
   const address = formatAddress(house.address);
+  const photo = EXTERIOR_PHOTOS[house.key] ?? house.coverImage;
+
+  // Dropdown options — label each house by its street address (nickname fallback).
+  const houseOptions = houses.map((h, i) => ({
+    index: i + 1,
+    label: formatAddress(h.address)?.line1 ?? h.label,
+  }));
 
   return (
     <main className="min-h-screen bg-background">
       <div className="mx-auto max-w-3xl px-4 py-6 sm:py-10">
         <div className="relative overflow-hidden rounded-2xl h-28 sm:h-32 ring-1 ring-black/5 shadow-sm">
-          {house.coverImage ? (
+          {photo ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              src={house.coverImage}
+              src={photo}
               alt={address?.line1 ?? house.label}
               className="absolute inset-0 h-full w-full object-cover"
             />
@@ -159,7 +182,17 @@ export default async function ServiceCalendarPage({
         </div>
 
         <div className="mt-6">
-          <ServiceCalendar bookedDates={[...bookedSet]} />
+          <ServiceCalendar
+            bookedDates={[...bookedSet]}
+            checkInDates={[...checkInSet]}
+            checkOutDates={[...checkOutSet]}
+            checkInTime={STANDARD_CHECKIN_TIME}
+            checkOutTime={STANDARD_CHECKOUT_TIME}
+          />
+        </div>
+
+        <div className="mt-6">
+          <HouseSwitcher houses={houseOptions} current={index} />
         </div>
       </div>
     </main>

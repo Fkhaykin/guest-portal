@@ -1,11 +1,14 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, LogIn, LogOut } from "lucide-react";
 
 const MONTH_NAMES = [
   "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December",
+];
+const WEEKDAYS = [
+  "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday",
 ];
 const DAY_HEADERS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 
@@ -14,6 +17,10 @@ function toDateStr(d: Date) {
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
+}
+
+function parseDate(s: string) {
+  return new Date(s + "T00:00:00");
 }
 
 function addMonths(d: Date, n: number) {
@@ -26,17 +33,32 @@ function getDaysInMonth(year: number, month: number) {
   return new Date(year, month + 1, 0).getDate();
 }
 
+function formatLong(s: string) {
+  const d = parseDate(s);
+  return `${WEEKDAYS[d.getDay()]}, ${MONTH_NAMES[d.getMonth()]} ${d.getDate()}`;
+}
+
 interface Props {
-  // Occupied nights as YYYY-MM-DD strings (a booking [check-in, check-out)).
+  // Occupied nights as YYYY-MM-DD strings (a booking spans [check-in, check-out)).
   bookedDates: string[];
+  // Dates a guest arrives / departs.
+  checkInDates: string[];
+  checkOutDates: string[];
+  checkInTime: string;
+  checkOutTime: string;
   monthsToShow?: number; // navigable range from this month (default 12)
   monthsVisible?: number; // months rendered side-by-side (default 2)
 }
 
-// Read-only availability calendar for contractors: occupied nights are shaded,
-// open nights are left clear. No selection or interaction beyond month paging.
+// Read-only availability calendar for contractors: unavailable nights are
+// shaded, available nights are left clear. Tapping a date reveals the guest
+// check-in / check-out time for that day.
 export function ServiceCalendar({
   bookedDates,
+  checkInDates,
+  checkOutDates,
+  checkInTime,
+  checkOutTime,
   monthsToShow = 12,
   monthsVisible = 2,
 }: Props) {
@@ -47,9 +69,22 @@ export function ServiceCalendar({
   }, []);
 
   const bookedSet = useMemo(() => new Set(bookedDates), [bookedDates]);
+  const checkInSet = useMemo(() => new Set(checkInDates), [checkInDates]);
+  const checkOutSet = useMemo(() => new Set(checkOutDates), [checkOutDates]);
   const [viewMonth, setViewMonth] = useState(
     () => new Date(today.getFullYear(), today.getMonth(), 1)
   );
+  const [selected, setSelected] = useState<string | null>(null);
+
+  const selection = useMemo(() => {
+    if (!selected) return null;
+    return {
+      date: selected,
+      isCheckIn: checkInSet.has(selected),
+      isCheckOut: checkOutSet.has(selected),
+      occupied: bookedSet.has(selected),
+    };
+  }, [selected, checkInSet, checkOutSet, bookedSet]);
 
   function renderMonth(monthDate: Date) {
     const year = monthDate.getFullYear();
@@ -80,19 +115,24 @@ export function ServiceCalendar({
             const dateStr = toDateStr(d);
             const past = d < today;
             const booked = bookedSet.has(dateStr);
+            const isSelected = selected === dateStr;
             return (
-              <div
+              <button
                 key={dateStr}
+                type="button"
+                disabled={past}
+                onClick={() => setSelected(dateStr)}
                 className={[
-                  "h-9 flex items-center justify-center text-sm transition-colors",
-                  past ? "text-muted-foreground/30" : "",
+                  "h-9 flex items-center justify-center text-sm transition-colors rounded-md",
+                  past ? "text-muted-foreground/30 cursor-not-allowed" : "cursor-pointer hover:bg-accent",
                   booked && !past
                     ? "bg-red-100 dark:bg-red-950/40 text-red-600 dark:text-red-400 font-medium"
                     : "",
+                  isSelected ? "ring-2 ring-inset ring-primary" : "",
                 ].join(" ")}
               >
                 {day}
-              </div>
+              </button>
             );
           })}
         </div>
@@ -135,6 +175,40 @@ export function ServiceCalendar({
         ))}
       </div>
 
+      {/* Tap-a-date detail */}
+      <div className="rounded-lg border bg-muted/30 px-4 py-3 min-h-16 flex flex-col justify-center">
+        {!selection ? (
+          <p className="text-sm text-muted-foreground text-center">
+            Tap a date to see check-in / check-out times.
+          </p>
+        ) : (
+          <div className="space-y-1.5">
+            <p className="text-sm font-semibold">{formatLong(selection.date)}</p>
+            {selection.isCheckOut && (
+              <p className="flex items-center gap-2 text-sm">
+                <LogOut className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                <span>Guest checks out</span>
+                <span className="ml-auto font-medium">{checkOutTime}</span>
+              </p>
+            )}
+            {selection.isCheckIn && (
+              <p className="flex items-center gap-2 text-sm">
+                <LogIn className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                <span>Guest checks in</span>
+                <span className="ml-auto font-medium">{checkInTime}</span>
+              </p>
+            )}
+            {!selection.isCheckIn && !selection.isCheckOut && (
+              <p className="text-sm text-muted-foreground">
+                {selection.occupied
+                  ? "Unavailable — guest in residence."
+                  : "Available — no check-in or check-out."}
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+
       <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground pt-3 border-t">
         <span className="flex items-center gap-1.5">
           <span className="h-3 w-3 rounded-sm border bg-card" />
@@ -142,7 +216,7 @@ export function ServiceCalendar({
         </span>
         <span className="flex items-center gap-1.5">
           <span className="h-3 w-3 rounded-sm bg-red-100 dark:bg-red-950/40" />
-          Booked
+          Unavailable
         </span>
       </div>
     </div>
