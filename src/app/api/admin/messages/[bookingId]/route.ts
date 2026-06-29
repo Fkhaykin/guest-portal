@@ -10,9 +10,12 @@ import {
 } from "@/lib/lodgify/messages";
 import {
   isRegistrationId,
-  directThreadUid,
   sendDirectGuestMessage,
 } from "@/lib/guest-messages/direct";
+import {
+  isWebThreadUid,
+  sendWebHostMessage,
+} from "@/lib/guest-messages/web";
 
 type GuestMessageRow = {
   id?: string;
@@ -130,21 +133,39 @@ export async function GET(
     });
   }
 
-  // Direct bookings are addressed by registration UUID; their thread lives
-  // entirely in our DB under "direct:<registration_id>".
-  if (isRegistrationId(bookingId)) {
+  // Web-chat threads with no reservation yet are addressed by their raw
+  // "web:<uuid>" thread_uid and live entirely in our DB.
+  if (isWebThreadUid(bookingId)) {
     const admin = createAdminClient();
-    const threadUid = directThreadUid(bookingId);
     const { data: rows } = await admin
       .from("guest_message")
       .select("id, lodgify_message_id, thread_uid, message_type, subject, message, creation_time, guest_name, has_attachments")
-      .eq("thread_uid", threadUid)
+      .eq("thread_uid", bookingId)
       .order("creation_time", { ascending: true });
-    // Opening the thread marks it read.
     await admin
       .from("guest_message_thread")
       .update({ unread_count: 0 })
-      .eq("thread_uid", threadUid);
+      .eq("thread_uid", bookingId);
+    return NextResponse.json({
+      messages: (rows ?? []).map((r) => toLodgifyMessage(r as GuestMessageRow)),
+    });
+  }
+
+  // Direct bookings are addressed by registration UUID. Load by registration_id
+  // so direct ("direct:<id>") AND linked web ("web:<uuid>") messages merge into
+  // one timeline — both carry registration_id.
+  if (isRegistrationId(bookingId)) {
+    const admin = createAdminClient();
+    const { data: rows } = await admin
+      .from("guest_message")
+      .select("id, lodgify_message_id, thread_uid, message_type, subject, message, creation_time, guest_name, has_attachments")
+      .eq("registration_id", bookingId)
+      .order("creation_time", { ascending: true });
+    // Opening the conversation marks every thread for this reservation read.
+    await admin
+      .from("guest_message_thread")
+      .update({ unread_count: 0 })
+      .eq("registration_id", bookingId);
     return NextResponse.json({
       messages: (rows ?? []).map((r) => toLodgifyMessage(r as GuestMessageRow)),
     });
@@ -166,12 +187,16 @@ export async function GET(
 
   let threadUid = reg?.lodgify_thread_uid ?? null;
 
-  // Fall back to the webhook-written thread row keyed by booking id.
+  // Fall back to the webhook-written thread row keyed by booking id. Exclude
+  // linked web threads (they also carry this lodgify_booking_id) — they're
+  // folded in separately by registration_id, and including one here would both
+  // break maybeSingle (two rows) and point threadUid at a web thread.
   if (!threadUid) {
     const { data: threadRow } = await admin
       .from("guest_message_thread")
       .select("thread_uid")
       .eq("lodgify_booking_id", id)
+      .or("channel.is.null,channel.neq.web")
       .maybeSingle();
     threadUid = threadRow?.thread_uid ?? null;
   }
@@ -224,11 +249,14 @@ export async function GET(
     }
   }
 
-  // Lodgify unreachable or thread empty — serve whatever we have cached.
+  // Lodgify unreachable or thread empty — serve whatever we have cached. Exclude
+  // web rows: they carry lodgify_booking_id too, but are folded in separately
+  // below, so without this filter they'd appear twice (and with no id selected).
   if (messages.length === 0) {
     const query = admin
       .from("guest_message")
-      .select("lodgify_message_id, thread_uid, message_type, subject, message, creation_time, guest_name, has_attachments")
+      .select("id, lodgify_message_id, thread_uid, message_type, subject, message, creation_time, guest_name, has_attachments")
+      .or("channel.is.null,channel.neq.web")
       .order("creation_time", { ascending: true });
     const { data: rows } = threadUid
       ? await query.eq("thread_uid", threadUid)
@@ -239,12 +267,36 @@ export async function GET(
     }
   }
 
-  // Opening the thread marks it read.
+  // Fold in any web-chat messages linked to this reservation (the guest chatted
+  // on the website before/after booking, matched by email). Re-sort by time.
+  if (reg?.id) {
+    const { data: webRows } = await admin
+      .from("guest_message")
+      .select("id, lodgify_message_id, thread_uid, message_type, subject, message, creation_time, guest_name, has_attachments")
+      .eq("registration_id", reg.id)
+      .eq("channel", "web")
+      .order("creation_time", { ascending: true });
+    if (webRows && webRows.length) {
+      messages = [
+        ...messages,
+        ...webRows.map((r) => toLodgifyMessage(r as GuestMessageRow)),
+      ].sort((a, b) => (a.created_at || "").localeCompare(b.created_at || ""));
+    }
+  }
+
+  // Opening the thread marks it read — both the Lodgify thread and any linked
+  // web thread for this reservation.
   if (threadUid) {
     await admin
       .from("guest_message_thread")
       .update({ unread_count: 0 })
       .eq("thread_uid", threadUid);
+  }
+  if (reg?.id) {
+    await admin
+      .from("guest_message_thread")
+      .update({ unread_count: 0 })
+      .eq("registration_id", reg.id);
   }
 
   return NextResponse.json({ messages });
@@ -281,6 +333,16 @@ export async function POST(
     );
   }
 
+  // Web-chat thread (no reservation yet): record the reply and email the
+  // visitor; the live widget also picks it up by polling.
+  if (isWebThreadUid(bookingId)) {
+    const result = await sendWebHostMessage(bookingId, text.trim());
+    if (!result.success) {
+      return NextResponse.json({ error: result.error }, { status: 502 });
+    }
+    return NextResponse.json({ success: true });
+  }
+
   // Direct booking: deliver to the guest's email/phone and record locally.
   if (isRegistrationId(bookingId)) {
     const result = await sendDirectGuestMessage(bookingId, text.trim());
@@ -311,10 +373,12 @@ export async function POST(
   let threadUid = reg?.lodgify_thread_uid ?? null;
   if (!threadUid) {
     // Inquiry threads have no registration — the webhook thread row has it.
+    // Exclude linked web threads (they share this lodgify_booking_id).
     const { data: threadRow } = await admin
       .from("guest_message_thread")
       .select("thread_uid")
       .eq("lodgify_booking_id", id)
+      .or("channel.is.null,channel.neq.web")
       .maybeSingle();
     threadUid = threadRow?.thread_uid ?? null;
   }

@@ -45,6 +45,7 @@ import {
   MessageSquare,
 } from "lucide-react";
 import { EditRegistrationDialog } from "@/components/admin/edit-registration-dialog";
+import { ReservationMessages } from "@/components/admin/reservation-messages";
 import { toneBadge, statusTone } from "@/lib/status-styles";
 import { effectiveStayTimes } from "@/lib/upsells/timing";
 import type { GuestListEntry, PetEntry, UpsellEntry, CleaningPhoto, CleaningPhotoExif, CleaningChecklistItem, InvoiceLineItem, InvoiceStatus } from "@/types/database";
@@ -509,6 +510,7 @@ export default function ReservationDetailPage() {
       <Tabs defaultValue="details">
         <TabsList>
           <TabsTrigger value="details">Details</TabsTrigger>
+          <TabsTrigger value="messages">Messages</TabsTrigger>
           <TabsTrigger value="cleaning">Cleaning Photos</TabsTrigger>
         </TabsList>
 
@@ -901,6 +903,11 @@ export default function ReservationDetailPage() {
               </CardContent>
             </Card>
           )}
+        </TabsContent>
+
+        {/* Messages Tab — unified guest conversation (web chat + email/SMS or Lodgify) */}
+        <TabsContent value="messages" className="mt-4">
+          <ReservationMessages bookingId={reg.lodgify_booking_id ?? reg.id} />
         </TabsContent>
 
         {/* Cleaning Photos Tab */}

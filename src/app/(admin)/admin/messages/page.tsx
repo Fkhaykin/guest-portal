@@ -14,7 +14,6 @@ import {
   Send,
   Loader2,
   MessageSquare,
-  User,
   Home,
   CalendarDays,
   ChevronLeft,
@@ -651,14 +650,21 @@ export default function AdminMessagesPage() {
                   >
                     <ChevronLeft className="h-5 w-5" />
                   </Button>
-                  <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center shrink-0">
-                    <User className="h-5 w-5 text-muted-foreground" />
-                  </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 min-w-0">
-                      <p className="font-semibold text-sm truncate">
-                        {selectedConversation.guest_name || "Unknown Guest"}
-                      </p>
+                      {selectedConversation.registration_id ? (
+                        <Link
+                          href={`/admin/reservations/${selectedConversation.registration_id}`}
+                          className="font-semibold text-sm truncate hover:underline"
+                          title="View reservation details"
+                        >
+                          {selectedConversation.guest_name || "Unknown Guest"}
+                        </Link>
+                      ) : (
+                        <p className="font-semibold text-sm truncate">
+                          {selectedConversation.guest_name || "Unknown Guest"}
+                        </p>
+                      )}
                       {selectedConversation.source &&
                         (sourceGlyph ? (
                           <PlatformLogo

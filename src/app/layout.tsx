@@ -3,6 +3,7 @@ import { Geist, Geist_Mono, Plus_Jakarta_Sans } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/theme-provider";
 import { PWARegister } from "@/components/pwa-register";
+import { LiveChatWidget } from "@/components/guest/live-chat-widget";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -63,6 +64,7 @@ export default function RootLayout({
           {children}
           <PWARegister />
           <Toaster />
+          <LiveChatWidget />
         </ThemeProvider>
       </body>
     </html>

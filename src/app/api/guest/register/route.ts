@@ -4,6 +4,7 @@ import { verifyGuestToken } from "@/lib/guest-token";
 import { notifyCleanersOfPetAdded } from "@/lib/sms/notify-cleaners";
 import { notifyHostOfRegistration } from "@/lib/push/notify-host";
 import { submitPEPOAEmail } from "@/lib/pepoa/submit-email";
+import { linkWebThreadsToReservation } from "@/lib/guest-messages/web";
 
 export async function POST(request: Request) {
   let body: {
@@ -252,6 +253,13 @@ export async function POST(request: Request) {
 
   // Run post-response work after the response is committed
   after(async () => {
+    // Merge any pre-booking web-chat thread for this email into the reservation.
+    await linkWebThreadsToReservation(
+      email.trim().toLowerCase(),
+      reg.id,
+      null
+    ).catch((err) => console.error("Failed to link web chat threads:", err));
+
     await submitPEPOAEmail({ registrationId: reg.id }).catch((err) => {
       console.error("Failed to send PEPOA email:", err);
     });

@@ -59,14 +59,19 @@ export async function notifyHostOfGuestMessage(params: {
   lodgifyBookingId: number | null;
   /** Direct (non-Lodgify) bookings are identified by registration id instead. */
   registrationId?: string | null;
+  /** Explicit inbox deep-link key (?booking=...) when the addressable id differs
+   *  from the host-targeting ids — e.g. an orphan web thread ("web:<uuid>"), or a
+   *  web chat linked to a Lodgify booking (the inbox keys those by numeric id). */
+  threadKey?: string | number | null;
 }) {
-  const threadKey = params.lodgifyBookingId ?? params.registrationId;
+  const linkKey =
+    params.threadKey ?? params.lodgifyBookingId ?? params.registrationId;
   const payload: PushPayload = {
     title: params.guestName
       ? `Message from ${params.guestName}`
       : "New guest message",
     body: params.preview,
-    url: adminUrl(threadKey ? `/messages?booking=${threadKey}` : "/messages"),
+    url: adminUrl(linkKey ? `/messages?booking=${linkKey}` : "/messages"),
   };
 
   // Tie the message to a host via its booking when we can; otherwise notify all

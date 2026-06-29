@@ -9,6 +9,7 @@ import {
 } from "@/lib/push/notify-host";
 import { sendGuestConfirmationAsync } from "@/lib/guest-messages/send";
 import { submitPEPOAEmail } from "@/lib/pepoa/submit-email";
+import { linkWebThreadsToReservation } from "@/lib/guest-messages/web";
 
 const STATUS_MAP: Record<string, "active" | "completed" | "cancelled"> = {
   Booked: "active",
@@ -538,6 +539,19 @@ export async function syncBooking(booking: LodgifyBooking, options?: { skipNotif
       checkInDate: booking.arrival ?? null,
       checkOutDate: booking.departure ?? null,
     }).catch((err) => console.error(`[guest-msg] Confirmation failed for booking ${booking.id}:`, err));
+  }
+
+  // Merge any pre-booking web-chat thread for this email into the reservation.
+  // Runs regardless of skipNotify (batch syncs still need the link), and is
+  // idempotent — only the booking's first sync has unlinked threads to claim.
+  if ((isNewBooking || justBecameActive) && savedReg && booking.guest.email) {
+    await linkWebThreadsToReservation(
+      booking.guest.email,
+      savedReg.id,
+      booking.id
+    ).catch((err) =>
+      console.error(`[lodgify-sync] Web-chat link failed for booking ${booking.id}:`, err)
+    );
   }
 
   return { skipped: false };

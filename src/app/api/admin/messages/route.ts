@@ -36,10 +36,11 @@ export async function GET() {
     return NextResponse.json({ error: regError.message }, { status: 500 });
   }
 
-  // Pull all thread summaries at once and index by thread_uid + booking_id.
+  // Pull all thread summaries at once and index by thread_uid + booking_id +
+  // registration_id (web-chat threads merge into a booking by registration_id).
   const { data: threads } = await admin
     .from("guest_message_thread")
-    .select("thread_uid, lodgify_booking_id, guest_name, last_message_at, last_message_preview, unread_count, lodgify_property_id, arrival, departure, booking_status, channel");
+    .select("thread_uid, lodgify_booking_id, registration_id, guest_name, last_message_at, last_message_preview, unread_count, lodgify_property_id, arrival, departure, booking_status, channel, email, visitor_name");
 
   // House names for inquiry threads, which have no registration to join on.
   const { data: allProperties } = await admin
@@ -52,24 +53,46 @@ export async function GET() {
     }
   }
 
-  const threadByBooking = new Map<number, {
+  type Summary = {
     last_message_at: string | null;
     last_message_preview: string | null;
     unread_count: number;
-  }>();
-  const threadByUid = new Map<string, {
-    last_message_at: string | null;
-    last_message_preview: string | null;
-    unread_count: number;
-  }>();
+  };
+  // Combine two thread summaries into one conversation row: keep the most recent
+  // message, sum the unread counts (a guest who chats then books has a web
+  // thread + a booking thread that must read as one conversation).
+  const mergeSummary = (
+    a: Summary | undefined,
+    b: Summary | undefined
+  ): Summary | undefined => {
+    if (!a) return b;
+    if (!b) return a;
+    const newer = (b.last_message_at ?? "") > (a.last_message_at ?? "") ? b : a;
+    return {
+      last_message_at: newer.last_message_at,
+      last_message_preview: newer.last_message_preview,
+      unread_count: (a.unread_count ?? 0) + (b.unread_count ?? 0),
+    };
+  };
+
+  const threadByBooking = new Map<number, Summary>();
+  const threadByUid = new Map<string, Summary>();
+  const threadByRegistration = new Map<string, Summary>();
   for (const t of threads ?? []) {
-    const summary = {
+    const summary: Summary = {
       last_message_at: t.last_message_at,
       last_message_preview: t.last_message_preview,
       unread_count: t.unread_count ?? 0,
     };
     if (t.lodgify_booking_id != null) threadByBooking.set(t.lodgify_booking_id, summary);
     if (t.thread_uid) threadByUid.set(t.thread_uid, summary);
+    // A reservation may have several linked threads (direct + multi-device web).
+    if (t.registration_id) {
+      threadByRegistration.set(
+        t.registration_id,
+        mergeSummary(threadByRegistration.get(t.registration_id), summary) as Summary
+      );
+    }
   }
 
   type RegRow = {
@@ -94,12 +117,19 @@ export async function GET() {
   const conversations: ConversationThread[] = ((registrations ?? []) as unknown as RegRow[])
     .map((r) => {
       const isDirect = r.lodgify_booking_id == null;
+      // Direct bookings: direct + web messages are both keyed by registration_id.
+      // Lodgify bookings: the OTA thread by booking id/uid, plus any linked web
+      // thread folded in by registration_id.
       const summary = isDirect
-        ? threadByUid.get(`direct:${r.id}`)
-        : threadByBooking.get(r.lodgify_booking_id as number) ??
-          (r.lodgify_thread_uid ? threadByUid.get(r.lodgify_thread_uid) : undefined);
+        ? threadByRegistration.get(r.id)
+        : mergeSummary(
+            threadByBooking.get(r.lodgify_booking_id as number) ??
+              (r.lodgify_thread_uid ? threadByUid.get(r.lodgify_thread_uid) : undefined),
+            threadByRegistration.get(r.id)
+          );
       return {
         booking_id: isDirect ? r.id : (r.lodgify_booking_id as number),
+        registration_id: r.id,
         guest_name: r.guest?.full_name ?? "Unknown Guest",
         guest_email: r.guest?.email ?? null,
         property_id: r.property?.lodgify_property_id ?? 0,
@@ -128,12 +158,20 @@ export async function GET() {
   for (const t of threads ?? []) {
     if (!t.thread_uid || matchedThreadUids.has(t.thread_uid)) continue;
     if (t.lodgify_booking_id != null && matchedBookings.has(t.lodgify_booking_id)) continue;
+    // Linked web threads are already folded into their booking's conversation
+    // above — don't surface them again as standalone rows.
+    if (t.registration_id) continue;
+    const isWeb = t.channel === "web";
     conversations.push({
-      // Threads without a booking id can only be addressed by thread_uid;
-      // the detail route understands the "thread:" prefix.
-      booking_id: t.lodgify_booking_id ?? `thread:${t.thread_uid}`,
-      guest_name: t.guest_name ?? "Unknown Guest",
-      guest_email: null,
+      // Web threads are answerable, addressed by their raw "web:<uuid>" uid.
+      // Other orphan threads (OTA inquiries) use the "thread:" prefix.
+      booking_id: isWeb
+        ? t.thread_uid
+        : t.lodgify_booking_id ?? `thread:${t.thread_uid}`,
+      // Orphan threads (enquiries / unlinked web chats) have no reservation.
+      registration_id: null,
+      guest_name: (isWeb ? t.visitor_name : t.guest_name) ?? "Unknown Guest",
+      guest_email: isWeb ? t.email ?? null : null,
       property_id: t.lodgify_property_id ?? 0,
       property_name:
         t.lodgify_property_id != null
