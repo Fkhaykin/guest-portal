@@ -12,6 +12,7 @@ const EXTERIOR_PHOTOS: Record<string, string> = {
   lakehouse: `${STORAGE_BASE}/lodgify-355872/exterior.jpg`,
   manor: `${STORAGE_BASE}/lodgify-355871/exterior.jpg`,
   "mansion/bml": `${STORAGE_BASE}/lodgify-368901/exterior.jpg`,
+  "bianca's": `${STORAGE_BASE}/lodgify-368827/exterior.jpg`,
 };
 
 // Unpublished, internal-only page — keep it out of search engines.
