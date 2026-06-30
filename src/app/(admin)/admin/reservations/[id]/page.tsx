@@ -46,7 +46,7 @@ import {
 } from "lucide-react";
 import { EditRegistrationDialog } from "@/components/admin/edit-registration-dialog";
 import { ReservationMessages } from "@/components/admin/reservation-messages";
-import { toneBadge, statusTone } from "@/lib/status-styles";
+import { toneBadge, statusTone, type Tone } from "@/lib/status-styles";
 import { effectiveStayTimes } from "@/lib/upsells/timing";
 import type { GuestListEntry, PetEntry, UpsellEntry, CleaningPhoto, CleaningPhotoExif, CleaningChecklistItem, InvoiceLineItem, InvoiceStatus } from "@/types/database";
 import { ReceiptText } from "lucide-react";
@@ -59,10 +59,26 @@ type FullRegistration = {
   check_out_date: string;
   num_guests: number;
   notes: string | null;
-  status: "active" | "completed" | "cancelled";
+  status: "active" | "completed" | "cancelled" | "pending_payment";
   booking_source: string | null;
   signature_url: string | null;
   total_amount_cents: number;
+  cleaning_fee_cents: number;
+  tax_amount_cents: number;
+  pet_fee_total_cents: number;
+  discount_cents: number;
+  discount_label: string | null;
+  nightly_rates_snapshot: Array<{ date: string; cents: number }> | null;
+  payment_plan: "full" | "split" | "automatic";
+  deposit_paid_at: string | null;
+  balance_paid_at: string | null;
+  balance_charge_attempts: number;
+  balance_last_attempt_at: string | null;
+  balance_last_failure_reason: string | null;
+  stripe_customer_id: string | null;
+  stripe_payment_method_id: string | null;
+  stripe_deposit_invoice_id: string | null;
+  stripe_balance_invoice_id: string | null;
   guest_list: GuestListEntry[] | null;
   pets: PetEntry[] | null;
   upsells: UpsellEntry[] | null;
@@ -187,7 +203,12 @@ export default function ReservationDetailPage() {
       .from("registration")
       .select(`
         id, property_id, guest_id, check_in_date, check_out_date, num_guests, notes,
-        status, booking_source, signature_url, total_amount_cents, guest_list, pets,
+        status, booking_source, signature_url, total_amount_cents, cleaning_fee_cents,
+        tax_amount_cents, pet_fee_total_cents, discount_cents, discount_label,
+        nightly_rates_snapshot, payment_plan, deposit_paid_at, balance_paid_at,
+        balance_charge_attempts, balance_last_attempt_at, balance_last_failure_reason,
+        stripe_customer_id, stripe_payment_method_id, stripe_deposit_invoice_id,
+        stripe_balance_invoice_id, guest_list, pets,
         upsells, tips, lodgify_booking_id, lodgify_adults, lodgify_children, lodgify_infants,
         lodgify_num_pets, hoa_email_disabled, created_at, updated_at,
         guest:guest_id(id, full_name, email, phone, mailing_address, lodgify_guest_id),
@@ -370,6 +391,14 @@ export default function ReservationDetailPage() {
     window.open(url, "_blank");
   }, [id]);
 
+  // Open the guest-facing payment page. /pay/[id] is a shared (non-prefixed)
+  // route, so on the admin subdomain it must be opened on the guest host —
+  // otherwise the proxy prepends /admin and 404s.
+  const openPayPage = useCallback(() => {
+    const guestHost = window.location.host.replace(/^admin\./, "guest.");
+    window.open(`${window.location.protocol}//${guestHost}/pay/${id}`, "_blank");
+  }, [id]);
+
   if (loading) {
     return (
       <div className="flex items-center gap-2 text-muted-foreground py-12">
@@ -400,6 +429,45 @@ export default function ReservationDetailPage() {
   const nights = Math.max(1, Math.round((new Date(reg.check_out_date).getTime() - new Date(reg.check_in_date).getTime()) / 86400000));
   const { checkInTime, checkOutTime, hasEarlyCheckin, hasLateCheckout } = effectiveStayTimes(upsells);
   const hasSignature = !!reg.signature_url;
+
+  // ---- Payment -----------------------------------------------------------
+  // Price breakdown + split-payment lifecycle. The itemized breakdown and the
+  // deposit/balance schedule are only populated for bookings created through
+  // the admin/checkout flow (booking_source "admin"); Lodgify/channel bookings
+  // carry only a total, so the card degrades to revenue + source.
+  const totalCents = reg.total_amount_cents ?? 0;
+  const cleaningCents = reg.cleaning_fee_cents ?? 0;
+  const taxCents = reg.tax_amount_cents ?? 0;
+  const petFeeCents = reg.pet_fee_total_cents ?? 0;
+  const discountCents = reg.discount_cents ?? 0;
+  const nightlyRates = reg.nightly_rates_snapshot ?? [];
+  const nightsSubtotalCents = nightlyRates.reduce((s, n) => s + (n?.cents ?? 0), 0);
+  const hasBreakdown =
+    nightlyRates.length > 0 || cleaningCents > 0 || taxCents > 0 || petFeeCents > 0 || discountCents > 0;
+
+  const isManagedPayment = reg.booking_source === "admin";
+  const isSplit = reg.payment_plan === "split";
+  const depositCents = Math.round(totalCents / 2);
+  const balanceCents = totalCents - depositCents;
+  const depositPaid = !!reg.deposit_paid_at;
+  const balancePaid = !!reg.balance_paid_at;
+  const balanceFailing = isSplit && !balancePaid && reg.balance_charge_attempts > 0;
+
+  const planLabel =
+    reg.payment_plan === "split"
+      ? "50 / 50 Split"
+      : reg.payment_plan === "automatic"
+      ? "Guest chooses plan"
+      : "Full Payment";
+
+  const paymentStatus: { label: string; tone: Tone } | null = (() => {
+    if (reg.status === "cancelled") return { label: "Cancelled", tone: "danger" };
+    if (balancePaid) return { label: "Paid in full", tone: "success" };
+    if (isSplit && depositPaid) return { label: "Deposit paid · balance due", tone: "warning" };
+    if (reg.status === "pending_payment") return { label: "Awaiting payment", tone: "warning" };
+    if (isManagedPayment) return { label: "Awaiting payment", tone: "warning" };
+    return null; // channel/Lodgify booking — payment collected externally
+  })();
 
   // Map vehicles to guest list entries by driver name
   const guestVehicleMap = new Map<number, Vehicle[]>();
@@ -544,6 +612,142 @@ export default function ReservationDetailPage() {
           )}
 
           <div className="grid gap-6 md:grid-cols-2">
+            {/* Payment */}
+            <Card>
+              <CardHeader className="pb-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <DollarSign className="h-4 w-4" /> Payment
+                  </CardTitle>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {isManagedPayment && (
+                      <Badge variant="outline" className="text-xs">{planLabel}</Badge>
+                    )}
+                    {paymentStatus && (
+                      <Badge variant="outline" className={`text-xs ${toneBadge(paymentStatus.tone)}`}>
+                        {paymentStatus.label}
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4 text-sm">
+                {/* Price breakdown */}
+                {hasBreakdown ? (
+                  <div className="space-y-1">
+                    <Row
+                      label={
+                        nightlyRates.length
+                          ? `${fmtUSD(Math.round(nightsSubtotalCents / Math.max(nightlyRates.length, 1)))} × ${nightlyRates.length} night${nightlyRates.length !== 1 ? "s" : ""}`
+                          : "Nights subtotal"
+                      }
+                      value={fmtUSD(nightsSubtotalCents)}
+                    />
+                    {cleaningCents > 0 && <Row label="Cleaning fee" value={fmtUSD(cleaningCents)} />}
+                    {petFeeCents > 0 && <Row label="Pet fee" value={fmtUSD(petFeeCents)} />}
+                    {taxCents > 0 && <Row label="Taxes" value={fmtUSD(taxCents)} />}
+                    {discountCents > 0 && (
+                      <Row label={reg.discount_label || "Discount"} value={`− ${fmtUSD(discountCents)}`} />
+                    )}
+                    <Separator className="my-1" />
+                    <div className="flex justify-between font-semibold">
+                      <span>Total</span>
+                      <span>{fmtUSD(totalCents)}</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex justify-between font-semibold">
+                    <span>Total</span>
+                    <span>{totalCents ? fmtUSD(totalCents) : "—"}</span>
+                  </div>
+                )}
+
+                {/* Payment schedule — admin/checkout bookings carry the split-pay lifecycle */}
+                {isManagedPayment ? (
+                  <>
+                    <Separator />
+                    {isSplit ? (
+                      <div className="space-y-2">
+                        <PaymentLeg label="Deposit (50%)" amount={fmtUSD(depositCents)} paidAt={reg.deposit_paid_at} pendingNote="Awaiting payment" />
+                        <PaymentLeg
+                          label="Balance (50%)"
+                          amount={fmtUSD(balanceCents)}
+                          paidAt={reg.balance_paid_at}
+                          pendingNote={
+                            balanceFailing
+                              ? `Attempt ${reg.balance_charge_attempts} of 3 failed`
+                              : "Auto-charges 30 days before check-in"
+                          }
+                          pendingTone={balanceFailing ? "danger" : "neutral"}
+                        />
+                        {balanceFailing && (
+                          <div className={`rounded-md px-3 py-2 text-xs ${toneBadge("danger")}`}>
+                            <p className="font-medium flex items-center gap-1.5">
+                              <XCircle className="h-3.5 w-3.5" /> Balance auto-charge failing
+                            </p>
+                            {reg.balance_last_failure_reason && (
+                              <p className="mt-0.5">{reg.balance_last_failure_reason}</p>
+                            )}
+                            {reg.balance_last_attempt_at && (
+                              <p className="mt-0.5 opacity-80">
+                                Last attempt {new Date(reg.balance_last_attempt_at).toLocaleString()}
+                                {reg.balance_charge_attempts >= 3 && " · booking cancelled after 3 attempts"}
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <PaymentLeg
+                        label={reg.payment_plan === "automatic" ? "Full payment" : "Payment"}
+                        amount={fmtUSD(totalCents)}
+                        paidAt={reg.balance_paid_at || reg.deposit_paid_at}
+                        pendingNote={
+                          reg.payment_plan === "automatic"
+                            ? "Guest hasn't chosen a plan yet"
+                            : "Invoice sent — awaiting payment"
+                        }
+                      />
+                    )}
+
+                    {!balancePaid && reg.status !== "cancelled" && (
+                      <Button variant="outline" size="sm" onClick={openPayPage}>
+                        <ExternalLink className="h-4 w-4 mr-1" /> Payment page
+                      </Button>
+                    )}
+
+                    {/* Stripe references for support / reconciliation */}
+                    {(reg.stripe_customer_id || reg.stripe_payment_method_id || reg.stripe_deposit_invoice_id || reg.stripe_balance_invoice_id) && (
+                      <>
+                        <Separator />
+                        <div className="space-y-1">
+                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Stripe</p>
+                          {reg.stripe_customer_id && (
+                            <StripeRef label="Customer" id={reg.stripe_customer_id} href={`https://dashboard.stripe.com/customers/${reg.stripe_customer_id}`} />
+                          )}
+                          {reg.stripe_payment_method_id && (
+                            <StripeRef label="Payment method" id={reg.stripe_payment_method_id} />
+                          )}
+                          {reg.stripe_deposit_invoice_id && (
+                            <StripeRef label={isSplit ? "Deposit invoice" : "Invoice"} id={reg.stripe_deposit_invoice_id} href={`https://dashboard.stripe.com/invoices/${reg.stripe_deposit_invoice_id}`} />
+                          )}
+                          {reg.stripe_balance_invoice_id && (
+                            <StripeRef label="Balance invoice" id={reg.stripe_balance_invoice_id} href={`https://dashboard.stripe.com/invoices/${reg.stripe_balance_invoice_id}`} />
+                          )}
+                        </div>
+                      </>
+                    )}
+                  </>
+                ) : (
+                  reg.booking_source && (
+                    <p className="text-xs text-muted-foreground">
+                      Collected via {reg.booking_source.replace(/\s*integration\s*/i, "").replace(/\s*api\s*/i, "").trim()}
+                    </p>
+                  )
+                )}
+              </CardContent>
+            </Card>
+
             {/* Booking Info */}
             <Card>
               <CardHeader className="pb-3">
@@ -580,7 +784,6 @@ export default function ReservationDetailPage() {
                 </div>
                 <Row label="Nights" value={String(nights)} />
                 <Row label="Source" value={reg.booking_source ? reg.booking_source.replace(/\s*integration\s*/i, "").replace(/\s*api\s*/i, "").trim() : "—"} />
-                <Row label="Revenue" value={reg.total_amount_cents ? `$${(reg.total_amount_cents / 100).toLocaleString()}` : "—"} />
                 {reg.lodgify_booking_id && <Row label="Lodgify ID" value={String(reg.lodgify_booking_id)} />}
                 <Row label="Created" value={new Date(reg.created_at).toLocaleDateString()} />
                 <Row label="Updated" value={new Date(reg.updated_at).toLocaleDateString()} />
@@ -1218,6 +1421,69 @@ function Row({ label, value }: { label: string; value: string }) {
     <div className="flex justify-between gap-4">
       <span className="text-muted-foreground shrink-0">{label}</span>
       <span className="text-right">{value}</span>
+    </div>
+  );
+}
+
+function fmtUSD(cents: number): string {
+  const dollars = cents / 100;
+  return dollars.toLocaleString("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: Number.isInteger(dollars) ? 0 : 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+// One phase of a booking payment (deposit, balance, or the single full payment).
+function PaymentLeg({
+  label,
+  amount,
+  paidAt,
+  pendingNote,
+  pendingTone = "neutral",
+}: {
+  label: string;
+  amount: string;
+  paidAt: string | null;
+  pendingNote?: string;
+  pendingTone?: Tone;
+}) {
+  return (
+    <div className="flex items-start justify-between gap-3">
+      <div className="space-y-0.5">
+        <p className="font-medium">{label}</p>
+        {paidAt ? (
+          <p className="text-xs text-success flex items-center gap-1">
+            <CheckCircle2 className="h-3 w-3" /> Paid {new Date(paidAt).toLocaleDateString()}
+          </p>
+        ) : pendingNote ? (
+          <p className={`text-xs ${pendingTone === "danger" ? "text-destructive" : "text-muted-foreground"}`}>
+            {pendingNote}
+          </p>
+        ) : null}
+      </div>
+      <span className="font-medium shrink-0">{amount}</span>
+    </div>
+  );
+}
+
+function StripeRef({ label, id, href }: { label: string; id: string; href?: string }) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <span className="text-muted-foreground shrink-0 text-xs">{label}</span>
+      {href ? (
+        <a
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 text-primary hover:underline text-xs font-mono break-all text-right"
+        >
+          {id} <ExternalLink className="h-3 w-3 shrink-0" />
+        </a>
+      ) : (
+        <span className="text-xs font-mono break-all text-right">{id}</span>
+      )}
     </div>
   );
 }
