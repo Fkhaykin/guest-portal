@@ -211,16 +211,36 @@ export async function getAvailability(
   return data[0]?.periods ?? [];
 }
 
+/** Shift a YYYY-MM-DD date string by a number of days (UTC, TZ-safe). */
+function shiftIsoDate(iso: string, days: number): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  dt.setUTCDate(dt.getUTCDate() + days);
+  return dt.toISOString().slice(0, 10);
+}
+
 /**
  * Check if a property is fully available for the given date range.
+ *
+ * A stay occupies the NIGHTS of [checkIn, checkOut) — the guest leaves on the
+ * checkout morning, so the checkout day itself never needs to be free. Lodgify
+ * availability periods are inclusive ranges of booked nights (a booking arriving
+ * the 4th and departing the 7th reports nights 4–6 as `available: 0`), so we
+ * query only through the last night (checkOut − 1). Querying through checkOut
+ * would treat a same-day turnover — the next guest arriving on our checkout day —
+ * as a conflict and wrongly report the property as unavailable.
  */
 export async function isPropertyAvailable(
   propertyId: number,
   checkIn: string,
   checkOut: string
 ): Promise<boolean> {
-  const periods = await getAvailability(propertyId, checkIn, checkOut);
-  // Property is available if no period within the range is booked
+  const lastNight = shiftIsoDate(checkOut, -1);
+  // Guard against a zero-night range (checkOut <= checkIn); callers validate
+  // this upstream, but never query Lodgify with an inverted window.
+  if (lastNight < checkIn) return false;
+  const periods = await getAvailability(propertyId, checkIn, lastNight);
+  // Property is available if no night within the stay is booked
   return periods.every((p) => p.available === 1);
 }
 
