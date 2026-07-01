@@ -13,6 +13,23 @@ export type GuestMessageType =
 
 export type GuestMessageChannel = "lodgify" | "email";
 
+// Which channel a booking's automated messages go out on. OTA/channel bookings
+// (Airbnb, Booking.com, Vrbo…) can only be reached through the Lodgify thread;
+// first-party "direct" bookings are reached by email (+ SMS where a phone is on
+// file). A direct booking we push to Lodgify via its API comes back labeled
+// "PublicApi"; our own booking-engine is "OwnerWebsite" and host-entered is
+// "Manual" — so those must ALL count as direct, else the guest's confirmation
+// and check-in instructions get misrouted to a Lodgify thread they never see.
+const DIRECT_BOOKING_SOURCE_RE = /direct|lodgify|public\s*api|owner\s*website|manual/i;
+
+export function isDirectBookingSource(source: string | null | undefined): boolean {
+  return !source || DIRECT_BOOKING_SOURCE_RE.test(source);
+}
+
+export function channelForBookingSource(source: string | null | undefined): GuestMessageChannel {
+  return isDirectBookingSource(source) ? "email" : "lodgify";
+}
+
 // The guest-facing portal link. Always the bare production domain — never
 // derived from NEXT_PUBLIC_APP_URL, which can resolve to localhost or a
 // preview deployment. Every message a guest receives links here and nowhere

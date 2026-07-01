@@ -6,7 +6,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { sendGuestAutomatedMessage, sendHouseCheckinInstructions } from "@/lib/guest-messages/send";
 import { sendRegistrationReminder, REMINDER_DAYS, type ReminderDay } from "@/lib/guest-messages/reminders";
 import { shouldRequestReview } from "@/lib/guest-messages/sentiment";
-import type { GuestMessageType, GuestMessageChannel } from "@/lib/guest-messages/templates";
+import { channelForBookingSource } from "@/lib/guest-messages/templates";
+import type { GuestMessageType } from "@/lib/guest-messages/templates";
 import type { UpsellEntry } from "@/types/database";
 
 type BookingRow = {
@@ -17,24 +18,19 @@ type BookingRow = {
   check_out_date: string;
   signature_url: string | null;
   upsells: UpsellEntry[] | null;
-  guest: { full_name: string; email: string | null };
+  guest: { full_name: string; email: string | null; phone: string | null };
   property: { name: string; slug: string; nickname: string | null; host_id: string };
 };
 
 export type BatchResult = { sent: number; skipped: number; errors: number };
 
 const BOOKING_SELECT =
-  "id, lodgify_booking_id, booking_source, check_in_date, check_out_date, signature_url, upsells, guest:guest_id(full_name, email), property:property_id(name, slug, nickname, host_id)";
+  "id, lodgify_booking_id, booking_source, check_in_date, check_out_date, signature_url, upsells, guest:guest_id(full_name, email, phone), property:property_id(name, slug, nickname, host_id)";
 
 export function offsetDate(days: number): string {
   const d = new Date();
   d.setUTCDate(d.getUTCDate() + days);
   return d.toISOString().slice(0, 10);
-}
-
-function channelFor(bookingSource: string | null): GuestMessageChannel {
-  const isDirect = !bookingSource || /direct|lodgify/i.test(bookingSource);
-  return isDirect ? "email" : "lodgify";
 }
 
 async function fetchBookings(
@@ -79,9 +75,10 @@ async function runBatch(
         registrationId: row.id,
         lodgifyBookingId: row.lodgify_booking_id,
         messageType: type,
-        channel: channelFor(row.booking_source),
+        channel: channelForBookingSource(row.booking_source),
         guestName: guest.full_name,
         guestEmail: guest.email,
+        guestPhone: guest.phone,
         propertyName: property.nickname || property.name,
         propertySlug: property.slug,
         checkInDate: row.check_in_date,

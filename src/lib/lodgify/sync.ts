@@ -8,6 +8,7 @@ import {
   notifyHostOfBookingChange,
 } from "@/lib/push/notify-host";
 import { sendGuestConfirmationAsync } from "@/lib/guest-messages/send";
+import { channelForBookingSource } from "@/lib/guest-messages/templates";
 import { submitPEPOAEmail } from "@/lib/pepoa/submit-email";
 import { linkWebThreadsToReservation } from "@/lib/guest-messages/web";
 
@@ -527,14 +528,14 @@ export async function syncBooking(booking: LodgifyBooking, options?: { skipNotif
   // Send the booking confirmation for new/reactivated bookings. Airbnb
   // bookings are included (relayed via the Lodgify thread) — Lodgify-side
   // auto-messages are turned off, so this is the only confirmation sent.
-  const isDirect = !booking.source || /direct|lodgify/i.test(booking.source ?? "");
   if (!options?.skipNotify && (isNewBooking || justBecameActive) && newStatus === "active" && savedReg) {
     await sendGuestConfirmationAsync({
       registrationId: savedReg.id,
       lodgifyBookingId: booking.id,
-      channel: isDirect ? "email" : "lodgify",
+      channel: channelForBookingSource(booking.source),
       guestName: booking.guest.name,
       guestEmail: booking.guest.email ?? null,
+      guestPhone: booking.guest.phone ?? null,
       propertyId,
       checkInDate: booking.arrival ?? null,
       checkOutDate: booking.departure ?? null,

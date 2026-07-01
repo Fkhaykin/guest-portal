@@ -5,6 +5,8 @@ import { TEMPLATES, PORTAL_URL, interpolate, firstNameOf, registrationCta, type 
 import { HOUSE_CHECKIN_TEMPLATES, HOUSE_CHECKIN_SUBJECT } from "./house-templates";
 import { houseForProperty } from "./quick-replies";
 import { stayTimeVars } from "@/lib/upsells/timing";
+import { stripUrlsForSms } from "@/lib/sms/sanitize";
+import { sendGuestSms } from "@/lib/sms/send-guest-sms";
 import type { GuestMessageSettings, UpsellEntry } from "@/types/database";
 
 interface SendParams {
@@ -14,6 +16,7 @@ interface SendParams {
   channel: GuestMessageChannel;
   guestName: string;
   guestEmail: string | null;
+  guestPhone: string | null;
   propertyName: string;
   propertySlug: string;
   checkInDate: string;
@@ -69,14 +72,41 @@ export async function sendGuestAutomatedMessage(params: SendParams): Promise<voi
   const subject = interpolate(eventSettings?.subject ?? defaults.subject, vars);
   const body = interpolate(eventSettings?.message ?? defaults.body, vars);
 
-  let error: string | null = null;
+  const { channel, error } = await deliver(params, subject, body, params.messageType);
+
+  await supabase.from("guest_automated_message_log").insert({
+    registration_id: params.registrationId,
+    message_type: params.messageType,
+    channel,
+    error,
+  });
+
+  if (error) {
+    console.error(`[guest-msg] ${params.messageType} failed for registration ${params.registrationId}:`, error);
+  }
+}
+
+// Deliver a rendered message on its booking's channel(s): OTA bookings go to the
+// Lodgify thread; direct bookings go to email AND — where a phone is on file — a
+// text (the reminders path does the same). Links are stripped from the SMS until
+// Textbelt whitelists the key (see @/lib/sms/sanitize). Returns the combined
+// channel label and joined error string for the automated-message log.
+async function deliver(
+  params: SendParams,
+  subject: string,
+  body: string,
+  eventType: string
+): Promise<{ channel: string; error: string | null }> {
+  const channels: string[] = [];
+  const errors: string[] = [];
 
   if (params.channel === "lodgify") {
     const result = await sendMessage(params.lodgifyBookingId, body);
-    if (!result.success) error = result.error ?? "Unknown Lodgify error";
+    channels.push("lodgify");
+    if (!result.success) errors.push(`lodgify: ${result.error ?? "Unknown Lodgify error"}`);
   } else {
     if (!params.guestEmail) {
-      error = "No guest email on file";
+      errors.push("email: No guest email on file");
     } else {
       const resend = new Resend(process.env.RESEND_API_KEY);
       const { error: resendError } = await resend.emails.send({
@@ -85,20 +115,27 @@ export async function sendGuestAutomatedMessage(params: SendParams): Promise<voi
         subject,
         text: body,
       });
-      if (resendError) error = resendError.message;
+      channels.push("email");
+      if (resendError) errors.push(`email: ${resendError.message}`);
+    }
+
+    // Direct bookings also get a text where we have a number.
+    if (params.guestPhone) {
+      const smsBody = stripUrlsForSms(body, "(reply to this text and we'll send you the link)");
+      const smsResult = await sendGuestSms(params.guestPhone, smsBody, {
+        eventType,
+        lodgifyBookingId: params.lodgifyBookingId,
+        registrationId: params.registrationId,
+      });
+      channels.push("sms");
+      if (!smsResult.success) errors.push(`sms: ${smsResult.error ?? "unknown"}`);
     }
   }
 
-  await supabase.from("guest_automated_message_log").insert({
-    registration_id: params.registrationId,
-    message_type: params.messageType,
-    channel: params.channel,
-    error,
-  });
-
-  if (error) {
-    console.error(`[guest-msg] ${params.messageType} failed for registration ${params.registrationId}:`, error);
-  }
+  return {
+    channel: channels.join(",") || params.channel,
+    error: errors.length ? errors.join("; ") : null,
+  };
 }
 
 // House-specific check-in instructions — the single check-in-morning message
@@ -142,30 +179,12 @@ export async function sendHouseCheckinInstructions(params: SendParams): Promise<
   const subject = interpolate(eventSettings?.subject ?? HOUSE_CHECKIN_SUBJECT, vars);
   const body = interpolate(eventSettings?.message ?? HOUSE_CHECKIN_TEMPLATES[house], vars);
 
-  let error: string | null = null;
-
-  if (params.channel === "lodgify") {
-    const result = await sendMessage(params.lodgifyBookingId, body);
-    if (!result.success) error = result.error ?? "Unknown Lodgify error";
-  } else {
-    if (!params.guestEmail) {
-      error = "No guest email on file";
-    } else {
-      const resend = new Resend(process.env.RESEND_API_KEY);
-      const { error: resendError } = await resend.emails.send({
-        from: "Summit Lakeside <contact@summitlakeside.com>",
-        to: params.guestEmail,
-        subject,
-        text: body,
-      });
-      if (resendError) error = resendError.message;
-    }
-  }
+  const { channel, error } = await deliver(params, subject, body, messageTypeKey);
 
   await supabase.from("guest_automated_message_log").insert({
     registration_id: params.registrationId,
     message_type: messageTypeKey,
-    channel: params.channel,
+    channel,
     error,
   });
 
@@ -183,6 +202,7 @@ export async function sendGuestConfirmationAsync({
   channel,
   guestName,
   guestEmail,
+  guestPhone,
   propertyId,
   checkInDate,
   checkOutDate,
@@ -192,6 +212,7 @@ export async function sendGuestConfirmationAsync({
   channel: GuestMessageChannel;
   guestName: string;
   guestEmail: string | null;
+  guestPhone: string | null;
   propertyId: string;
   checkInDate: string | null;
   checkOutDate: string | null;
@@ -215,6 +236,7 @@ export async function sendGuestConfirmationAsync({
     channel,
     guestName,
     guestEmail,
+    guestPhone,
     propertyName: property.nickname || property.name,
     propertySlug: property.slug,
     checkInDate: checkInDate ?? "",
@@ -237,7 +259,7 @@ export async function sendDirectBookingConfirmation(registrationId: string): Pro
   const { data: reg } = await supabase
     .from("registration")
     .select(
-      "id, lodgify_booking_id, check_in_date, check_out_date, property_id, guest:guest_id(full_name, email)"
+      "id, lodgify_booking_id, check_in_date, check_out_date, property_id, guest:guest_id(full_name, email, phone)"
     )
     .eq("id", registrationId)
     .single();
@@ -245,7 +267,7 @@ export async function sendDirectBookingConfirmation(registrationId: string): Pro
   // Only confirm once the booking is actually holding the calendar in Lodgify.
   if (!reg?.lodgify_booking_id) return;
 
-  const guest = reg.guest as unknown as { full_name: string; email: string | null } | null;
+  const guest = reg.guest as unknown as { full_name: string; email: string | null; phone: string | null } | null;
 
   await sendGuestConfirmationAsync({
     registrationId: reg.id,
@@ -253,6 +275,7 @@ export async function sendDirectBookingConfirmation(registrationId: string): Pro
     channel: "email",
     guestName: guest?.full_name ?? "Guest",
     guestEmail: guest?.email ?? null,
+    guestPhone: guest?.phone ?? null,
     propertyId: reg.property_id,
     checkInDate: reg.check_in_date,
     checkOutDate: reg.check_out_date,

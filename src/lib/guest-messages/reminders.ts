@@ -1,12 +1,11 @@
 import { Resend } from "resend";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendMessage } from "@/lib/lodgify/messages";
-import { TEMPLATES, PORTAL_URL, interpolate, firstNameOf, type TemplateVars } from "./templates";
+import { TEMPLATES, PORTAL_URL, interpolate, firstNameOf, isDirectBookingSource, type TemplateVars } from "./templates";
 import { stayTimeVars } from "@/lib/upsells/timing";
 import { stripUrlsForSms } from "@/lib/sms/sanitize";
+import { sendGuestSms } from "@/lib/sms/send-guest-sms";
 import type { GuestMessageSettings, UpsellEntry } from "@/types/database";
-
-const TEXTBELT_KEY = process.env.TEXTBELT_API_KEY?.trim();
 
 export const REMINDER_DAYS = [10, 7, 6, 5, 4, 3, 2, 1] as const;
 export type ReminderDay = (typeof REMINDER_DAYS)[number];
@@ -35,49 +34,6 @@ async function getHostSettings(hostId: string): Promise<GuestMessageSettings | n
     .eq("id", hostId)
     .single();
   return (data?.guest_message_settings as GuestMessageSettings | null) ?? null;
-}
-
-async function sendGuestSms(
-  to: string,
-  message: string,
-  meta: { eventType: string; lodgifyBookingId: number | null; registrationId: string }
-): Promise<{ success: boolean; error?: string }> {
-  const supabase = createAdminClient();
-
-  if (!TEXTBELT_KEY) {
-    await supabase.from("sms_log").insert({
-      recipient_phone: to,
-      recipient_name: null,
-      message,
-      event_type: meta.eventType,
-      lodgify_booking_id: meta.lodgifyBookingId,
-      property_id: null,
-      success: false,
-      error: "TEXTBELT_API_KEY not configured",
-    });
-    return { success: false, error: "TEXTBELT_API_KEY not configured" };
-  }
-
-  const res = await fetch("https://textbelt.com/text", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ phone: to, message, key: TEXTBELT_KEY }),
-  });
-  const data = await res.json();
-
-  await supabase.from("sms_log").insert({
-    recipient_phone: to,
-    recipient_name: null,
-    message,
-    event_type: meta.eventType,
-    lodgify_booking_id: meta.lodgifyBookingId,
-    property_id: null,
-    success: data.success === true,
-    error: data.error ?? null,
-    quota_remaining: typeof data.quotaRemaining === "number" ? data.quotaRemaining : null,
-  });
-
-  return { success: data.success === true, error: data.error };
 }
 
 export async function sendRegistrationReminder(params: SendReminderParams): Promise<"sent" | "skipped" | "duplicate"> {
@@ -110,7 +66,7 @@ export async function sendRegistrationReminder(params: SendReminderParams): Prom
   const body = interpolate(eventSettings?.message ?? defaults.body, vars);
 
   const isAirbnb = !!params.bookingSource && /airbnb/i.test(params.bookingSource);
-  const isDirect = !params.bookingSource || /direct|lodgify/i.test(params.bookingSource);
+  const isDirect = isDirectBookingSource(params.bookingSource);
 
   const channelsAttempted: string[] = [];
   const errors: string[] = [];
