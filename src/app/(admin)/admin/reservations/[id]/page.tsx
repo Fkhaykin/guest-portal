@@ -189,6 +189,7 @@ export default function ReservationDetailPage() {
   const [emailLogs, setEmailLogs] = useState<EmailLog[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [charges, setCharges] = useState<IncurredCharge[]>([]);
+  const [payEmails, setPayEmails] = useState<{ email_type: string; sent_to: string[]; created_at: string }[]>([]);
   const [emailing, setEmailing] = useState(false);
   const [emailResult, setEmailResult] = useState<"success" | "error" | null>(null);
   const [hoaToggling, setHoaToggling] = useState(false);
@@ -312,6 +313,20 @@ export default function ReservationDetailPage() {
         .eq("registration_id", id)
         .neq("change_type", "initial_registration");
       setHasModifications((modCount ?? 0) > 0);
+
+      // Payment emails (invoice / plan-picker) for the direct-booking payment
+      // timeline. Only these types are logged to email_send_log.
+      if (regData.booking_source === "admin") {
+        const { data: pe } = await supabase
+          .from("email_send_log")
+          .select("email_type, sent_to, created_at")
+          .eq("registration_id", id)
+          .in("email_type", ["booking_invoice_deposit", "booking_invoice_full", "booking_plan_picker"])
+          .order("created_at", { ascending: true });
+        setPayEmails(pe ?? []);
+      } else {
+        setPayEmails([]);
+      }
     }
 
     setLoading(false);
@@ -468,6 +483,49 @@ export default function ReservationDetailPage() {
     if (isManagedPayment) return { label: "Awaiting payment", tone: "warning" };
     return null; // channel/Lodgify booking — payment collected externally
   })();
+
+  // Chronological log of every payment event we record for a direct booking:
+  // creation, invoice/plan emails, deposit, auto-charge attempts, balance, cancellation.
+  const paymentEvents: { at: string; label: string; detail?: string; tone: Tone }[] = [];
+  if (isManagedPayment) {
+    paymentEvents.push({ at: reg.created_at, label: "Booking created", tone: "neutral" });
+    for (const e of payEmails) {
+      const label =
+        e.email_type === "booking_invoice_deposit"
+          ? "Deposit invoice emailed"
+          : e.email_type === "booking_invoice_full"
+          ? "Invoice emailed"
+          : "Payment-plan link emailed";
+      paymentEvents.push({ at: e.created_at, label, detail: e.sent_to?.join(", "), tone: "info" });
+    }
+    if (reg.deposit_paid_at) {
+      paymentEvents.push({
+        at: reg.deposit_paid_at,
+        label: `${isSplit ? "Deposit paid" : "Paid in full"} · ${fmtUSD(isSplit ? depositCents : totalCents)}`,
+        tone: "success",
+      });
+    }
+    if (reg.balance_last_attempt_at && reg.balance_charge_attempts > 0 && !reg.balance_paid_at) {
+      paymentEvents.push({
+        at: reg.balance_last_attempt_at,
+        label: `Balance auto-charge attempt ${reg.balance_charge_attempts} of 3 failed`,
+        detail: reg.balance_last_failure_reason ?? undefined,
+        tone: reg.balance_charge_attempts >= 3 ? "danger" : "warning",
+      });
+    }
+    if (reg.balance_paid_at && isSplit) {
+      paymentEvents.push({ at: reg.balance_paid_at, label: `Balance paid · ${fmtUSD(balanceCents)}`, tone: "success" });
+    }
+    if (reg.status === "cancelled" && reg.balance_charge_attempts >= 3 && !reg.balance_paid_at) {
+      paymentEvents.push({
+        at: reg.balance_last_attempt_at ?? reg.updated_at,
+        label: "Cancelled — non-payment",
+        detail: "Deposit forfeited",
+        tone: "danger",
+      });
+    }
+    paymentEvents.sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
+  }
 
   // Map vehicles to guest list entries by driver name
   const guestVehicleMap = new Map<number, Vehicle[]>();
@@ -714,6 +772,44 @@ export default function ReservationDetailPage() {
                       <Button variant="outline" size="sm" onClick={openPayPage}>
                         <ExternalLink className="h-4 w-4 mr-1" /> Payment page
                       </Button>
+                    )}
+
+                    {/* Payment activity — timestamped log of every payment event */}
+                    {paymentEvents.length > 0 && (
+                      <>
+                        <Separator />
+                        <div className="space-y-3">
+                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+                            <Clock className="h-3.5 w-3.5" /> Payment activity
+                          </p>
+                          <ol className="space-y-3">
+                            {paymentEvents.map((e, i) => (
+                              <li key={i} className="flex gap-3">
+                                <div className="flex flex-col items-center">
+                                  <span className={`mt-1 h-2 w-2 rounded-full shrink-0 ${dotTone(e.tone)}`} />
+                                  {i < paymentEvents.length - 1 && <span className="w-px flex-1 bg-border mt-1" />}
+                                </div>
+                                <div className="flex-1 -mt-0.5 space-y-0.5 pb-1">
+                                  <p className="text-sm font-medium leading-snug">{e.label}</p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {new Date(e.at).toLocaleString("en-US", {
+                                      weekday: "short",
+                                      month: "short",
+                                      day: "numeric",
+                                      year: "numeric",
+                                      hour: "numeric",
+                                      minute: "2-digit",
+                                    })}
+                                  </p>
+                                  {e.detail && (
+                                    <p className="text-xs text-muted-foreground wrap-break-word">{e.detail}</p>
+                                  )}
+                                </div>
+                              </li>
+                            ))}
+                          </ol>
+                        </div>
+                      </>
                     )}
 
                     {/* Stripe references for support / reconciliation */}
@@ -1433,6 +1529,22 @@ function fmtUSD(cents: number): string {
     minimumFractionDigits: Number.isInteger(dollars) ? 0 : 2,
     maximumFractionDigits: 2,
   });
+}
+
+// Timeline dot color for a payment event tone.
+function dotTone(tone: Tone): string {
+  switch (tone) {
+    case "success":
+      return "bg-success";
+    case "warning":
+      return "bg-warning";
+    case "danger":
+      return "bg-destructive";
+    case "info":
+      return "bg-primary";
+    default:
+      return "bg-muted-foreground/40";
+  }
 }
 
 // One phase of a booking payment (deposit, balance, or the single full payment).
