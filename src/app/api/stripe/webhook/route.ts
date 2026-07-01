@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe/client";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { pushBookingToLodgify } from "@/lib/lodgify/push";
+import { sendDirectBookingConfirmation } from "@/lib/guest-messages/send";
 import Stripe from "stripe";
 
 export async function POST(request: Request) {
@@ -91,6 +92,11 @@ export async function POST(request: Request) {
       // mid-flight and leaves lodgify_sync_status stuck at "pending". Idempotent.
       if (registrationId) {
         await pushBookingToLodgify(registrationId, supabase);
+        // Confirmation for our own bookings: the sync.ts path won't send one
+        // because the row is already active by the time Lodgify echoes it back.
+        await sendDirectBookingConfirmation(registrationId).catch((err) =>
+          console.error("[webhook] Booking confirmation failed:", err)
+        );
       }
     }
   }
@@ -168,6 +174,9 @@ export async function POST(request: Request) {
       // charge on an already-synced booking, so it's skipped.) Idempotent.
       if (phase === "deposit" || phase === "full") {
         await pushBookingToLodgify(registrationId, supabase);
+        await sendDirectBookingConfirmation(registrationId).catch((err) =>
+          console.error("[webhook] Booking confirmation failed:", err)
+        );
       }
     }
   }

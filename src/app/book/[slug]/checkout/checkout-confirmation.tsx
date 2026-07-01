@@ -94,7 +94,7 @@ export function CheckoutConfirmation({
                 </p>
               </div>
               <p className="text-sm text-muted-foreground">
-                A confirmation email has been sent. Check in is at 4:00 PM.
+                A confirmation email is on its way. Check in is at 4:00 PM.
               </p>
               <Link href="/">
                 <Button className="mt-2">Done</Button>

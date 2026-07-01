@@ -223,3 +223,38 @@ export async function sendGuestConfirmationAsync({
     registered: false, // booking confirmation fires before they could register
   });
 }
+
+// Sends the booking_confirmation for a booking created through OUR OWN flow
+// (Stripe checkout or an admin invoice) once it has been pushed to Lodgify.
+// Inbound Lodgify/Airbnb bookings are confirmed from sync.ts instead; that path's
+// guard (justBecameActive) is false for our own bookings because our webhook sets
+// the registration active before Lodgify echoes the booking back — so without this
+// they'd never get a confirmation. Always email (these are Direct bookings).
+// Dedup is handled by sendGuestAutomatedMessage (message_type booking_confirmation),
+// so this is safe to call more than once for the same registration.
+export async function sendDirectBookingConfirmation(registrationId: string): Promise<void> {
+  const supabase = createAdminClient();
+  const { data: reg } = await supabase
+    .from("registration")
+    .select(
+      "id, lodgify_booking_id, check_in_date, check_out_date, property_id, guest:guest_id(full_name, email)"
+    )
+    .eq("id", registrationId)
+    .single();
+
+  // Only confirm once the booking is actually holding the calendar in Lodgify.
+  if (!reg?.lodgify_booking_id) return;
+
+  const guest = reg.guest as unknown as { full_name: string; email: string | null } | null;
+
+  await sendGuestConfirmationAsync({
+    registrationId: reg.id,
+    lodgifyBookingId: reg.lodgify_booking_id,
+    channel: "email",
+    guestName: guest?.full_name ?? "Guest",
+    guestEmail: guest?.email ?? null,
+    propertyId: reg.property_id,
+    checkInDate: reg.check_in_date,
+    checkOutDate: reg.check_out_date,
+  });
+}

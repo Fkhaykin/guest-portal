@@ -11,6 +11,7 @@ import {
   sendBookingPlanPickerEmail,
 } from "@/lib/email/send-booking-invoice";
 import { pushBookingToLodgify } from "@/lib/lodgify/push";
+import { sendDirectBookingConfirmation } from "@/lib/guest-messages/send";
 
 const SPLIT_MIN_LEAD_DAYS = 60;
 const INVOICE_DUE_DAYS = 7;
@@ -80,13 +81,40 @@ export async function POST(request: NextRequest) {
 
   const admin = createAdminClient();
 
-  // Load property
-  const { data: property } = await admin
+  // Load the selected property. Some houses have a legacy INACTIVE row alongside
+  // the live one (duplicate listings — e.g. two "Chalet" rows on different Lodgify
+  // ids). A booking must land on the ACTIVE row so it blocks the real Lodgify
+  // calendar and reaches connected channels; booking an inactive row silently
+  // fails to hold the calendar. If an inactive row was selected, resolve to its
+  // active sibling (matched by nickname); refuse if that's missing or ambiguous.
+  const PROPERTY_COLS =
+    "id, name, nickname, lodgify_property_id, guest_cleaning_fee_cents, guest_pet_fee_cents, host_id, is_active";
+  const { data: selectedProperty } = await admin
     .from("property")
-    .select("id, name, nickname, lodgify_property_id, guest_cleaning_fee_cents, guest_pet_fee_cents, host_id")
+    .select(PROPERTY_COLS)
     .eq("id", body.property_id)
     .single();
-  if (!property || !property.lodgify_property_id) {
+  if (!selectedProperty) {
+    return NextResponse.json({ error: "Property not found" }, { status: 404 });
+  }
+
+  let property = selectedProperty;
+  if (!selectedProperty.is_active) {
+    const { data: siblings } = await admin
+      .from("property")
+      .select(PROPERTY_COLS)
+      .eq("is_active", true)
+      .ilike("nickname", selectedProperty.nickname ?? "");
+    const activeSiblings = (siblings ?? []).filter((s) => s.lodgify_property_id);
+    if (activeSiblings.length !== 1) {
+      return NextResponse.json(
+        { error: "That listing is inactive — select the active listing for this property." },
+        { status: 400 }
+      );
+    }
+    property = activeSiblings[0];
+  }
+  if (!property.lodgify_property_id) {
     return NextResponse.json({ error: "Property not found or missing Lodgify mapping" }, { status: 404 });
   }
 
@@ -147,7 +175,7 @@ export async function POST(request: NextRequest) {
   const { data: registration, error: regErr } = await admin
     .from("registration")
     .insert({
-      property_id: body.property_id,
+      property_id: property.id,
       guest_id: guestId,
       check_in_date: body.check_in_date,
       check_out_date: body.check_out_date,
@@ -184,6 +212,9 @@ export async function POST(request: NextRequest) {
   // booking that Lodgify rejects is recorded as "failed" without failing this request.
   if (markPaid) {
     await pushBookingToLodgify(registration.id, admin);
+    await sendDirectBookingConfirmation(registration.id).catch((err) =>
+      console.error("[admin/bookings/create] Booking confirmation failed:", err)
+    );
     return NextResponse.json({
       ok: true,
       registration_id: registration.id,
