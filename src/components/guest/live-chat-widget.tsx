@@ -145,7 +145,7 @@ export function LiveChatWidget() {
           type="button"
           onClick={() => setOpen(true)}
           aria-label="Chat with us"
-          className="fixed right-4 bottom-24 md:bottom-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-transform hover:scale-105 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="fixed right-4 bottom-4 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-transform hover:scale-105 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <MessageCircle className="h-6 w-6" />
         </button>
@@ -153,7 +153,7 @@ export function LiveChatWidget() {
 
       {/* Panel */}
       {open && (
-        <div className="fixed right-4 bottom-24 md:bottom-6 z-50 flex w-[calc(100vw-2rem)] max-w-sm flex-col overflow-hidden rounded-2xl border bg-background shadow-2xl h-[70vh] max-h-[560px]">
+        <div className="fixed right-4 bottom-4 z-50 flex w-[calc(100vw-2rem)] max-w-sm flex-col overflow-hidden rounded-2xl border bg-background shadow-2xl h-[70vh] max-h-[560px]">
           {/* Header */}
           <div className="flex items-center justify-between bg-primary px-4 py-3 text-primary-foreground">
             <div>
