@@ -72,7 +72,11 @@ export async function sendGuestAutomatedMessage(params: SendParams): Promise<voi
   const subject = interpolate(eventSettings?.subject ?? defaults.subject, vars);
   const body = interpolate(eventSettings?.message ?? defaults.body, vars);
 
-  const { channel, error } = await deliver(params, subject, body, params.messageType);
+  // The generic day-of-check-in message carries the long check-in details, so
+  // its SMS gets the short pointer; all other message types text their full body.
+  const smsOverride =
+    params.messageType === "day_of_checkin" ? conciseCheckinSms(params.propertyName) : undefined;
+  const { channel, error } = await deliver(params, subject, body, params.messageType, smsOverride);
 
   await supabase.from("guest_automated_message_log").insert({
     registration_id: params.registrationId,
@@ -95,7 +99,8 @@ async function deliver(
   params: SendParams,
   subject: string,
   body: string,
-  eventType: string
+  eventType: string,
+  smsBody?: string
 ): Promise<{ channel: string; error: string | null }> {
   const channels: string[] = [];
   const errors: string[] = [];
@@ -119,10 +124,11 @@ async function deliver(
       if (resendError) errors.push(`email: ${resendError.message}`);
     }
 
-    // Direct bookings also get a text where we have a number.
+    // Direct bookings also get a text where we have a number. `smsBody` lets a
+    // caller substitute a short SMS for a long email (see check-in below).
     if (params.guestPhone) {
-      const smsBody = stripUrlsForSms(body, "(reply to this text and we'll send you the link)");
-      const smsResult = await sendGuestSms(params.guestPhone, smsBody, {
+      const smsText = stripUrlsForSms(smsBody ?? body, "(reply to this text and we'll send you the link)");
+      const smsResult = await sendGuestSms(params.guestPhone, smsText, {
         eventType,
         lodgifyBookingId: params.lodgifyBookingId,
         registrationId: params.registrationId,
@@ -136,6 +142,13 @@ async function deliver(
     channel: channels.join(",") || params.channel,
     error: errors.length ? errors.join("; ") : null,
   };
+}
+
+// Check-in instructions run long (gate + lockbox + parking + WiFi + house rules)
+// — far too much for SMS. Text a short pointer to the email instead; the full
+// instructions (including access codes) still go out by email.
+function conciseCheckinSms(propertyName: string): string {
+  return `Your check-in details for ${propertyName} have been emailed to you — please check your inbox for gate, door, parking, and WiFi info. Reply here anytime with questions. — Summit Lakeside`;
 }
 
 // House-specific check-in instructions — the single check-in-morning message
@@ -179,7 +192,13 @@ export async function sendHouseCheckinInstructions(params: SendParams): Promise<
   const subject = interpolate(eventSettings?.subject ?? HOUSE_CHECKIN_SUBJECT, vars);
   const body = interpolate(eventSettings?.message ?? HOUSE_CHECKIN_TEMPLATES[house], vars);
 
-  const { channel, error } = await deliver(params, subject, body, messageTypeKey);
+  const { channel, error } = await deliver(
+    params,
+    subject,
+    body,
+    messageTypeKey,
+    conciseCheckinSms(params.propertyName)
+  );
 
   await supabase.from("guest_automated_message_log").insert({
     registration_id: params.registrationId,
