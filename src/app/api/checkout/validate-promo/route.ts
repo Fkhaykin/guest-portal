@@ -1,16 +1,40 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { freeNightsDiscountCents, type PromoNight } from "@/lib/promo/free-nights";
+import { fetchPromoByCode, buildGuestUsageByEmail } from "@/lib/promo/candidates";
+import { resolvePromos, isEligible, describeResult, type BookingContext } from "@/lib/promo/resolve";
+import type { PromoNight } from "@/lib/promo/free-nights";
 
+// Validate a single typed promo code through the unified engine. Kept on the
+// original response shape for back-compat; the checkout form now prefers
+// /api/checkout/resolve (which also folds in automatic promos).
 export async function POST(request: Request) {
   const body = await request.json();
-  const { code, property_id, nights, room_rate_cents, cleaning_fee_cents, nightly_rates } = body as {
+  const {
+    code,
+    property_id,
+    nights,
+    room_rate_cents,
+    cleaning_fee_cents,
+    pet_fee_total_cents,
+    nightly_rates,
+    upsells,
+    guests,
+    check_in,
+    check_out,
+    guest_email,
+  } = body as {
     code: string;
     property_id: string;
     nights: number;
     room_rate_cents: number;
     cleaning_fee_cents: number;
+    pet_fee_total_cents?: number;
     nightly_rates?: PromoNight[];
+    upsells?: { type: string; price_cents: number }[];
+    guests?: number;
+    check_in?: string;
+    check_out?: string;
+    guest_email?: string;
   };
 
   if (!code || !property_id || !nights) {
@@ -18,86 +42,42 @@ export async function POST(request: Request) {
   }
 
   const supabase = createAdminClient();
-  const { data: promo } = await supabase
-    .from("promo_code")
-    .select("*")
-    .ilike("code", code)
-    .eq("is_active", true)
-    .maybeSingle();
-
+  const promo = await fetchPromoByCode(supabase, code);
   if (!promo) {
     return NextResponse.json({ valid: false, error: "Invalid promo code" });
   }
 
-  // Check property scope (null = global, otherwise must match)
-  if (promo.property_id && promo.property_id !== property_id) {
-    return NextResponse.json({ valid: false, error: "Promo code not valid for this property" });
+  const usage = await buildGuestUsageByEmail(supabase, guest_email);
+  const ctx: BookingContext = {
+    propertyId: property_id,
+    nights,
+    nightlyRates: nightly_rates ?? [],
+    roomRateCents: room_rate_cents ?? 0,
+    cleaningFeeCents: cleaning_fee_cents ?? 0,
+    petFeeTotalCents: pet_fee_total_cents ?? 0,
+    upsells: upsells ?? [],
+    guests: guests ?? 1,
+    checkInDate: check_in ?? "",
+    checkOutDate: check_out ?? "",
+    guestPriorCompletedStays: usage.priorStays,
+    guestPromoUseCounts: usage.useCounts,
+    now: new Date(),
+  };
+
+  const elig = isEligible(ctx, promo);
+  if (!elig.ok) {
+    return NextResponse.json({ valid: false, error: elig.reason ?? "Promo code not valid" });
   }
 
-  // Check date range
-  const now = new Date();
-  if (promo.valid_from && new Date(promo.valid_from) > now) {
-    return NextResponse.json({ valid: false, error: "Promo code is not yet active" });
+  const result = resolvePromos(ctx, [promo]);
+  if (result.totalDiscountCents <= 0 && result.perks.length === 0) {
+    return NextResponse.json({ valid: false, error: "This code gives no discount on this booking" });
   }
-  if (promo.valid_until && new Date(promo.valid_until) < now) {
-    return NextResponse.json({ valid: false, error: "Promo code has expired" });
-  }
-
-  // Check usage limits
-  if (promo.max_uses !== null && promo.times_used >= promo.max_uses) {
-    return NextResponse.json({ valid: false, error: "Promo code usage limit reached" });
-  }
-
-  // Check minimum nights
-  if (nights < promo.min_nights) {
-    return NextResponse.json({
-      valid: false,
-      error: `Minimum ${promo.min_nights} night${promo.min_nights > 1 ? "s" : ""} required for this promo`,
-    });
-  }
-
-  // Calculate discount
-  let discount_cents = 0;
-  let description = "";
-
-  switch (promo.discount_type) {
-    case "percentage":
-      discount_cents = Math.round(room_rate_cents * promo.discount_value / 100);
-      description = `${promo.discount_value}% off room rate`;
-      break;
-    case "flat":
-      discount_cents = promo.discount_value;
-      description = `$${(promo.discount_value / 100).toFixed(2)} off`;
-      break;
-    case "free_nights": {
-      const scope = promo.free_nights_scope === "weeknight" ? "weeknight" : "any";
-      if (nightly_rates && nightly_rates.length > 0) {
-        // Comp the cheapest eligible nights, not the average.
-        discount_cents = freeNightsDiscountCents(nightly_rates, promo.discount_value, scope);
-      } else {
-        // Fallback when per-night pricing wasn't supplied: average them out.
-        const avgNightly = Math.round(room_rate_cents / nights);
-        discount_cents = avgNightly * Math.min(promo.discount_value, nights);
-      }
-      const freeNights = Math.min(promo.discount_value, nights);
-      const scopeLabel = scope === "weeknight" ? " (weeknights)" : "";
-      description = `${freeNights} free night${freeNights > 1 ? "s" : ""}${scopeLabel}`;
-      break;
-    }
-    case "free_cleaning":
-      discount_cents = cleaning_fee_cents || 0;
-      description = "Free cleaning fee";
-      break;
-  }
-
-  // Don't exceed room rate + cleaning
-  discount_cents = Math.min(discount_cents, room_rate_cents + (cleaning_fee_cents || 0));
 
   return NextResponse.json({
     valid: true,
     promo_code_id: promo.id,
-    discount_type: promo.discount_type,
-    discount_cents,
-    description,
+    discount_cents: result.totalDiscountCents,
+    description: describeResult(result) || "Promo applied",
   });
 }

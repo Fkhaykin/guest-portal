@@ -51,7 +51,6 @@ export async function POST(request: Request) {
 
     if (isBooking) {
       const registrationId = session.metadata?.registration_id;
-      const promoCodeId = session.metadata?.promo_code_id;
 
       // Activate the registration
       if (registrationId) {
@@ -61,18 +60,28 @@ export async function POST(request: Request) {
           .eq("id", registrationId);
       }
 
-      // Increment promo code usage
-      if (promoCodeId) {
+      // Increment usage for every applied promo (a booking may stack several).
+      // Falls back to the single promo_code_id for older sessions.
+      const appliedIds = (session.metadata?.applied_promo_ids || "")
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      const promoIds = appliedIds.length
+        ? appliedIds
+        : session.metadata?.promo_code_id
+          ? [session.metadata.promo_code_id]
+          : [];
+      for (const promoId of promoIds) {
         const { data: promo } = await supabase
           .from("promo_code")
           .select("times_used")
-          .eq("id", promoCodeId)
+          .eq("id", promoId)
           .single();
         if (promo) {
           await supabase
             .from("promo_code")
             .update({ times_used: promo.times_used + 1 })
-            .eq("id", promoCodeId);
+            .eq("id", promoId);
         }
       }
 

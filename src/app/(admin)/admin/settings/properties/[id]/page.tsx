@@ -5,7 +5,6 @@ import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/ca
 import {
   Users,
   ShoppingBag,
-  Tag,
   Ticket,
   HelpCircle,
   Video,
@@ -29,15 +28,9 @@ const sections = [
     icon: ShoppingBag,
   },
   {
-    label: "Promotions",
-    description: "Manage deals and promotions",
-    href: "/promotions",
-    icon: Tag,
-  },
-  {
-    label: "Promo Codes",
-    description: "Manage discount codes for checkout",
-    href: "/promo-codes",
+    label: "Promos",
+    description: "Build offers — codes, automatic discounts, free nights & perks",
+    href: "/promos",
     icon: Ticket,
   },
   {

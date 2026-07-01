@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 import { PromotionCards } from "./promotion-cards";
+import { normalizePromo } from "@/lib/promo/types";
 import { Playfair_Display } from "next/font/google";
 
 const playfair = Playfair_Display({
@@ -24,19 +25,22 @@ export default async function PromotionsPage({
 
   if (!property) notFound();
 
-  const { data: promotions } = await supabase
-    .from("promotion")
+  const { data: rows } = await supabase
+    .from("promo_code")
     .select("*")
-    .eq("property_id", property.id)
+    .eq("show_on_marketing", true)
     .eq("is_active", true)
+    .or(`property_id.eq.${property.id},property_id.is.null`)
+    .order("featured", { ascending: false })
     .order("sort_order");
 
   const now = new Date();
-  const activePromos =
-    promotions?.filter((p) => {
+  const activePromos = ((rows as Record<string, unknown>[]) ?? [])
+    .map(normalizePromo)
+    .filter((p) => {
       if (p.valid_until && new Date(p.valid_until) < now) return false;
       return true;
-    }) ?? [];
+    });
 
   return (
     <div className={`${playfair.variable}`}>

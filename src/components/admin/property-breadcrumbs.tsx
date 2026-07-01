@@ -6,8 +6,9 @@ import { Breadcrumbs } from "@/components/admin/breadcrumbs";
 const sectionLabels: Record<string, string> = {
   registrations: "Registrations",
   services: "Services",
-  promotions: "Promotions",
-  "promo-codes": "Promo Codes",
+  promos: "Promos",
+  promotions: "Promos",
+  "promo-codes": "Promos",
   faqs: "FAQs",
   videos: "Videos",
   "qr-codes": "QR Codes",

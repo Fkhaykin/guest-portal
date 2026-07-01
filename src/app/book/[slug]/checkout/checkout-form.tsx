@@ -43,13 +43,15 @@ type PricingData = {
   total_cents: number;
 };
 
-type PromoResult = {
-  valid: boolean;
-  error?: string;
-  promo_code_id?: string;
-  discount_type?: string;
-  discount_cents?: number;
-  description?: string;
+type ResolvedPromos = {
+  coupon_discount_cents: number;
+  upsell_adjustments: Record<string, number>;
+  total_discount_cents: number;
+  breakdown: { label: string; discount_cents: number; upsell_type: string | null }[];
+  perks: string[];
+  applied_promo_ids: string[];
+  primary_promo_id: string | null;
+  code: { provided: boolean; valid: boolean; applied: boolean; error?: string };
 };
 
 // Available upsells
@@ -107,9 +109,10 @@ export function CheckoutForm({
   // Timing upsells: selected hours per type (null/absent = not selected)
   const [timingHours, setTimingHours] = useState<Record<string, number | null>>({});
 
-  // Promo
+  // Promo — a single resolve call folds in automatic promos + the typed code.
   const [promoCode, setPromoCode] = useState("");
-  const [promoResult, setPromoResult] = useState<PromoResult | null>(null);
+  const [submittedCode, setSubmittedCode] = useState("");
+  const [resolved, setResolved] = useState<ResolvedPromos | null>(null);
   const [promoLoading, setPromoLoading] = useState(false);
 
   // Checkout
@@ -167,36 +170,57 @@ export function CheckoutForm({
     ...timingItems,
   ];
   const upsellTotalCents = upsellItems.reduce((sum, u) => sum + u.price_cents, 0);
-  const discountCents = promoResult?.valid ? promoResult.discount_cents || 0 : 0;
+  const discountCents = resolved?.total_discount_cents ?? 0;
   const grandTotalCents = pricing
     ? pricing.total_cents + upsellTotalCents - discountCents
     : 0;
   const belowMinStay = pricing !== null && pricing.room_rate_cents === 0;
 
-  async function applyPromo() {
-    if (!promoCode.trim() || !pricing) return;
-    setPromoLoading(true);
-    setPromoResult(null);
-    try {
-      const res = await fetch("/api/checkout/validate-promo", {
+  // Re-resolve promos (automatic + typed code) whenever pricing, the add-on
+  // selection, the submitted code, or the email changes — an add-on can cross a
+  // min-spend threshold, and email determines first-time/returning eligibility.
+  const upsellKey = JSON.stringify(upsellItems.map((u) => [u.type, u.price_cents]));
+  useEffect(() => {
+    if (!pricing || pricing.room_rate_cents === 0) {
+      setResolved(null);
+      return;
+    }
+    const controller = new AbortController();
+    const t = setTimeout(() => {
+      setPromoLoading(true);
+      fetch("/api/checkout/resolve", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
         body: JSON.stringify({
-          code: promoCode.trim(),
           property_id: property.id,
-          nights,
+          check_in: checkIn,
+          check_out: checkOut,
+          guests,
+          pets,
           room_rate_cents: pricing.room_rate_cents,
           cleaning_fee_cents: pricing.cleaning_fee_cents,
+          pet_fee_total_cents: pricing.pet_fee_total_cents,
           nightly_rates: pricing.nightly_rates.map((r) => ({ date: r.date, price_cents: r.price_cents })),
+          upsells: upsellItems.map((u) => ({ type: u.type, price_cents: u.price_cents })),
+          code: submittedCode || undefined,
+          guest_email: guestEmail.includes("@") ? guestEmail : undefined,
         }),
-      });
-      const data = await res.json();
-      setPromoResult(data);
-    } catch {
-      setPromoResult({ valid: false, error: "Failed to validate promo code" });
-    } finally {
-      setPromoLoading(false);
-    }
+      })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data) => setResolved(data))
+        .catch(() => {})
+        .finally(() => setPromoLoading(false));
+    }, 350);
+    return () => {
+      clearTimeout(t);
+      controller.abort();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pricing, upsellKey, submittedCode, guestEmail, property.id, checkIn, checkOut, guests, pets]);
+
+  function applyPromo() {
+    setSubmittedCode(promoCode.trim());
   }
 
   async function handleCheckout() {
@@ -221,7 +245,7 @@ export function CheckoutForm({
           guest_email: guestEmail,
           guest_phone: guestPhone,
           upsells: upsellItems,
-          promo_code: promoResult?.valid ? promoCode.trim() : undefined,
+          promo_code: submittedCode || undefined,
         }),
       });
       const data = await res.json();
@@ -413,16 +437,41 @@ export function CheckoutForm({
                     {promoLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Apply"}
                   </Button>
                 </div>
-                {promoResult && (
-                  <p
-                    className={`text-sm ${
-                      promoResult.valid ? "text-green-600" : "text-red-500"
-                    }`}
-                  >
-                    {promoResult.valid
-                      ? `${promoResult.description} (-${fmt(promoResult.discount_cents || 0)})`
-                      : promoResult.error}
+
+                {/* Typed-code feedback */}
+                {resolved?.code.provided && (
+                  <p className={`text-sm ${resolved.code.valid ? "text-green-600" : "text-red-500"}`}>
+                    {resolved.code.error
+                      ? resolved.code.error
+                      : resolved.code.applied
+                        ? "Code applied"
+                        : "Code is valid, but a better offer is already applied"}
                   </p>
+                )}
+
+                {/* Applied offers (automatic + code), itemized */}
+                {resolved && resolved.breakdown.length > 0 && (
+                  <div className="rounded-lg bg-green-50 border border-green-200 p-3 space-y-1">
+                    {resolved.breakdown.map((line, i) => (
+                      <div key={i} className="flex items-center justify-between text-sm text-green-700">
+                        <span className="flex items-center gap-1.5">
+                          <Check className="h-3.5 w-3.5" /> {line.label}
+                        </span>
+                        <span className="font-medium">-{fmt(line.discount_cents)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Display-only perks */}
+                {resolved && resolved.perks.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {resolved.perks.map((perk, i) => (
+                      <span key={i} className="inline-flex rounded-full bg-amber-50 border border-amber-200 px-2.5 py-0.5 text-xs font-medium text-amber-700">
+                        🎁 {perk}
+                      </span>
+                    ))}
+                  </div>
                 )}
               </CardContent>
             </Card>

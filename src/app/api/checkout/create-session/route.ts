@@ -4,7 +4,8 @@ import { stripe } from "@/lib/stripe/client";
 import { getNightlyRates } from "@/lib/pricelabs/client";
 import { getQuote } from "@/lib/lodgify/client";
 import { validateTimingUpsellPrices } from "@/lib/upsells/timing";
-import { freeNightsDiscountCents } from "@/lib/promo/free-nights";
+import { fetchCandidatePromos, buildGuestUsageById } from "@/lib/promo/candidates";
+import { resolvePromos } from "@/lib/promo/resolve";
 
 const PA_STATE_TAX_RATE = 0.06;
 const MONROE_COUNTY_TAX_RATE = 0.03;
@@ -133,56 +134,7 @@ export async function POST(request: Request) {
   const taxTotalCents = stateTaxCents + countyTaxCents;
   const upsellTotalCents = (upsells || []).reduce((sum, u) => sum + u.price_cents, 0);
 
-  // Validate promo code
-  let promoCodeId: string | null = null;
-  let discountCents = 0;
-
-  if (promo_code) {
-    const { data: promo } = await supabase
-      .from("promo_code")
-      .select("*")
-      .ilike("code", promo_code)
-      .eq("is_active", true)
-      .maybeSingle();
-
-    if (promo) {
-      const now = new Date();
-      const valid =
-        (!promo.valid_from || new Date(promo.valid_from) <= now) &&
-        (!promo.valid_until || new Date(promo.valid_until) >= now) &&
-        (promo.max_uses === null || promo.times_used < promo.max_uses) &&
-        nights >= promo.min_nights &&
-        (!promo.property_id || promo.property_id === property_id);
-
-      if (valid) {
-        promoCodeId = promo.id;
-        switch (promo.discount_type) {
-          case "percentage":
-            discountCents = Math.round(roomRateCents * promo.discount_value / 100);
-            break;
-          case "flat":
-            discountCents = promo.discount_value;
-            break;
-          case "free_nights":
-            // Comp the cheapest eligible nights, not the average.
-            discountCents = freeNightsDiscountCents(
-              nightlyRates,
-              promo.discount_value,
-              promo.free_nights_scope === "weeknight" ? "weeknight" : "any"
-            );
-            break;
-          case "free_cleaning":
-            discountCents = cleaningFeeCents;
-            break;
-        }
-        discountCents = Math.min(discountCents, roomRateCents + cleaningFeeCents);
-      }
-    }
-  }
-
-  const totalCents = roomRateCents + cleaningFeeCents + petFeeTotalCents + taxTotalCents + upsellTotalCents - discountCents;
-
-  // Create guest
+  // Resolve the guest first so guest_type / per-guest usage caps are authoritative.
   const { data: existingGuest } = await supabase
     .from("guest")
     .select("id")
@@ -208,6 +160,42 @@ export async function POST(request: Request) {
     guestId = newGuest.id;
   }
 
+  // Resolve promos (auto-apply + typed code) through the unified engine. This is
+  // the authoritative pass — the checkout form's number is a display estimate.
+  const [candidates, usage] = await Promise.all([
+    fetchCandidatePromos(supabase, property_id, promo_code),
+    buildGuestUsageById(supabase, guestId),
+  ]);
+  const promoResult = resolvePromos(
+    {
+      propertyId: property_id,
+      nights,
+      nightlyRates: nightlyRates.map((r) => ({ date: r.date, price_cents: r.price_cents })),
+      roomRateCents,
+      cleaningFeeCents,
+      petFeeTotalCents,
+      upsells: (upsells || []).map((u) => ({ type: u.type, price_cents: u.price_cents })),
+      guests,
+      checkInDate: check_in,
+      checkOutDate: check_out,
+      guestPriorCompletedStays: usage.priorStays,
+      guestPromoUseCounts: usage.useCounts,
+      now: new Date(),
+    },
+    candidates,
+  );
+
+  const promoCodeId = promoResult.primaryPromoId;
+  const appliedPromoIds = promoResult.appliedPromoIds;
+  // Upsell-targeted discounts come off their line items directly; the rest
+  // (room/cleaning/pet) goes into the single Stripe coupon. Keep a mutable copy
+  // so each adjustment is applied to exactly one line item.
+  const upsellAdjustments: Record<string, number> = { ...promoResult.upsellAdjustments };
+  let couponDiscountCents = promoResult.couponDiscountCents;
+  const discountCents = promoResult.totalDiscountCents;
+
+  const totalCents = roomRateCents + cleaningFeeCents + petFeeTotalCents + taxTotalCents + upsellTotalCents - discountCents;
+
   // Create registration with pending_payment status
   const { data: registration, error: regErr } = await supabase
     .from("registration")
@@ -222,6 +210,7 @@ export async function POST(request: Request) {
       booking_source: "direct",
       total_amount_cents: totalCents,
       promo_code_id: promoCodeId,
+      applied_promo_ids: appliedPromoIds,
       discount_cents: discountCents,
       cleaning_fee_cents: cleaningFeeCents,
       tax_amount_cents: taxTotalCents,
@@ -308,23 +297,38 @@ export async function POST(request: Request) {
     });
   }
 
-  // Upsells
+  // Upsells — apply any promo discount targeted at this add-on directly to its
+  // line item (so it shows as e.g. "Firewood — $0.00"), then drop it from the
+  // adjustment map so it's only applied once.
   for (const upsell of upsells || []) {
+    const adj = upsellAdjustments[upsell.type] ?? 0;
+    const unit = Math.max(0, upsell.price_cents - adj);
+    if (adj > 0) upsellAdjustments[upsell.type] = 0;
     lineItems.push({
       price_data: {
         currency: "usd",
         product_data: { name: upsell.label },
-        unit_amount: upsell.price_cents,
+        unit_amount: unit,
       },
       quantity: 1,
     });
   }
 
-  // Promo discount coupon
+  // Keep a positive charge: Stripe rejects a $0 session. Trim the coupon so the
+  // order stays at or above a $0.50 floor (full comps go through admin invoices).
+  const orderBeforeCoupon =
+    roomRateCents + cleaningFeeCents + petFeeTotalCents + taxTotalCents +
+    (upsells || []).reduce((sum, u) => sum + Math.max(0, u.price_cents - (promoResult.upsellAdjustments[u.type] ?? 0)), 0);
+  if (orderBeforeCoupon - couponDiscountCents < 50) {
+    couponDiscountCents = Math.max(0, orderBeforeCoupon - 50);
+  }
+
+  // Promo discount coupon (room/cleaning/pet bucket only — upsell discounts are
+  // already baked into the line items above).
   let discounts: { coupon: string }[] | undefined;
-  if (discountCents > 0) {
+  if (couponDiscountCents > 0) {
     const coupon = await stripe.coupons.create({
-      amount_off: discountCents,
+      amount_off: couponDiscountCents,
       currency: "usd",
       max_redemptions: 1,
       redeem_by: Math.floor(Date.now() / 1000) + 86400, // expires in 24h
@@ -347,6 +351,7 @@ export async function POST(request: Request) {
       property_id,
       guest_id: guestId,
       promo_code_id: promoCodeId || "",
+      applied_promo_ids: appliedPromoIds.join(","),
     },
     expires_at: Math.floor(Date.now() / 1000) + 1800, // 30 minutes
   });

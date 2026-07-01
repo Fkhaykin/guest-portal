@@ -3,7 +3,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { stripe } from "@/lib/stripe/client";
 import { getNightlyRates } from "@/lib/pricelabs/client";
 import { getQuote } from "@/lib/lodgify/client";
-import { freeNightsDiscountCents } from "@/lib/promo/free-nights";
+import { fetchCandidatePromos, buildGuestUsageById } from "@/lib/promo/candidates";
+import { resolvePromos } from "@/lib/promo/resolve";
 
 const PA_STATE_TAX_RATE = 0.06;
 const MONROE_COUNTY_TAX_RATE = 0.03;
@@ -81,26 +82,7 @@ export async function POST(request: Request) {
   const taxTotalCents = Math.round(roomRateCents * (PA_STATE_TAX_RATE + MONROE_COUNTY_TAX_RATE));
   const upsellTotalCents = (upsells || []).reduce((sum, u) => sum + u.price_cents, 0);
 
-  // Promo
-  let promoCodeId: string | null = null;
-  let discountCents = 0;
-  if (promo_code) {
-    const { data: promo } = await supabase.from("promo_code").select("*").ilike("code", promo_code).eq("is_active", true).maybeSingle();
-    if (promo) {
-      promoCodeId = promo.id;
-      switch (promo.discount_type) {
-        case "percentage": discountCents = Math.round(roomRateCents * promo.discount_value / 100); break;
-        case "flat": discountCents = promo.discount_value; break;
-        case "free_nights": discountCents = freeNightsDiscountCents(nightlyRates, promo.discount_value, promo.free_nights_scope === "weeknight" ? "weeknight" : "any"); break;
-        case "free_cleaning": discountCents = cleaningFeeCents; break;
-      }
-      discountCents = Math.min(discountCents, roomRateCents + cleaningFeeCents);
-    }
-  }
-
-  const totalCents = roomRateCents + cleaningFeeCents + petFeeTotalCents + taxTotalCents + upsellTotalCents - discountCents;
-
-  // Create guest
+  // Create guest first so the promo engine can evaluate guest_type / per-guest caps.
   const { data: existingGuest } = await supabase.from("guest").select("id").eq("email", guest_email).maybeSingle();
   let guestId: string;
   if (existingGuest) {
@@ -111,6 +93,37 @@ export async function POST(request: Request) {
     guestId = newGuest.id;
   }
 
+  // Resolve promos (auto-apply + typed code) through the unified engine.
+  const [candidates, usage] = await Promise.all([
+    fetchCandidatePromos(supabase, property_id, promo_code),
+    buildGuestUsageById(supabase, guestId),
+  ]);
+  const promoResult = resolvePromos(
+    {
+      propertyId: property_id,
+      nights,
+      nightlyRates: nightlyRates.map((r) => ({ date: r.date, price_cents: r.price_cents })),
+      roomRateCents,
+      cleaningFeeCents,
+      petFeeTotalCents,
+      upsells: (upsells || []).map((u) => ({ type: u.type, price_cents: u.price_cents })),
+      guests,
+      checkInDate: check_in,
+      checkOutDate: check_out,
+      guestPriorCompletedStays: usage.priorStays,
+      guestPromoUseCounts: usage.useCounts,
+      now: new Date(),
+    },
+    candidates,
+  );
+  const promoCodeId = promoResult.primaryPromoId;
+  const appliedPromoIds = promoResult.appliedPromoIds;
+  const upsellAdjustments: Record<string, number> = { ...promoResult.upsellAdjustments };
+  let couponDiscountCents = promoResult.couponDiscountCents;
+  const discountCents = promoResult.totalDiscountCents;
+
+  const totalCents = roomRateCents + cleaningFeeCents + petFeeTotalCents + taxTotalCents + upsellTotalCents - discountCents;
+
   // Create registration as "quote"
   const { data: registration } = await supabase
     .from("registration")
@@ -120,7 +133,7 @@ export async function POST(request: Request) {
       num_guests: guests, lodgify_num_pets: pets,
       status: "quote", booking_source: "direct",
       total_amount_cents: totalCents,
-      promo_code_id: promoCodeId, discount_cents: discountCents,
+      promo_code_id: promoCodeId, applied_promo_ids: appliedPromoIds, discount_cents: discountCents,
       cleaning_fee_cents: cleaningFeeCents, tax_amount_cents: taxTotalCents,
       pet_fee_total_cents: petFeeTotalCents,
       nightly_rates_snapshot: nightlyRates,
@@ -142,11 +155,23 @@ export async function POST(request: Request) {
   if (cleaningFeeCents > 0) lineItems.push({ price_data: { currency: "usd", product_data: { name: "Cleaning Fee" }, unit_amount: cleaningFeeCents }, quantity: 1 });
   if (petFeeTotalCents > 0) lineItems.push({ price_data: { currency: "usd", product_data: { name: "Pet Fee" }, unit_amount: petFeeTotalCents }, quantity: 1 });
   if (taxTotalCents > 0) lineItems.push({ price_data: { currency: "usd", product_data: { name: "Occupancy Tax (9%)" }, unit_amount: taxTotalCents }, quantity: 1 });
-  for (const u of upsells || []) lineItems.push({ price_data: { currency: "usd", product_data: { name: u.label }, unit_amount: u.price_cents }, quantity: 1 });
+  for (const u of upsells || []) {
+    const adj = upsellAdjustments[u.type] ?? 0;
+    if (adj > 0) upsellAdjustments[u.type] = 0;
+    lineItems.push({ price_data: { currency: "usd", product_data: { name: u.label }, unit_amount: Math.max(0, u.price_cents - adj) }, quantity: 1 });
+  }
+
+  // Keep a positive charge (Stripe rejects $0). Trim the coupon to a $0.50 floor.
+  const orderBeforeCoupon =
+    roomRateCents + cleaningFeeCents + petFeeTotalCents + taxTotalCents +
+    (upsells || []).reduce((sum, u) => sum + Math.max(0, u.price_cents - (promoResult.upsellAdjustments[u.type] ?? 0)), 0);
+  if (orderBeforeCoupon - couponDiscountCents < 50) {
+    couponDiscountCents = Math.max(0, orderBeforeCoupon - 50);
+  }
 
   let discounts: { coupon: string }[] | undefined;
-  if (discountCents > 0) {
-    const coupon = await stripe.coupons.create({ amount_off: discountCents, currency: "usd", max_redemptions: 1, redeem_by: Math.floor(Date.now() / 1000) + 86400 * 30 });
+  if (couponDiscountCents > 0) {
+    const coupon = await stripe.coupons.create({ amount_off: couponDiscountCents, currency: "usd", max_redemptions: 1, redeem_by: Math.floor(Date.now() / 1000) + 86400 * 30 });
     discounts = [{ coupon: coupon.id }];
   }
 
@@ -158,7 +183,7 @@ export async function POST(request: Request) {
     customer_email: guest_email,
     success_url: `${APP_URL}/book/${property.slug}/checkout?success=true&session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${APP_URL}/book/${property.slug}`,
-    metadata: { booking_type: "booking", registration_id: registration.id, property_id, guest_id: guestId, promo_code_id: promoCodeId || "" },
+    metadata: { booking_type: "booking", registration_id: registration.id, property_id, guest_id: guestId, promo_code_id: promoCodeId || "", applied_promo_ids: appliedPromoIds.join(",") },
   });
 
   await supabase.from("payment").insert({
