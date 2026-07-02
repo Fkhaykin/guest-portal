@@ -66,7 +66,7 @@ export function GuestHeader() {
             <span className="text-sm text-muted-foreground hidden sm:inline">
               Hi, {firstName}
             </span>
-            <Link href="/">
+            <Link href="/checkin">
               <Button variant="outline" size="sm">
                 My Booking
               </Button>
@@ -124,7 +124,7 @@ export function PropertyHeader({
         <div className="flex items-center gap-2">
           <ThemeToggle />
           {mounted && hasSession && (
-            <Link href="/">
+            <Link href="/checkin">
               <Button variant="outline" size="sm" className="shrink-0">
                 My Booking
               </Button>
