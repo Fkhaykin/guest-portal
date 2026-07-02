@@ -47,7 +47,7 @@ interface Props {
   checkInTime: string;
   checkOutTime: string;
   monthsToShow?: number; // navigable range from this month (default 12)
-  monthsVisible?: number; // months rendered side-by-side (default 2)
+  monthsVisible?: number; // months rendered side-by-side (default 1)
 }
 
 // Read-only availability calendar for contractors: unavailable nights are
@@ -60,7 +60,7 @@ export function ServiceCalendar({
   checkInTime,
   checkOutTime,
   monthsToShow = 12,
-  monthsVisible = 2,
+  monthsVisible = 1,
 }: Props) {
   const today = useMemo(() => {
     const d = new Date();
@@ -174,7 +174,13 @@ export function ServiceCalendar({
         </button>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+      <div
+        className={
+          monthsVisible > 1
+            ? "grid grid-cols-1 sm:grid-cols-2 gap-6"
+            : "max-w-sm mx-auto"
+        }
+      >
         {visibleMonths.map((m, i) => (
           <div key={i}>{renderMonth(m)}</div>
         ))}
