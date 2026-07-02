@@ -1,6 +1,11 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { buildBookingQuote, type NightlyRate } from "@/lib/pricing/booking-quote";
-import { isPropertyAvailable, createBooking } from "@/lib/lodgify/client";
+import {
+  buildBookingQuote,
+  PA_STATE_TAX_RATE,
+  MONROE_COUNTY_TAX_RATE,
+  type NightlyRate,
+} from "@/lib/pricing/booking-quote";
+import { isPropertyAvailable, getAvailability, createBooking } from "@/lib/lodgify/client";
 import { stripe } from "@/lib/stripe/client";
 import { notifyHostOfBookingChange } from "@/lib/push/notify-host";
 
@@ -25,6 +30,24 @@ function todayIso(): string {
 function nightsBetween(a: string, b: string): number {
   return Math.round(
     (Date.parse(b + "T00:00:00Z") - Date.parse(a + "T00:00:00Z")) / 86_400_000
+  );
+}
+
+/** Shift a YYYY-MM-DD string by whole days (UTC, TZ-safe). */
+function addDaysIso(iso: string, days: number): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  dt.setUTCDate(dt.getUTCDate() + days);
+  return dt.toISOString().slice(0, 10);
+}
+
+/** State + PA county lodging tax on a room subtotal, rounded per component to
+ *  match buildBookingQuote exactly (so a calendar option and its later re-quote
+ *  charge the same cents). */
+function lodgingTaxCents(roomRateCents: number): number {
+  return (
+    Math.round(roomRateCents * PA_STATE_TAX_RATE) +
+    Math.round(roomRateCents * MONROE_COUNTY_TAX_RATE)
   );
 }
 
@@ -151,6 +174,144 @@ export async function quoteExtension(
       taxTotalCents: breakdown.taxTotalCents,
       totalCents: breakdown.totalCents,
     },
+  };
+}
+
+export type ExtendOption = {
+  date: string; // candidate new checkout date
+  extraNights: number;
+  roomRateCents: number;
+  taxTotalCents: number;
+  totalCents: number; // cumulative cost to extend UNTIL this checkout date
+};
+
+export type ExtendOptionsResult =
+  | {
+      ok: true;
+      checkInDate: string;
+      currentCheckOutDate: string;
+      maxCheckOutDate: string;
+      options: ExtendOption[];
+    }
+  | { ok: false; status: number; error: string };
+
+/**
+ * Build every checkout date the guest can extend to, with the running price for
+ * each — the data behind the calendar picker. Availability is fetched once for the
+ * whole window and pricing once for the bookable run, so the client renders the
+ * full month(s) without a request per date.
+ *
+ * The bookable run is contiguous: a guest can only add nights up to the first one
+ * that's already booked (you can't hop over a gap), so options span
+ * [current+1 … first-blocked-night], capped at MAX_EXTENSION_NIGHTS.
+ */
+export async function extensionOptions(
+  admin: SupabaseClient,
+  params: { registrationId: string }
+): Promise<ExtendOptionsResult> {
+  const { registrationId } = params;
+
+  const { data: reg } = await admin
+    .from("registration")
+    .select(
+      "id, check_in_date, check_out_date, num_guests, payment_plan, balance_paid_at, status, property:property_id(lodgify_property_id)"
+    )
+    .eq("id", registrationId)
+    .single();
+
+  if (!reg) return { ok: false, status: 404, error: "Reservation not found" };
+  if (reg.status === "cancelled") {
+    return { ok: false, status: 400, error: "This booking has been cancelled" };
+  }
+
+  const current = reg.check_out_date as string;
+  const checkIn = reg.check_in_date as string;
+  if (current < todayIso()) {
+    return { ok: false, status: 400, error: "This stay has already ended" };
+  }
+
+  if (reg.payment_plan === "split" && !reg.balance_paid_at) {
+    return {
+      ok: false,
+      status: 409,
+      error: "Please complete your remaining balance payment before extending your stay.",
+    };
+  }
+
+  const prop = reg.property as unknown as { lodgify_property_id: number | null } | null;
+  const lodgifyPropertyId = prop?.lodgify_property_id;
+  if (!lodgifyPropertyId) {
+    return { ok: false, status: 400, error: "This property can't be extended online — please message us" };
+  }
+
+  // Availability across the whole potential window: nights [current, current+MAX).
+  const windowLastNight = addDaysIso(current, MAX_EXTENSION_NIGHTS - 1);
+  let periods: { start: string; end: string; available: number }[];
+  try {
+    periods = await getAvailability(lodgifyPropertyId, current, windowLastNight);
+  } catch {
+    return { ok: false, status: 502, error: "Couldn't check availability — please try again" };
+  }
+
+  // Earliest already-booked night in the window caps how far they can extend.
+  const blockedNights = periods
+    .filter((p) => p.available === 0)
+    .map((p) => p.start.slice(0, 10))
+    .filter((s) => s >= current);
+  const firstBlocked = blockedNights.length
+    ? blockedNights.reduce((a, b) => (a < b ? a : b))
+    : null;
+  const maxCheckOut = firstBlocked ?? addDaysIso(current, MAX_EXTENSION_NIGHTS);
+
+  // The very next night is already booked → nothing to offer.
+  if (maxCheckOut <= current) {
+    return {
+      ok: true,
+      checkInDate: checkIn,
+      currentCheckOutDate: current,
+      maxCheckOutDate: current,
+      options: [],
+    };
+  }
+
+  // Price the bookable run once. buildBookingQuote returns one rate per night in
+  // [current, maxCheckOut); we accumulate to get each candidate checkout's total.
+  let breakdown;
+  try {
+    breakdown = await buildBookingQuote({
+      lodgifyPropertyId,
+      checkIn: current,
+      checkOut: maxCheckOut,
+      guests: (reg.num_guests as number) || 2,
+      pets: 0,
+      cleaningFeeCents: 0,
+      petFeeCents: 0,
+    });
+  } catch {
+    return { ok: false, status: 502, error: "Couldn't load pricing for those dates — please try again" };
+  }
+
+  const rates = [...breakdown.nightlyRates].sort((a, b) => a.date.localeCompare(b.date));
+  const options: ExtendOption[] = [];
+  let cumRoom = 0;
+  for (let k = 1; k <= rates.length; k++) {
+    cumRoom += rates[k - 1].price_cents;
+    const taxTotalCents = lodgingTaxCents(cumRoom);
+    options.push({
+      date: addDaysIso(current, k),
+      extraNights: k,
+      roomRateCents: cumRoom,
+      taxTotalCents,
+      totalCents: cumRoom + taxTotalCents,
+    });
+  }
+
+  return {
+    ok: true,
+    checkInDate: checkIn,
+    currentCheckOutDate: current,
+    maxCheckOutDate: options.length ? options[options.length - 1].date : current,
+    options,
   };
 }
 

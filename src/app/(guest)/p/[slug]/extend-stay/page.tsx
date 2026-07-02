@@ -25,19 +25,23 @@ type SessionData = {
   };
 };
 
-type NightlyRate = { date: string; price_cents: number; min_stay: number };
-
-type Quote = {
-  currentCheckOutDate: string;
-  newCheckOutDate: string;
+type ExtendOption = {
+  date: string;
   extraNights: number;
-  nightlyRates: NightlyRate[];
   roomRateCents: number;
   taxTotalCents: number;
   totalCents: number;
 };
 
+type OptionsData = {
+  checkInDate: string;
+  currentCheckOutDate: string;
+  maxCheckOutDate: string;
+  options: ExtendOption[];
+};
+
 const SESSION_KEY = "guest-portal-session";
+const WEEKDAYS = ["S", "M", "T", "W", "T", "F", "S"];
 
 function loadSession(): SessionData | null {
   try {
@@ -53,6 +57,15 @@ function fmt(cents: number) {
   return `$${(cents / 100).toFixed(cents % 100 === 0 ? 0 : 2)}`;
 }
 
+/** Compact "+$210" / "+$1.9k" for the small calendar cells. */
+function compactPrice(cents: number) {
+  const dollars = cents / 100;
+  if (dollars >= 1000) {
+    return `+$${(dollars / 1000).toFixed(1).replace(/\.0$/, "")}k`;
+  }
+  return `+$${Math.round(dollars)}`;
+}
+
 function fmtDate(iso: string) {
   return new Date(iso + "T00:00:00").toLocaleDateString("en-US", {
     weekday: "short",
@@ -62,11 +75,20 @@ function fmtDate(iso: string) {
   });
 }
 
-function addDays(iso: string, days: number): string {
-  const [y, m, d] = iso.split("-").map(Number);
-  const dt = new Date(Date.UTC(y, m - 1, d));
-  dt.setUTCDate(dt.getUTCDate() + days);
-  return dt.toISOString().slice(0, 10);
+function pad(n: number) {
+  return String(n).padStart(2, "0");
+}
+function isoOf(y: number, m0: number, day: number) {
+  return `${y}-${pad(m0 + 1)}-${pad(day)}`;
+}
+function daysInMonth(y: number, m0: number) {
+  return new Date(y, m0 + 1, 0).getDate();
+}
+function firstWeekday(y: number, m0: number) {
+  return new Date(y, m0, 1).getDay();
+}
+function monthLabel(y: number, m0: number) {
+  return new Date(y, m0, 1).toLocaleDateString("en-US", { month: "long", year: "numeric" });
 }
 
 export default function ExtendStayPage() {
@@ -74,10 +96,10 @@ export default function ExtendStayPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const [newDate, setNewDate] = useState("");
-  const [quote, setQuote] = useState<Quote | null>(null);
-  const [quoting, setQuoting] = useState(false);
-  const [quoteError, setQuoteError] = useState("");
+  const [data, setData] = useState<OptionsData | null>(null);
+  const [optionsLoading, setOptionsLoading] = useState(false);
+  const [optionsError, setOptionsError] = useState("");
+  const [selected, setSelected] = useState<ExtendOption | null>(null);
   const [checkingOut, setCheckingOut] = useState(false);
 
   // Post-payment states
@@ -92,16 +114,16 @@ export default function ExtendStayPage() {
         headers: { "Content-Type": "application/json", "x-guest-token": getGuestToken() },
         body: JSON.stringify({ session_id: sessionId, registration_id: registrationId }),
       });
-      const data = await res.json().catch(() => ({}));
-      if (res.ok && data.ok) {
-        setConfirmed({ newCheckOutDate: data.new_check_out_date });
+      const resData = await res.json().catch(() => ({}));
+      if (res.ok && resData.ok) {
+        setConfirmed({ newCheckOutDate: resData.new_check_out_date });
         // Reflect the new checkout everywhere the session drives the UI.
         try {
           const raw = sessionStorage.getItem(SESSION_KEY);
           if (raw) {
             const s = JSON.parse(raw);
             if (s?.reservation) {
-              s.reservation.check_out_date = data.new_check_out_date;
+              s.reservation.check_out_date = resData.new_check_out_date;
               sessionStorage.setItem(SESSION_KEY, JSON.stringify(s));
             }
           }
@@ -109,12 +131,39 @@ export default function ExtendStayPage() {
           /* non-critical */
         }
       } else {
-        setError(data.error || "We couldn't confirm your extension. If you were charged, it will be refunded — please contact us.");
+        setError(resData.error || "We couldn't confirm your extension. If you were charged, it will be refunded — please contact us.");
       }
     } catch {
       setError("Network error confirming your extension. Please contact us.");
     } finally {
       setConfirming(false);
+    }
+  }, []);
+
+  const fetchOptions = useCallback(async (registrationId: string) => {
+    setOptionsLoading(true);
+    setOptionsError("");
+    try {
+      const res = await fetch("/api/guest/extend-stay/options", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-guest-token": getGuestToken() },
+        body: JSON.stringify({ registration_id: registrationId }),
+      });
+      const resData = await res.json().catch(() => ({}));
+      if (res.status === 401) {
+        sessionStorage.removeItem(SESSION_KEY);
+        window.location.href = `/?redirect=${encodeURIComponent(window.location.pathname)}`;
+        return;
+      }
+      if (!res.ok) {
+        setOptionsError(resData.error || "Couldn't load available dates. Please try again.");
+        return;
+      }
+      setData(resData as OptionsData);
+    } catch {
+      setOptionsError("Couldn't load available dates. Please try again.");
+    } finally {
+      setOptionsLoading(false);
     }
   }, []);
 
@@ -135,51 +184,14 @@ export default function ExtendStayPage() {
     if (success && sessionId) {
       confirmExtension(s.reservation.id, sessionId);
       window.history.replaceState({}, "", window.location.pathname);
-    } else if (cancelled) {
-      window.history.replaceState({}, "", window.location.pathname);
+    } else {
+      if (cancelled) window.history.replaceState({}, "", window.location.pathname);
+      fetchOptions(s.reservation.id);
     }
-  }, [confirmExtension]);
-
-  async function fetchQuote(date: string) {
-    if (!session) return;
-    setQuoting(true);
-    setQuoteError("");
-    setQuote(null);
-    try {
-      const res = await fetch("/api/guest/extend-stay/quote", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "x-guest-token": getGuestToken() },
-        body: JSON.stringify({ registration_id: session.reservation.id, new_check_out_date: date }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (res.status === 401) {
-        sessionStorage.removeItem(SESSION_KEY);
-        window.location.href = `/?redirect=${encodeURIComponent(window.location.pathname)}`;
-        return;
-      }
-      if (!res.ok) {
-        setQuoteError(data.error || "Couldn't price those dates.");
-        return;
-      }
-      setQuote(data as Quote);
-    } catch {
-      setQuoteError("Couldn't check those dates. Please try again.");
-    } finally {
-      setQuoting(false);
-    }
-  }
-
-  function onDateChange(date: string) {
-    setNewDate(date);
-    setQuote(null);
-    setQuoteError("");
-    if (session && date && date > session.reservation.check_out_date) {
-      fetchQuote(date);
-    }
-  }
+  }, [confirmExtension, fetchOptions]);
 
   async function handleExtend() {
-    if (!session || !quote) return;
+    if (!session || !selected) return;
     setCheckingOut(true);
     try {
       const res = await fetch("/api/guest/extend-stay/checkout", {
@@ -187,17 +199,17 @@ export default function ExtendStayPage() {
         headers: { "Content-Type": "application/json", "x-guest-token": getGuestToken() },
         body: JSON.stringify({
           registration_id: session.reservation.id,
-          new_check_out_date: quote.newCheckOutDate,
+          new_check_out_date: selected.date,
         }),
       });
-      const data = await res.json().catch(() => ({}));
-      if (res.ok && data.url) {
-        window.location.href = data.url;
+      const resData = await res.json().catch(() => ({}));
+      if (res.ok && resData.url) {
+        window.location.href = resData.url;
         return;
       }
-      setQuoteError(data.error || "Couldn't start checkout. Please try again.");
+      setOptionsError(resData.error || "Couldn't start checkout. Please try again.");
     } catch {
-      setQuoteError("Network error starting checkout. Please try again.");
+      setOptionsError("Network error starting checkout. Please try again.");
     } finally {
       setCheckingOut(false);
     }
@@ -250,12 +262,37 @@ export default function ExtendStayPage() {
 
   if (!session) return null;
 
-  const current = session.reservation.check_out_date;
-  const minDate = addDays(current, 1);
-  const avgNightly =
-    quote && quote.nightlyRates.length
-      ? Math.round(quote.roomRateCents / quote.nightlyRates.length)
-      : 0;
+  const optMap = new Map((data?.options ?? []).map((o) => [o.date, o]));
+
+  // Which months to render: check-in's month through the last bookable month
+  // (so the calendar always shows the greyed-out tail after the last open date).
+  const months: { y: number; m: number }[] = [];
+  if (data) {
+    const ciY = Number(data.checkInDate.slice(0, 4));
+    const ciM = Number(data.checkInDate.slice(5, 7)) - 1;
+    const lastRef =
+      data.maxCheckOutDate >= data.currentCheckOutDate ? data.maxCheckOutDate : data.currentCheckOutDate;
+    const loY = Number(lastRef.slice(0, 4));
+    const loM = Number(lastRef.slice(5, 7)) - 1;
+    let y = ciY;
+    let m = ciM;
+    while ((y < loY || (y === loY && m <= loM)) && months.length < 4) {
+      months.push({ y, m });
+      m += 1;
+      if (m > 11) {
+        m = 0;
+        y += 1;
+      }
+    }
+  }
+
+  function cellState(iso: string): "pre" | "stay" | "option" | "post" {
+    if (!data) return "post";
+    if (iso < data.checkInDate) return "pre";
+    if (iso <= data.currentCheckOutDate) return "stay";
+    if (optMap.has(iso)) return "option";
+    return "post"; // beyond the last bookable date — greyed out
+  }
 
   return (
     <div className="space-y-6 max-w-2xl mx-auto">
@@ -264,7 +301,7 @@ export default function ExtendStayPage() {
           <CalendarPlus className="h-7 w-7" /> Extend Your Stay
         </h1>
         <p className="text-muted-foreground text-sm">
-          Not ready to leave? Add extra nights to your trip.
+          Not ready to leave? Pick a new checkout date below — you only pay for the extra nights.
         </p>
       </div>
 
@@ -282,75 +319,171 @@ export default function ExtendStayPage() {
           </div>
           <div>
             <p className="text-muted-foreground text-xs uppercase tracking-wide">Current checkout</p>
-            <p className="font-medium">{fmtDate(current)}</p>
+            <p className="font-medium">{fmtDate(session.reservation.check_out_date)}</p>
           </div>
         </CardContent>
       </Card>
 
-      {/* New checkout picker */}
+      {/* Calendar picker */}
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Choose a new checkout date</CardTitle>
-          <CardDescription>We&apos;ll check availability and price the extra nights.</CardDescription>
+          <CardDescription>Tap an available date — the price shown is the total to extend through it.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <input
-            type="date"
-            min={minDate}
-            value={newDate}
-            onChange={(e) => onDateChange(e.target.value)}
-            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-ring"
-          />
-
-          {quoting && (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          {optionsLoading && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground py-6 justify-center">
               <Loader2 className="h-4 w-4 animate-spin" /> Checking availability…
             </div>
           )}
 
-          {quoteError && !quoting && (
+          {optionsError && !optionsLoading && (
             <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50/60 dark:border-amber-900 dark:bg-amber-950/30 px-3 py-2 text-sm text-amber-700 dark:text-amber-400">
               <Info className="h-4 w-4 shrink-0 mt-0.5" />
-              <span>{quoteError}</span>
+              <span>{optionsError}</span>
             </div>
           )}
 
-          {quote && !quoting && (
-            <div className="space-y-3">
-              <div className="rounded-lg border p-3 space-y-1 text-sm">
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">
-                    {avgNightly > 0 ? `${fmt(avgNightly)} × ${quote.extraNights} night${quote.extraNights !== 1 ? "s" : ""}` : `${quote.extraNights} extra night${quote.extraNights !== 1 ? "s" : ""}`}
-                  </span>
-                  <span>{fmt(quote.roomRateCents)}</span>
-                </div>
-                {quote.taxTotalCents > 0 && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Taxes</span>
-                    <span>{fmt(quote.taxTotalCents)}</span>
-                  </div>
-                )}
-                <Separator className="my-1" />
-                <div className="flex items-center justify-between font-semibold">
-                  <span>Total for {quote.extraNights} extra night{quote.extraNights !== 1 ? "s" : ""}</span>
-                  <span>{fmt(quote.totalCents)}</span>
-                </div>
-                <p className="text-xs text-muted-foreground pt-1">
-                  New checkout: <strong className="text-foreground">{fmtDate(quote.newCheckOutDate)}</strong>
-                </p>
+          {data && !optionsLoading && (
+            <>
+              {/* Legend */}
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                <span className="flex items-center gap-1.5">
+                  <span className="h-3 w-3 rounded-sm bg-primary/15 border border-primary/20" /> Your stay
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="h-3 w-3 rounded-sm border border-primary/50" /> Available
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="h-3 w-3 rounded-sm bg-muted" /> Unavailable
+                </span>
               </div>
 
-              <Button className="w-full" size="lg" disabled={checkingOut} onClick={handleExtend}>
-                {checkingOut ? (
-                  <><Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> Redirecting to checkout…</>
-                ) : (
-                  <>Extend &amp; Pay {fmt(quote.totalCents)} <ArrowRight className="h-4 w-4 ml-1.5" /></>
-                )}
-              </Button>
-              <p className="text-center text-xs text-muted-foreground flex items-center justify-center gap-1">
-                <Check className="h-3 w-3" /> Cleaning &amp; pet fees already covered — you only pay for the extra nights.
-              </p>
-            </div>
+              {data.options.length === 0 && (
+                <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50/60 dark:border-amber-900 dark:bg-amber-950/30 px-3 py-2 text-sm text-amber-700 dark:text-amber-400">
+                  <Info className="h-4 w-4 shrink-0 mt-0.5" />
+                  <span>No additional nights are open right after your stay. Message us and we&apos;ll see what we can do.</span>
+                </div>
+              )}
+
+              <div className="space-y-6">
+                {months.map(({ y, m }) => {
+                  const total = daysInMonth(y, m);
+                  const lead = firstWeekday(y, m);
+                  const cells: (number | null)[] = [
+                    ...Array(lead).fill(null),
+                    ...Array.from({ length: total }, (_, i) => i + 1),
+                  ];
+                  return (
+                    <div key={`${y}-${m}`}>
+                      <p className="text-sm font-medium mb-2">{monthLabel(y, m)}</p>
+                      <div className="grid grid-cols-7 gap-1">
+                        {WEEKDAYS.map((d, i) => (
+                          <div key={i} className="text-center text-[10px] font-medium text-muted-foreground pb-1">
+                            {d}
+                          </div>
+                        ))}
+                        {cells.map((day, i) => {
+                          if (day === null) return <div key={i} />;
+                          const iso = isoOf(y, m, day);
+                          const state = cellState(iso);
+                          const opt = optMap.get(iso);
+                          const isSelected = selected?.date === iso;
+                          const isCheckIn = iso === data.checkInDate;
+                          const isCurrentOut = iso === data.currentCheckOutDate;
+
+                          if (state === "option" && opt) {
+                            return (
+                              <button
+                                key={i}
+                                type="button"
+                                onClick={() => setSelected(opt)}
+                                className={`aspect-square rounded-md flex flex-col items-center justify-center leading-none transition-colors ${
+                                  isSelected
+                                    ? "bg-primary text-primary-foreground ring-2 ring-primary shadow-sm"
+                                    : "border border-primary/50 hover:bg-primary/10"
+                                }`}
+                              >
+                                <span className="text-xs font-medium">{day}</span>
+                                <span
+                                  className={`text-[9px] mt-0.5 ${
+                                    isSelected ? "text-primary-foreground/90" : "text-primary"
+                                  }`}
+                                >
+                                  {compactPrice(opt.totalCents)}
+                                </span>
+                              </button>
+                            );
+                          }
+
+                          const base = "aspect-square rounded-md flex flex-col items-center justify-center leading-none";
+                          if (state === "stay") {
+                            return (
+                              <div
+                                key={i}
+                                className={`${base} bg-primary/15 text-foreground ${isCheckIn || isCurrentOut ? "ring-1 ring-primary/40" : ""}`}
+                              >
+                                <span className="text-xs font-medium">{day}</span>
+                                {(isCheckIn || isCurrentOut) && (
+                                  <span className="text-[8px] uppercase tracking-wide text-primary mt-0.5">
+                                    {isCheckIn ? "In" : "Out"}
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          }
+                          // "pre" (before check-in) and "post" (after last bookable) — greyed.
+                          return (
+                            <div key={i} className={`${base} ${state === "post" ? "bg-muted/40 text-muted-foreground/40" : "text-muted-foreground/30"}`}>
+                              <span className="text-xs">{day}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Selected date summary + pay */}
+              {selected && (
+                <div className="space-y-3 pt-1">
+                  <div className="rounded-lg border p-3 space-y-1 text-sm">
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">
+                        {selected.extraNights} extra night{selected.extraNights !== 1 ? "s" : ""}
+                      </span>
+                      <span>{fmt(selected.roomRateCents)}</span>
+                    </div>
+                    {selected.taxTotalCents > 0 && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">Taxes</span>
+                        <span>{fmt(selected.taxTotalCents)}</span>
+                      </div>
+                    )}
+                    <Separator className="my-1" />
+                    <div className="flex items-center justify-between font-semibold">
+                      <span>Total</span>
+                      <span>{fmt(selected.totalCents)}</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground pt-1">
+                      New checkout: <strong className="text-foreground">{fmtDate(selected.date)}</strong>
+                    </p>
+                  </div>
+
+                  <Button className="w-full" size="lg" disabled={checkingOut} onClick={handleExtend}>
+                    {checkingOut ? (
+                      <><Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> Redirecting to checkout…</>
+                    ) : (
+                      <>Extend &amp; Pay {fmt(selected.totalCents)} <ArrowRight className="h-4 w-4 ml-1.5" /></>
+                    )}
+                  </Button>
+                  <p className="text-center text-xs text-muted-foreground flex items-center justify-center gap-1">
+                    <Check className="h-3 w-3" /> Cleaning &amp; pet fees already covered — you only pay for the extra nights.
+                  </p>
+                </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>
