@@ -7,8 +7,10 @@ type AvailabilityPeriod = {
   start: string;
   end: string;
   available: number;
-  // null on open periods; true/false on blocked periods only.
-  confirmed: boolean | null;
+  // false = tentative (amber, unpaid hold); true = booked/blocked (red, gated).
+  confirmed: boolean;
+  kind?: "booking" | "block";
+  label?: string; // reason, for owner blocks
 };
 
 const MONTH_NAMES = [
@@ -95,20 +97,28 @@ export function BookingDatePicker({
       .finally(() => setLoading(false));
   }, [lodgifyPropertyId, monthsToShow, today]);
 
-  const { bookedDates, tentativeDates } = useMemo(() => {
+  const { bookedDates, tentativeDates, blockLabels } = useMemo(() => {
     const booked = new Set<string>();
     const tentative = new Set<string>();
+    const labels = new Map<string, string>();
     for (const p of periods) {
       if (p.available !== 0) continue;
       const start = parseDate(p.start);
       const end = parseDate(p.end);
-      for (let d = new Date(start); d < end; d.setDate(d.getDate() + 1)) {
+      // `end` is the last occupied night (inclusive), so iterate through it.
+      for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
         const s = toDateStr(d);
-        if (p.confirmed) booked.add(s);
-        else tentative.add(s);
+        if (p.kind === "block") {
+          booked.add(s); // owner block — red + gated, like a booking
+          labels.set(s, p.label || "Owner block");
+        } else if (p.confirmed) {
+          booked.add(s);
+        } else {
+          tentative.add(s);
+        }
       }
     }
-    return { bookedDates: booked, tentativeDates: tentative };
+    return { bookedDates: booked, tentativeDates: tentative, blockLabels: labels };
   }, [periods]);
 
   function isBooked(s: string) { return bookedDates.has(s); }
@@ -192,11 +202,13 @@ export function BookingDatePicker({
                 disabled={disabled}
                 onClick={() => handleClick(dateStr)}
                 title={
-                  booked
-                    ? "Booked in Lodgify — click to override and create a double booking"
-                    : tentative
-                      ? "Tentative hold in Lodgify — click to override and book anyway"
-                      : undefined
+                  blockLabels.has(dateStr)
+                    ? `Blocked — ${blockLabels.get(dateStr)} (click to override)`
+                    : booked
+                      ? "Booked — click to override and create a double booking"
+                      : tentative
+                        ? "Unpaid hold — click to book anyway"
+                        : undefined
                 }
                 className={[
                   "h-9 text-sm relative transition-colors",
@@ -263,7 +275,7 @@ export function BookingDatePicker({
 
       {selectionConflict && (
         <div className="rounded-md border border-red-300 bg-red-50 dark:border-red-900 dark:bg-red-950/40 px-3 py-2 text-xs text-red-700 dark:text-red-300">
-          These dates overlap a confirmed booking. You can still create this as a double booking.
+          These dates overlap an existing booking or block. You can still create this as a double booking.
         </div>
       )}
 

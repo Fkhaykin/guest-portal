@@ -540,3 +540,30 @@ export async function createBooking(params: {
 
   return bookingId;
 }
+
+/**
+ * Delete a Lodgify booking (v1), used to release an owner-block hold so the
+ * dates reopen on connected channels. Returns true if Lodgify accepted the
+ * deletion, false otherwise — callers surface the outcome rather than trusting
+ * a silent success, since Lodgify has no dedicated date-block API.
+ */
+export async function cancelBooking(bookingId: number): Promise<boolean> {
+  try {
+    const res = await fetch(`${LODGIFY_BASE_URL}/v1/reservation/booking/${bookingId}`, {
+      method: "DELETE",
+      headers: {
+        "X-ApiKey": getApiKey(),
+        Accept: "application/json",
+      },
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      console.error(`[lodgify] cancelBooking ${bookingId} failed ${res.status}: ${text}`);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error(`[lodgify] cancelBooking ${bookingId} error:`, err);
+    return false;
+  }
+}

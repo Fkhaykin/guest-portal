@@ -502,6 +502,44 @@ export type Database = {
           updated_at?: string;
         };
       };
+      property_block: {
+        Row: {
+          id: string;
+          property_id: string;
+          start_date: string;
+          end_date: string;
+          reason: string | null;
+          lodgify_booking_id: number | null;
+          lodgify_sync_status: string | null;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          property_id: string;
+          start_date: string;
+          end_date: string;
+          reason?: string | null;
+          lodgify_booking_id?: number | null;
+          lodgify_sync_status?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          property_id?: string;
+          start_date?: string;
+          end_date?: string;
+          reason?: string | null;
+          lodgify_booking_id?: number | null;
+          lodgify_sync_status?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
       vehicle: {
         Row: {
           id: string;
