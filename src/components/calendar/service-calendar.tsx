@@ -115,6 +115,9 @@ export function ServiceCalendar({
             const dateStr = toDateStr(d);
             const past = d < today;
             const booked = bookedSet.has(dateStr);
+            // A guest arriving or departing this day — shown yellow, distinct
+            // from fully-occupied mid-stay nights (red).
+            const turnover = checkInSet.has(dateStr) || checkOutSet.has(dateStr);
             const isSelected = selected === dateStr;
             return (
               <button
@@ -125,9 +128,11 @@ export function ServiceCalendar({
                 className={[
                   "h-9 flex items-center justify-center text-sm transition-colors rounded-md",
                   past ? "text-muted-foreground/30 cursor-not-allowed" : "cursor-pointer hover:bg-accent",
-                  booked && !past
-                    ? "bg-red-100 dark:bg-red-950/40 text-red-600 dark:text-red-400 font-medium"
-                    : "",
+                  turnover && !past
+                    ? "bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 font-medium"
+                    : booked && !past
+                      ? "bg-red-100 dark:bg-red-950/40 text-red-600 dark:text-red-400 font-medium"
+                      : "",
                   isSelected ? "ring-2 ring-inset ring-primary" : "",
                 ].join(" ")}
               >
@@ -213,6 +218,10 @@ export function ServiceCalendar({
         <span className="flex items-center gap-1.5">
           <span className="h-3 w-3 rounded-sm border bg-card" />
           Available
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="h-3 w-3 rounded-sm bg-amber-100 dark:bg-amber-950/40" />
+          Check-in / out
         </span>
         <span className="flex items-center gap-1.5">
           <span className="h-3 w-3 rounded-sm bg-red-100 dark:bg-red-950/40" />
