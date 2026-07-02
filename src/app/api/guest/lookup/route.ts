@@ -53,22 +53,46 @@ export async function POST(request: Request) {
   let guestName: string | null = null;
 
   if (confirmation_code) {
-    // --- Confirmation code lookup (by lodgify_booking_id) ---
-    const codeNum = parseInt(confirmation_code, 10);
-    if (isNaN(codeNum)) {
-      return NextResponse.json(
-        { error: "Invalid confirmation code." },
-        { status: 400 }
-      );
+    // --- Confirmation code lookup ---
+    // Accept either the OTA confirmation code printed on the channel booking
+    // (Airbnb/VRBO, e.g. "HMZBYF2B2N") or the numeric Lodgify booking id.
+    const code = confirmation_code.trim();
+    // Strip anything outside [A-Za-z0-9-] so no LIKE wildcards (% _ *) can leak
+    // into the query; real OTA codes are alphanumeric.
+    const sanitized = code.replace(/[^A-Za-z0-9-]/g, "");
+
+    // 1) Case-insensitive exact match on the OTA confirmation code.
+    //    Order by check-in desc so the tie-break is deterministic: OTA codes are
+    //    globally unique per reservation, so >1 match only happens on a rare
+    //    duplicate of the same stay — pick the most recent rather than an
+    //    arbitrary row (which could mint a token for the wrong reservation).
+    let registrations = sanitized
+      ? (
+          await supabase
+            .from("registration")
+            .select(registrationSelect)
+            .ilike("ota_confirmation_code", sanitized)
+            .in("status", ["active", "completed"])
+            .order("check_in_date", { ascending: false })
+        ).data
+      : null;
+
+    // 2) Fall back to the numeric Lodgify booking id.
+    if (!registrations || registrations.length === 0) {
+      const codeNum = parseInt(code, 10);
+      if (!isNaN(codeNum) && String(codeNum) === sanitized) {
+        registrations = (
+          await supabase
+            .from("registration")
+            .select(registrationSelect)
+            .eq("lodgify_booking_id", codeNum)
+            .in("status", ["active", "completed"])
+            .order("check_in_date", { ascending: false })
+        ).data;
+      }
     }
 
-    const { data: registrations, error: regError } = await supabase
-      .from("registration")
-      .select(registrationSelect)
-      .eq("lodgify_booking_id", codeNum)
-      .in("status", ["active", "completed"]);
-
-    if (regError || !registrations || registrations.length === 0) {
+    if (!registrations || registrations.length === 0) {
       return NextResponse.json(
         { error: "No reservation found for that confirmation code." },
         { status: 404 }

@@ -151,11 +151,14 @@ export function LandingPage({
                   <Input
                     id="confirmation-code"
                     type="text"
-                    placeholder="e.g. 12345678"
+                    placeholder="e.g. HMZBYF2B2N"
                     value={confirmationCode}
                     onChange={(e) => setConfirmationCode(e.target.value)}
                     required
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Your Airbnb or VRBO confirmation code, or your booking number.
+                  </p>
                 </div>
               ) : (
                 <>

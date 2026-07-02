@@ -409,6 +409,7 @@ export type Database = {
           notes: string | null;
           status: "active" | "completed" | "cancelled" | "pending_payment";
           lodgify_booking_id: number | null;
+          ota_confirmation_code: string | null;
           guest_list: GuestListEntry[] | null;
           pets: PetEntry[] | null;
           upsells: UpsellEntry[] | null;
@@ -443,6 +444,7 @@ export type Database = {
           notes?: string | null;
           status?: "active" | "completed" | "cancelled" | "pending_payment";
           lodgify_booking_id?: number | null;
+          ota_confirmation_code?: string | null;
           guest_list?: GuestListEntry[] | null;
           pets?: PetEntry[] | null;
           upsells?: UpsellEntry[] | null;
@@ -477,6 +479,7 @@ export type Database = {
           notes?: string | null;
           status?: "active" | "completed" | "cancelled" | "pending_payment";
           lodgify_booking_id?: number | null;
+          ota_confirmation_code?: string | null;
           guest_list?: GuestListEntry[] | null;
           pets?: PetEntry[] | null;
           upsells?: UpsellEntry[] | null;

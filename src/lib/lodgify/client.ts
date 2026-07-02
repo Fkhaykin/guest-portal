@@ -68,6 +68,9 @@ export interface LodgifyBooking {
   total_amount_is_gross: boolean;
   date_created: string | null; // ISO datetime from Lodgify
   thread_uid: string | null;   // Messaging thread id (only present on v2 detail)
+  // OTA confirmation code (Airbnb/VRBO/etc.), parsed out of source_text. Null for
+  // direct/manual bookings. Present on both v1 list and v2 detail responses.
+  ota_confirmation_code: string | null;
 }
 
 // v1 response shape
@@ -112,6 +115,8 @@ interface LodgifyV1Booking {
   total?: number | null;
   date_created?: string | null;
   created_at?: string | null;
+  // Raw JSON-encoded STRING of channel metadata; carries confirmationCode for OTA bookings.
+  source_text?: string | null;
 }
 
 // --- API methods ---
@@ -143,6 +148,23 @@ export async function getProperties(): Promise<LodgifyProperty[]> {
   );
 
   return properties;
+}
+
+/**
+ * Extract the OTA confirmation code (Airbnb/VRBO/etc.) from Lodgify's `source_text`,
+ * which is a raw JSON-encoded STRING (not an object). Direct/manual bookings have no
+ * `source_text` or no `confirmationCode` key, so this returns null for them.
+ */
+export function parseOtaConfirmationCode(sourceText: string | null | undefined): string | null {
+  if (!sourceText) return null;
+  try {
+    const parsed = JSON.parse(sourceText) as { confirmationCode?: unknown };
+    return typeof parsed.confirmationCode === "string" && parsed.confirmationCode.trim()
+      ? parsed.confirmationCode.trim()
+      : null;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -189,6 +211,7 @@ export async function getBookings(params?: {
       total_amount_is_gross: true,
       date_created: b.created_at ?? b.date_created ?? null,
       thread_uid: null,
+      ota_confirmation_code: parseOtaConfirmationCode(b.source_text),
     };
   });
 
@@ -315,6 +338,7 @@ export async function getBookingById(bookingId: number): Promise<LodgifyBooking>
     subtotals?: { stay?: number | null };
     created_at?: string | null;
     thread_uid?: string | null;
+    source_text?: string | null;
     rooms?: Array<{
       people: number;
       guest_breakdown?: { adults: number; children: number; infants: number; pets: number };
@@ -351,6 +375,7 @@ export async function getBookingById(bookingId: number): Promise<LodgifyBooking>
     total_amount_is_gross: !(stay && stay > 0),
     date_created: raw.created_at ?? null,
     thread_uid: raw.thread_uid ?? null,
+    ota_confirmation_code: parseOtaConfirmationCode(raw.source_text),
   };
 }
 

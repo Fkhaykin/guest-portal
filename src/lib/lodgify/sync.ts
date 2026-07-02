@@ -342,6 +342,12 @@ export async function syncBooking(booking: LodgifyBooking, options?: { skipNotif
           : {}),
         ...(booking.date_created ? { booked_at: booking.date_created } : {}),
         ...(booking.thread_uid ? { lodgify_thread_uid: booking.thread_uid } : {}),
+        // OTA confirmation code (Airbnb/VRBO) lets guests look up by the code
+        // printed on their channel booking. Only set when present so a channel
+        // that omits it never nulls out a previously-cached value.
+        ...(booking.ota_confirmation_code
+          ? { ota_confirmation_code: booking.ota_confirmation_code }
+          : {}),
       },
       { onConflict: "lodgify_booking_id" }
     );
