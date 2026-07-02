@@ -370,6 +370,12 @@ function GuestDashboard({
                 <p className={`text-sm ${hasLateCheckout ? "text-purple-700 dark:text-purple-400 font-medium" : "text-muted-foreground"}`}>
                   By {hasLateCheckout ? checkOutTime : lodgify?.check_out_time ? formatTime(lodgify.check_out_time) : "11:00 AM"}
                 </p>
+                <Link
+                  href={`/p/${reservation.property.slug}/extend-stay`}
+                  className="mt-2 inline-flex items-center gap-1 rounded-full border border-primary/50 bg-primary/5 px-2.5 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary/15"
+                >
+                  <CalendarPlus className="h-3.5 w-3.5" /> Extend stay
+                </Link>
               </div>
             </div>
 
@@ -604,25 +610,6 @@ function GuestDashboard({
             <Link href={`/p/${reservation.property.slug}/delivery`}>
               <Button variant="outline" size="sm" className="w-full mt-2">
                 Register Delivery / Rideshare
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
-
-        {/* Extend your stay */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <CalendarPlus className="h-5 w-5" /> Extend Your Stay
-            </CardTitle>
-            <CardDescription>
-              Not ready to leave? Add extra nights to your trip.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Link href={`/p/${reservation.property.slug}/extend-stay`}>
-              <Button variant="outline" size="sm" className="w-full">
-                <CalendarPlus className="h-4 w-4 mr-1.5" /> Check availability &amp; extend
               </Button>
             </Link>
           </CardContent>
