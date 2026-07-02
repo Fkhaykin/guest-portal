@@ -39,6 +39,7 @@ import {
   ShoppingBag,
   Package,
   AlertCircle,
+  CalendarPlus,
 } from "lucide-react";
 import dynamic from "next/dynamic";
 
@@ -603,6 +604,25 @@ function GuestDashboard({
             <Link href={`/p/${reservation.property.slug}/delivery`}>
               <Button variant="outline" size="sm" className="w-full mt-2">
                 Register Delivery / Rideshare
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+
+        {/* Extend your stay */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <CalendarPlus className="h-5 w-5" /> Extend Your Stay
+            </CardTitle>
+            <CardDescription>
+              Not ready to leave? Add extra nights to your trip.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Link href={`/p/${reservation.property.slug}/extend-stay`}>
+              <Button variant="outline" size="sm" className="w-full">
+                <CalendarPlus className="h-4 w-4 mr-1.5" /> Check availability &amp; extend
               </Button>
             </Link>
           </CardContent>

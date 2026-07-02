@@ -24,7 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Users, Car, Gift, PawPrint, Plus, Minus, Loader2, Check, ChevronLeft, Upload, Truck, ShoppingBag, Package, Sparkles } from "lucide-react";
+import { Users, Car, Gift, PawPrint, Plus, Minus, Loader2, Check, ChevronLeft, Upload, Truck, ShoppingBag, Package, Sparkles, CalendarPlus } from "lucide-react";
 
 type AgeGroup = "over_21" | "under_21" | "infant";
 type GuestEntry = { first_name: string; last_name: string; age_group: AgeGroup };
@@ -1137,6 +1137,20 @@ export default function UpdateRegistrationPage() {
               <div>
                 <CardTitle className="text-sm font-semibold">Browse Upgrades</CardTitle>
                 <CardDescription className="text-xs mt-1 hidden sm:block">Extras and experiences</CardDescription>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+
+        <Link href={`/p/${property.slug}/extend-stay`} className="md:col-span-1">
+          <Card className="cursor-pointer hover:bg-accent transition-colors h-full">
+            <CardContent className="flex flex-col items-center text-center gap-3 p-4 sm:p-5">
+              <div className="rounded-full bg-primary/10 p-3">
+                <CalendarPlus className="h-6 w-6 text-primary" />
+              </div>
+              <div>
+                <CardTitle className="text-sm font-semibold">Extend Your Stay</CardTitle>
+                <CardDescription className="text-xs mt-1 hidden sm:block">Add extra nights</CardDescription>
               </div>
             </CardContent>
           </Card>

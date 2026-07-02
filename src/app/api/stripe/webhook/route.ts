@@ -3,6 +3,7 @@ import { stripe } from "@/lib/stripe/client";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { pushBookingToLodgify } from "@/lib/lodgify/push";
 import { sendDirectBookingConfirmation } from "@/lib/guest-messages/send";
+import { applyExtension } from "@/lib/upsells/extend-stay";
 import Stripe from "stripe";
 
 export async function POST(request: Request) {
@@ -98,6 +99,15 @@ export async function POST(request: Request) {
           console.error("[webhook] Booking confirmation failed:", err)
         );
       }
+    }
+
+    // Guest stay extension: fulfil idempotently (shared with the return-from-Stripe
+    // confirm route) so a closed tab still applies the extension + blocks the added
+    // nights on Lodgify. Keyed on the upsell type; sets no booking_type.
+    if (session.metadata?.upsell_types?.includes("extend_stay")) {
+      await applyExtension(supabase, session.id).catch((err) =>
+        console.error("[webhook] extend_stay fulfillment failed:", err)
+      );
     }
   }
 
