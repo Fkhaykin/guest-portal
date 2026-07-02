@@ -157,7 +157,8 @@ export function LandingPage({
                     required
                   />
                   <p className="text-xs text-muted-foreground">
-                    Your Airbnb or VRBO confirmation code, or your booking number.
+                    Your Airbnb confirmation code. Booked elsewhere? Use your
+                    name and check-in date instead.
                   </p>
                 </div>
               ) : (
