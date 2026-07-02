@@ -7,10 +7,12 @@ import {
   linkWebThreadsToReservation,
 } from "@/lib/guest-messages/web";
 import { notifyHostOfGuestMessage } from "@/lib/push/notify-host";
+import { verifyGuestToken } from "@/lib/guest-token";
 
-// Public, unauthenticated: anonymous visitors start a web-chat conversation.
-// Returns a thread_uid + secret token the widget stores in localStorage and
-// presents on every subsequent send/poll.
+// Public: starts a web-chat conversation. Anonymous visitors send name/email/
+// phone; a guest already looked up their reservation sends { registrationId,
+// guestToken } instead, so we skip the form and link straight to their booking.
+// Returns a thread_uid + secret token the widget uses for subsequent send/poll.
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -40,17 +42,39 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  let body: { name?: string; email?: string; phone?: string; message?: string };
+  let body: {
+    name?: string;
+    email?: string;
+    phone?: string;
+    message?: string;
+    registrationId?: string;
+    guestToken?: string;
+  };
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
 
+  const firstMessage = body.message?.trim().slice(0, 4000) || null;
+
+  // Authenticated guest: they already looked up their reservation, so we know
+  // who they are — skip the form and pull identity from the booking.
+  if (
+    typeof body.registrationId === "string" &&
+    typeof body.guestToken === "string"
+  ) {
+    const started = await startForKnownGuest(
+      body.registrationId.trim(),
+      body.guestToken.trim(),
+      firstMessage
+    );
+    return NextResponse.json(started.body, { status: started.status });
+  }
+
   const name = body.name?.trim().slice(0, 200);
   const email = body.email?.trim().toLowerCase();
   const phone = body.phone?.trim().slice(0, 40) || null;
-  const firstMessage = body.message?.trim().slice(0, 4000) || null;
 
   if (!name) {
     return NextResponse.json({ error: "Name is required" }, { status: 400 });
@@ -145,4 +169,98 @@ export async function POST(request: NextRequest) {
   }
 
   return NextResponse.json({ threadUid, token });
+}
+
+/**
+ * Start (or resume) a web-chat thread for a guest who has already looked up
+ * their reservation. The guest token is an HMAC of the registration id, so it
+ * both authenticates the guest and identifies the booking — no form needed.
+ * The thread is pre-linked to the reservation so it merges into that booking's
+ * conversation immediately.
+ */
+async function startForKnownGuest(
+  registrationId: string,
+  guestToken: string,
+  firstMessage: string | null
+): Promise<{ status: number; body: Record<string, unknown> }> {
+  if (!verifyGuestToken(registrationId, guestToken)) {
+    return { status: 401, body: { error: "Invalid session" } };
+  }
+
+  const admin = createAdminClient();
+  const { data: reg } = await admin
+    .from("registration")
+    .select("id, lodgify_booking_id, guest:guest_id ( full_name, email, phone )")
+    .eq("id", registrationId)
+    .maybeSingle();
+  if (!reg) return { status: 404, body: { error: "Reservation not found" } };
+
+  const guest = (reg as unknown as {
+    guest: { full_name: string | null; email: string | null; phone: string | null } | null;
+  }).guest;
+  const lodgifyBookingId =
+    (reg as unknown as { lodgify_booking_id: number | null }).lodgify_booking_id ??
+    null;
+  const guestName = guest?.full_name ?? null;
+
+  // Resume the guest's existing web thread for this reservation, if any, so a
+  // returning guest continues one conversation instead of spawning new threads.
+  const { data: existing } = await admin
+    .from("guest_message_thread")
+    .select("thread_uid, web_token")
+    .eq("channel", "web")
+    .eq("registration_id", registrationId)
+    .not("web_token", "is", null)
+    .order("last_message_at", { ascending: false, nullsFirst: false })
+    .limit(1)
+    .maybeSingle();
+
+  let threadUid: string;
+  let token: string;
+  if (existing?.thread_uid && existing.web_token) {
+    threadUid = existing.thread_uid;
+    token = existing.web_token;
+  } else {
+    threadUid = newWebThreadUid();
+    token = generateWebToken();
+    const { error: insertError } = await admin
+      .from("guest_message_thread")
+      .insert({
+        thread_uid: threadUid,
+        channel: "web",
+        web_token: token,
+        email: guest?.email ?? null,
+        phone: guest?.phone ?? null,
+        visitor_name: guestName,
+        guest_name: guestName,
+        registration_id: registrationId,
+        ...(lodgifyBookingId != null ? { lodgify_booking_id: lodgifyBookingId } : {}),
+        unread_count: 0,
+        updated_at: new Date().toISOString(),
+      });
+    if (insertError) {
+      console.error("[chat/start] Failed to create guest thread:", insertError);
+      return { status: 500, body: { error: "Could not start chat" } };
+    }
+  }
+
+  if (firstMessage) {
+    await recordWebMessage({
+      threadUid,
+      type: "Renter",
+      text: firstMessage,
+      visitorName: guestName,
+      registrationId,
+      incrementUnread: true,
+    });
+    await notifyHostOfGuestMessage({
+      guestName,
+      preview: firstMessage.slice(0, 140),
+      lodgifyBookingId,
+      registrationId,
+      threadKey: lodgifyBookingId ?? registrationId,
+    }).catch((err) => console.error("[chat/start] Host notify failed:", err));
+  }
+
+  return { status: 200, body: { threadUid, token, registrationId } };
 }

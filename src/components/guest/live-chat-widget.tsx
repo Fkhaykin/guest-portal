@@ -9,9 +9,18 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
 const STORAGE_KEY = "sf_chat_session";
+// Guest session written by the booking lookup (see checkin/page.tsx).
+const GUEST_SESSION_KEY = "guest-portal-session";
+const GUEST_TOKEN_KEY = "guest-portal-token";
 const POLL_MS = 4000;
+// Draggable launcher position (persisted across visits).
+const POS_KEY = "sf_chat_pos";
+const BTN_SIZE = 56; // matches h-14 w-14
+const EDGE_GAP = 8; // keep this far from the viewport edges
+const DRAG_THRESHOLD = 6; // px of movement before a press counts as a drag, not a tap
 
 type Session = { threadUid: string; token: string };
+type GuestAuth = { registrationId: string; guestToken: string; guestName: string };
 type Msg = { id: string; from: "you" | "host"; message: string; created_at: string };
 
 function loadSession(): Session | null {
@@ -26,10 +35,58 @@ function loadSession(): Session | null {
   return null;
 }
 
+// A guest who looked up their reservation carries a session + an HMAC token
+// bound to their registration id — enough to identify them without a form.
+function loadGuestAuth(): GuestAuth | null {
+  try {
+    const raw = sessionStorage.getItem(GUEST_SESSION_KEY);
+    const guestToken = sessionStorage.getItem(GUEST_TOKEN_KEY);
+    if (!raw || !guestToken) return null;
+    const s = JSON.parse(raw);
+    const registrationId = s?.reservation?.id;
+    if (!registrationId || typeof registrationId !== "string") return null;
+    return {
+      registrationId,
+      guestToken,
+      guestName: typeof s?.guestName === "string" ? s.guestName : "",
+    };
+  } catch {
+    return null;
+  }
+}
+
+type Point = { x: number; y: number };
+
+function loadPos(): Point | null {
+  try {
+    const raw = localStorage.getItem(POS_KEY);
+    if (!raw) return null;
+    const p = JSON.parse(raw);
+    if (typeof p?.x === "number" && typeof p?.y === "number") return p;
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
+
+// Keep the launcher fully on screen (used on load, on drag, and on resize).
+function clampToViewport(x: number, y: number): Point {
+  const maxX = Math.max(EDGE_GAP, window.innerWidth - BTN_SIZE - EDGE_GAP);
+  const maxY = Math.max(EDGE_GAP, window.innerHeight - BTN_SIZE - EDGE_GAP);
+  return {
+    x: Math.min(Math.max(EDGE_GAP, x), maxX),
+    y: Math.min(Math.max(EDGE_GAP, y), maxY),
+  };
+}
+
 export function LiveChatWidget() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
+  // Web thread for a logged-in guest — kept separate from the anonymous
+  // `session` so a prior anonymous chat can't hijack an authenticated send.
+  const [authedSession, setAuthedSession] = useState<Session | null>(null);
+  const [guestAuth, setGuestAuth] = useState<GuestAuth | null>(null);
   const [messages, setMessages] = useState<Msg[]>([]);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -39,31 +96,82 @@ export function LiveChatWidget() {
   const [error, setError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Restore an existing session from a prior visit.
+  // Draggable launcher. `pos` null => default bottom-right (CSS); once dragged,
+  // an absolute {x,y} takes over. Drag state lives in refs so moves don't thrash
+  // React; `justDragged` swallows the click that follows a drag.
+  const [pos, setPos] = useState<Point | null>(null);
+  const dragRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    originX: number;
+    originY: number;
+    moved: boolean;
+  } | null>(null);
+  const latestPosRef = useRef<Point | null>(null);
+  const justDraggedRef = useRef(false);
+
+  // Restore identity: a logged-in guest wins (skip the form); otherwise fall
+  // back to an anonymous web-chat session from a prior visit.
   useEffect(() => {
-    setSession(loadSession());
+    const ga = loadGuestAuth();
+    setGuestAuth(ga);
+    if (!ga) setSession(loadSession());
+    const p = loadPos();
+    if (p) {
+      const c = clampToViewport(p.x, p.y);
+      latestPosRef.current = c;
+      setPos(c);
+    }
   }, []);
 
-  const poll = useCallback(async (s: Session) => {
+  // Keep the launcher on screen when the viewport changes.
+  useEffect(() => {
+    function onResize() {
+      setPos((prev) => {
+        if (!prev) return prev;
+        const c = clampToViewport(prev.x, prev.y);
+        latestPosRef.current = c;
+        return c;
+      });
+    }
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  const poll = useCallback(async () => {
     try {
-      const res = await fetch(
-        `/api/chat/poll?threadUid=${encodeURIComponent(s.threadUid)}&token=${encodeURIComponent(s.token)}`
-      );
+      let url: string | null = null;
+      let headers: Record<string, string> | undefined;
+      if (guestAuth) {
+        // Registration id (a UUID) is fine in the URL; the guest token rides in
+        // the header so it never lands in access logs or browser history.
+        url = `/api/chat/poll?registrationId=${encodeURIComponent(
+          guestAuth.registrationId
+        )}`;
+        headers = { "x-guest-token": guestAuth.guestToken };
+      } else if (session) {
+        url = `/api/chat/poll?threadUid=${encodeURIComponent(
+          session.threadUid
+        )}&token=${encodeURIComponent(session.token)}`;
+      }
+      if (!url) return;
+      const res = await fetch(url, headers ? { headers } : undefined);
       if (!res.ok) return;
       const data = (await res.json()) as { messages: Msg[] };
       setMessages(data.messages ?? []);
     } catch {
       /* transient */
     }
-  }, []);
+  }, [guestAuth, session]);
 
-  // Poll while the panel is open and we have a session.
+  // Poll while the panel is open and we have someone to poll for.
   useEffect(() => {
-    if (!open || !session) return;
-    poll(session);
-    const t = setInterval(() => poll(session), POLL_MS);
+    if (!open || (!guestAuth && !session)) return;
+    poll();
+    const t = setInterval(poll, POLL_MS);
     return () => clearInterval(t);
-  }, [open, session, poll]);
+  }, [open, guestAuth, session, poll]);
 
   // Keep the transcript scrolled to the newest message.
   useEffect(() => {
@@ -72,6 +180,74 @@ export function LiveChatWidget() {
 
   // Hide on admin / cleaner surfaces — guest-facing only.
   if (pathname.startsWith("/admin") || pathname.startsWith("/cleaner")) return null;
+
+  // A guest may look up their booking after this widget mounted — re-check on
+  // open so their conversation "just works" without the form.
+  function openChat() {
+    const ga = loadGuestAuth();
+    setGuestAuth(ga);
+    if (!ga) setSession(loadSession());
+    setError(null);
+    setOpen(true);
+  }
+
+  // --- Draggable launcher (pointer events cover both mouse and touch) ---
+  function onLauncherPointerDown(e: React.PointerEvent<HTMLButtonElement>) {
+    const rect = e.currentTarget.getBoundingClientRect();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    dragRef.current = {
+      pointerId: e.pointerId,
+      startX: e.clientX,
+      startY: e.clientY,
+      originX: rect.left,
+      originY: rect.top,
+      moved: false,
+    };
+  }
+
+  function onLauncherPointerMove(e: React.PointerEvent<HTMLButtonElement>) {
+    const d = dragRef.current;
+    if (!d || e.pointerId !== d.pointerId) return;
+    const dx = e.clientX - d.startX;
+    const dy = e.clientY - d.startY;
+    // Ignore tiny jitter so a plain tap still opens the chat.
+    if (!d.moved && Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
+    d.moved = true;
+    const c = clampToViewport(d.originX + dx, d.originY + dy);
+    latestPosRef.current = c;
+    setPos(c);
+  }
+
+  function onLauncherPointerUp(e: React.PointerEvent<HTMLButtonElement>) {
+    const d = dragRef.current;
+    dragRef.current = null;
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    }
+    if (d?.moved) {
+      // A drag just ended — persist it and swallow the click that follows.
+      justDraggedRef.current = true;
+      if (latestPosRef.current) {
+        try {
+          localStorage.setItem(POS_KEY, JSON.stringify(latestPosRef.current));
+        } catch {
+          /* ignore */
+        }
+      }
+    }
+  }
+
+  function onLauncherClick() {
+    if (justDraggedRef.current) {
+      justDraggedRef.current = false;
+      return;
+    }
+    openChat();
+  }
+
+  const knownGuest = !!guestAuth;
+  const showForm = !guestAuth && !session;
+  const firstName = guestAuth?.guestName?.trim().split(/\s+/)[0] ?? "";
 
   async function startChat(e: React.FormEvent) {
     e.preventDefault();
@@ -101,7 +277,7 @@ export function LiveChatWidget() {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(s));
       setSession(s);
       setInput("");
-      poll(s);
+      poll();
     } catch {
       setError("Network error. Please try again.");
     } finally {
@@ -110,16 +286,59 @@ export function LiveChatWidget() {
   }
 
   async function sendMessage() {
-    if (!session || !input.trim() || busy) return;
     const text = input.trim();
+    if (!text || busy) return;
     setInput("");
     setBusy(true);
+    setError(null);
     // Optimistic echo until the next poll returns the authoritative list.
     setMessages((prev) => [
       ...prev,
       { id: `tmp-${Date.now()}`, from: "you", message: text, created_at: new Date().toISOString() },
     ]);
     try {
+      // Logged-in guest: send into their reservation-linked web thread, starting
+      // (or resuming) it on the first message. Never touches the anonymous flow.
+      if (guestAuth) {
+        if (!authedSession) {
+          const res = await fetch("/api/chat/start", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              registrationId: guestAuth.registrationId,
+              guestToken: guestAuth.guestToken,
+              message: text,
+            }),
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) {
+            setError(data?.error ?? "Could not send. Please try again.");
+            return;
+          }
+          // In-memory only: the login is per-tab, so the web thread is too.
+          setAuthedSession({ threadUid: data.threadUid, token: data.token });
+          await poll();
+          return;
+        }
+        const res = await fetch("/api/chat/send", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            threadUid: authedSession.threadUid,
+            token: authedSession.token,
+            message: text,
+          }),
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          setError(data?.error ?? "Could not send. Please try again.");
+        }
+        await poll();
+        return;
+      }
+
+      // Anonymous visitor: the intro form already created the web thread.
+      if (!session) return;
       const res = await fetch("/api/chat/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -129,7 +348,7 @@ export function LiveChatWidget() {
         const data = await res.json().catch(() => ({}));
         setError(data?.error ?? "Could not send. Please try again.");
       }
-      await poll(session);
+      await poll();
     } catch {
       setError("Network error. Please try again.");
     } finally {
@@ -139,13 +358,21 @@ export function LiveChatWidget() {
 
   return (
     <>
-      {/* Launcher */}
+      {/* Launcher — tap to open, drag to reposition */}
       {!open && (
         <button
           type="button"
-          onClick={() => setOpen(true)}
+          onClick={onLauncherClick}
+          onPointerDown={onLauncherPointerDown}
+          onPointerMove={onLauncherPointerMove}
+          onPointerUp={onLauncherPointerUp}
+          onPointerCancel={onLauncherPointerUp}
           aria-label="Chat with us"
-          className="fixed right-4 bottom-4 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-transform hover:scale-105 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          style={pos ? { left: pos.x, top: pos.y } : undefined}
+          className={cn(
+            "fixed z-50 flex h-14 w-14 touch-none items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg hover:scale-105 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+            pos ? "cursor-grab active:cursor-grabbing" : "right-4 bottom-4 transition-transform"
+          )}
         >
           <MessageCircle className="h-6 w-6" />
         </button>
@@ -153,7 +380,7 @@ export function LiveChatWidget() {
 
       {/* Panel */}
       {open && (
-        <div className="fixed right-4 bottom-4 z-50 flex w-[calc(100vw-2rem)] max-w-sm flex-col overflow-hidden rounded-2xl border bg-background shadow-2xl h-[70vh] max-h-[560px]">
+        <div className="fixed right-4 bottom-4 z-50 flex w-[calc(100vw-2rem)] max-w-sm flex-col overflow-hidden rounded-2xl border bg-background shadow-2xl h-[70vh] max-h-140">
           {/* Header */}
           <div className="flex items-center justify-between bg-primary px-4 py-3 text-primary-foreground">
             <div>
@@ -170,8 +397,8 @@ export function LiveChatWidget() {
             </button>
           </div>
 
-          {!session ? (
-            /* Intro form */
+          {showForm ? (
+            /* Intro form — anonymous visitors only */
             <form onSubmit={startChat} className="flex flex-1 flex-col gap-3 overflow-y-auto p-4">
               <p className="text-sm text-muted-foreground">
                 Hi! Leave your details and a message — we typically reply in under 5 minutes.
@@ -215,7 +442,9 @@ export function LiveChatWidget() {
               <div ref={scrollRef} className="flex-1 space-y-2 overflow-y-auto p-4">
                 {messages.length === 0 ? (
                   <p className="text-center text-sm text-muted-foreground">
-                    You&apos;re connected. Send us a message!
+                    {knownGuest
+                      ? `Hi${firstName ? ` ${firstName}` : ""}! How can we help with your stay?`
+                      : "You're connected. Send us a message!"}
                   </p>
                 ) : (
                   messages.map((m) => (
