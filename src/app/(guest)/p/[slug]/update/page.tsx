@@ -115,6 +115,8 @@ export default function UpdateRegistrationPage() {
   const [registrationId, setRegistrationId] = useState<string | null>(null);
   const [maxGuests, setMaxGuests] = useState(12);
   const [view, setView] = useState<View>("menu");
+  // null = not yet checked (card stays enabled), false = no open nights (grey it out).
+  const [canExtend, setCanExtend] = useState<boolean | null>(null);
 
   // Delivery state
   const [deliveryStep, setDeliveryStep] = useState(1);
@@ -201,6 +203,23 @@ export default function UpdateRegistrationPage() {
 
     loadRegistration();
   }, []);
+
+  // Availability for the extend-stay card: grey it out when nothing is open right
+  // after checkout. Only flip to false on a definitive empty result — leave it
+  // enabled while loading or if the check fails.
+  useEffect(() => {
+    if (!registrationId) return;
+    fetch("/api/guest/extend-stay/options", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-guest-token": getGuestToken() },
+      body: JSON.stringify({ registration_id: registrationId }),
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data && Array.isArray(data.options)) setCanExtend(data.options.length > 0);
+      })
+      .catch(() => {});
+  }, [registrationId]);
 
   // Handle return from Stripe pet payment
   useEffect(() => {
@@ -1142,19 +1161,35 @@ export default function UpdateRegistrationPage() {
           </Card>
         </Link>
 
-        <Link href={`/p/${property.slug}/extend-stay`} className="md:col-span-1">
-          <Card className="cursor-pointer hover:bg-accent transition-colors h-full">
-            <CardContent className="flex flex-col items-center text-center gap-3 p-4 sm:p-5">
-              <div className="rounded-full bg-primary/10 p-3">
-                <CalendarPlus className="h-6 w-6 text-primary" />
-              </div>
-              <div>
-                <CardTitle className="text-sm font-semibold">Extend Your Stay</CardTitle>
-                <CardDescription className="text-xs mt-1 hidden sm:block">Add extra nights</CardDescription>
-              </div>
-            </CardContent>
-          </Card>
-        </Link>
+        {canExtend === false ? (
+          <div className="md:col-span-1" aria-disabled="true">
+            <Card className="h-full opacity-50 cursor-not-allowed">
+              <CardContent className="flex flex-col items-center text-center gap-3 p-4 sm:p-5">
+                <div className="rounded-full bg-muted p-3">
+                  <CalendarPlus className="h-6 w-6 text-muted-foreground" />
+                </div>
+                <div>
+                  <CardTitle className="text-sm font-semibold">Extend Your Stay</CardTitle>
+                  <CardDescription className="text-xs mt-1 hidden sm:block">No nights available</CardDescription>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        ) : (
+          <Link href={`/p/${property.slug}/extend-stay`} className="md:col-span-1">
+            <Card className="cursor-pointer hover:bg-accent transition-colors h-full">
+              <CardContent className="flex flex-col items-center text-center gap-3 p-4 sm:p-5">
+                <div className="rounded-full bg-primary/10 p-3">
+                  <CalendarPlus className="h-6 w-6 text-primary" />
+                </div>
+                <div>
+                  <CardTitle className="text-sm font-semibold">Extend Your Stay</CardTitle>
+                  <CardDescription className="text-xs mt-1 hidden sm:block">Add extra nights</CardDescription>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+        )}
       </div>
     </div>
   );

@@ -187,6 +187,9 @@ function GuestDashboard({
   const breakdown = lodgify?.guest_breakdown;
   const [purchasedUpsells, setPurchasedUpsells] = useState<PurchasedUpsell[]>([]);
   const [deliveries, setDeliveries] = useState<DeliveryEntry[]>([]);
+  // Only surface the in-tile extend pill once we know nights are actually open —
+  // if the house is booked the day after checkout there's nothing to extend into.
+  const [canExtend, setCanExtend] = useState(false);
 
   useEffect(() => {
     fetch(`/api/guest/delivery-rideshare?registration_id=${reservation.id}`, {
@@ -208,6 +211,19 @@ function GuestDashboard({
       .then((res) => res.ok ? res.json() : null)
       .then((data) => {
         if (data?.purchased) setPurchasedUpsells(data.purchased);
+      })
+      .catch(() => {});
+  }, [reservation.id]);
+
+  useEffect(() => {
+    fetch("/api/guest/extend-stay/options", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-guest-token": getGuestToken() },
+      body: JSON.stringify({ registration_id: reservation.id }),
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data && Array.isArray(data.options)) setCanExtend(data.options.length > 0);
       })
       .catch(() => {});
   }, [reservation.id]);
@@ -370,12 +386,14 @@ function GuestDashboard({
                 <p className={`text-sm ${hasLateCheckout ? "text-purple-700 dark:text-purple-400 font-medium" : "text-muted-foreground"}`}>
                   By {hasLateCheckout ? checkOutTime : lodgify?.check_out_time ? formatTime(lodgify.check_out_time) : "11:00 AM"}
                 </p>
-                <Link
-                  href={`/p/${reservation.property.slug}/extend-stay`}
-                  className="mt-2 inline-flex items-center gap-1 rounded-full border border-primary/50 bg-primary/5 px-2.5 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary/15"
-                >
-                  <CalendarPlus className="h-3.5 w-3.5" /> Extend stay
-                </Link>
+                {canExtend && (
+                  <Link
+                    href={`/p/${reservation.property.slug}/extend-stay`}
+                    className="mt-2 inline-flex items-center gap-1 rounded-full border border-primary/50 bg-primary/5 px-2.5 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary/15"
+                  >
+                    <CalendarPlus className="h-3.5 w-3.5" /> Extend stay
+                  </Link>
+                )}
               </div>
             </div>
 
