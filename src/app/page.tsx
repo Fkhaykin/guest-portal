@@ -637,7 +637,7 @@ function TripSummaryCard({ reservation }: { reservation: Reservation }) {
           : "In progress";
 
   return (
-    <Link href="/" className="block">
+    <Link href="/checkin" className="block">
       <Card className="overflow-hidden border-primary/20 hover:border-primary/40 transition-colors">
         <div className="flex">
           {reservation.property.cover_image_url && (
@@ -955,13 +955,10 @@ export default function HomeV2Page() {
             water access — no platform fees, no markup.
           </p>
 
-          {/* Booking search card */}
+          {/* Booking search card — the hero is always the marketing CTA, even
+              for returning guests. Their trip card lives below the hero. */}
           <div className="mt-10 w-full max-w-2xl">
-            {session ? (
-              <TripSummaryCard reservation={session.reservation} />
-            ) : (
-              <AvailabilitySearch />
-            )}
+            <AvailabilitySearch />
           </div>
 
           {/* Already booked? */}
@@ -1002,15 +999,18 @@ export default function HomeV2Page() {
       {/* ============================================================ */}
       {session && (
         <section className="px-4 sm:px-6 py-8 max-w-4xl mx-auto w-full">
-          <div className="space-y-3">
-            <h2 className="text-xl font-semibold">
-              Welcome back,{" "}
-              {(session.guestName || "").split(" ")[0] || "Guest"}!
-            </h2>
-            <p className="text-muted-foreground text-sm">
-              Your upcoming trip is all set. Tap below to manage your booking,
-              complete registration, or browse add-ons.
-            </p>
+          <div className="space-y-4">
+            <div className="space-y-1">
+              <h2 className="text-xl font-semibold">
+                Welcome back,{" "}
+                {(session.guestName || "").split(" ")[0] || "Guest"}!
+              </h2>
+              <p className="text-muted-foreground text-sm">
+                Your upcoming trip is all set — manage your booking, complete
+                registration, or browse add-ons below.
+              </p>
+            </div>
+            <TripSummaryCard reservation={session.reservation} />
           </div>
         </section>
       )}
