@@ -16,7 +16,6 @@ import {
   X,
   Truck,
   Megaphone,
-  CalendarX,
   PanelLeftClose,
   PanelLeftOpen,
 } from "lucide-react";
@@ -29,7 +28,6 @@ import { useRouter } from "next/navigation";
 const navItems = [
   { label: "Dashboard", href: "/admin", icon: Home },
   { label: "Reservations", href: "/admin/reservations", icon: ClipboardList },
-  { label: "Blocked dates", href: "/admin/blocks", icon: CalendarX },
   { label: "Deliveries", href: "/admin/deliveries", icon: Truck },
   { label: "Messages", href: "/admin/messages", icon: MessageSquare },
   { label: "Campaigns", href: "/admin/campaigns", icon: Megaphone },

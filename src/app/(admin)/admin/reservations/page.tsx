@@ -305,6 +305,15 @@ export default function AdminReservationsPage() {
             <span className="hidden sm:inline">New booking</span>
           </button>
           <button
+            onClick={() => router.push("/admin/blocks")}
+            aria-label="Block dates"
+            title="Block dates"
+            className="inline-flex items-center gap-2 rounded-md border border-input bg-background p-2.5 sm:px-3 sm:py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground"
+          >
+            <CalendarX className="h-4 w-4" />
+            <span className="hidden sm:inline">Block dates</span>
+          </button>
+          <button
             onClick={handleRefresh}
             disabled={syncing}
             aria-label="Refresh from Lodgify"

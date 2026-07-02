@@ -549,7 +549,7 @@ function AvailabilitySearch() {
               setCheckIn(e.target.value);
               if (checkOut && e.target.value >= checkOut) setCheckOut("");
             }}
-            className="w-full bg-transparent text-white text-base sm:text-lg font-medium outline-none scheme-dark text-center sm:text-left"
+            className="w-full bg-transparent text-white text-base sm:text-lg font-medium outline-none scheme-dark text-center sm:text-left max-sm:[&::-webkit-datetime-edit]:text-center max-sm:[&::-webkit-date-and-time-value]:text-center"
             required
           />
         </div>
@@ -567,7 +567,7 @@ function AvailabilitySearch() {
               if (checkIn && val <= checkIn) return;
               setCheckOut(val);
             }}
-            className="w-full bg-transparent text-white text-base sm:text-lg font-medium outline-none scheme-dark text-center sm:text-left"
+            className="w-full bg-transparent text-white text-base sm:text-lg font-medium outline-none scheme-dark text-center sm:text-left max-sm:[&::-webkit-datetime-edit]:text-center max-sm:[&::-webkit-date-and-time-value]:text-center"
             required
           />
         </div>
