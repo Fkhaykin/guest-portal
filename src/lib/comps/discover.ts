@@ -76,6 +76,7 @@ async function searchBounds(
 
   type RawResult = {
     avgRatingLocalized?: string | null;
+    avgRatingA11yLabel?: string | null;
     structuredContent?: unknown;
     structuredDisplayPrice?: unknown;
     demandStayListing?: {
@@ -105,8 +106,13 @@ async function searchBounds(
     const lng = d.location?.coordinate?.longitude;
     if (!airbnbId || lat == null || lng == null) continue;
 
+    // Two page variants: rating either "4.91 (76)" in one field, or a bare
+    // "4.91" with the review count only in the a11y label ("…, 76 reviews").
     const ratingStr = r.avgRatingLocalized ?? "";
-    const ratingMatch = ratingStr.match(/([\d.]+)\s*\((\d+)\)/);
+    const ratingMatch = ratingStr.match(/([\d.]+)/);
+    const rating = ratingMatch && ratingStr !== "New" ? parseFloat(ratingMatch[1]) : null;
+    const countMatch =
+      ratingStr.match(/\((\d+)\)/) ?? (r.avgRatingA11yLabel ?? "").match(/(\d+) review/);
     const bedsMatch = JSON.stringify(r.structuredContent ?? {}).match(/(\d+) bed/);
     const priceMatch = JSON.stringify(r.structuredDisplayPrice ?? {}).match(/\$[\d,]+/);
 
@@ -116,8 +122,8 @@ async function searchBounds(
       lat,
       lng,
       beds: bedsMatch ? parseInt(bedsMatch[1], 10) : null,
-      rating: ratingMatch ? parseFloat(ratingMatch[1]) : null,
-      reviewCount: ratingMatch ? parseInt(ratingMatch[2], 10) : 0,
+      rating,
+      reviewCount: countMatch ? parseInt(countMatch[1], 10) : 0,
       distanceKm: haversineKm(center.lat, center.lng, lat, lng),
       priceTotal: priceMatch ? priceMatch[0] : null,
       score: 0,
@@ -148,16 +154,36 @@ export async function discoverComps(
   }
 
   const candidates = [...byId.values()];
-  for (const c of candidates) {
+
+  // Search results don't always carry bedroom counts; enrich the nearest pool
+  // from each listing's own page (bounded concurrency) so size-matching — the
+  // heart of PriceLabs' comp selection — uses real numbers.
+  const pool = candidates
+    .sort((a, b) => a.distanceKm - b.distanceKm)
+    .slice(0, Math.max(limit + 6, 16));
+  const needBeds = pool.filter((c) => c.beds == null);
+  for (let i = 0; i < needBeds.length; i += 4) {
+    await Promise.all(
+      needBeds.slice(i, i + 4).map(async (c) => {
+        try {
+          const p = await getListingProfile(c.airbnbId);
+          c.beds = p.bedrooms;
+        } catch {
+          // leave null — ranked with a neutral bed gap
+        }
+      })
+    );
+  }
+
+  for (const c of pool) {
     const bedGap =
       profile.bedrooms != null && c.beds != null ? Math.abs(c.beds - profile.bedrooms) : 1;
     // KNN-ish score: size match dominates, then distance; an established review
     // history discounts the score (a "New" listing is a weaker price signal).
-    c.score =
-      bedGap * 3 + c.distanceKm / 3 - Math.min(Math.log10(c.reviewCount + 1), 2);
+    c.score = bedGap * 3 + c.distanceKm / 3 - Math.min(Math.log10(c.reviewCount + 1), 2);
   }
-  candidates.sort((a, b) => a.score - b.score);
-  return candidates.slice(0, limit);
+  pool.sort((a, b) => a.score - b.score);
+  return pool.slice(0, limit);
 }
 
 function balancedArray(s: string, start: number): string | null {
