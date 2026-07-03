@@ -26,7 +26,51 @@
     },
     {
       "path": "/api/cron/comp-scrape",
-      "schedule": "0,15,30,45 5-7 * * *"
+      "schedule": "0 5 * * *"
+    },
+    {
+      "path": "/api/cron/comp-scrape",
+      "schedule": "15 5 * * *"
+    },
+    {
+      "path": "/api/cron/comp-scrape",
+      "schedule": "30 5 * * *"
+    },
+    {
+      "path": "/api/cron/comp-scrape",
+      "schedule": "45 5 * * *"
+    },
+    {
+      "path": "/api/cron/comp-scrape",
+      "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/cron/comp-scrape",
+      "schedule": "15 6 * * *"
+    },
+    {
+      "path": "/api/cron/comp-scrape",
+      "schedule": "30 6 * * *"
+    },
+    {
+      "path": "/api/cron/comp-scrape",
+      "schedule": "45 6 * * *"
+    },
+    {
+      "path": "/api/cron/comp-scrape",
+      "schedule": "0 7 * * *"
+    },
+    {
+      "path": "/api/cron/comp-scrape",
+      "schedule": "15 7 * * *"
+    },
+    {
+      "path": "/api/cron/comp-scrape",
+      "schedule": "30 7 * * *"
+    },
+    {
+      "path": "/api/cron/comp-scrape",
+      "schedule": "45 7 * * *"
     },
     {
       "path": "/api/cron/market-pulse",
