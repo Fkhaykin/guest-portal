@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   CalendarDays,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Loader2,
@@ -82,6 +83,23 @@ function fmtShort(s: string) {
   return parseDate(s).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
+function fmtNight(s: string) {
+  return parseDate(s).toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  });
+}
+
+/** Every night of a stay: [check-in, check-out) as date strings. */
+function eachNight(checkIn: string, checkOut: string): string[] {
+  const nights: string[] = [];
+  for (let d = parseDate(checkIn); toDateStr(d) < checkOut; d.setDate(d.getDate() + 1)) {
+    nights.push(toDateStr(d));
+  }
+  return nights;
+}
+
 const MONTH_NAMES = [
   "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December",
@@ -136,6 +154,7 @@ export function useBooking({
   const [periods, setPeriods] = useState<AvailabilityPeriod[]>([]);
   const [minStays, setMinStays] = useState<Record<string, number>>({});
   const [defaultMinStay, setDefaultMinStay] = useState<number | null>(null);
+  const [nightlyPrices, setNightlyPrices] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   // Quote results are keyed by their request signature so a stale response
   // (or a cleared selection) never shows the wrong price.
@@ -158,6 +177,8 @@ export function useBooking({
         // Optional min-stay fields — when absent, no minimum is enforced
         if (data?.minStays) setMinStays(data.minStays);
         if (typeof data?.defaultMinStay === "number") setDefaultMinStay(data.defaultMinStay);
+        // Optional per-night rack rates — power the night-by-night breakdown
+        if (data?.nightlyPrices) setNightlyPrices(data.nightlyPrices);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -362,6 +383,7 @@ export function useBooking({
     quoteLoading,
     nights,
     activeMinStay,
+    nightlyPrices,
     checkoutUrl,
     calendarPulse,
     isNightBooked,
@@ -681,10 +703,12 @@ export function BookingCard({
   const router = useRouter();
   const {
     checkIn, checkOut, guests, setGuests, pets, setPets, maxGuests, petsAllowed,
-    loading, quote, quoteFailure, quoteLoading, nights, checkoutUrl, scrollToCalendar,
+    loading, quote, quoteFailure, quoteLoading, nights, nightlyPrices, checkoutUrl,
+    scrollToCalendar,
   } = booking;
 
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [nightsExpanded, setNightsExpanded] = useState<boolean | null>(null);
   const pickerRef = useRef<HTMLDivElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
 
@@ -735,6 +759,22 @@ export function BookingCard({
     quote?.roomRate && nights ? Math.round(quote.roomRate / nights) : null;
   const feesAndTaxes =
     quote && quote.roomRate !== null ? Math.round(quote.total - quote.roomRate) : null;
+
+  // Night-by-night itemization — shown only when the rack rates cover every
+  // night of the stay and agree with the quote's room-rate subtotal, so a
+  // promotion or guest-count fee can never make the lines contradict the total.
+  const nightRows =
+    checkIn && checkOut
+      ? eachNight(checkIn, checkOut).map((date) => ({ date, price: nightlyPrices[date] }))
+      : [];
+  const nightSum = nightRows.reduce((sum, r) => sum + (r.price ?? 0), 0);
+  const showNightly =
+    quote?.roomRate != null &&
+    nightRows.length > 0 &&
+    nightRows.every((r) => typeof r.price === "number") &&
+    Math.abs(nightSum - quote.roomRate) <= 1;
+  // Long stays collapse by default; the guest's own toggle always wins
+  const nightsOpen = nightsExpanded ?? nightRows.length <= 10;
 
   return (
     <div className="rounded-2xl border bg-card shadow-xl shadow-black/6 p-5 space-y-4">
@@ -847,14 +887,45 @@ export function BookingCard({
             </div>
           ) : quote ? (
             <>
-              {quote.roomRate !== null && nightly !== null && (
+              {showNightly && quote.roomRate !== null ? (
+                <div className="space-y-1.5">
+                  <button
+                    onClick={() => setNightsExpanded(!nightsOpen)}
+                    aria-expanded={nightsOpen}
+                    className="w-full flex justify-between items-center text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <span className="flex items-center gap-1">
+                      {nights} night{nights !== 1 ? "s" : ""}
+                      <ChevronDown
+                        className={`h-3.5 w-3.5 transition-transform ${nightsOpen ? "rotate-180" : ""}`}
+                      />
+                    </span>
+                    <span>${Math.round(quote.roomRate).toLocaleString()}</span>
+                  </button>
+                  {nightsOpen && (
+                    <div className="space-y-1 border-l-2 border-muted pl-3">
+                      {nightRows.map((r) => (
+                        <div
+                          key={r.date}
+                          className="flex justify-between text-xs text-muted-foreground"
+                        >
+                          <span>{fmtNight(r.date)}</span>
+                          <span className="tabular-nums">
+                            ${r.price!.toLocaleString()}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : quote.roomRate !== null && nightly !== null ? (
                 <div className="flex justify-between text-muted-foreground">
                   <span>
                     ${nightly.toLocaleString()} × {nights} night{nights !== 1 ? "s" : ""}
                   </span>
                   <span>${Math.round(quote.roomRate).toLocaleString()}</span>
                 </div>
-              )}
+              ) : null}
               {feesAndTaxes !== null && feesAndTaxes > 0 && (
                 <div className="flex justify-between text-muted-foreground">
                   <span>Taxes &amp; fees</span>

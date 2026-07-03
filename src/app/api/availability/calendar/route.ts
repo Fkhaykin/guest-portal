@@ -25,11 +25,13 @@ function shiftIsoDate(iso: string, days: number): string {
 }
 
 /**
- * Fetch per-date minimum stays from Lodgify's rates calendar. Runs alongside
- * the DB queries and is fully failure-tolerant: any error, non-OK response, or
- * a stall past the ~4s budget returns null and the fields are simply omitted.
- * `minStays` maps arrival date → min nights for stays starting that date;
- * `defaultMinStay` is the most common value across the window.
+ * Fetch per-date minimum stays and nightly prices from Lodgify's rates
+ * calendar. Runs alongside the DB queries and is fully failure-tolerant: any
+ * error, non-OK response, or a stall past the ~4s budget returns null and the
+ * fields are simply omitted. `minStays` maps arrival date → min nights for
+ * stays starting that date; `defaultMinStay` is the most common value across
+ * the window; `nightlyPrices` maps date → that night's rack rate, letting the
+ * booking card itemize a stay night by night.
  */
 // Successful Lodgify responses are cached for an hour by fetch revalidation,
 // but failures are not — during a Lodgify-degraded window every request would
@@ -42,7 +44,11 @@ async function fetchMinStays(
   lodgifyId: number,
   start: string,
   end: string
-): Promise<{ minStays: Record<string, number>; defaultMinStay: number } | null> {
+): Promise<{
+  minStays: Record<string, number>;
+  defaultMinStay: number;
+  nightlyPrices: Record<string, number>;
+} | null> {
   const apiKey = process.env.LODGIFY_API_KEY;
   if (!apiKey) return null;
 
@@ -60,7 +66,11 @@ async function fetchMinStaysFromLodgify(
   start: string,
   end: string,
   apiKey: string
-): Promise<{ minStays: Record<string, number>; defaultMinStay: number } | null> {
+): Promise<{
+  minStays: Record<string, number>;
+  defaultMinStay: number;
+  nightlyPrices: Record<string, number>;
+} | null> {
   try {
     // One budget for both requests — availability must never wait on Lodgify.
     const signal = AbortSignal.timeout(4000);
@@ -88,13 +98,20 @@ async function fetchMinStaysFromLodgify(
     });
     if (!ratesRes.ok) return null;
     const rates = (await ratesRes.json()) as {
-      calendar_items?: { date?: string; prices?: { min_stay?: number }[] }[];
+      calendar_items?: {
+        date?: string;
+        prices?: { min_stay?: number; price_per_day?: number }[];
+      }[];
     };
 
     const minStays: Record<string, number> = {};
+    const nightlyPrices: Record<string, number> = {};
     const counts = new Map<number, number>();
     for (const item of rates.calendar_items ?? []) {
       const minStay = item.prices?.[0]?.min_stay;
+      const pricePerDay = item.prices?.[0]?.price_per_day;
+      if (item.date && typeof pricePerDay === "number" && pricePerDay > 0)
+        nightlyPrices[item.date] = pricePerDay;
       if (!item.date || typeof minStay !== "number") continue;
       minStays[item.date] = minStay;
       counts.set(minStay, (counts.get(minStay) ?? 0) + 1);
@@ -109,7 +126,7 @@ async function fetchMinStaysFromLodgify(
         defaultMinStay = value;
       }
     }
-    return { minStays, defaultMinStay };
+    return { minStays, defaultMinStay, nightlyPrices };
   } catch {
     return null;
   }
