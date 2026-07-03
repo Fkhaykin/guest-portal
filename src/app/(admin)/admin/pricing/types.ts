@@ -87,6 +87,17 @@ export interface HotDate {
   booked: boolean;
 }
 
+export interface BookingNight {
+  adr_cents: number | null;
+  is_check_in: boolean;
+  source: string | null;
+  check_in: string;
+  check_out: string;
+}
+export interface BlockNight {
+  reason: string | null;
+}
+
 export interface PricingLabData {
   config: PricingConfig;
   latest_snapshot_date: string | null;
@@ -97,8 +108,33 @@ export interface PricingLabData {
   metrics: { occ7: number; occ30: number; occ60: number };
   position: MarketPosition;
   hotDates: HotDate[];
+  bookings: Record<string, BookingNight>;
+  blocks: Record<string, BlockNight>;
   house: { lat: number; lng: number } | null;
   today: string;
+  meta: { name: string; address: string | null; maxGuests: number | null; lodgifyId: number | null } | null;
+  latest_snapshot_at: string | null;
+  pulse_date: string | null;
+}
+
+/** "3 hours ago" relative-time for sync/staleness labels. */
+export function timeAgo(iso: string | null): string {
+  if (!iso) return "never";
+  const then = new Date(iso).getTime();
+  const mins = Math.round((Date.now() - then) / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins} min ago`;
+  const hrs = Math.round(mins / 60);
+  if (hrs < 24) return `${hrs} hour${hrs === 1 ? "" : "s"} ago`;
+  const days = Math.round(hrs / 24);
+  return `${days} day${days === 1 ? "" : "s"} ago`;
+}
+
+/** Days between a YYYY-MM-DD date and today (UTC). */
+export function daysSince(dateStr: string | null): number | null {
+  if (!dateStr) return null;
+  const then = new Date(dateStr + "T00:00:00Z").getTime();
+  return Math.floor((Date.now() - then) / 86_400_000);
 }
 
 export const fmtUsd = (cents: number | null | undefined): string =>

@@ -29,7 +29,7 @@ import { ComparisonChart, summarizeSnapshot } from "./comparison-chart";
 import { ConfigEditor } from "./config-editor";
 import { CompsPanel } from "./comps-panel";
 import type { PricingConfig, PricingLabData } from "./types";
-import { fmtUsd, fmtDate } from "./types";
+import { fmtUsd, fmtDate, timeAgo, daysSince } from "./types";
 
 export default function PricingLabPage() {
   const [configs, setConfigs] = useState<PricingConfig[]>([]);
@@ -185,8 +185,21 @@ export default function PricingLabPage() {
 
       <div className="flex flex-wrap items-center gap-3">
         <Select value={nickname} onValueChange={(v) => v && setNickname(v)}>
-          <SelectTrigger className="w-56">
-            <SelectValue />
+          <SelectTrigger className="h-auto w-64 py-2">
+            <div className="text-left">
+              <div className="font-semibold">{data?.meta?.name ?? nickname}</div>
+              {data?.meta && (
+                <div className="text-xs text-muted-foreground">
+                  {[
+                    data.meta.maxGuests ? `Sleeps ${data.meta.maxGuests}` : null,
+                    data.meta.address,
+                    data.meta.lodgifyId ? `Lodgify ${data.meta.lodgifyId}` : null,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </div>
+              )}
+            </div>
           </SelectTrigger>
           <SelectContent>
             {configs.map((c) => (
@@ -213,9 +226,7 @@ export default function PricingLabPage() {
             ))}
           </div>
         )}
-        {data?.latest_snapshot_date && (
-          <Badge variant="secondary">Refreshed {fmtDate(data.latest_snapshot_date)}</Badge>
-        )}
+        <FreshnessChips data={data} />
         {loading && data && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
       </div>
 
@@ -236,7 +247,14 @@ export default function PricingLabPage() {
           {config && data && (
             <div className="grid gap-4 lg:grid-cols-[240px_1fr_220px]">
               <ConfigureRail key={config.id} config={config} onSave={saveConfig} saving={saving} />
-              <CalendarView config={config} snapshot={data.snapshot} market={data.market} today={data.today} />
+              <CalendarView
+                config={config}
+                snapshot={data.snapshot}
+                market={data.market}
+                bookings={data.bookings}
+                blocks={data.blocks}
+                today={data.today}
+              />
               <MetricsRail metrics={data.metrics} />
             </div>
           )}
@@ -414,9 +432,41 @@ function PricingSkeleton() {
           <Skeleton className="h-40 w-full" />
           <Skeleton className="h-56 w-full" />
         </div>
-        <Skeleton className="h-[520px] w-full" />
+        <Skeleton className="h-130 w-full" />
         <Skeleton className="h-40 w-full" />
       </div>
+    </div>
+  );
+}
+
+function FreshnessChips({ data }: { data: PricingLabData | null }) {
+  if (!data) return null;
+  const priceStale = daysSince(data.latest_snapshot_date);
+  const pulseStale = daysSince(data.pulse_date);
+  const chip = (label: string, stale: boolean, title: string) => (
+    <Badge
+      variant="secondary"
+      title={title}
+      className={stale ? "bg-amber-500/15 text-amber-700 dark:text-amber-400" : ""}
+    >
+      {stale && <AlertTriangle className="mr-1 h-3 w-3" />}
+      {label}
+    </Badge>
+  );
+  return (
+    <div className="flex items-center gap-2">
+      {data.latest_snapshot_at &&
+        chip(
+          `Prices ${timeAgo(data.latest_snapshot_at)}`,
+          priceStale != null && priceStale > 1,
+          "When the engine last recomputed prices"
+        )}
+      {data.pulse_date &&
+        chip(
+          `Market ${pulseStale === 0 ? "today" : `${pulseStale}d ago`}`,
+          pulseStale != null && pulseStale > 2,
+          "When the comp-set market signal was last aggregated"
+        )}
     </div>
   );
 }

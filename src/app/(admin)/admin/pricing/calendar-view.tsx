@@ -5,8 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
 import { ChevronLeft, ChevronRight, Moon, CalendarDays } from "lucide-react";
-import type { PricingConfig, SnapshotRow, MarketPoint } from "./types";
-import { fmtUsd } from "./types";
+import type { PricingConfig, SnapshotRow, MarketPoint, BookingNight, BlockNight } from "./types";
+import { fmtUsd, fmtDate } from "./types";
 import { buildLadder, demandLevel, DEMAND_COLORS, type DemandLevel } from "./breakdown";
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -34,11 +34,15 @@ export function CalendarView({
   config,
   snapshot,
   market,
+  bookings,
+  blocks,
   today,
 }: {
   config: PricingConfig;
   snapshot: SnapshotRow[];
   market: MarketPoint[];
+  bookings: Record<string, BookingNight>;
+  blocks: Record<string, BlockNight>;
   today: string;
 }) {
   const firstStay = snapshot[0]?.stay_date ?? today;
@@ -108,6 +112,8 @@ export function CalendarView({
               date={date}
               row={row}
               market={mkt}
+              booking={bookings[date]}
+              block={blocks[date]}
               config={config}
               today={today}
               isLastCol={(i + 1) % 7 === 0}
@@ -123,6 +129,8 @@ function DayCell({
   date,
   row,
   market,
+  booking,
+  block,
   config,
   today,
   isLastCol,
@@ -130,6 +138,8 @@ function DayCell({
   date: string;
   row: SnapshotRow | undefined;
   market: MarketPoint | undefined;
+  booking: BookingNight | undefined;
+  block: BlockNight | undefined;
   config: PricingConfig;
   today: string;
   isLastCol: boolean;
@@ -137,12 +147,17 @@ function DayCell({
   const dayNum = parseInt(date.slice(8, 10), 10);
   const isPast = date < today;
   const demand = row ? demandLevel(row, market) : ({ key: "none", label: "", occPct: null } as DemandLevel);
-  const baseBg = row && !isPast ? DEMAND_COLORS[demand.key] : "transparent";
-  const booked = row?.is_booked;
-  // Booked nights get PriceLabs' diagonal strike-through over the gray tint.
-  const bg = booked
-    ? `linear-gradient(to top right, transparent calc(50% - 0.5px), var(--color-border) calc(50% - 0.5px), var(--color-border) calc(50% + 0.5px), transparent calc(50% + 0.5px)), ${baseBg}`
-    : baseBg;
+  const isBlocked = !!block;
+  const booked = !!row?.is_booked;
+  const baseBg = isBlocked
+    ? "var(--demand-unavailable)"
+    : row && !isPast
+      ? DEMAND_COLORS[demand.key]
+      : "transparent";
+  // Booked = diagonal strike; blocked = denser hatch, so the two read apart.
+  const strike = "linear-gradient(to top right, transparent calc(50% - 0.5px), var(--color-border) calc(50% - 0.5px), var(--color-border) calc(50% + 0.5px), transparent calc(50% + 0.5px))";
+  const hatch = "repeating-linear-gradient(-45deg, transparent 0 5px, var(--color-border) 5px 6px)";
+  const bg = isBlocked ? `${hatch}, ${baseBg}` : booked ? `${strike}, ${baseBg}` : baseBg;
   const eventLabel = row ? eventLabelFor(row, config) : null;
   const clickable = !!row && !isPast;
 
@@ -155,9 +170,17 @@ function DayCell({
 
   const inner = (
     <>
+      {/* Check-in corner wedge */}
+      {booking?.is_check_in && (
+        <div
+          className="absolute left-0 top-0 h-0 w-0"
+          style={{ borderTop: "12px solid var(--series-ours)", borderRight: "12px solid transparent" }}
+          title="Guest check-in"
+        />
+      )}
       <div className="flex items-start justify-between">
-        <span className="flex items-center gap-0.5 text-[11px] font-medium text-muted-foreground">
-          {row?.our_min_stay ? (
+        <span className="flex items-center gap-0.5 pl-2 text-[11px] font-medium text-muted-foreground">
+          {!isBlocked && !booked && row?.our_min_stay ? (
             <>
               <Moon className="h-3 w-3" />
               {row.our_min_stay}
@@ -166,13 +189,20 @@ function DayCell({
         </span>
         <span className="text-xs font-semibold text-muted-foreground">{dayNum}</span>
       </div>
-      {eventLabel && (
+      {eventLabel && !booked && !isBlocked && (
         <div className="mt-0.5 truncate rounded bg-violet-500/15 px-1 text-[10px] font-medium text-violet-700 dark:text-violet-300">
           {eventLabel}
         </div>
       )}
-      {booked ? (
-        <div className="absolute bottom-1.5 left-1.5 text-xs font-medium text-muted-foreground">Booked</div>
+      {isBlocked ? (
+        <div className="absolute bottom-1.5 left-1.5 text-xs font-medium text-muted-foreground">Blocked</div>
+      ) : booked ? (
+        <div className="absolute bottom-1 left-1.5 leading-tight">
+          <div className="text-xs font-medium text-muted-foreground">Booked</div>
+          {booking?.adr_cents != null && (
+            <div className="text-[11px] tabular-nums text-muted-foreground">ADR {fmtUsd(booking.adr_cents)}</div>
+          )}
+        </div>
       ) : row?.our_price_cents != null ? (
         <div className="absolute bottom-1 left-0 right-0 text-center text-base font-bold tabular-nums">
           {fmtUsd(row.our_price_cents)}
@@ -195,7 +225,7 @@ function DayCell({
         {inner}
       </PopoverTrigger>
       <PopoverContent className="w-80 p-0" align="center">
-        <BreakdownCard date={date} row={row} market={market} config={config} today={today} demand={demand} />
+        <BreakdownCard date={date} row={row} market={market} booking={booking} block={block} config={config} today={today} demand={demand} />
       </PopoverContent>
     </Popover>
   );
@@ -205,6 +235,8 @@ function BreakdownCard({
   date,
   row,
   market,
+  booking,
+  block,
   config,
   today,
   demand,
@@ -212,10 +244,58 @@ function BreakdownCard({
   date: string;
   row: SnapshotRow;
   market: MarketPoint | undefined;
+  booking: BookingNight | undefined;
+  block: BlockNight | undefined;
   config: PricingConfig;
   today: string;
   demand: DemandLevel;
 }) {
+  const dateLabelTop = new Date(date + "T12:00:00").toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+
+  // Occupied nights show a booking/block summary, not a hypothetical ladder.
+  if (booking || block) {
+    return (
+      <div className="p-3 text-sm">
+        <div className="mb-2 font-semibold">{dateLabelTop}</div>
+        {booking ? (
+          <div className="space-y-1">
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Status</span>
+              <span className="font-medium">Booked{booking.source ? ` · ${booking.source}` : ""}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Stay</span>
+              <span>{fmtDate(booking.check_in)} → {fmtDate(booking.check_out)}</span>
+            </div>
+            {booking.adr_cents != null && (
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Nightly (ADR)</span>
+                <span className="font-medium tabular-nums">{fmtUsd(booking.adr_cents)}</span>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-1">
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Status</span>
+              <span className="font-medium">Blocked</span>
+            </div>
+            {block?.reason && (
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Reason</span>
+                <span>{block.reason}</span>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }
+
   const ladder = buildLadder(row, config);
   const nightsAway = Math.round(
     (new Date(date + "T00:00:00Z").getTime() - new Date(today + "T00:00:00Z").getTime()) / 86_400_000
@@ -291,7 +371,6 @@ function DemandLegend() {
     { key: "normal", label: "Normal" },
     { key: "good", label: "Good" },
     { key: "high", label: "High" },
-    { key: "unavailable", label: "Booked" },
   ];
   return (
     <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
@@ -301,6 +380,12 @@ function DemandLegend() {
           {it.label}
         </span>
       ))}
+      <span className="flex items-center gap-1">
+        <span className="inline-block h-3 w-3 rounded-sm border border-border" style={{ background: `linear-gradient(to top right, transparent 45%, var(--color-border) 45% 55%, transparent 55%), var(--demand-unavailable)` }} /> Booked
+      </span>
+      <span className="flex items-center gap-1">
+        <span className="inline-block h-3 w-3 rounded-sm border border-border" style={{ background: `repeating-linear-gradient(-45deg, transparent 0 2px, var(--color-border) 2px 3px), var(--demand-unavailable)` }} /> Blocked
+      </span>
       <span className="flex items-center gap-1">
         <Moon className="h-3 w-3" /> Min-stay
       </span>

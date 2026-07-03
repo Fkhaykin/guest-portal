@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { computeRates, todayInTz, DEFAULT_RULES, type PricingRules } from "@/lib/pricing/engine";
-import { loadOccupiedNights } from "@/lib/pricing/data";
+import { loadOccupiedNights, loadOccupancyDetail } from "@/lib/pricing/data";
 import {
   loadLatestPulse,
   loadVelocityByDate,
@@ -39,12 +39,21 @@ export async function GET(request: NextRequest) {
 
   const { data: latestRow } = await admin
     .from("rate_snapshot")
-    .select("snapshot_date")
+    .select("snapshot_date, created_at")
     .ilike("nickname", config.nickname)
     .order("snapshot_date", { ascending: false })
     .limit(1)
     .maybeSingle();
   const latestDate = latestRow?.snapshot_date ?? null;
+
+  // Header metadata: the active property row for this house.
+  const { data: prop } = await admin
+    .from("property")
+    .select("name, address, max_guests, lodgify_property_id, lodgify_last_synced_at, timezone")
+    .ilike("nickname", config.nickname)
+    .eq("is_active", true)
+    .limit(1)
+    .maybeSingle();
 
   let snapshot: unknown[] = [];
   if (latestDate) {
@@ -118,6 +127,7 @@ export async function GET(request: NextRequest) {
     occ30: occupancyWindow(occupied, today, 30),
     occ60: occupancyWindow(occupied, today, 60),
   };
+  const { bookings, blocks } = await loadOccupancyDetail(admin, config.nickname, today, 365);
 
   // Market position: ours vs comps over 30/60/90 + weekend/weeknight averages.
   const position = computePosition(
@@ -162,8 +172,20 @@ export async function GET(request: NextRequest) {
     metrics,
     position,
     hotDates,
+    bookings,
+    blocks,
     house,
     today,
+    meta: prop
+      ? {
+          name: prop.name,
+          address: prop.address,
+          maxGuests: prop.max_guests,
+          lodgifyId: prop.lodgify_property_id,
+        }
+      : null,
+    latest_snapshot_at: latestRow?.created_at ?? null,
+    pulse_date: pulse[0]?.snapshot_date ?? null,
   });
 }
 

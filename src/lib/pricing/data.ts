@@ -69,3 +69,75 @@ export async function loadOccupiedNights(
   }
   return nights;
 }
+
+export interface BookingNight {
+  adr_cents: number | null; // nightly rent (total_amount_cents / nights)
+  is_check_in: boolean;
+  source: string | null;
+  check_in: string;
+  check_out: string;
+}
+export interface BlockNight {
+  reason: string | null;
+}
+
+/** Per-stay-date booking + block detail for the calendar (ADR on booked
+ *  nights, check-in markers, block reasons). Distinct from loadOccupiedNights,
+ *  which only needs the occupied set for the engine. */
+export async function loadOccupancyDetail(
+  admin: Admin,
+  nickname: string,
+  today: string,
+  horizonDays: number
+): Promise<{ bookings: Record<string, BookingNight>; blocks: Record<string, BlockNight> }> {
+  const ids = await nicknamePropertyIds(admin, nickname);
+  const bookings: Record<string, BookingNight> = {};
+  const blocks: Record<string, BlockNight> = {};
+  if (ids.length === 0) return { bookings, blocks };
+  const horizonEnd = addDays(today, horizonDays);
+
+  const { data: regs } = await admin
+    .from("registration")
+    .select("check_in_date, check_out_date, total_amount_cents, booking_source")
+    .in("property_id", ids)
+    .eq("status", "active")
+    .lt("check_in_date", horizonEnd)
+    .gt("check_out_date", today);
+
+  for (const b of regs ?? []) {
+    const nights = Math.max(
+      1,
+      Math.round(
+        (new Date(b.check_out_date + "T00:00:00Z").getTime() -
+          new Date(b.check_in_date + "T00:00:00Z").getTime()) /
+          86_400_000
+      )
+    );
+    const adr = b.total_amount_cents ? Math.round(b.total_amount_cents / nights) : null;
+    for (let d = b.check_in_date; d < b.check_out_date; d = addDays(d, 1)) {
+      if (d < today || d >= horizonEnd) continue;
+      bookings[d] = {
+        adr_cents: adr,
+        is_check_in: d === b.check_in_date,
+        source: b.booking_source,
+        check_in: b.check_in_date,
+        check_out: b.check_out_date,
+      };
+    }
+  }
+
+  const { data: blk } = await admin
+    .from("property_block")
+    .select("start_date, end_date, reason")
+    .in("property_id", ids)
+    .lt("start_date", horizonEnd)
+    .gt("end_date", today);
+  for (const b of blk ?? []) {
+    for (let d = b.start_date; d < b.end_date; d = addDays(d, 1)) {
+      if (d < today || d >= horizonEnd) continue;
+      if (!bookings[d]) blocks[d] = { reason: b.reason };
+    }
+  }
+
+  return { bookings, blocks };
+}
