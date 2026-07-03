@@ -206,6 +206,45 @@ export async function loadVelocityByDate(admin: Admin, nickname: string): Promis
   return map;
 }
 
+/** "Last seen published price" per stay date — the nightly price actually live
+ *  on our own Airbnb listing, from price-probes on the is_self comp. Mirrors
+ *  PriceLabs' dotted published-price line. */
+export async function loadPublishedPrices(
+  admin: Admin,
+  nickname: string,
+  fromDate: string
+): Promise<Map<string, number>> {
+  const { data: self } = await admin
+    .from("comp_listing")
+    .select("id")
+    .ilike("nickname", nickname)
+    .eq("is_self", true)
+    .limit(1)
+    .maybeSingle();
+  const out = new Map<string, number>();
+  if (!self) return out;
+
+  const { data: latest } = await admin
+    .from("comp_snapshot")
+    .select("snapshot_date")
+    .eq("comp_id", self.id)
+    .not("price_cents", "is", null)
+    .order("snapshot_date", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!latest) return out;
+
+  const { data: rows } = await admin
+    .from("comp_snapshot")
+    .select("stay_date, price_cents")
+    .eq("comp_id", self.id)
+    .eq("snapshot_date", latest.snapshot_date)
+    .not("price_cents", "is", null)
+    .gte("stay_date", fromDate);
+  for (const r of rows ?? []) if (r.price_cents !== null) out.set(r.stay_date, r.price_cents);
+  return out;
+}
+
 /** Our own listing's occupancy over the next N nights (bookings + blocks). */
 export function occupancyWindow(occupied: Set<string>, today: string, days: number): number {
   let n = 0;
@@ -225,8 +264,9 @@ export interface PositionWindow {
   marketOcc: number | null; // %
   lfOcc: number | null; // % lakefront comps only
   ourAvgCents: number | null;
-  marketAvgCents: number | null; // mean of daily p50
+  marketAvgCents: number | null; // mean of daily p50 over the SAME nights as ourAvg
   lfAvgCents: number | null;
+  nights: number; // paired sample size behind ourAvg/marketAvg
 }
 
 export interface MarketPosition {
@@ -246,6 +286,10 @@ export function computePosition(
 
   const windows: PositionWindow[] = [30, 60, 90].map((days) => {
     const end = addDays(today, days);
+    // Price comparison uses PAIRED samples only: a night counts toward both
+    // averages only when our price exists (open, priced) AND the market has a
+    // median for it — otherwise cheap open weeknights get compared against
+    // weekend-inclusive market medians and the gap reads systematically wrong.
     const our: number[] = [];
     const market: number[] = [];
     const lf: number[] = [];
@@ -253,10 +297,12 @@ export function computePosition(
     const lfOccs: number[] = [];
     for (const r of ourRates) {
       if (r.stay_date < today || r.stay_date >= end) continue;
-      if (!r.is_booked && r.our_price_cents != null) our.push(r.our_price_cents);
       const p = pulseByDate.get(r.stay_date);
-      if (p?.p50_cents != null) market.push(p.p50_cents);
-      if (p?.lf_p50_cents != null) lf.push(p.lf_p50_cents);
+      if (!r.is_booked && r.our_price_cents != null && p?.p50_cents != null) {
+        our.push(r.our_price_cents);
+        market.push(p.p50_cents);
+        if (p.lf_p50_cents != null) lf.push(p.lf_p50_cents);
+      }
       if (p?.occupancy != null) occs.push(p.occupancy);
       if (p?.lf_occupancy != null) lfOccs.push(p.lf_occupancy);
     }
@@ -267,7 +313,8 @@ export function computePosition(
       lfOcc: lfOccs.length ? Math.round((lfOccs.reduce((a, b) => a + b, 0) / lfOccs.length) * 100) : null,
       ourAvgCents: mean(our),
       marketAvgCents: mean(market),
-      lfAvgCents: mean(lf),
+      lfAvgCents: lf.length ? mean(lf) : null,
+      nights: our.length,
     };
   });
 
@@ -283,12 +330,13 @@ export function computePosition(
   for (const r of ourRates) {
     if (r.stay_date < today || r.stay_date >= end90) continue;
     const p = pulseByDate.get(r.stay_date);
+    if (r.is_booked || r.our_price_cents == null || p?.p50_cents == null) continue; // paired only
     if (isWeekend(r.stay_date)) {
-      if (!r.is_booked && r.our_price_cents != null) ourWe.push(r.our_price_cents);
-      if (p?.p50_cents != null) mktWe.push(p.p50_cents);
+      ourWe.push(r.our_price_cents);
+      mktWe.push(p.p50_cents);
     } else {
-      if (!r.is_booked && r.our_price_cents != null) ourWn.push(r.our_price_cents);
-      if (p?.p50_cents != null) mktWn.push(p.p50_cents);
+      ourWn.push(r.our_price_cents);
+      mktWn.push(p.p50_cents);
     }
   }
 

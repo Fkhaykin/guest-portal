@@ -283,11 +283,15 @@ export function computeRates(cfg: EngineConfig, input: EngineInput): ComputedRat
     const velocity = velocityPct(rules, pickup);
 
     // Premiums stack; discounts compete — only the single largest applies.
+    // A gap can be a discount (fill it) OR a premium (deter 1-night party
+    // bookings). The premium always stacks; the discount competes.
+    const gapDiscount = Math.min(gapPct, 0);
+    const gapPremium = Math.max(gapPct, 0);
     const premiums = Math.max(lt, 0) + Math.max(pace, 0);
     const discounts: { src: RateFactors["discount_src"]; pct: number }[] = [
       { src: "leadtime", pct: Math.min(lt, 0) },
       { src: "pace", pct: Math.min(pace, 0) },
-      { src: "gap", pct: Math.min(gapPct, 0) },
+      { src: "gap", pct: gapDiscount },
     ];
     const worst = discounts.reduce((a, b) => (b.pct < a.pct ? b : a));
     const appliedDiscountSrc = worst.pct < 0 ? worst.src : null;
@@ -296,7 +300,7 @@ export function computeRates(cfg: EngineConfig, input: EngineInput): ComputedRat
     const structuralCents = seasonalBase * (1 + (dow + event) / 100);
     // Gap and velocity are spiky by design (specific dates); keep them out of
     // the smoothed dynamic so smoothing can't dilute them.
-    const gapPart = appliedDiscountSrc === "gap" ? worst.pct : 0;
+    const gapPart = gapPremium + (appliedDiscountSrc === "gap" ? worst.pct : 0);
     const smoothablePart = premiums + (appliedDiscountSrc !== "gap" ? worst.pct : 0);
 
     working.push({

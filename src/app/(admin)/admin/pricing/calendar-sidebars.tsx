@@ -26,10 +26,13 @@ export function ConfigureRail({
   const [max, setMax] = useState(String(Math.round(config.max_price_cents / 100)));
   const [editOpen, setEditOpen] = useState(false);
 
+  const valid =
+    Number(min) > 0 && Number(base) > 0 && Number(max) > 0 && Number(min) <= Number(max);
   const dirty =
-    Math.round(config.min_price_cents / 100) !== Number(min) ||
-    Math.round(config.base_price_cents / 100) !== Number(base) ||
-    Math.round(config.max_price_cents / 100) !== Number(max);
+    valid &&
+    (Math.round(config.min_price_cents / 100) !== Number(min) ||
+      Math.round(config.base_price_cents / 100) !== Number(base) ||
+      Math.round(config.max_price_cents / 100) !== Number(max));
 
   const rules = config.rules;
   // Registry-driven: show applied customizations with their plain-English

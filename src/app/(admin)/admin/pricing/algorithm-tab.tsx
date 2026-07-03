@@ -70,7 +70,7 @@ export function AlgorithmTab({ data, lakefront }: { data: PricingLabData; lakefr
                 <StatLine label="Market occupancy" value={w.marketOcc != null ? `${w.marketOcc}%` : "—"} muted />
                 {lakefront && w.lfOcc != null && <StatLine label="Lakefront occ." value={`${w.lfOcc}%`} muted />}
                 <div className="my-2 border-t border-border" />
-                <StatLine label="Our avg price" value={fmtUsd(w.ourAvgCents)} accent="ours" />
+                <StatLine label={`Our avg price${w.nights ? ` (${w.nights}n)` : ""}`} value={fmtUsd(w.ourAvgCents)} accent="ours" />
                 <StatLine label="Market median" value={fmtUsd(w.marketAvgCents)} accent="market" />
                 {lakefront && w.lfAvgCents != null && <StatLine label="Lakefront median" value={fmtUsd(w.lfAvgCents)} muted />}
                 {w.ourAvgCents != null && w.marketAvgCents != null && (

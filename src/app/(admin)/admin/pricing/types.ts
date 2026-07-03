@@ -59,6 +59,7 @@ export interface MarketPoint {
   pickup_1d?: number | null;
   lf_occupancy?: number | null;
   lf_p50?: number | null;
+  published_cents?: number | null;
 }
 
 export interface PositionWindow {
@@ -69,6 +70,7 @@ export interface PositionWindow {
   ourAvgCents: number | null;
   marketAvgCents: number | null;
   lfAvgCents: number | null;
+  nights: number;
 }
 
 export interface MarketPosition {

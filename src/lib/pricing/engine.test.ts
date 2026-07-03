@@ -138,6 +138,18 @@ describe("gap detection", () => {
     expect(gaps.size).toBe(0);
   });
 
+  it("applies a POSITIVE gap percentage as a premium (deter party bookings)", () => {
+    const occupied = new Set([addDays(TODAY, 0), addDays(TODAY, 2)]);
+    const c = cfg({
+      leadtime: [{ maxDays: 9999, pct: 0 }],
+      gap: { maxGapNights: 2, pct: 20, setMinStay: true },
+    });
+    const rates = computeRates(c, input({ occupiedNights: occupied }));
+    const gapNight = rateOn(rates, addDays(TODAY, 1));
+    expect(gapNight.price_cents).toBe(48000); // +20%, not ignored
+    expect(gapNight.factors.gap_pct).toBe(20);
+  });
+
   it("sets min-stay to the gap length", () => {
     const occupied = new Set([addDays(TODAY, 3), addDays(TODAY, 5)]);
     const c = cfg({

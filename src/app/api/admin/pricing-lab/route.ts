@@ -6,6 +6,7 @@ import { loadOccupiedNights } from "@/lib/pricing/data";
 import {
   loadLatestPulse,
   loadVelocityByDate,
+  loadPublishedPrices,
   occupancyWindow,
   computePosition,
 } from "@/lib/pricing/market";
@@ -58,32 +59,20 @@ export async function GET(request: NextRequest) {
     snapshot = data ?? [];
   }
 
-  // Divergence history: one point per snapshot day — mean |Δ%| between our
-  // price and PriceLabs' pushed price over the next 90 stay dates.
-  const { data: histRows } = await admin
-    .from("rate_snapshot")
-    .select("snapshot_date, stay_date, our_price_cents, pl_user_price_cents")
-    .ilike("nickname", config.nickname)
-    .not("pl_user_price_cents", "is", null)
-    .not("our_price_cents", "is", null)
-    .order("snapshot_date");
-  const byDay = new Map<string, { sum: number; n: number }>();
-  for (const r of histRows ?? []) {
-    const within90 =
-      r.stay_date >= r.snapshot_date &&
-      r.stay_date <= addDaysIso(r.snapshot_date as string, 90);
-    if (!within90 || !r.pl_user_price_cents || !r.our_price_cents) continue;
-    const diff = Math.abs(r.our_price_cents - r.pl_user_price_cents) / r.pl_user_price_cents;
-    const agg = byDay.get(r.snapshot_date as string) ?? { sum: 0, n: 0 };
-    agg.sum += diff;
-    agg.n++;
-    byDay.set(r.snapshot_date as string, agg);
-  }
-  const divergence = [...byDay.entries()].map(([date, { sum, n }]) => ({
-    snapshot_date: date,
-    mean_abs_pct: Math.round((sum / n) * 1000) / 10,
-    dates_compared: n,
-  }));
+  // Divergence history: mean |Δ%| between our price and PriceLabs' pushed price
+  // over the next 90 stay dates, per snapshot day. Aggregated in SQL so it isn't
+  // capped by PostgREST's 1000-row ceiling (which silently froze the JS version
+  // once rate_snapshot grew past a few days).
+  const { data: divergenceRows } = await admin.rpc("divergence_history", {
+    p_nickname: config.nickname,
+  });
+  const divergence = ((divergenceRows ?? []) as {
+    snapshot_date: string;
+    mean_abs_pct: number;
+    dates_compared: number;
+  }[])
+    .slice()
+    .sort((a, b) => a.snapshot_date.localeCompare(b.snapshot_date));
 
   // Comp set with pre-computed per-comp rollups (occupancy_30, median price).
   const today = todayInTz();
@@ -106,6 +95,7 @@ export async function GET(request: NextRequest) {
   // Market pulse (occupancy + price percentiles + velocity per stay date) drives
   // demand shading, the Neighborhood chart, and the Algorithm tab.
   const pulse = await loadLatestPulse(admin, config.nickname);
+  const published = await loadPublishedPrices(admin, config.nickname, today);
   const market = pulse.map((p) => ({
     stay_date: p.stay_date,
     occupancy: p.occupancy,
@@ -119,6 +109,7 @@ export async function GET(request: NextRequest) {
     pickup_1d: p.pickup_1d,
     lf_occupancy: p.lf_occupancy,
     lf_p50: p.lf_p50_cents,
+    published_cents: published.get(p.stay_date) ?? null,
   }));
 
   const occupied = await loadOccupiedNights(admin, config.nickname, today, 365);
@@ -248,8 +239,3 @@ export async function POST(request: NextRequest) {
   return NextResponse.json({ today, rates });
 }
 
-function addDaysIso(iso: string, days: number): string {
-  const d = new Date(iso + "T00:00:00Z");
-  d.setUTCDate(d.getUTCDate() + days);
-  return d.toISOString().slice(0, 10);
-}

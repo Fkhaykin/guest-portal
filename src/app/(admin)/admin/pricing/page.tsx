@@ -1,8 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -16,7 +18,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, RefreshCw, Scale, DollarSign, Percent } from "lucide-react";
+import { Loader2, RefreshCw, Scale, DollarSign, Percent, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { CalendarView } from "./calendar-view";
 import { ConfigureRail, MetricsRail } from "./calendar-sidebars";
@@ -34,28 +36,50 @@ export default function PricingLabPage() {
   const [nickname, setNickname] = useState<string>("");
   const [data, setData] = useState<PricingLabData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
   const [saving, setSaving] = useState(false);
+  // Monotonic counter so a slow response for a previously-selected house can
+  // never land under the current selection.
+  const loadSeq = useRef(0);
 
-  useEffect(() => {
-    (async () => {
+  const loadConfigs = useCallback(async () => {
+    setError(null);
+    try {
       const res = await fetch("/api/admin/pricing-lab");
+      if (!res.ok) throw new Error("Failed to load houses");
       const json = await res.json();
       const list: PricingConfig[] = json.configs ?? [];
       setConfigs(list);
-      if (list.length) setNickname(list[0].nickname);
+      if (list.length) setNickname((n) => n || list[0].nickname);
+      if (!list.length) setLoading(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load");
       setLoading(false);
-    })();
+    }
   }, []);
+
+  useEffect(() => {
+    loadConfigs();
+  }, [loadConfigs]);
 
   const loadHouse = useCallback(async (nick: string) => {
     if (!nick) return;
+    const seq = ++loadSeq.current;
     setLoading(true);
-    const res = await fetch(`/api/admin/pricing-lab?nickname=${encodeURIComponent(nick)}`);
-    const json = await res.json();
-    if (res.ok) setData(json);
-    else toast.error(json.error || "Failed to load");
-    setLoading(false);
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin/pricing-lab?nickname=${encodeURIComponent(nick)}`);
+      const json = await res.json();
+      if (seq !== loadSeq.current) return; // a newer load superseded this one
+      if (!res.ok) throw new Error(json.error || "Failed to load pricing data");
+      setData(json);
+    } catch (err) {
+      if (seq !== loadSeq.current) return;
+      setError(err instanceof Error ? err.message : "Failed to load");
+    } finally {
+      if (seq === loadSeq.current) setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -79,6 +103,8 @@ export default function PricingLabPage() {
         toast.success(`Refreshed — ${json.results?.[0]?.rows ?? 0} nights computed.`);
         await loadHouse(nickname);
       }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Snapshot failed");
     } finally {
       setRunning(false);
     }
@@ -109,13 +135,25 @@ export default function PricingLabPage() {
     }
   }
 
-  if (loading && !data) {
+  if (error && !data) {
     return (
-      <div className="flex h-64 items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      <div className="space-y-6">
+        <PageHeader title="Pricing Lab" description="In-house dynamic pricing." />
+        <EmptyState
+          icon={AlertTriangle}
+          title="Couldn't load pricing data"
+          description={error}
+          action={
+            <Button onClick={() => (nickname ? loadHouse(nickname) : loadConfigs())}>
+              <RefreshCw className="h-4 w-4" /> Retry
+            </Button>
+          }
+        />
       </div>
     );
   }
+
+  if (loading && !data) return <PricingSkeleton />;
 
   if (configs.length === 0) {
     return (
@@ -178,9 +216,13 @@ export default function PricingLabPage() {
         {data?.latest_snapshot_date && (
           <Badge variant="secondary">Refreshed {fmtDate(data.latest_snapshot_date)}</Badge>
         )}
+        {loading && data && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
       </div>
 
-      <Tabs defaultValue="calendar">
+      <Tabs
+        defaultValue="calendar"
+        className={loading && data ? "pointer-events-none opacity-60 transition-opacity" : "transition-opacity"}
+      >
         <TabsList>
           <TabsTrigger value="calendar">Calendar</TabsTrigger>
           <TabsTrigger value="algorithm">Algorithm</TabsTrigger>
@@ -193,7 +235,7 @@ export default function PricingLabPage() {
         <TabsContent value="calendar">
           {config && data && (
             <div className="grid gap-4 lg:grid-cols-[240px_1fr_220px]">
-              <ConfigureRail config={config} onSave={saveConfig} saving={saving} />
+              <ConfigureRail key={config.id} config={config} onSave={saveConfig} saving={saving} />
               <CalendarView config={config} snapshot={data.snapshot} market={data.market} today={data.today} />
               <MetricsRail metrics={data.metrics} />
             </div>
@@ -210,7 +252,7 @@ export default function PricingLabPage() {
         </TabsContent>
 
         <TabsContent value="neighborhood" className="space-y-4">
-          {data && <NeighborhoodChart snapshot={data.snapshot} market={data.market} />}
+          {data && config && <NeighborhoodChart config={config} snapshot={data.snapshot} market={data.market} />}
           {data && <CompetitorMap comps={data.comps} house={data.house} />}
         </TabsContent>
 
@@ -353,4 +395,28 @@ function explainFactors(f: PricingLabData["snapshot"][number]["factors"]): strin
   if (f.clamped) parts.push(`clamped to ${f.clamped}`);
   if (f.override) parts.push("override");
   return parts.join(" · ");
+}
+
+function PricingSkeleton() {
+  return (
+    <div className="space-y-6">
+      <div className="space-y-2">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-4 w-96 max-w-full" />
+      </div>
+      <div className="flex gap-3">
+        <Skeleton className="h-9 w-56" />
+        <Skeleton className="h-9 w-40" />
+      </div>
+      <Skeleton className="h-9 w-full max-w-xl" />
+      <div className="grid gap-4 lg:grid-cols-[240px_1fr_220px]">
+        <div className="space-y-4">
+          <Skeleton className="h-40 w-full" />
+          <Skeleton className="h-56 w-full" />
+        </div>
+        <Skeleton className="h-[520px] w-full" />
+        <Skeleton className="h-40 w-full" />
+      </div>
+    </div>
+  );
 }
