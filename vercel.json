@@ -26,15 +26,7 @@
     },
     {
       "path": "/api/cron/comp-scrape",
-      "schedule": "0,15,30,45 5 * * *"
-    },
-    {
-      "path": "/api/cron/comp-scrape",
-      "schedule": "0,15,30,45 6 * * *"
-    },
-    {
-      "path": "/api/cron/comp-scrape",
-      "schedule": "0,15,30,45 7 * * *"
+      "schedule": "0,15,30,45 5-7 * * *"
     },
     {
       "path": "/api/cron/market-pulse",
