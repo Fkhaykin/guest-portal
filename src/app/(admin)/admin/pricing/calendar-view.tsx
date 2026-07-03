@@ -194,6 +194,20 @@ function DayCell({
           {eventLabel}
         </div>
       )}
+      {/* clamp / override indicator dot (top-right, below the day number) */}
+      {!booked && !isBlocked && row?.factors && (row.factors.clamped || row.factors.override) && (
+        <span
+          className="absolute right-1.5 top-6 h-1.5 w-1.5 rounded-full"
+          title={row.factors.override ? "Date override" : row.factors.clamped === "min" ? "Min price reached" : "Max price reached"}
+          style={{
+            background: row.factors.override
+              ? "var(--series-pl-rec)"
+              : row.factors.clamped === "min"
+                ? "#e11d48"
+                : "#0284c7",
+          }}
+        />
+      )}
       {isBlocked ? (
         <div className="absolute bottom-1.5 left-1.5 text-xs font-medium text-muted-foreground">Blocked</div>
       ) : booked ? (
@@ -350,6 +364,12 @@ function BreakdownCard({
                     {r.pct}%
                   </span>
                 )}
+                {r.deltaCents != null && (
+                  <span className="text-muted-foreground">
+                    {r.deltaCents >= 0 ? "+" : "−"}
+                    {fmtUsd(Math.abs(r.deltaCents))}
+                  </span>
+                )}
                 {r.runningCents != null && <span>{fmtUsd(r.runningCents)}</span>}
               </span>
             </div>
@@ -361,6 +381,14 @@ function BreakdownCard({
         <span>Minimum stay</span>
         <span className="font-medium text-foreground">{row.our_min_stay ?? "—"} nights</span>
       </div>
+
+      {/* PriceLabs parity footer (free in shadow mode) */}
+      {(row.pl_user_price_cents != null || row.pl_price_cents != null) && (
+        <div className="flex items-center justify-between border-t border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+          {row.pl_user_price_cents != null && <span>PriceLabs pushed: {fmtUsd(row.pl_user_price_cents)}</span>}
+          {row.pl_price_cents != null && <span>PL rec: {fmtUsd(row.pl_price_cents)}</span>}
+        </div>
+      )}
     </div>
   );
 }

@@ -14,10 +14,12 @@ import { CUSTOMIZATION_ITEMS, appliedCount } from "./customization-items";
  *  matching PriceLabs' "Configure Prices" sidebar. */
 export function ConfigureRail({
   config,
+  data,
   onSave,
   saving,
 }: {
   config: PricingConfig;
+  data: PricingLabData;
   onSave: (patch: Partial<PricingConfig>) => void;
   saving: boolean;
 }) {
@@ -104,6 +106,7 @@ export function ConfigureRail({
         open={editOpen}
         onOpenChange={setEditOpen}
         config={config}
+        data={data}
         onSave={onSave}
         saving={saving}
       />

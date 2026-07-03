@@ -10,10 +10,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Loader2, Search, Check } from "lucide-react";
-import type { PricingConfig } from "./types";
+import { Loader2, Search, Check, ChevronDown, ChevronUp } from "lucide-react";
+import type { PricingConfig, PricingLabData } from "./types";
+import { fmtUsd, fmtDate } from "./types";
 import type { PricingRules } from "@/lib/pricing/engine";
 import { CUSTOMIZATION_ITEMS, appliedCount, type CustomizationItem } from "./customization-items";
+import { computePreview } from "./preview";
 
 const CATEGORY_LABELS: Record<CustomizationItem["category"], string> = {
   smart: "Smart Rules",
@@ -25,12 +27,14 @@ export function CustomizationsModal({
   open,
   onOpenChange,
   config,
+  data,
   onSave,
   saving,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   config: PricingConfig;
+  data: PricingLabData;
   onSave: (patch: Partial<PricingConfig>) => void;
   saving: boolean;
 }) {
@@ -38,6 +42,7 @@ export function CustomizationsModal({
   const [selectedKey, setSelectedKey] = useState(CUSTOMIZATION_ITEMS[0].key);
   const [query, setQuery] = useState("");
   const [dirty, setDirty] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   // Re-seed local state whenever the dialog opens for a (possibly different) config.
   const [seedKey, setSeedKey] = useState("");
@@ -57,6 +62,11 @@ export function CustomizationsModal({
 
   const selected = CUSTOMIZATION_ITEMS.find((it) => it.key === selectedKey) ?? CUSTOMIZATION_ITEMS[0];
   const count = appliedCount(rules);
+
+  const preview = useMemo(
+    () => (previewOpen ? computePreview(config, rules, data.snapshot, data.market, data.today) : null),
+    [previewOpen, config, rules, data.snapshot, data.market, data.today]
+  );
 
   function change(next: PricingRules) {
     setRules(next);
@@ -156,6 +166,51 @@ export function CustomizationsModal({
               <selected.Editor rules={rules} onChange={change} />
             </div>
           </div>
+        </div>
+
+        {/* Preview Prices */}
+        <div className="border-t border-border">
+          <button
+            onClick={() => setPreviewOpen((v) => !v)}
+            className="flex w-full items-center justify-between px-5 py-2 text-sm font-medium hover:bg-muted/50"
+          >
+            <span className="flex items-center gap-2">
+              Preview Prices
+              {preview?.avgDeltaPct != null && preview.avgDeltaPct !== 0 && (
+                <Badge variant="secondary" className={preview.avgDeltaPct > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}>
+                  {preview.avgDeltaPct > 0 ? "+" : ""}
+                  {preview.avgDeltaPct}% avg
+                </Badge>
+              )}
+            </span>
+            {previewOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+          </button>
+          {previewOpen && preview && (
+            <div className="max-h-44 overflow-y-auto px-5 pb-3">
+              <div className="mb-2 text-xs text-muted-foreground">
+                Next 30 open nights · {preview.changed} change · avg {fmtUsd(preview.oldAvg)} → {fmtUsd(preview.newAvg)}
+              </div>
+              <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+                {preview.nights.map((n) => (
+                  <div key={n.date} className="flex items-center justify-between rounded border border-border px-2 py-1 text-xs">
+                    <span className="text-muted-foreground">{fmtDate(n.date)}</span>
+                    <span className="flex items-center gap-1 tabular-nums">
+                      {n.oldCents != null && n.oldCents !== n.newCents && (
+                        <span className="text-muted-foreground line-through">{fmtUsd(n.oldCents)}</span>
+                      )}
+                      <span className="font-medium">{fmtUsd(n.newCents)}</span>
+                      {n.deltaPct != null && n.deltaPct !== 0 && (
+                        <span className={n.deltaPct > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}>
+                          {n.deltaPct > 0 ? "+" : ""}
+                          {n.deltaPct}%
+                        </span>
+                      )}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Footer */}

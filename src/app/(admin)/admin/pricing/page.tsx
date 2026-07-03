@@ -246,7 +246,7 @@ export default function PricingLabPage() {
         <TabsContent value="calendar">
           {config && data && (
             <div className="grid gap-4 lg:grid-cols-[240px_1fr_220px]">
-              <ConfigureRail key={config.id} config={config} onSave={saveConfig} saving={saving} />
+              <ConfigureRail key={config.id} config={config} data={data} onSave={saveConfig} saving={saving} />
               <CalendarView
                 config={config}
                 snapshot={data.snapshot}
