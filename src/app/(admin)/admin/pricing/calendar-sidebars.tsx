@@ -5,8 +5,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
-import { Loader2 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Loader2, Pencil } from "lucide-react";
 import type { PricingConfig, PricingLabData } from "./types";
+import type { PricingRules } from "@/lib/pricing/engine";
+import { RulesEditor } from "./customizations-editor";
 
 /** Left rail: Min / Base / Max quick edit + an applied-customizations summary,
  *  matching PriceLabs' "Configure Prices" sidebar. */
@@ -22,6 +31,7 @@ export function ConfigureRail({
   const [min, setMin] = useState(String(Math.round(config.min_price_cents / 100)));
   const [base, setBase] = useState(String(Math.round(config.base_price_cents / 100)));
   const [max, setMax] = useState(String(Math.round(config.max_price_cents / 100)));
+  const [editOpen, setEditOpen] = useState(false);
 
   const dirty =
     Math.round(config.min_price_cents / 100) !== Number(min) ||
@@ -90,7 +100,12 @@ export function ConfigureRail({
 
       <Card>
         <CardContent className="space-y-3 p-4">
-          <span className="text-sm font-semibold">Applied Customizations</span>
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-semibold">Applied Customizations</span>
+            <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
+              <Pencil className="h-3.5 w-3.5" /> Edit
+            </Button>
+          </div>
           <div className="space-y-2.5">
             {custom.map((c) => (
               <div key={c.title}>
@@ -101,7 +116,75 @@ export function ConfigureRail({
           </div>
         </CardContent>
       </Card>
+
+      <CustomizationsDialog
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        config={config}
+        onSave={onSave}
+        saving={saving}
+      />
     </div>
+  );
+}
+
+/** PriceLabs-style "Edit customizations" dialog — the full rules editor,
+ *  reachable straight from the calendar rail. */
+function CustomizationsDialog({
+  open,
+  onOpenChange,
+  config,
+  onSave,
+  saving,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  config: PricingConfig;
+  onSave: (patch: Partial<PricingConfig>) => void;
+  saving: boolean;
+}) {
+  const [rules, setRules] = useState<PricingRules>(config.rules);
+  // Re-seed local state each time the dialog opens so it reflects saved config.
+  const [seededFor, setSeededFor] = useState<string | null>(null);
+  if (open && seededFor !== config.id + JSON.stringify(config.rules).length) {
+    setRules(config.rules);
+    setSeededFor(config.id + JSON.stringify(config.rules).length);
+  }
+
+  function save() {
+    onSave({
+      rules: {
+        ...rules,
+        seasons: (rules.seasons ?? []).filter((s) => s.from && s.to),
+        events: (rules.events ?? []).filter((e) => e.from && e.to),
+        overrides: (rules.overrides ?? []).filter((o) => o.date),
+        minStay: {
+          ...rules.minStay,
+          seasons: (rules.minStay?.seasons ?? []).filter((s) => s.from && s.to),
+        },
+      },
+    });
+    onOpenChange(false);
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[85vh] max-w-3xl overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Customizations — {config.nickname}</DialogTitle>
+        </DialogHeader>
+        <RulesEditor rules={rules} onChange={setRules} />
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button onClick={save} disabled={saving}>
+            {saving && <Loader2 className="h-4 w-4 animate-spin" />}
+            Save & Refresh
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
