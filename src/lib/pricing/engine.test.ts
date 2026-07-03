@@ -30,6 +30,7 @@ function cfg(rules: Partial<PricingRules> = {}, anchors: Partial<EngineConfig> =
       minStay: { base: 2, seasons: [], lastMinute: null },
       smoothingPct: 0,
       overrides: [],
+      velocity: { enabled: false, tiers: [], maxPct: 15 },
       ...rules,
     },
   };
@@ -168,6 +169,58 @@ describe("pace controller", () => {
     const rates = computeRates(c, input({ occupiedNights: occupied }));
     // 27/30 = 90% vs 60% target → +15 (raw exactly +15 at ×0.5)
     expect(rateOn(rates, addDays(TODAY, 28)).factors.pace_pct).toBe(15);
+  });
+});
+
+describe("velocity (comp-set pickup premium)", () => {
+  const tiers = [
+    { minPickup: 0.4, pct: 15 },
+    { minPickup: 0.25, pct: 10 },
+    { minPickup: 0.15, pct: 5 },
+  ];
+
+  it("prices up dates with hot comp-set pickup, by tier", () => {
+    const c = cfg({ velocity: { enabled: true, tiers, maxPct: 15 } });
+    const velocityByDate = new Map([
+      [addDays(TODAY, 5), 0.45], // ≥40% → +15
+      [addDays(TODAY, 6), 0.3], // ≥25% → +10
+      [addDays(TODAY, 7), 0.18], // ≥15% → +5
+      [addDays(TODAY, 8), 0.05], // below all tiers → 0
+    ]);
+    const rates = computeRates(c, input({ velocityByDate }));
+    expect(rateOn(rates, addDays(TODAY, 5)).price_cents).toBe(46000);
+    expect(rateOn(rates, addDays(TODAY, 6)).price_cents).toBe(44000);
+    expect(rateOn(rates, addDays(TODAY, 7)).price_cents).toBe(42000);
+    expect(rateOn(rates, addDays(TODAY, 8)).price_cents).toBe(40000);
+    expect(rateOn(rates, addDays(TODAY, 5)).factors.velocity_pct).toBe(15);
+    expect(rateOn(rates, addDays(TODAY, 5)).factors.pickup_7d).toBe(0.45);
+  });
+
+  it("caps the premium at maxPct and is off when disabled", () => {
+    const capped = computeRates(
+      cfg({ velocity: { enabled: true, tiers: [{ minPickup: 0.2, pct: 40 }], maxPct: 12 } }),
+      input({ velocityByDate: new Map([[addDays(TODAY, 3), 0.9]]) })
+    );
+    expect(rateOn(capped, addDays(TODAY, 3)).price_cents).toBe(44800); // +12, not +40
+
+    const off = computeRates(
+      cfg({ velocity: { enabled: false, tiers, maxPct: 15 } }),
+      input({ velocityByDate: new Map([[addDays(TODAY, 3), 0.9]]) })
+    );
+    expect(rateOn(off, addDays(TODAY, 3)).price_cents).toBe(40000);
+  });
+
+  it("stacks with structural premiums and is not smoothed away", () => {
+    const c = cfg({
+      dowPct: [0, 0, 0, 0, 0, 0, 10], // Saturday +10 structural
+      velocity: { enabled: true, tiers, maxPct: 15 },
+      smoothingPct: 5,
+    });
+    // Saturday Jul 11 gets pickup 0.5 → structural 44000 × 1.15 = 50600
+    const rates = computeRates(c, input({ velocityByDate: new Map([["2026-07-11", 0.5]]) }));
+    expect(rateOn(rates, "2026-07-11").price_cents).toBe(50600);
+    // neighbors unaffected (velocity is outside the smoothing pass)
+    expect(rateOn(rates, "2026-07-10").price_cents).toBe(40000);
   });
 });
 

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Plus, Trash2, ExternalLink, AlertTriangle, Sparkles, Star } from "lucide-react";
+import { Loader2, Plus, Trash2, ExternalLink, AlertTriangle, Sparkles, Star, Waves, Radar } from "lucide-react";
 import { toast } from "sonner";
 import type { CompRow } from "./types";
 import { fmtUsd } from "./types";
@@ -35,6 +35,26 @@ export function CompsPanel({
   const [discovering, setDiscovering] = useState(false);
   const [candidates, setCandidates] = useState<Candidate[] | null>(null);
   const [addingId, setAddingId] = useState<string | null>(null);
+  const [building, setBuilding] = useState(false);
+
+  async function buildSet() {
+    setBuilding(true);
+    try {
+      const res = await fetch("/api/admin/pricing-lab/comps/discover-bulk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nickname, target: 100 }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Bulk discovery failed");
+      toast.success(`Added ${json.added} comps (now ${json.have}). They'll be scraped over the next runs.`);
+      onChanged();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Bulk discovery failed");
+    } finally {
+      setBuilding(false);
+    }
+  }
 
   async function addComp(airbnbValue: string, labelValue: string) {
     const res = await fetch("/api/admin/pricing-lab/comps", {
@@ -166,6 +186,10 @@ export function CompsPanel({
             {discovering ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
             Find comps
           </Button>
+          <Button variant="outline" onClick={buildSet} disabled={building}>
+            {building ? <Loader2 className="h-4 w-4 animate-spin" /> : <Radar className="h-4 w-4" />}
+            Auto-build 100
+          </Button>
         </div>
 
         {candidates && candidates.length > 0 && (
@@ -238,6 +262,12 @@ export function CompsPanel({
                   <div className="flex items-center gap-2">
                     <span className="font-medium">{c.label || `Listing ${c.airbnb_id}`}</span>
                     {c.is_self && <Badge variant="secondary">Ours</Badge>}
+                    {c.is_lakefront && (
+                      <Badge variant="secondary" className="gap-1">
+                        <Waves className="h-3 w-3" /> Lakefront
+                      </Badge>
+                    )}
+                    {c.bedrooms != null && <span className="text-xs text-muted-foreground">{c.bedrooms}BR</span>}
                     {c.url && (
                       <a href={c.url} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground">
                         <ExternalLink className="h-3.5 w-3.5" />

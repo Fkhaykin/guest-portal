@@ -25,20 +25,24 @@
       "schedule": "0 15 * * *"
     },
     {
-      "path": "/api/cron/pricing-shadow",
-      "schedule": "0 9 * * *"
+      "path": "/api/cron/comp-scrape",
+      "schedule": "0,15,30,45 5 * * *"
     },
     {
       "path": "/api/cron/comp-scrape",
+      "schedule": "0,15,30,45 6 * * *"
+    },
+    {
+      "path": "/api/cron/comp-scrape",
+      "schedule": "0,15,30,45 7 * * *"
+    },
+    {
+      "path": "/api/cron/market-pulse",
       "schedule": "30 8 * * *"
     },
     {
-      "path": "/api/cron/comp-scrape",
-      "schedule": "0 7 * * *"
-    },
-    {
-      "path": "/api/cron/comp-scrape",
-      "schedule": "30 7 * * *"
+      "path": "/api/cron/pricing-shadow",
+      "schedule": "0 9 * * *"
     }
   ]
 }

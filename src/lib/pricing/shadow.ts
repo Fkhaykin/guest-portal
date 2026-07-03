@@ -5,6 +5,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { computeRates, todayInTz } from "./engine";
 import { loadOccupiedNights, loadPricingConfigs, type PricingConfigRecord } from "./data";
+import { loadVelocityByDate } from "./market";
 import { getRawListingPrices, type RawListingPrice } from "@/lib/pricelabs/client";
 import { getRoomTypeId } from "@/lib/lodgify/client";
 
@@ -47,7 +48,13 @@ async function snapshotHouse(
   today: string
 ): Promise<ShadowResult> {
   const occupied = await loadOccupiedNights(admin, cfg.nickname, today, HORIZON_DAYS);
-  const ours = computeRates(cfg, { today, horizonDays: HORIZON_DAYS, occupiedNights: occupied });
+  const velocityByDate = await loadVelocityByDate(admin, cfg.nickname);
+  const ours = computeRates(cfg, {
+    today,
+    horizonDays: HORIZON_DAYS,
+    occupiedNights: occupied,
+    velocityByDate,
+  });
 
   // PriceLabs comparison: try each active Lodgify listing of the house until
   // one has a configured PriceLabs listing.

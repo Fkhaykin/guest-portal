@@ -10,7 +10,13 @@ export interface ListingProfile {
   lat: number;
   lng: number;
   bedrooms: number | null;
+  isLakefront: boolean;
 }
+
+// Words in an Airbnb title/description that mark a genuinely lakefront/
+// waterfront listing (matters for Lakehouse & Mansion/BML, which truly are).
+const LAKEFRONT_RE =
+  /\b(lakefront|lake\s?front|waterfront|water\s?front|on\s+the\s+lake|lake\s?view|lakeside|private\s+lake|lake\s+access|on\s+lake)\b/i;
 
 export interface CompCandidate {
   airbnbId: string;
@@ -22,6 +28,7 @@ export interface CompCandidate {
   reviewCount: number;
   distanceKm: number;
   priceTotal: string | null; // informational — search-window total
+  isLakefront: boolean; // matched from the search-result title/name
   score: number; // lower = better comp
 }
 
@@ -37,18 +44,23 @@ export async function getListingProfile(airbnbId: string): Promise<ListingProfil
   const lng = html.match(/"lng":\s*(-?\d+\.\d+)/);
   const beds = html.match(/(\d+)\s*bedrooms?/);
   if (!lat || !lng) throw new Error("Could not extract listing coordinates");
+  const title = html.match(/<title>([^<]+)/)?.[1] ?? "";
+  const descMatch = html.match(/"description":"([^"]{0,600})/);
   return {
     lat: parseFloat(lat[1]),
     lng: parseFloat(lng[1]),
     bedrooms: beds ? parseInt(beds[1], 10) : null,
+    isLakefront: LAKEFRONT_RE.test(title) || LAKEFRONT_RE.test(descMatch?.[1] ?? ""),
   };
 }
 
-/** One map-bounds search; returns the raw embedded results. */
+/** One map-bounds search; returns the raw embedded results. Distances are
+ *  measured from `anchor` (the house), which may differ from the search tile. */
 async function searchBounds(
   center: { lat: number; lng: number },
   radiusKm: number,
-  minBedrooms: number
+  minBedrooms: number,
+  anchor: { lat: number; lng: number } = center
 ): Promise<CompCandidate[]> {
   const dLat = radiusKm / 111;
   const dLng = radiusKm / (111 * Math.cos((center.lat * Math.PI) / 180));
@@ -69,9 +81,9 @@ async function searchBounds(
   if (!res.ok) throw new Error(`Airbnb search ${res.status}`);
   const html = await res.text();
 
-  const anchor = html.indexOf('"searchResults":[');
-  if (anchor < 0) return [];
-  const arr = balancedArray(html, anchor + '"searchResults":'.length);
+  const resultsIdx = html.indexOf('"searchResults":[');
+  if (resultsIdx < 0) return [];
+  const arr = balancedArray(html, resultsIdx + '"searchResults":'.length);
   if (!arr) return [];
 
   type RawResult = {
@@ -116,16 +128,18 @@ async function searchBounds(
     const bedsMatch = JSON.stringify(r.structuredContent ?? {}).match(/(\d+) bed/);
     const priceMatch = JSON.stringify(r.structuredDisplayPrice ?? {}).match(/\$[\d,]+/);
 
+    const name = d.description?.name?.localizedStringWithTranslationPreference ?? `Listing ${airbnbId}`;
     out.push({
       airbnbId,
-      name: d.description?.name?.localizedStringWithTranslationPreference ?? `Listing ${airbnbId}`,
+      name,
       lat,
       lng,
       beds: bedsMatch ? parseInt(bedsMatch[1], 10) : null,
       rating,
       reviewCount: countMatch ? parseInt(countMatch[1], 10) : 0,
-      distanceKm: haversineKm(center.lat, center.lng, lat, lng),
+      distanceKm: haversineKm(anchor.lat, anchor.lng, lat, lng),
       priceTotal: priceMatch ? priceMatch[0] : null,
+      isLakefront: LAKEFRONT_RE.test(name),
       score: 0,
     });
   }
@@ -184,6 +198,92 @@ export async function discoverComps(
   }
   pool.sort((a, b) => a.score - b.score);
   return pool.slice(0, limit);
+}
+
+/** Bulk discovery for the comp program: sweep a grid of overlapping map tiles
+ *  around the house (Airbnb returns ~18 results per search, so one bounding box
+ *  under-samples a dense market), dedupe, bedroom-match, and rank. Returns up
+ *  to `limit` candidates. Tiles are searched with bounded concurrency. */
+export async function discoverCompsBulk(
+  profile: ListingProfile,
+  excludeIds: Set<string>,
+  limit = 100
+): Promise<CompCandidate[]> {
+  const minBedrooms = Math.max(1, (profile.bedrooms ?? 3) - 1);
+  const maxBedrooms = (profile.bedrooms ?? 3) + 1;
+
+  // A 3×3 grid of tiles at ~4km spacing plus a wide backstop sweep. Each tile
+  // is a ~5km-radius box; overlap ensures edge listings aren't missed.
+  const stepKm = 4;
+  const centers: { lat: number; lng: number; r: number }[] = [];
+  for (let dy = -1; dy <= 1; dy++) {
+    for (let dx = -1; dx <= 1; dx++) {
+      centers.push({
+        lat: profile.lat + (dy * stepKm) / 111,
+        lng: profile.lng + (dx * stepKm) / (111 * Math.cos((profile.lat * Math.PI) / 180)),
+        r: 5,
+      });
+    }
+  }
+  centers.push({ lat: profile.lat, lng: profile.lng, r: 18 }); // wide backstop
+
+  const anchor = { lat: profile.lat, lng: profile.lng };
+  const byId = new Map<string, CompCandidate>();
+
+  // Bounded-concurrency tile sweep.
+  const queue = [...centers];
+  const worker = async () => {
+    for (;;) {
+      const tile = queue.shift();
+      if (!tile) break;
+      try {
+        const results = await searchBounds({ lat: tile.lat, lng: tile.lng }, tile.r, minBedrooms, anchor);
+        for (const c of results) {
+          if (excludeIds.has(c.airbnbId) || byId.has(c.airbnbId)) continue;
+          byId.set(c.airbnbId, c);
+        }
+      } catch {
+        // skip a failed tile
+      }
+    }
+  };
+  await Promise.all(Array.from({ length: 4 }, worker));
+
+  const candidates = [...byId.values()];
+
+  // Enrich beds where the search result omitted them (bounded), so bedroom
+  // matching is real. Cap enrichment to keep the run fast.
+  const needBeds = candidates
+    .sort((a, b) => a.distanceKm - b.distanceKm)
+    .slice(0, Math.min(candidates.length, limit + 40))
+    .filter((c) => c.beds == null);
+  for (let i = 0; i < needBeds.length; i += 6) {
+    await Promise.all(
+      needBeds.slice(i, i + 6).map(async (c) => {
+        try {
+          const p = await getListingProfile(c.airbnbId);
+          c.beds = p.bedrooms;
+          c.isLakefront = c.isLakefront || p.isLakefront;
+        } catch {
+          /* keep null */
+        }
+      })
+    );
+  }
+
+  // Keep bedroom-matched listings; rank nearest-neighbor style with a lakefront
+  // affinity when the house itself is lakefront.
+  const matched = candidates.filter(
+    (c) => c.beds == null || (c.beds >= minBedrooms && c.beds <= maxBedrooms)
+  );
+  for (const c of matched) {
+    const bedGap = profile.bedrooms != null && c.beds != null ? Math.abs(c.beds - profile.bedrooms) : 1;
+    const lakefrontPenalty = profile.isLakefront && !c.isLakefront ? 2 : 0;
+    c.score =
+      bedGap * 3 + c.distanceKm / 3 - Math.min(Math.log10(c.reviewCount + 1), 2) + lakefrontPenalty;
+  }
+  matched.sort((a, b) => a.score - b.score);
+  return matched.slice(0, limit);
 }
 
 function balancedArray(s: string, start: number): string | null {

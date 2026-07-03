@@ -61,9 +61,10 @@ export function buildLadder(row: SnapshotRow, config: PricingConfig): LadderRow[
   if (f.event_pct) rows.push({ label: "Event / holiday", pct: f.event_pct, runningCents: Math.round(structural), kind: "factor" });
   rows.push({ label: "Uncustomized price", pct: null, runningCents: Math.round(structural), kind: "total" });
 
-  // Customizations: the surviving discount + any pace premium + gap.
+  // Customizations: the surviving discount + any pace/velocity premium + gap.
+  const velocity = f.velocity_pct ?? 0;
   const hasCust =
-    f.discount_src !== null || f.pace_pct > 0 || f.gap_pct !== 0 || f.smoothing_adj_pct !== 0;
+    f.discount_src !== null || f.pace_pct > 0 || f.gap_pct !== 0 || velocity !== 0 || f.smoothing_adj_pct !== 0;
   if (hasCust) {
     rows.push({ label: "Price customizations", pct: null, runningCents: null, kind: "section" });
     if (f.discount_src === "leadtime") rows.push({ label: "Last-minute / lead-time", pct: f.leadtime_pct, runningCents: null, kind: "factor" });
@@ -71,6 +72,13 @@ export function buildLadder(row: SnapshotRow, config: PricingConfig): LadderRow[
     if (f.discount_src === "gap") rows.push({ label: "Orphan-gap factor", pct: f.gap_pct, runningCents: null, kind: "factor" });
     if (f.pace_pct > 0) rows.push({ label: "Occupancy premium (pace)", pct: f.pace_pct, runningCents: null, kind: "factor" });
     if (f.leadtime_pct > 0) rows.push({ label: "Far-out premium", pct: f.leadtime_pct, runningCents: null, kind: "factor" });
+    if (velocity !== 0)
+      rows.push({
+        label: f.pickup_7d != null ? `Booking velocity (${Math.round(f.pickup_7d * 100)}% pickup)` : "Booking velocity",
+        pct: velocity,
+        runningCents: null,
+        kind: "factor",
+      });
     if (f.smoothing_adj_pct) rows.push({ label: "Smoothing", pct: f.smoothing_adj_pct, runningCents: null, kind: "factor" });
     rows.push({ label: "Customized price", pct: null, runningCents: f.pre_clamp_cents, kind: "total" });
   }

@@ -35,12 +35,14 @@ export interface CompRow {
   is_self: boolean;
   is_active: boolean;
   last_scraped_at: string | null;
+  last_priced_at: string | null;
   last_error: string | null;
   lat: number | null;
   lng: number | null;
   bedrooms: number | null;
   rating: number | null;
   review_count: number | null;
+  is_lakefront: boolean;
   stats: { occupancy30: number | null; medianPriceCents: number | null };
 }
 
@@ -53,6 +55,34 @@ export interface MarketPoint {
   p75: number | null;
   p90: number | null;
   pricesCounted: number;
+  pickup_7d?: number | null;
+  pickup_1d?: number | null;
+  lf_occupancy?: number | null;
+  lf_p50?: number | null;
+}
+
+export interface PositionWindow {
+  days: number;
+  ourOcc: number;
+  marketOcc: number | null;
+  lfOcc: number | null;
+  ourAvgCents: number | null;
+  marketAvgCents: number | null;
+  lfAvgCents: number | null;
+}
+
+export interface MarketPosition {
+  windows: PositionWindow[];
+  weekend: { ourAvgCents: number | null; marketAvgCents: number | null };
+  weeknight: { ourAvgCents: number | null; marketAvgCents: number | null };
+}
+
+export interface HotDate {
+  stay_date: string;
+  pickup_7d: number;
+  our_price_cents: number | null;
+  velocity_pct: number;
+  booked: boolean;
 }
 
 export interface PricingLabData {
@@ -63,6 +93,8 @@ export interface PricingLabData {
   comps: CompRow[];
   market: MarketPoint[];
   metrics: { occ7: number; occ30: number; occ60: number };
+  position: MarketPosition;
+  hotDates: HotDate[];
   house: { lat: number; lng: number } | null;
   today: string;
 }

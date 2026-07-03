@@ -37,12 +37,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Could not parse an Airbnb listing id" }, { status: 400 });
   }
 
-  // Best-effort geocode + bedroom count from the listing page so the comp shows
-  // on the competitor map and in bedroom-matched stats immediately.
-  let geo: { lat: number; lng: number; bedrooms: number | null } | null = null;
+  // Best-effort geocode + bedroom count + lakefront flag from the listing page
+  // so the comp shows on the competitor map and in bedroom-matched stats now.
+  let geo: { lat: number; lng: number; bedrooms: number | null; isLakefront: boolean } | null = null;
   try {
     const p = await getListingProfile(airbnbId);
-    geo = { lat: p.lat, lng: p.lng, bedrooms: p.bedrooms };
+    geo = { lat: p.lat, lng: p.lng, bedrooms: p.bedrooms, isLakefront: p.isLakefront };
   } catch {
     // leave null; the daily scrape can backfill later
   }
@@ -58,6 +58,7 @@ export async function POST(request: NextRequest) {
       lat: geo?.lat ?? null,
       lng: geo?.lng ?? null,
       bedrooms: geo?.bedrooms ?? null,
+      is_lakefront: geo?.isLakefront ?? false,
     })
     .select("id, airbnb_id, label, url, is_self, is_active, last_scraped_at, last_error")
     .single();

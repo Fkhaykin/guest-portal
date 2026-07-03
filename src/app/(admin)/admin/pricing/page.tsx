@@ -22,6 +22,7 @@ import { CalendarView } from "./calendar-view";
 import { ConfigureRail, MetricsRail } from "./calendar-sidebars";
 import { NeighborhoodChart } from "./neighborhood-chart";
 import { CompetitorMap } from "./competitor-map";
+import { AlgorithmTab } from "./algorithm-tab";
 import { ComparisonChart, summarizeSnapshot } from "./comparison-chart";
 import { ConfigEditor } from "./config-editor";
 import { CompsPanel } from "./comps-panel";
@@ -182,6 +183,7 @@ export default function PricingLabPage() {
       <Tabs defaultValue="calendar">
         <TabsList>
           <TabsTrigger value="calendar">Calendar</TabsTrigger>
+          <TabsTrigger value="algorithm">Algorithm</TabsTrigger>
           <TabsTrigger value="neighborhood">Neighborhood Data</TabsTrigger>
           <TabsTrigger value="config">Configuration</TabsTrigger>
           <TabsTrigger value="comps">Comps</TabsTrigger>
@@ -195,6 +197,15 @@ export default function PricingLabPage() {
               <CalendarView config={config} snapshot={data.snapshot} market={data.market} today={data.today} />
               <MetricsRail metrics={data.metrics} />
             </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="algorithm">
+          {data && (
+            <AlgorithmTab
+              data={data}
+              lakefront={data.comps.some((c) => c.is_self && c.is_lakefront)}
+            />
           )}
         </TabsContent>
 

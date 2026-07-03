@@ -21,6 +21,7 @@ export type LeadtimeStep = { maxDays: number; pct: number }; // sorted by maxDay
 export type PaceBucket = { days: number; targetOcc: number }; // sorted by days asc
 export type MinStaySeason = { from: string; to: string; value: number }; // "MM-DD"
 export type DateOverride = { date: string; price_cents?: number; min_stay?: number; label?: string };
+export type VelocityTier = { minPickup: number; pct: number }; // pickup fraction 0..1 → premium %
 
 export interface PricingRules {
   seasons: SeasonRule[];
@@ -36,6 +37,11 @@ export interface PricingRules {
   };
   smoothingPct: number;
   overrides: DateOverride[];
+  /** Booking-velocity premium: when a stay date's comp-set pickup (fraction of
+   *  comps that booked it over the last ~7 days) crosses a tier, price up.
+   *  Tiers checked highest-first; premium only — cooling is handled by
+   *  pace/lead-time discounts. */
+  velocity: { enabled: boolean; tiers: VelocityTier[]; maxPct: number };
 }
 
 export interface EngineConfig {
@@ -54,6 +60,8 @@ export interface RateFactors {
   leadtime_pct: number;
   pace_pct: number;
   gap_pct: number;
+  velocity_pct: number;
+  pickup_7d: number | null; // the raw comp-set pickup that drove velocity_pct
   discount_src: "leadtime" | "pace" | "gap" | null;
   smoothing_adj_pct: number;
   pre_clamp_cents: number;
@@ -73,6 +81,9 @@ export interface EngineInput {
   today: string; // "YYYY-MM-DD" in the property's timezone
   horizonDays: number;
   occupiedNights: Set<string>; // booked or blocked nights for the whole house
+  /** Comp-set 7-day pickup per stay date (0..1), from market_pulse. Optional —
+   *  the velocity factor is 0 wherever it's absent. */
+  velocityByDate?: Map<string, number>;
 }
 
 export const DEFAULT_RULES: PricingRules = {
@@ -100,6 +111,15 @@ export const DEFAULT_RULES: PricingRules = {
   minStay: { base: 2, seasons: [], lastMinute: { withinDays: 7, value: 2 } },
   smoothingPct: 15,
   overrides: [],
+  velocity: {
+    enabled: true,
+    tiers: [
+      { minPickup: 0.4, pct: 15 },
+      { minPickup: 0.25, pct: 10 },
+      { minPickup: 0.15, pct: 5 },
+    ],
+    maxPct: 15,
+  },
 };
 
 // ---------------------------------------------------------------------------
@@ -201,6 +221,16 @@ function occupancyByBucket(input: EngineInput, buckets: PaceBucket[]): Map<numbe
   return out;
 }
 
+/** Velocity premium: highest tier whose minPickup the date's pickup meets. */
+function velocityPct(rules: PricingRules, pickup: number | undefined): number {
+  if (!rules.velocity.enabled || pickup === undefined || pickup <= 0) return 0;
+  const tiers = [...rules.velocity.tiers].sort((a, b) => b.minPickup - a.minPickup);
+  for (const t of tiers) {
+    if (pickup >= t.minPickup) return Math.min(Math.abs(t.pct), rules.velocity.maxPct);
+  }
+  return 0;
+}
+
 function minStayFor(
   rules: PricingRules,
   date: string,
@@ -249,6 +279,8 @@ export function computeRates(cfg: EngineConfig, input: EngineInput): ComputedRat
     const pace = pacePct(rules, daysOut, occBuckets);
     const gapLen = gaps.get(date);
     const gapPct = gapLen !== undefined ? rules.gap.pct : 0;
+    const pickup = input.velocityByDate?.get(date);
+    const velocity = velocityPct(rules, pickup);
 
     // Premiums stack; discounts compete — only the single largest applies.
     const premiums = Math.max(lt, 0) + Math.max(pace, 0);
@@ -262,7 +294,8 @@ export function computeRates(cfg: EngineConfig, input: EngineInput): ComputedRat
 
     const seasonalBase = cfg.base_price_cents * (1 + season / 100);
     const structuralCents = seasonalBase * (1 + (dow + event) / 100);
-    // Gap is spiky by design; keep it out of the smoothed dynamic.
+    // Gap and velocity are spiky by design (specific dates); keep them out of
+    // the smoothed dynamic so smoothing can't dilute them.
     const gapPart = appliedDiscountSrc === "gap" ? worst.pct : 0;
     const smoothablePart = premiums + (appliedDiscountSrc !== "gap" ? worst.pct : 0);
 
@@ -280,6 +313,8 @@ export function computeRates(cfg: EngineConfig, input: EngineInput): ComputedRat
         leadtime_pct: lt,
         pace_pct: pace,
         gap_pct: gapPart,
+        velocity_pct: velocity,
+        pickup_7d: pickup ?? null,
         discount_src: appliedDiscountSrc,
         smoothing_adj_pct: 0,
         pre_clamp_cents: 0,
@@ -305,9 +340,10 @@ export function computeRates(cfg: EngineConfig, input: EngineInput): ComputedRat
     }
   }
 
-  // Pass 3: final price = structural × (1 + dynamic + gap), clamp, override.
+  // Pass 3: final price = structural × (1 + dynamic + gap + velocity), clamp, override.
   return working.map((w) => {
-    const raw = w.structuralCents * (1 + (w.dynamicPct + w.factors.gap_pct) / 100);
+    const raw =
+      w.structuralCents * (1 + (w.dynamicPct + w.factors.gap_pct + w.factors.velocity_pct) / 100);
     w.factors.pre_clamp_cents = Math.round(raw);
 
     let price = Math.round(raw);

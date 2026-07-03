@@ -20,6 +20,7 @@ import type {
   PaceBucket,
   MinStaySeason,
   DateOverride,
+  VelocityTier,
 } from "@/lib/pricing/engine";
 
 const DOW_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -38,6 +39,7 @@ export function RulesEditor({
   const gap = rules.gap ?? { maxGapNights: 2, pct: -15, setMinStay: true };
   const minStay = rules.minStay ?? { base: 2, seasons: [], lastMinute: null };
   const overrides = rules.overrides ?? [];
+  const velocity = rules.velocity ?? { enabled: true, tiers: [], maxPct: 15 };
 
   return (
     <div className="space-y-4">
@@ -131,6 +133,41 @@ export function RulesEditor({
             <div className="flex items-center gap-2 pt-1">
               <Label className="text-xs text-muted-foreground">Max adjustment ±</Label>
               <NumInput value={pace.maxPct} onChange={(v) => patch({ pace: { ...pace, maxPct: Math.abs(v) } })} className="w-18" />
+              <span className="text-xs text-muted-foreground">%</span>
+            </div>
+          </>
+        )}
+      </Section>
+
+      <Section
+        title="Booking velocity (comp-set pickup)"
+        hint="When comps book a date faster, price up. Pickup = fraction of comps that booked this date over the last ~7 days. Highest matching tier wins."
+        action={
+          <label className="flex items-center gap-2 text-xs text-muted-foreground">
+            Enabled
+            <Switch checked={velocity.enabled} onCheckedChange={(v: boolean) => patch({ velocity: { ...velocity, enabled: v } })} />
+          </label>
+        }
+        onAdd={velocity.enabled ? () => patch({ velocity: { ...velocity, tiers: [...velocity.tiers, { minPickup: 0.2, pct: 5 }] } }) : undefined}
+      >
+        {velocity.enabled && (
+          <>
+            {velocity.tiers.length === 0 && <Empty>No tiers — velocity has no effect.</Empty>}
+            {velocity.tiers.map((t, i) => (
+              <Row key={i} onRemove={() => patch({ velocity: { ...velocity, tiers: velocity.tiers.filter((_, j) => j !== i) } })}>
+                <span className="text-xs text-muted-foreground">pickup ≥</span>
+                <NumInput
+                  value={Math.round(t.minPickup * 100)}
+                  onChange={(v) => patch({ velocity: { ...velocity, tiers: sortTiers(setAt<VelocityTier>(velocity.tiers, i, { minPickup: clamp01(v / 100) })) } })}
+                  className="w-18"
+                />
+                <span className="text-xs text-muted-foreground">% of comps booked →</span>
+                <PctInput value={t.pct} onChange={(v) => patch({ velocity: { ...velocity, tiers: setAt<VelocityTier>(velocity.tiers, i, { pct: Math.abs(v) }) } })} />
+              </Row>
+            ))}
+            <div className="flex items-center gap-2 pt-1">
+              <Label className="text-xs text-muted-foreground">Max premium +</Label>
+              <NumInput value={velocity.maxPct} onChange={(v) => patch({ velocity: { ...velocity, maxPct: Math.abs(v) } })} className="w-18" />
               <span className="text-xs text-muted-foreground">%</span>
             </div>
           </>
@@ -325,4 +362,8 @@ function clamp01(v: number): number {
 
 function sortBuckets(buckets: PaceBucket[]): PaceBucket[] {
   return [...buckets].sort((a, b) => a.days - b.days);
+}
+
+function sortTiers(tiers: VelocityTier[]): VelocityTier[] {
+  return [...tiers].sort((a, b) => b.minPickup - a.minPickup);
 }

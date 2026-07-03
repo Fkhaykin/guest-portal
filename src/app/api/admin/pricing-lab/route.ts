@@ -3,7 +3,12 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { computeRates, todayInTz, DEFAULT_RULES, type PricingRules } from "@/lib/pricing/engine";
 import { loadOccupiedNights } from "@/lib/pricing/data";
-import { loadMarketByDate, occupancyWindow } from "@/lib/pricing/market";
+import {
+  loadLatestPulse,
+  loadVelocityByDate,
+  occupancyWindow,
+  computePosition,
+} from "@/lib/pricing/market";
 
 async function requireAdmin() {
   const supabase = await createClient();
@@ -80,45 +85,41 @@ export async function GET(request: NextRequest) {
     dates_compared: n,
   }));
 
-  // Comp set + latest comp snapshot aggregates (next 30 stay dates).
+  // Comp set with pre-computed per-comp rollups (occupancy_30, median price).
+  const today = todayInTz();
   const { data: comps } = await admin
     .from("comp_listing")
     .select(
-      "id, airbnb_id, label, url, is_self, is_active, last_scraped_at, last_error, lat, lng, bedrooms, rating, review_count"
+      "id, airbnb_id, label, url, is_self, is_active, last_scraped_at, last_priced_at, last_error, lat, lng, bedrooms, rating, review_count, is_lakefront, occupancy_30, median_price_cents"
     )
     .ilike("nickname", config.nickname)
     .order("is_self", { ascending: false })
-    .order("created_at");
+    .order("occupancy_30", { ascending: false, nullsFirst: false });
   const compStats: Record<string, { occupancy30: number | null; medianPriceCents: number | null }> = {};
-  const today = todayInTz();
   for (const comp of comps ?? []) {
-    const { data: snap } = await admin
-      .from("comp_snapshot")
-      .select("stay_date, available, price_cents, snapshot_date")
-      .eq("comp_id", comp.id)
-      .gte("stay_date", today)
-      .lte("stay_date", addDaysIso(today, 30))
-      .order("snapshot_date", { ascending: false })
-      .limit(62);
-    if (!snap?.length) {
-      compStats[comp.id] = { occupancy30: null, medianPriceCents: null };
-      continue;
-    }
-    const latest = snap.filter((s) => s.snapshot_date === snap[0].snapshot_date);
-    const unavailable = latest.filter((s) => s.available === false).length;
-    const prices = latest.map((s) => s.price_cents).filter((p): p is number => p !== null).sort((a, b) => a - b);
     compStats[comp.id] = {
-      occupancy30: latest.length ? Math.round((unavailable / latest.length) * 100) : null,
-      medianPriceCents: prices.length ? prices[Math.floor(prices.length / 2)] : null,
+      occupancy30: comp.occupancy_30 != null ? Math.round(comp.occupancy_30 * 100) : null,
+      medianPriceCents: comp.median_price_cents ?? null,
     };
   }
 
-  // Market bands + per-day occupancy from comps (drives demand shading + the
-  // Neighborhood Data chart), our own occupancy metrics, and the house anchor
-  // coordinate for the competitor map (taken from the is_self comp).
-  const horizonEnd = addDaysIso(today, 365);
-  const marketByDate = await loadMarketByDate(admin, config.nickname, today, horizonEnd);
-  const market = [...marketByDate.values()].sort((a, b) => a.stay_date.localeCompare(b.stay_date));
+  // Market pulse (occupancy + price percentiles + velocity per stay date) drives
+  // demand shading, the Neighborhood chart, and the Algorithm tab.
+  const pulse = await loadLatestPulse(admin, config.nickname);
+  const market = pulse.map((p) => ({
+    stay_date: p.stay_date,
+    occupancy: p.occupancy,
+    compsCounted: p.comps_tracked,
+    p25: p.p25_cents,
+    p50: p.p50_cents,
+    p75: p.p75_cents,
+    p90: p.p90_cents,
+    pricesCounted: p.prices_counted,
+    pickup_7d: p.pickup_7d,
+    pickup_1d: p.pickup_1d,
+    lf_occupancy: p.lf_occupancy,
+    lf_p50: p.lf_p50_cents,
+  }));
 
   const occupied = await loadOccupiedNights(admin, config.nickname, today, 365);
   const metrics = {
@@ -126,6 +127,36 @@ export async function GET(request: NextRequest) {
     occ30: occupancyWindow(occupied, today, 30),
     occ60: occupancyWindow(occupied, today, 60),
   };
+
+  // Market position: ours vs comps over 30/60/90 + weekend/weeknight averages.
+  const position = computePosition(
+    (snapshot as { stay_date: string; our_price_cents: number | null; is_booked: boolean }[]),
+    pulse,
+    occupied,
+    today
+  );
+
+  // Hot dates: highest 7-day pickup among still-open future dates.
+  const velocityByDate = await loadVelocityByDate(admin, config.nickname);
+  const openByDate = new Map(
+    (snapshot as { stay_date: string; is_booked: boolean; our_price_cents: number | null; factors: { velocity_pct?: number } | null }[]).map(
+      (r) => [r.stay_date, r]
+    )
+  );
+  const hotDates = [...velocityByDate.entries()]
+    .map(([stay_date, pickup]) => {
+      const row = openByDate.get(stay_date);
+      return {
+        stay_date,
+        pickup_7d: pickup,
+        our_price_cents: row?.our_price_cents ?? null,
+        velocity_pct: row?.factors?.velocity_pct ?? 0,
+        booked: row?.is_booked ?? false,
+      };
+    })
+    .filter((d) => !d.booked && d.pickup_7d > 0)
+    .sort((a, b) => b.pickup_7d - a.pickup_7d)
+    .slice(0, 12);
 
   const self = (comps ?? []).find((c) => c.is_self && c.lat != null && c.lng != null);
   const house = self ? { lat: self.lat as number, lng: self.lng as number } : null;
@@ -138,6 +169,8 @@ export async function GET(request: NextRequest) {
     comps: (comps ?? []).map((c) => ({ ...c, stats: compStats[c.id] })),
     market,
     metrics,
+    position,
+    hotDates,
     house,
     today,
   });
