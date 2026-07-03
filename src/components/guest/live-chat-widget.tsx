@@ -371,7 +371,10 @@ export function LiveChatWidget() {
           style={pos ? { left: pos.x, top: pos.y } : undefined}
           className={cn(
             "fixed z-50 flex h-14 w-14 touch-none items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg hover:scale-105 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-            pos ? "cursor-grab active:cursor-grabbing" : "right-4 bottom-4 transition-transform"
+            pos
+              ? "cursor-grab active:cursor-grabbing"
+              : // Sit above the property page's mobile booking bar when one is on the page
+                "right-4 bottom-4 transition-transform [body:has(#mobile-booking-bar)_&]:bottom-22 lg:[body:has(#mobile-booking-bar)_&]:bottom-4"
           )}
         >
           <MessageCircle className="h-6 w-6" />

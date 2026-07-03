@@ -365,7 +365,7 @@ export function PropertyPage({
         <SectionNav />
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-8">
-          <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-12 xl:gap-16 lg:items-start">
+          <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-12 xl:gap-16">
             {/* ---------------- Main column ---------------- */}
             <main className="space-y-10 min-w-0">
               {/* Overview */}

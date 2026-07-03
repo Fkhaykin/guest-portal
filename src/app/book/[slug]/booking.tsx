@@ -699,7 +699,10 @@ export function MobileBookingBar({
   const { checkIn, checkOut, quote, quoteLoading, nights, checkoutUrl, scrollToCalendar } = booking;
 
   return (
-    <div className="fixed bottom-0 inset-x-0 z-40 lg:hidden border-t bg-background/95 backdrop-blur-xl pb-[env(safe-area-inset-bottom)]">
+    <div
+      id="mobile-booking-bar"
+      className="fixed bottom-0 inset-x-0 z-40 lg:hidden border-t bg-background/95 backdrop-blur-xl pb-[env(safe-area-inset-bottom)]"
+    >
       <div className="flex items-center justify-between gap-3 px-4 py-3">
         <div className="min-w-0">
           {checkIn && checkOut ? (
