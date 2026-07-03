@@ -226,3 +226,15 @@
     scroll-behavior: auto !important;
   }
 }
+/* Background/ambience videos: when autoplay is blocked (iOS Low Power Mode,
+   data-saver), WebKit paints its big native play glyph over the paused
+   frame. These videos are decorative with poster fallbacks — hide it. */
+.bg-video::-webkit-media-controls,
+.bg-video::-webkit-media-controls-start-playback-button,
+.bg-video::-webkit-media-controls-overlay-play-button,
+.bg-video::-webkit-media-controls-play-button {
+  display: none !important;
+  -webkit-appearance: none;
+  opacity: 0;
+  pointer-events: none;
+}

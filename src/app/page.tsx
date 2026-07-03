@@ -934,8 +934,10 @@ function PropertyCard({
 
 export default function HomeV2Page() {
   const [heroIndex, setHeroIndex] = useState(0);
+  const heroIndexRef = useRef(0);
   const heroTouchStart = useRef<number | null>(null);
   const videoRefs = useRef<Array<HTMLVideoElement | null>>([]);
+  const [autoplayBlocked, setAutoplayBlocked] = useState(false);
   const [session, setSession] = useState<{
     guestName: string;
     reservation: Reservation;
@@ -946,20 +948,24 @@ export default function HomeV2Page() {
   >({});
   const [loaded, setLoaded] = useState(false);
 
-  // Rotate hero slides — images advance on a timer, videos advance on ended
+  // Rotate hero slides — images advance on a timer, videos advance on ended.
+  // When autoplay is blocked (iOS Low Power Mode / data-saver), videos never
+  // fire `ended`, so advance their poster frames on the timer too.
   useEffect(() => {
     const current = HERO_IMAGES[heroIndex];
-    if ("type" in current && current.type === "video") return;
+    if ("type" in current && current.type === "video" && !autoplayBlocked)
+      return;
     const timer = setTimeout(() => {
       setHeroIndex((prev) => (prev + 1) % HERO_IMAGES.length);
     }, 6000);
     return () => clearTimeout(timer);
-  }, [heroIndex]);
+  }, [heroIndex, autoplayBlocked]);
 
   // Skip the active video on first run — autoPlay handles it; a programmatic
   // seek + .play() during the autoplay hand-off breaks mobile Safari.
   const didMountRef = useRef(false);
   useEffect(() => {
+    heroIndexRef.current = heroIndex;
     const isFirstRun = !didMountRef.current;
     didMountRef.current = true;
     videoRefs.current.forEach((video, i) => {
@@ -967,12 +973,43 @@ export default function HomeV2Page() {
       if (i === heroIndex) {
         if (isFirstRun) return;
         video.currentTime = 0;
-        video.play().catch(() => {});
+        video.play().catch(() => setAutoplayBlocked(true));
       } else {
         video.pause();
       }
     });
   }, [heroIndex]);
+
+  // Probe whether WebKit blocked the initial autoplay (Low Power Mode,
+  // data-saver). No seek here — joining an in-flight autoplay is safe, only
+  // seek+play during the hand-off is not.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const video = videoRefs.current[heroIndexRef.current];
+      if (!video || !video.paused) return;
+      video.play().catch(() => setAutoplayBlocked(true));
+    }, 800);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Any user gesture lifts the autoplay block — resume the live video.
+  useEffect(() => {
+    if (!autoplayBlocked) return;
+    const resume = () => {
+      const video = videoRefs.current[heroIndexRef.current];
+      if (!video) return;
+      video
+        .play()
+        .then(() => setAutoplayBlocked(false))
+        .catch(() => {});
+    };
+    window.addEventListener("touchend", resume, { passive: true });
+    window.addEventListener("click", resume);
+    return () => {
+      window.removeEventListener("touchend", resume);
+      window.removeEventListener("click", resume);
+    };
+  }, [autoplayBlocked]);
 
   // Load session + fetch data
   useEffect(() => {
@@ -1035,6 +1072,12 @@ export default function HomeV2Page() {
               <video
                 ref={(el) => {
                   videoRefs.current[i] = el;
+                  if (el) {
+                    // React sets `muted` as a property only; WebKit's
+                    // autoplay policy wants the attribute too.
+                    el.muted = true;
+                    el.defaultMuted = true;
+                  }
                 }}
                 src={img.url}
                 poster={img.poster}
@@ -1049,7 +1092,7 @@ export default function HomeV2Page() {
                 onEnded={() =>
                   setHeroIndex((prev) => (prev + 1) % HERO_IMAGES.length)
                 }
-                className="w-full h-full object-cover"
+                className="bg-video w-full h-full object-cover"
               />
             ) : (
               <img
