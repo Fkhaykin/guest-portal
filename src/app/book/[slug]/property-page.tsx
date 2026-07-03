@@ -72,7 +72,7 @@ function deriveHighlights(details: PropertyDetails): Highlight[] {
     if (def.match.test(haystack)) highlights.push({ label: def.label, icon: def.icon });
   }
   if (lodgify?.pets_allowed) highlights.push({ label: "Pet friendly", icon: PawPrint });
-  if (lodgify?.has_wifi) highlights.push({ label: "WiFi", icon: Wifi });
+  if (lodgify?.has_wifi) highlights.push({ label: "Fast WiFi", icon: Wifi });
   if (lodgify?.has_parking) highlights.push({ label: "Free parking", icon: Car });
   return highlights.slice(0, 6);
 }
@@ -394,13 +394,11 @@ export function PropertyPage({
             </main>
 
             {/* ---------------- Sticky booking rail ---------------- */}
+            {/* top-32 clears the fixed site nav + sticky section bar with a
+                comfortable gap once the rail pins */}
             <aside className="hidden lg:block">
-              <div className="sticky top-24">
-                <BookingCard
-                  booking={booking}
-                  minPrice={lodgify?.min_price ?? null}
-                  datePicker="popover"
-                />
+              <div className="sticky top-32">
+                <BookingCard booking={booking} minPrice={lodgify?.min_price ?? null} />
               </div>
             </aside>
           </div>
