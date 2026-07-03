@@ -18,6 +18,10 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, RefreshCw, Scale, DollarSign, Percent } from "lucide-react";
 import { toast } from "sonner";
+import { CalendarView } from "./calendar-view";
+import { ConfigureRail, MetricsRail } from "./calendar-sidebars";
+import { NeighborhoodChart } from "./neighborhood-chart";
+import { CompetitorMap } from "./competitor-map";
 import { ComparisonChart, summarizeSnapshot } from "./comparison-chart";
 import { ConfigEditor } from "./config-editor";
 import { CompsPanel } from "./comps-panel";
@@ -69,10 +73,9 @@ export default function PricingLabPage() {
       });
       const json = await res.json();
       if (!res.ok || !json.ok) {
-        const reason = json.errors?.[0]?.reason || json.error || "Snapshot failed";
-        toast.error(reason);
+        toast.error(json.errors?.[0]?.reason || json.error || "Snapshot failed");
       } else {
-        toast.success(`Snapshot done — ${json.results?.[0]?.rows ?? 0} nights compared.`);
+        toast.success(`Refreshed — ${json.results?.[0]?.rows ?? 0} nights computed.`);
         await loadHouse(nickname);
       }
     } finally {
@@ -89,21 +92,20 @@ export default function PricingLabPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: data.config.id, ...patch }),
       });
-      if (!res.ok) {
-        const json = await res.json();
-        throw new Error(json.error || "Save failed");
-      }
-      toast.success("Configuration saved");
+      if (!res.ok) throw new Error((await res.json()).error || "Save failed");
+      // Re-run the engine so the calendar reflects the new config immediately.
+      await fetch("/api/admin/pricing-lab/run", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nickname }),
+      });
+      toast.success("Saved & refreshed");
       await loadHouse(nickname);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Save failed");
     } finally {
       setSaving(false);
     }
-  }
-
-  async function setMode(mode: PricingConfig["mode"]) {
-    await saveConfig({ mode });
   }
 
   if (loading && !data) {
@@ -117,7 +119,7 @@ export default function PricingLabPage() {
   if (configs.length === 0) {
     return (
       <div className="space-y-6">
-        <PageHeader title="Pricing Lab" description="In-house dynamic pricing — shadow comparison against PriceLabs." />
+        <PageHeader title="Pricing Lab" description="In-house dynamic pricing." />
         <Card>
           <CardContent className="py-10 text-center text-sm text-muted-foreground">
             No houses configured yet. Seed <code>pricing_config</code> to begin.
@@ -133,11 +135,11 @@ export default function PricingLabPage() {
     <div className="space-y-6">
       <PageHeader
         title="Pricing Lab"
-        description="Our engine vs PriceLabs, side by side. Nothing is pushed to Lodgify during the shadow phase."
+        description="Dynamic nightly pricing for your houses — calendar, neighborhood data, and configuration."
         actions={
           <Button onClick={runSnapshot} disabled={running}>
             {running ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-            Run snapshot
+            Sync now
           </Button>
         }
       />
@@ -163,9 +165,9 @@ export default function PricingLabPage() {
                 key={m}
                 size="sm"
                 variant={config.mode === m ? "default" : "outline"}
-                onClick={() => setMode(m)}
+                onClick={() => saveConfig({ mode: m })}
                 disabled={saving || m === "live"}
-                title={m === "live" ? "Live push is disabled until the shadow phase is approved" : undefined}
+                title={m === "live" ? "Live push to Lodgify is disabled during the shadow evaluation" : undefined}
               >
                 {m}
               </Button>
@@ -173,70 +175,32 @@ export default function PricingLabPage() {
           </div>
         )}
         {data?.latest_snapshot_date && (
-          <Badge variant="secondary">Last snapshot {fmtDate(data.latest_snapshot_date)}</Badge>
+          <Badge variant="secondary">Refreshed {fmtDate(data.latest_snapshot_date)}</Badge>
         )}
       </div>
 
-      {summary && (
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          <StatCard
-            icon={Scale}
-            value={summary.meanAbsPct != null ? `${summary.meanAbsPct}%` : "—"}
-            label="Mean gap vs PriceLabs"
-            hint={summary.count ? `${summary.count} nights compared` : "no PriceLabs data"}
-          />
-          <StatCard icon={DollarSign} value={fmtUsd(summary.ourMean)} label="Our avg nightly" tone="info" />
-          <StatCard icon={DollarSign} value={fmtUsd(summary.plMean)} label="PriceLabs avg nightly" tone="info" />
-          <StatCard
-            icon={Percent}
-            value={summary.richerPct != null ? `${summary.richerPct}%` : "—"}
-            label="Nights we price higher"
-            tone={summary.richerPct != null && summary.richerPct > 55 ? "warning" : "info"}
-          />
-        </div>
-      )}
-
-      <Tabs defaultValue="compare">
+      <Tabs defaultValue="calendar">
         <TabsList>
-          <TabsTrigger value="compare">Compare</TabsTrigger>
           <TabsTrigger value="calendar">Calendar</TabsTrigger>
+          <TabsTrigger value="neighborhood">Neighborhood Data</TabsTrigger>
           <TabsTrigger value="config">Configuration</TabsTrigger>
           <TabsTrigger value="comps">Comps</TabsTrigger>
+          <TabsTrigger value="validation">PriceLabs check</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="compare" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Nightly price — next 120 days</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ComparisonChart snapshot={data?.snapshot ?? []} />
-            </CardContent>
-          </Card>
-          {data && data.divergence.length > 1 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Divergence over time</CardTitle>
-                <p className="text-sm text-muted-foreground">
-                  Mean absolute gap between our price and PriceLabs, per snapshot day (next 90 stay dates).
-                </p>
-              </CardHeader>
-              <CardContent>
-                <DivergenceTrend points={data.divergence} />
-              </CardContent>
-            </Card>
+        <TabsContent value="calendar">
+          {config && data && (
+            <div className="grid gap-4 lg:grid-cols-[240px_1fr_220px]">
+              <ConfigureRail config={config} onSave={saveConfig} saving={saving} />
+              <CalendarView config={config} snapshot={data.snapshot} market={data.market} today={data.today} />
+              <MetricsRail metrics={data.metrics} />
+            </div>
           )}
         </TabsContent>
 
-        <TabsContent value="calendar">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Per-night detail</CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              <CalendarTable data={data} />
-            </CardContent>
-          </Card>
+        <TabsContent value="neighborhood" className="space-y-4">
+          {data && <NeighborhoodChart snapshot={data.snapshot} market={data.market} />}
+          {data && <CompetitorMap comps={data.comps} house={data.house} />}
         </TabsContent>
 
         <TabsContent value="config">
@@ -248,6 +212,48 @@ export default function PricingLabPage() {
             <CompsPanel nickname={data.config.nickname} comps={data.comps} onChanged={() => loadHouse(nickname)} />
           )}
         </TabsContent>
+
+        <TabsContent value="validation" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Shadow validation vs PriceLabs</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                A month-long check that our engine tracks a sane market — not a live dependency. Both
+                prices are computed daily; nothing is pushed to Lodgify.
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {summary && (
+                <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                  <StatCard
+                    icon={Scale}
+                    value={summary.meanAbsPct != null ? `${summary.meanAbsPct}%` : "—"}
+                    label="Mean gap vs PriceLabs"
+                    hint={summary.count ? `${summary.count} nights` : "no PriceLabs data"}
+                  />
+                  <StatCard icon={DollarSign} value={fmtUsd(summary.ourMean)} label="Our avg nightly" tone="info" />
+                  <StatCard icon={DollarSign} value={fmtUsd(summary.plMean)} label="PriceLabs avg nightly" tone="info" />
+                  <StatCard
+                    icon={Percent}
+                    value={summary.richerPct != null ? `${summary.richerPct}%` : "—"}
+                    label="Nights we price higher"
+                    tone={summary.richerPct != null && summary.richerPct > 55 ? "warning" : "info"}
+                  />
+                </div>
+              )}
+              <ComparisonChart snapshot={data?.snapshot ?? []} />
+              {data && data.divergence.length > 1 && <DivergenceTrend points={data.divergence} />}
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Per-night detail</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <CalendarTable data={data} />
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
     </div>
   );
@@ -256,19 +262,19 @@ export default function PricingLabPage() {
 function DivergenceTrend({ points }: { points: PricingLabData["divergence"] }) {
   const max = Math.max(...points.map((p) => p.mean_abs_pct), 1);
   return (
-    <div className="space-y-1">
-      {points.map((p) => (
-        <div key={p.snapshot_date} className="flex items-center gap-3 text-sm">
-          <span className="w-16 shrink-0 text-muted-foreground">{fmtDate(p.snapshot_date)}</span>
-          <div className="h-3 flex-1 overflow-hidden rounded-full bg-muted">
-            <div
-              className="h-full rounded-full"
-              style={{ width: `${(p.mean_abs_pct / max) * 100}%`, background: "var(--series-ours)" }}
-            />
+    <div>
+      <p className="mb-2 text-sm font-medium">Divergence over time</p>
+      <div className="space-y-1">
+        {points.map((p) => (
+          <div key={p.snapshot_date} className="flex items-center gap-3 text-sm">
+            <span className="w-16 shrink-0 text-muted-foreground">{fmtDate(p.snapshot_date)}</span>
+            <div className="h-3 flex-1 overflow-hidden rounded-full bg-muted">
+              <div className="h-full rounded-full" style={{ width: `${(p.mean_abs_pct / max) * 100}%`, background: "var(--series-ours)" }} />
+            </div>
+            <span className="w-14 shrink-0 text-right font-medium">{p.mean_abs_pct}%</span>
           </div>
-          <span className="w-14 shrink-0 text-right font-medium">{p.mean_abs_pct}%</span>
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   );
 }
@@ -310,7 +316,7 @@ function CalendarTable({ data }: { data: PricingLabData | null }) {
                   {fmtUsd(r.pl_user_price_cents)}
                 </TableCell>
                 <TableCell className="text-right">
-                  {delta == null ? "—" : (delta >= 0 ? "+" : "") + fmtUsd(Math.abs(delta)).replace("$", delta < 0 ? "-$" : "$")}
+                  {delta == null ? "—" : (delta >= 0 ? "+" : "-") + fmtUsd(Math.abs(delta))}
                 </TableCell>
                 <TableCell className="text-center">{r.our_min_stay ?? "—"}</TableCell>
                 <TableCell className="text-xs text-muted-foreground">{explainFactors(r.factors)}</TableCell>

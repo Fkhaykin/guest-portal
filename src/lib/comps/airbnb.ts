@@ -98,23 +98,35 @@ export async function fetchCompCalendar(airbnbId: string): Promise<CompCalendarD
 /** Fetch the listing page once and extract (a) the current StaysPdpSections
  *  operation hash from its route bundle, (b) the full variables template from
  *  the page's embedded Apollo cache key. Self-heals when Airbnb rotates
- *  hashes or reshapes the request. */
-export async function discoverPdpContext(airbnbId: string): Promise<PdpContext> {
+ *  hashes or reshapes the request.
+ *
+ *  When scraping many comps in one run, pass a `sharedHash` (from a previous
+ *  call's ctx.hash) to skip the expensive ~180KB route-bundle fetch — the
+ *  StaysPdpSections operation id is site-wide, only the variables template is
+ *  per-listing. */
+export async function discoverPdpContext(
+  airbnbId: string,
+  sharedHash?: string
+): Promise<PdpContext> {
   const pageRes = await fetch(`https://www.airbnb.com/rooms/${airbnbId}`, {
     headers: { "User-Agent": UA, Accept: "text/html,application/xhtml+xml" },
   });
   if (!pageRes.ok) throw new Error(`Airbnb rooms page ${pageRes.status}`);
   const html = await pageRes.text();
 
-  const bundleMatch = html.match(
-    /https:\/\/a0\.muscache\.com\/airbnb\/static\/packages\/web\/[^"]*PdpPlatformRoute\.[a-f0-9]+\.js/
-  );
-  if (!bundleMatch) throw new Error("Airbnb PDP bundle URL not found in page");
-  const bundle = await (await fetch(bundleMatch[0], { headers: { "User-Agent": UA } })).text();
-  const hashMatch = bundle.match(
-    /name:'StaysPdpSections',type:'query',operationId:'([a-f0-9]{64})'/
-  );
-  if (!hashMatch) throw new Error("StaysPdpSections hash not found in bundle");
+  let hash = sharedHash;
+  if (!hash) {
+    const bundleMatch = html.match(
+      /https:\/\/a0\.muscache\.com\/airbnb\/static\/packages\/web\/[^"]*PdpPlatformRoute\.[a-f0-9]+\.js/
+    );
+    if (!bundleMatch) throw new Error("Airbnb PDP bundle URL not found in page");
+    const bundle = await (await fetch(bundleMatch[0], { headers: { "User-Agent": UA } })).text();
+    const hashMatch = bundle.match(
+      /name:'StaysPdpSections',type:'query',operationId:'([a-f0-9]{64})'/
+    );
+    if (!hashMatch) throw new Error("StaysPdpSections hash not found in bundle");
+    hash = hashMatch[1];
+  }
 
   // The page stores the SSR query's variables as an escaped JSON cache key.
   const doc = html.replace(/\\"/g, '"').replace(/\\\\/g, "\\");
@@ -152,7 +164,7 @@ export async function discoverPdpContext(airbnbId: string): Promise<PdpContext> 
   if (end < 0) throw new Error("StaysPdpSections cache key not parseable");
   const variablesTemplate = JSON.parse(frag.slice(0, end)) as Record<string, unknown>;
 
-  return { hash: hashMatch[1], variablesTemplate };
+  return { hash, variablesTemplate };
 }
 
 export async function probeCompPrice(

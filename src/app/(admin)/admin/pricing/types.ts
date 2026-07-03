@@ -36,7 +36,23 @@ export interface CompRow {
   is_active: boolean;
   last_scraped_at: string | null;
   last_error: string | null;
+  lat: number | null;
+  lng: number | null;
+  bedrooms: number | null;
+  rating: number | null;
+  review_count: number | null;
   stats: { occupancy30: number | null; medianPriceCents: number | null };
+}
+
+export interface MarketPoint {
+  stay_date: string;
+  occupancy: number | null;
+  compsCounted: number;
+  p25: number | null;
+  p50: number | null;
+  p75: number | null;
+  p90: number | null;
+  pricesCounted: number;
 }
 
 export interface PricingLabData {
@@ -45,6 +61,10 @@ export interface PricingLabData {
   snapshot: SnapshotRow[];
   divergence: DivergencePoint[];
   comps: CompRow[];
+  market: MarketPoint[];
+  metrics: { occ7: number; occ30: number; occ60: number };
+  house: { lat: number; lng: number } | null;
+  today: string;
 }
 
 export const fmtUsd = (cents: number | null | undefined): string =>

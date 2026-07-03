@@ -12,9 +12,10 @@ import { todayInTz } from "@/lib/pricing/engine";
 export const maxDuration = 300;
 
 const CALENDAR_HORIZON_DAYS = 365;
-const PROBE_WEEKENDS = 6;
-const PROBE_MIDWEEKS = 4;
+const PROBE_WEEKENDS = 5;
+const PROBE_MIDWEEKS = 3;
 const PROBE_HORIZON_DAYS = 120;
+const BATCH_SIZE = 14; // comps per invocation — the rest roll to the next run/day
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -40,7 +41,8 @@ export async function GET(request: Request) {
     .from("comp_listing")
     .select("id, nickname, airbnb_id, label, is_self")
     .eq("is_active", true)
-    .order("last_scraped_at", { ascending: true, nullsFirst: true });
+    .order("last_scraped_at", { ascending: true, nullsFirst: true })
+    .limit(BATCH_SIZE);
   if (error) {
     return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
   }
@@ -48,10 +50,12 @@ export async function GET(request: Request) {
   const results: { airbnb_id: string; days: number; probes: number }[] = [];
   const errors: { airbnb_id: string; reason: string }[] = [];
 
-  // One PDP context is discovered per run (hash + variables template are not
-  // listing-specific except for the ids, which probeCompPrice patches — but the
-  // template embeds the listing id it was discovered from, so discover per
-  // listing to keep ids consistent).
+  // The StaysPdpSections operation hash is site-wide; discover it from the
+  // first comp's route bundle, then reuse it for the rest of the batch so each
+  // subsequent comp skips the ~180KB bundle fetch (only its per-listing
+  // variables template is re-read from its page).
+  let sharedHash: string | undefined;
+
   for (const comp of comps ?? []) {
     try {
       const days = await fetchCompCalendar(comp.airbnb_id);
@@ -70,7 +74,8 @@ export async function GET(request: Request) {
       await sleep(jitterMs());
       let probes = 0;
       try {
-        const ctx = await discoverPdpContext(comp.airbnb_id);
+        const ctx = await discoverPdpContext(comp.airbnb_id, sharedHash);
+        sharedHash = ctx.hash;
         const windows = pickProbeWindows(horizon, {
           weekends: PROBE_WEEKENDS,
           midweeks: PROBE_MIDWEEKS,

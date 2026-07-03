@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { computeRates, todayInTz, DEFAULT_RULES, type PricingRules } from "@/lib/pricing/engine";
 import { loadOccupiedNights } from "@/lib/pricing/data";
+import { loadMarketByDate, occupancyWindow } from "@/lib/pricing/market";
 
 async function requireAdmin() {
   const supabase = await createClient();
@@ -82,7 +83,9 @@ export async function GET(request: NextRequest) {
   // Comp set + latest comp snapshot aggregates (next 30 stay dates).
   const { data: comps } = await admin
     .from("comp_listing")
-    .select("id, airbnb_id, label, url, is_self, is_active, last_scraped_at, last_error")
+    .select(
+      "id, airbnb_id, label, url, is_self, is_active, last_scraped_at, last_error, lat, lng, bedrooms, rating, review_count"
+    )
     .ilike("nickname", config.nickname)
     .order("is_self", { ascending: false })
     .order("created_at");
@@ -110,12 +113,33 @@ export async function GET(request: NextRequest) {
     };
   }
 
+  // Market bands + per-day occupancy from comps (drives demand shading + the
+  // Neighborhood Data chart), our own occupancy metrics, and the house anchor
+  // coordinate for the competitor map (taken from the is_self comp).
+  const horizonEnd = addDaysIso(today, 365);
+  const marketByDate = await loadMarketByDate(admin, config.nickname, today, horizonEnd);
+  const market = [...marketByDate.values()].sort((a, b) => a.stay_date.localeCompare(b.stay_date));
+
+  const occupied = await loadOccupiedNights(admin, config.nickname, today, 365);
+  const metrics = {
+    occ7: occupancyWindow(occupied, today, 7),
+    occ30: occupancyWindow(occupied, today, 30),
+    occ60: occupancyWindow(occupied, today, 60),
+  };
+
+  const self = (comps ?? []).find((c) => c.is_self && c.lat != null && c.lng != null);
+  const house = self ? { lat: self.lat as number, lng: self.lng as number } : null;
+
   return NextResponse.json({
     config,
     latest_snapshot_date: latestDate,
     snapshot,
     divergence,
     comps: (comps ?? []).map((c) => ({ ...c, stats: compStats[c.id] })),
+    market,
+    metrics,
+    house,
+    today,
   });
 }
 

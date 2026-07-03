@@ -4,7 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
-import { Star, MapPin, Calendar, ArrowRight, Home } from "lucide-react";
+import { Star, Calendar, ArrowRight, Home } from "lucide-react";
 import {
   REVIEWS,
   REVIEW_STATS,
@@ -136,14 +136,25 @@ export function ReviewsCarousel({
   ctaHref,
   ctaLabel = "See for yourself, book now!",
   propertyName,
+  propertyNames,
 }: {
   ctaHref?: string;
   ctaLabel?: string;
   propertyName?: string;
+  /** Match several property-row names at once (old + new rows of one house) */
+  propertyNames?: string[];
 } = {}) {
-  const reviews = propertyName
-    ? REVIEWS.filter((r) => r.property === propertyName && r.text.length > 80).slice(0, 20)
+  const names = propertyNames ?? (propertyName ? [propertyName] : null);
+  const filtered = names
+    ? REVIEWS.filter((r) => names.includes(r.property))
+    : null;
+  const reviews = filtered
+    ? filtered.filter((r) => r.text.length > 80).slice(0, 20)
     : MASONRY_REVIEWS;
+  const averageRating = filtered?.length
+    ? (filtered.reduce((sum, r) => sum + r.rating, 0) / filtered.length).toFixed(2)
+    : REVIEW_STATS.averageRating;
+  const totalCount = filtered ? filtered.length : REVIEW_STATS.totalCount;
 
   return (
     <section className="px-4 sm:px-6 py-10 max-w-6xl mx-auto w-full">
@@ -154,8 +165,8 @@ export function ReviewsCarousel({
           Guest Reviews
         </h2>
         <p className="text-muted-foreground">
-          {propertyName
-            ? `${REVIEWS.filter((r) => r.property === propertyName).length} verified guest reviews`
+          {filtered
+            ? `${totalCount} verified guest reviews`
             : `${REVIEW_STATS.totalCount}+ verified guest reviews across all properties`}
         </p>
       </div>
@@ -163,7 +174,7 @@ export function ReviewsCarousel({
       {/* Rating summary bar */}
       <div className="flex items-center gap-4 mb-8 flex-wrap">
         <div className="flex items-center gap-1.5">
-          <span className="text-3xl font-bold">{REVIEW_STATS.averageRating}</span>
+          <span className="text-3xl font-bold">{averageRating}</span>
           <div className="flex gap-0.5">
             {Array.from({ length: 5 }, (_, i) => (
               <Star
@@ -179,14 +190,16 @@ export function ReviewsCarousel({
             variant="secondary"
             className={`${platformColor.Airbnb} border-0 text-xs font-medium`}
           >
-            Airbnb · {REVIEW_STATS.totalCount} reviews
+            Airbnb · {totalCount} reviews
           </Badge>
-          <Badge
-            variant="secondary"
-            className="bg-muted text-muted-foreground border-0 text-xs font-medium"
-          >
-            {REVIEW_STATS.propertyCount} properties
-          </Badge>
+          {!filtered && (
+            <Badge
+              variant="secondary"
+              className="bg-muted text-muted-foreground border-0 text-xs font-medium"
+            >
+              {REVIEW_STATS.propertyCount} properties
+            </Badge>
+          )}
         </div>
       </div>
 

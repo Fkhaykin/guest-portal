@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getListingProfile } from "@/lib/comps/discover";
 
 async function requireAdmin() {
   const supabase = await createClient();
@@ -36,6 +37,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Could not parse an Airbnb listing id" }, { status: 400 });
   }
 
+  // Best-effort geocode + bedroom count from the listing page so the comp shows
+  // on the competitor map and in bedroom-matched stats immediately.
+  let geo: { lat: number; lng: number; bedrooms: number | null } | null = null;
+  try {
+    const p = await getListingProfile(airbnbId);
+    geo = { lat: p.lat, lng: p.lng, bedrooms: p.bedrooms };
+  } catch {
+    // leave null; the daily scrape can backfill later
+  }
+
   const admin = createAdminClient();
   const { data: comp, error } = await admin
     .from("comp_listing")
@@ -44,6 +55,9 @@ export async function POST(request: NextRequest) {
       airbnb_id: airbnbId,
       label: body.label?.trim() || null,
       url: `https://www.airbnb.com/rooms/${airbnbId}`,
+      lat: geo?.lat ?? null,
+      lng: geo?.lng ?? null,
+      bedrooms: geo?.bedrooms ?? null,
     })
     .select("id, airbnb_id, label, url, is_self, is_active, last_scraped_at, last_error")
     .single();

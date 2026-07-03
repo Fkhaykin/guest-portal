@@ -103,6 +103,14 @@
   --series-ours: #2a78d6;
   --series-pl: #1baf7a;
   --series-pl-rec: #eda100;
+
+  /* Calendar demand bands (PriceLabs-style: low→high). Tints of the demand
+     hues at ~18% so day prices stay legible on top. */
+  --demand-low: #fbe4d5;
+  --demand-normal: #fdf3cf;
+  --demand-good: #d8f0dd;
+  --demand-high: #d5e6fb;
+  --demand-unavailable: #ececeb;
 }
 
 .dark {
@@ -110,6 +118,13 @@
   --series-ours: #3987e5;
   --series-pl: #199e70;
   --series-pl-rec: #c98500;
+
+  /* demand bands, dark: deep tints that keep white price text readable */
+  --demand-low: #4a2c1c;
+  --demand-normal: #453b18;
+  --demand-good: #1e3a26;
+  --demand-high: #1c3352;
+  --demand-unavailable: #26262a;
 
   --background: oklch(0.15 0.014 245);
   --foreground: oklch(0.97 0.005 240);
