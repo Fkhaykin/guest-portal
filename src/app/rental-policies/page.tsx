@@ -17,7 +17,7 @@ export const metadata = {
 };
 
 const HERO_IMG =
-  "https://a0.muscache.com/im/pictures/ec9df551-d43c-4294-ad20-7d1ba43b4840.jpg?im_w=1920";
+  "https://a0.muscache.com/im/pictures/f5f31bab-faec-4b26-b3c9-cb356293126a.jpg?im_w=1920";
 
 /* ------------------------------------------------------------------ */
 /*  Policy sections                                                    */
@@ -536,7 +536,7 @@ export default function RentalPoliciesPage() {
       <section className="relative h-[60vh] min-h-120 overflow-hidden">
         <img
           src={HERO_IMG}
-          alt="Lakehouse at golden hour"
+          alt="Lakefront house with Adirondack chairs around the fire pit"
           className="absolute inset-0 w-full h-full object-cover"
         />
         <div className="absolute inset-0 bg-linear-to-b from-black/50 via-black/45 to-black/85" />

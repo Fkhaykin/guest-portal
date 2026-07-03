@@ -32,7 +32,7 @@ const IMG = (id: string, w: 720 | 1200 | 1920 = 1200) =>
   `https://a0.muscache.com/im/pictures/${id}.jpg?im_w=${w}`;
 
 const HERO = IMG("5ce084b8-38ea-4bd9-9bbd-d16629eb6a21", 1920);
-const INTRO = IMG("ec9df551-d43c-4294-ad20-7d1ba43b4840", 1200);
+const INTRO = IMG("1f3f8cb2-8db6-450c-93de-1404b66853df", 1200);
 const TECH_BG = IMG("11d2c493-87e1-4534-acdc-e1ff0f1f5832", 1920);
 const PULLQUOTE_BG = IMG("0f3c2d87-7cd0-45bc-bf57-efdcbda6ac7e", 1920);
 const CLOSING = IMG("f5f31bab-faec-4b26-b3c9-cb356293126a", 1920);

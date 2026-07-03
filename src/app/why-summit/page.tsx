@@ -21,7 +21,7 @@ import {
 const IMG = (id: string, w: 720 | 1200 | 1920 = 1200) =>
   `https://a0.muscache.com/im/pictures/${id}.jpg?im_w=${w}`;
 
-const HERO = IMG("ec9df551-d43c-4294-ad20-7d1ba43b4840", 1920);
+const HERO = IMG("0e486a34-6ae4-45cb-bce1-22ce19b09e06", 1920);
 const ORIGIN = IMG("f5f31bab-faec-4b26-b3c9-cb356293126a");
 const PULLQUOTE_BG = IMG("0f3c2d87-7cd0-45bc-bf57-efdcbda6ac7e", 1920);
 const HOSPITALITY_A = IMG("19bc7783-e053-41be-baf7-5588ee941de9");
@@ -127,7 +127,7 @@ export default function WhySummitPage() {
       <section className="relative h-screen min-h-160 overflow-hidden">
         <img
           src={HERO}
-          alt="Firepit by the lake at golden hour"
+          alt="Aerial view of the lake and surrounding community"
           className="absolute inset-0 w-full h-full object-cover"
         />
         <div className="absolute inset-0 bg-linear-to-b from-black/40 via-black/30 to-black/85" />
