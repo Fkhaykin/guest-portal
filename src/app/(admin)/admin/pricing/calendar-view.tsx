@@ -15,7 +15,13 @@ function ymd(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
 function monthLabel(y: number, m: number): string {
-  return new Date(Date.UTC(y, m, 1)).toLocaleDateString("en-US", { month: "long", year: "numeric" });
+  // timeZone: "UTC" — the cell dates are UTC-anchored; without it the label
+  // renders the previous month for US-negative offsets (July grid says "June").
+  return new Date(Date.UTC(y, m, 1)).toLocaleDateString("en-US", {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  });
 }
 function eventLabelFor(row: SnapshotRow, config: PricingConfig): string | null {
   const f = row.factors;

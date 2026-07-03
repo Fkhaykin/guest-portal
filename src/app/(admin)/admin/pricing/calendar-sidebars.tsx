@@ -5,17 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Loader2, Pencil } from "lucide-react";
+import { Loader2, Pencil, Check } from "lucide-react";
 import type { PricingConfig, PricingLabData } from "./types";
-import type { PricingRules } from "@/lib/pricing/engine";
-import { RulesEditor } from "./customizations-editor";
+import { CustomizationsModal } from "./customizations-modal";
+import { CUSTOMIZATION_ITEMS, appliedCount } from "./customization-items";
 
 /** Left rail: Min / Base / Max quick edit + an applied-customizations summary,
  *  matching PriceLabs' "Configure Prices" sidebar. */
@@ -39,34 +32,11 @@ export function ConfigureRail({
     Math.round(config.max_price_cents / 100) !== Number(max);
 
   const rules = config.rules;
-  const dowPeak = Math.max(...(rules.dowPct ?? [0]));
-  const custom: { title: string; detail: string }[] = [
-    {
-      title: "Last-minute",
-      detail:
-        rules.leadtime?.some((s) => s.pct < 0)
-          ? `Up to ${Math.abs(Math.min(...rules.leadtime.map((s) => s.pct)))}% off as check-in nears`
-          : "None",
-    },
-    {
-      title: "Orphan-gap prices",
-      detail: rules.gap?.pct ? `${rules.gap.pct}% on gaps ≤ ${rules.gap.maxGapNights} nights` : "None",
-    },
-    {
-      title: "Occupancy (pace)",
-      detail: rules.pace?.enabled ? `±${rules.pace.maxPct}% vs target occupancy` : "Off",
-    },
-    {
-      title: "Day-of-week",
-      detail: dowPeak ? `Weekend +${dowPeak}%` : "None",
-    },
-    {
-      title: "Minimum stay",
-      detail: `${rules.minStay?.base ?? 2} nights${
-        rules.minStay?.lastMinute ? `, ${rules.minStay.lastMinute.value} within ${rules.minStay.lastMinute.withinDays}d` : ""
-      }`,
-    },
-  ];
+  // Registry-driven: show applied customizations with their plain-English
+  // summaries (a couple of key non-applied ones too so they're discoverable).
+  const applied = CUSTOMIZATION_ITEMS.filter((it) => it.applied(rules));
+  const shown = applied.length ? applied : CUSTOMIZATION_ITEMS.slice(0, 4);
+  const total = appliedCount(rules);
 
   return (
     <div className="space-y-4">
@@ -101,23 +71,33 @@ export function ConfigureRail({
       <Card>
         <CardContent className="space-y-3 p-4">
           <div className="flex items-center justify-between">
-            <span className="text-sm font-semibold">Applied Customizations</span>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold">Applied Customizations</span>
+              <span className="rounded-full bg-muted px-1.5 text-xs font-medium text-muted-foreground">{total}</span>
+            </div>
             <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
               <Pencil className="h-3.5 w-3.5" /> Edit
             </Button>
           </div>
           <div className="space-y-2.5">
-            {custom.map((c) => (
-              <div key={c.title}>
-                <div className="text-xs font-medium">{c.title}</div>
-                <div className="text-xs text-muted-foreground">{c.detail}</div>
-              </div>
+            {shown.map((it) => (
+              <button
+                key={it.key}
+                onClick={() => setEditOpen(true)}
+                className="block w-full text-left"
+              >
+                <div className="flex items-center gap-1 text-xs font-medium">
+                  {it.applied(rules) && <Check className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />}
+                  {it.title}
+                </div>
+                <div className="text-xs text-muted-foreground">{it.summary(rules)}</div>
+              </button>
             ))}
           </div>
         </CardContent>
       </Card>
 
-      <CustomizationsDialog
+      <CustomizationsModal
         open={editOpen}
         onOpenChange={setEditOpen}
         config={config}
@@ -125,66 +105,6 @@ export function ConfigureRail({
         saving={saving}
       />
     </div>
-  );
-}
-
-/** PriceLabs-style "Edit customizations" dialog — the full rules editor,
- *  reachable straight from the calendar rail. */
-function CustomizationsDialog({
-  open,
-  onOpenChange,
-  config,
-  onSave,
-  saving,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  config: PricingConfig;
-  onSave: (patch: Partial<PricingConfig>) => void;
-  saving: boolean;
-}) {
-  const [rules, setRules] = useState<PricingRules>(config.rules);
-  // Re-seed local state each time the dialog opens so it reflects saved config.
-  const [seededFor, setSeededFor] = useState<string | null>(null);
-  if (open && seededFor !== config.id + JSON.stringify(config.rules).length) {
-    setRules(config.rules);
-    setSeededFor(config.id + JSON.stringify(config.rules).length);
-  }
-
-  function save() {
-    onSave({
-      rules: {
-        ...rules,
-        seasons: (rules.seasons ?? []).filter((s) => s.from && s.to),
-        events: (rules.events ?? []).filter((e) => e.from && e.to),
-        overrides: (rules.overrides ?? []).filter((o) => o.date),
-        minStay: {
-          ...rules.minStay,
-          seasons: (rules.minStay?.seasons ?? []).filter((s) => s.from && s.to),
-        },
-      },
-    });
-    onOpenChange(false);
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[85vh] max-w-3xl overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Customizations — {config.nickname}</DialogTitle>
-        </DialogHeader>
-        <RulesEditor rules={rules} onChange={setRules} />
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button onClick={save} disabled={saving}>
-            {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-            Save & Refresh
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
   );
 }
 

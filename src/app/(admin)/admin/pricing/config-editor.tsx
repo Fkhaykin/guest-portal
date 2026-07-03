@@ -4,12 +4,16 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2 } from "lucide-react";
+import { Loader2, Check } from "lucide-react";
 import type { PricingConfig } from "./types";
 import type { PricingRules } from "@/lib/pricing/engine";
-import { RulesEditor } from "./customizations-editor";
+import { CUSTOMIZATION_ITEMS } from "./customization-items";
 
+// Full configuration surface: price anchors + every customization inline
+// (each with its plain-English summary + editor), mirroring the modal's pages
+// but on one scrollable page for power-editing.
 export function ConfigEditor({
   config,
   onSave,
@@ -34,10 +38,7 @@ export function ConfigEditor({
         seasons: (rules.seasons ?? []).filter((s) => s.from && s.to),
         events: (rules.events ?? []).filter((e) => e.from && e.to),
         overrides: (rules.overrides ?? []).filter((o) => o.date),
-        minStay: {
-          ...rules.minStay,
-          seasons: (rules.minStay?.seasons ?? []).filter((s) => s.from && s.to),
-        },
+        minStay: { ...rules.minStay, seasons: (rules.minStay?.seasons ?? []).filter((s) => s.from && s.to) },
       },
     });
   }
@@ -55,7 +56,32 @@ export function ConfigEditor({
         </CardContent>
       </Card>
 
-      <RulesEditor rules={rules} onChange={setRules} />
+      {CUSTOMIZATION_ITEMS.map((it) => (
+        <Card key={it.key}>
+          <CardHeader className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base">{it.title}</CardTitle>
+              <Badge
+                variant="secondary"
+                className={it.applied(rules) ? "bg-emerald-600/15 text-emerald-700 dark:text-emerald-400" : ""}
+              >
+                {it.applied(rules) ? (
+                  <>
+                    <Check className="mr-1 h-3 w-3" /> Applied
+                  </>
+                ) : (
+                  "Off"
+                )}
+              </Badge>
+            </div>
+            <p className="text-xs text-muted-foreground">{it.explainer}</p>
+            <p className="text-sm">{it.summary(rules)}</p>
+          </CardHeader>
+          <CardContent>
+            <it.Editor rules={rules} onChange={setRules} />
+          </CardContent>
+        </Card>
+      ))}
 
       <div className="sticky bottom-4 flex justify-end">
         <Button onClick={save} disabled={saving} size="lg" className="shadow-lg">
