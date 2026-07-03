@@ -12,17 +12,25 @@ export interface NightlyRate {
   min_stay: number;
 }
 
+export interface RawListingPrice {
+  date: string;
+  price: number | null; // PriceLabs recommendation, dollars (-1/null = none)
+  user_price: number | null; // price actually pushed to the PMS (-1 = booked night)
+  min_stay: number | null;
+}
+
 /**
- * Fetch per-night dynamic rates from PriceLabs.
- * Listing ID format: "{lodgifyPropertyId}___{lodgifyRoomId}"
- * Returns rates for check-in through day-before-checkout.
+ * Fetch the raw PriceLabs price rows for a date range without interpreting
+ * them. Unlike getNightlyRates this never throws on booked nights (-1
+ * sentinels are passed through), so it can pull a full 365-day calendar —
+ * used by the pricing shadow cron to snapshot PriceLabs for comparison.
  */
-export async function getNightlyRates(
+export async function getRawListingPrices(
   lodgifyPropertyId: number,
   lodgifyRoomId: number,
-  checkIn: string,
-  checkOut: string
-): Promise<NightlyRate[]> {
+  dateFrom: string,
+  dateTo: string
+): Promise<RawListingPrice[]> {
   const listingId = `${lodgifyPropertyId}___${lodgifyRoomId}`;
 
   const res = await fetch(`${PRICELABS_BASE_URL}/v1/listing_prices`, {
@@ -37,8 +45,8 @@ export async function getNightlyRates(
         {
           id: listingId,
           pms: "lodgify",
-          dateFrom: checkIn,
-          dateTo: checkOut,
+          dateFrom,
+          dateTo,
         },
       ],
     }),
@@ -62,12 +70,34 @@ export async function getNightlyRates(
     );
   }
 
+  return listing.data.map((d) => ({
+    date: d.date,
+    price: typeof d.price === "number" ? d.price : null,
+    user_price: typeof d.user_price === "number" ? d.user_price : null,
+    min_stay: typeof d.min_stay === "number" ? d.min_stay : null,
+  }));
+}
+
+/**
+ * Fetch per-night dynamic rates from PriceLabs.
+ * Listing ID format: "{lodgifyPropertyId}___{lodgifyRoomId}"
+ * Returns rates for check-in through day-before-checkout.
+ */
+export async function getNightlyRates(
+  lodgifyPropertyId: number,
+  lodgifyRoomId: number,
+  checkIn: string,
+  checkOut: string
+): Promise<NightlyRate[]> {
+  const listingId = `${lodgifyPropertyId}___${lodgifyRoomId}`;
+  const raw = await getRawListingPrices(lodgifyPropertyId, lodgifyRoomId, checkIn, checkOut);
+
   // Use user_price (the customized price actually pushed to the PMS like
   // Lodgify) instead of price (PriceLabs's raw recommendation). Falls back
   // to price if user_price isn't present or is -1 (sentinel PriceLabs uses
   // for already-booked nights). Filter to check-in through day-before-
   // checkout (checkout day is not charged).
-  const nights = listing.data.filter((d) => d.date >= checkIn && d.date < checkOut);
+  const nights = raw.filter((d) => d.date >= checkIn && d.date < checkOut);
   const rates = nights.map((d) => {
     const userPrice = typeof d.user_price === "number" && d.user_price > 0 ? d.user_price : null;
     const price = typeof d.price === "number" && d.price > 0 ? d.price : null;
@@ -80,7 +110,7 @@ export async function getNightlyRates(
     return {
       date: d.date,
       price_cents: Math.round(chosen * 100),
-      min_stay: d.min_stay,
+      min_stay: d.min_stay ?? 1,
     };
   });
   return rates;

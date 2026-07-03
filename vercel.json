@@ -23,6 +23,14 @@
     {
       "path": "/api/cron/marketing-campaigns",
       "schedule": "0 15 * * *"
+    },
+    {
+      "path": "/api/cron/pricing-shadow",
+      "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/cron/comp-scrape",
+      "schedule": "30 8 * * *"
     }
   ]
 }

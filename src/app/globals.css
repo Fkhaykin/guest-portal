@@ -97,9 +97,20 @@
   --sidebar-accent-foreground: oklch(0.3 0.05 240);
   --sidebar-border: oklch(0.91 0.009 240);
   --sidebar-ring: oklch(0.6 0.085 235);
+
+  /* Pricing Lab chart series (validated categorical slots 1–3, light mode).
+     Ours = blue, PriceLabs pushed = aqua, PriceLabs recommended = yellow. */
+  --series-ours: #2a78d6;
+  --series-pl: #1baf7a;
+  --series-pl-rec: #eda100;
 }
 
 .dark {
+  /* dark-mode steps of the same validated categorical slots */
+  --series-ours: #3987e5;
+  --series-pl: #199e70;
+  --series-pl-rec: #c98500;
+
   --background: oklch(0.15 0.014 245);
   --foreground: oklch(0.97 0.005 240);
   --card: oklch(0.2 0.016 245);
