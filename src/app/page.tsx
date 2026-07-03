@@ -26,6 +26,7 @@ import {
   MapPin,
   Calendar,
   Users,
+  ChevronLeft,
   ChevronRight,
   Clock,
   DoorOpen,
@@ -695,12 +696,133 @@ function TripSummaryCard({ reservation }: { reservation: Reservation }) {
 /*  Property Card                                                      */
 /* ------------------------------------------------------------------ */
 
+/** How many photos the card carousel pages through before the
+ *  "click to view more" overlay slide. */
+const CARD_PHOTO_COUNT = 8;
+
+function PropertyCardCarousel({
+  property,
+  photos,
+}: {
+  property: Property;
+  photos: string[];
+}) {
+  const [index, setIndex] = useState(0);
+  // Only mount <img> tags up to one slide ahead of the furthest one viewed,
+  // so 5 cards × 9 photos don't all load on page load.
+  const [maxLoaded, setMaxLoaded] = useState(0);
+  const touchStart = useRef<number | null>(null);
+
+  const slides = photos.slice(0, CARD_PHOTO_COUNT);
+  const overlayPhoto = photos.length > CARD_PHOTO_COUNT ? photos[CARD_PHOTO_COUNT] : null;
+  const slideCount = slides.length + (overlayPhoto ? 1 : 0);
+
+  const goTo = (next: number) => {
+    const clamped = (next + slideCount) % slideCount;
+    setIndex(clamped);
+    setMaxLoaded((m) => Math.max(m, clamped + 1));
+  };
+
+  return (
+    <div
+      className="relative h-full overflow-hidden"
+      onTouchStart={(e) => {
+        touchStart.current = e.touches[0].clientX;
+      }}
+      onTouchEnd={(e) => {
+        if (touchStart.current === null) return;
+        const delta = e.changedTouches[0].clientX - touchStart.current;
+        touchStart.current = null;
+        if (Math.abs(delta) < 40) return;
+        goTo(delta < 0 ? index + 1 : index - 1);
+      }}
+    >
+      <div
+        className="flex h-full transition-transform duration-300 ease-out"
+        style={{ transform: `translateX(-${index * 100}%)` }}
+      >
+        {slides.map((url, i) => (
+          <div key={i} className="relative h-full w-full shrink-0 bg-muted">
+            {i <= maxLoaded && (
+              <img
+                src={url}
+                alt={`${property.name} — photo ${i + 1}`}
+                className="absolute inset-0 w-full h-full object-cover"
+              />
+            )}
+          </div>
+        ))}
+        {overlayPhoto && (
+          <div className="relative h-full w-full shrink-0 bg-muted">
+            {slides.length <= maxLoaded && (
+              <img
+                src={overlayPhoto}
+                alt={`${property.name} — more photos`}
+                className="absolute inset-0 w-full h-full object-cover"
+              />
+            )}
+            <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+              <span className="text-white text-sm font-semibold tracking-wide">
+                Click to view more
+              </span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Arrows — hidden until the card is hovered */}
+      {slideCount > 1 && (
+        <>
+          <button
+            type="button"
+            aria-label="Previous photo"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              goTo(index - 1);
+            }}
+            className="absolute left-2 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-foreground shadow-md opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity hover:bg-white"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            aria-label="Next photo"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              goTo(index + 1);
+            }}
+            className="absolute right-2 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-foreground shadow-md opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity hover:bg-white"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+
+          {/* Dots */}
+          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
+            {Array.from({ length: slideCount }).map((_, i) => (
+              <span
+                key={i}
+                className={`h-1.5 rounded-full transition-all duration-300 ${
+                  i === index ? "w-3 bg-white" : "w-1.5 bg-white/50"
+                }`}
+              />
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 function PropertyCard({
   property,
   bookingQuery,
+  photos,
 }: {
   property: Property;
   bookingQuery?: { checkIn: string; checkOut: string; guests: number } | null;
+  photos?: string[];
 }) {
   const nights = bookingQuery
     ? getNightCount(bookingQuery.checkIn, bookingQuery.checkOut)
@@ -714,7 +836,9 @@ function PropertyCard({
     <Link href={bookUrl} className="block">
       <Card className="pt-0 overflow-hidden group ring-1 ring-border/60 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:ring-border">
         <div className="relative h-48 sm:h-56">
-          {property.cover_image_url ? (
+          {photos && photos.length > 0 ? (
+            <PropertyCardCarousel property={property} photos={photos} />
+          ) : property.cover_image_url ? (
             <img
               src={property.cover_image_url}
               alt={property.name}
@@ -776,7 +900,8 @@ function PropertyCard({
           })()}
           {property.description && (
             <p className="text-sm text-muted-foreground line-clamp-2">
-              {property.description}
+              {/* Lodgify descriptions arrive as HTML — show plain text */}
+              {property.description.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim()}
             </p>
           )}
           {bookingQuery && nights && (
@@ -816,6 +941,9 @@ export default function HomeV2Page() {
     reservation: Reservation;
   } | null>(null);
   const [properties, setProperties] = useState<Property[]>([]);
+  const [propertyPhotos, setPropertyPhotos] = useState<
+    Record<string, string[]>
+  >({});
   const [loaded, setLoaded] = useState(false);
 
   // Rotate hero slides — images advance on a timer, videos advance on ended
@@ -863,6 +991,14 @@ export default function HomeV2Page() {
       .then(({ data }) => {
         if (data) setProperties(data);
       });
+
+    // Fetch photo galleries for the property card carousels
+    fetch("/api/property-photos")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.photos) setPropertyPhotos(data.photos);
+      })
+      .catch(() => {});
   }, []);
 
   if (!loaded) return null;
@@ -1025,13 +1161,17 @@ export default function HomeV2Page() {
           <div className="mb-8">
             <SectionHeading
               eyebrow="The Collection"
-              title="Our lakefront homes"
+              title="Our lakehouses"
               subtitle="Handpicked retreats on private Pocono Mountain lakes — each with hot tubs, boats, and direct water access."
             />
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {properties.map((property) => (
-              <PropertyCard key={property.id} property={property} />
+              <PropertyCard
+                key={property.id}
+                property={property}
+                photos={propertyPhotos[property.id]}
+              />
             ))}
           </div>
         </section>

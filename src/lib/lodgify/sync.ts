@@ -132,10 +132,11 @@ export async function syncProperties() {
         if (rehosted) coverImageUrl = rehosted;
       }
 
+      // Display names are managed on our side (may differ from the Lodgify
+      // listing title), so never overwrite `name` for existing properties.
       await supabase
         .from("property")
         .update({
-          name: lp.name,
           address: lp.address,
           description: lp.description,
           ...(coverImageUrl ? { cover_image_url: coverImageUrl } : {}),

@@ -43,7 +43,7 @@ const PROPERTY_SLUGS: Record<string, string> = {
   "Poconos Lakefront with Hot Tub, boats, and more!": "poconos-lakefront-with-hot-tub-boats-and-more",
   "Cozy Lakefront Home w/ Game Room, Hot Tub, Fire Pit, & Boats": "cozy-lakefront-home-w-game-room-hot-tub-fire-pit-boats",
   "Lakefront Mansion w/ 3 Decks, Hot Tub, Boats, & Game Room!": "lakefront-mansion-w-3-decks-hot-tub-boats-game-room",
-  "Luxury Lakefront Chalet in Poconos 1.5hrs from NYC": "luxury-lakefront-chalet-in-poconos-1-5hrs-from-nyc",
+  "Lakeview Chalet w/ hot tub, sauna, fire pit & decks": "luxury-lakefront-chalet-in-poconos-1-5hrs-from-nyc",
 };
 
 function ReviewCard({ review }: { review: Review }) {
