@@ -29,6 +29,46 @@ async function lodgifyFetch<T>(path: string, params?: Record<string, string>): P
   return res.json() as Promise<T>;
 }
 
+/**
+ * Like lodgifyFetch, but non-OK responses return the parsed error body instead
+ * of throwing, so callers can surface Lodgify's rejection reason — e.g. the
+ * quote API rejects with {"message":"The minimum stay for this rental is 2 days","code":666}.
+ */
+async function lodgifyFetchWithError<T>(
+  path: string,
+  params?: Record<string, string>
+): Promise<{ ok: true; data: T } | { ok: false; code: number | null; message: string }> {
+  const url = new URL(`${LODGIFY_BASE_URL}${path}`);
+  if (params) {
+    for (const [k, v] of Object.entries(params)) {
+      url.searchParams.set(k, v);
+    }
+  }
+
+  const res = await fetch(url.toString(), {
+    headers: {
+      "X-ApiKey": getApiKey(),
+      Accept: "application/json",
+    },
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    let message = text;
+    let code: number | null = null;
+    try {
+      const body = JSON.parse(text) as { message?: unknown; code?: unknown };
+      if (typeof body.message === "string") message = body.message;
+      if (typeof body.code === "number") code = body.code;
+    } catch {
+      // Non-JSON error body — keep the raw text as the message
+    }
+    return { ok: false, code, message };
+  }
+
+  return { ok: true, data: (await res.json()) as T };
+}
+
 // --- Types matching Lodgify API responses ---
 
 export interface LodgifyProperty {
@@ -267,25 +307,44 @@ export async function isPropertyAvailable(
   return periods.every((p) => p.available === 1);
 }
 
+export type LodgifyQuoteResult =
+  | { ok: true; total: number; roomRate: number | null; currency: string }
+  | { ok: false; code: number | null; message: string };
+
 /**
- * Get a price quote for a property over a date range.
- * Fetches the room type ID first, then requests a quote with it.
+ * Get a price quote for a property over a date range, surfacing Lodgify's
+ * rejection body on failure. Lodgify rejects sub-min-stay ranges and stale
+ * availability with code 666 and a human message ("The minimum stay for this
+ * rental is X days" / "The house is already booked on these dates"), which
+ * callers need to explain the failure to guests.
  */
-export async function getQuote(
+export async function getQuoteDetailed(
   propertyId: number,
   arrival: string,
   departure: string,
   guests: number = 2
-): Promise<{ total: number; roomRate: number | null; currency: string } | null> {
+): Promise<LodgifyQuoteResult> {
   try {
-    // Get room type ID (required by Lodgify quote API)
-    const rooms = await lodgifyFetch<{ id: number }[]>(
-      `/v2/properties/${propertyId}/rooms`
+    // Get room type ID (required by Lodgify quote API). The property→room
+    // mapping is static, so cache it — this halves quote latency and the
+    // pressure on Lodgify's rate limit.
+    const roomsRes = await fetch(
+      `${LODGIFY_BASE_URL}/v2/properties/${propertyId}/rooms`,
+      {
+        headers: { "X-ApiKey": getApiKey(), Accept: "application/json" },
+        next: { revalidate: 86400 },
+      }
     );
+    if (!roomsRes.ok) {
+      return { ok: false, code: null, message: `Rooms lookup failed (${roomsRes.status})` };
+    }
+    const rooms = (await roomsRes.json()) as { id: number }[];
     const roomId = rooms[0]?.id;
-    if (!roomId) return null;
+    if (!roomId) {
+      return { ok: false, code: null, message: `No room type found for property ${propertyId}` };
+    }
 
-    const data = await lodgifyFetch<
+    const result = await lodgifyFetchWithError<
       {
         total_including_vat: number | null;
         total_excluding_vat: number;
@@ -299,8 +358,10 @@ export async function getQuote(
       "roomTypes[0].people": String(guests),
     });
 
-    const quote = data[0];
-    if (!quote) return null;
+    if (!result.ok) return result;
+
+    const quote = result.data[0];
+    if (!quote) return { ok: false, code: null, message: "Empty quote response" };
 
     // Lodgify breaks the quote into price_types: 0 = Room rate, 1 = Promotion,
     // 2 = Fees (cleaning etc.), 4 = Taxes. We want just the room rate so
@@ -314,13 +375,29 @@ export async function getQuote(
       : null;
 
     return {
+      ok: true,
       total: quote.total_including_vat ?? quote.total_excluding_vat,
       roomRate,
       currency: quote.currency_code,
     };
-  } catch {
-    return null;
+  } catch (err) {
+    return { ok: false, code: null, message: err instanceof Error ? err.message : String(err) };
   }
+}
+
+/**
+ * Get a price quote for a property over a date range.
+ * Fetches the room type ID first, then requests a quote with it.
+ */
+export async function getQuote(
+  propertyId: number,
+  arrival: string,
+  departure: string,
+  guests: number = 2
+): Promise<{ total: number; roomRate: number | null; currency: string } | null> {
+  const result = await getQuoteDetailed(propertyId, arrival, departure, guests);
+  if (!result.ok) return null;
+  return { total: result.total, roomRate: result.roomRate, currency: result.currency };
 }
 
 export async function getBookingById(bookingId: number): Promise<LodgifyBooking> {

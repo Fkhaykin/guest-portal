@@ -25,6 +25,24 @@ type AvailabilityPeriod = {
   available: number;
 };
 
+type QuoteFailure = {
+  reason: "min_stay" | "unavailable" | "unknown";
+  minStay: number | null;
+  message: string | null;
+};
+
+// Failures that mean checkout would be rejected anyway — Reserve stays disabled.
+function blocksCheckout(failure: QuoteFailure | null) {
+  return failure?.reason === "min_stay" || failure?.reason === "unavailable";
+}
+
+// Compact failure copy for the tight mobile bar
+function compactFailureLabel(failure: QuoteFailure) {
+  if (failure.reason === "min_stay")
+    return failure.minStay ? `${failure.minStay}-night minimum` : "Minimum stay not met";
+  return "Dates unavailable";
+}
+
 function toDateStr(d: Date) {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
@@ -116,12 +134,15 @@ export function useBooking({
   });
 
   const [periods, setPeriods] = useState<AvailabilityPeriod[]>([]);
+  const [minStays, setMinStays] = useState<Record<string, number>>({});
+  const [defaultMinStay, setDefaultMinStay] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   // Quote results are keyed by their request signature so a stale response
   // (or a cleared selection) never shows the wrong price.
   const [quoteResult, setQuoteResult] = useState<{
     key: string;
     data: { total: number; roomRate: number | null; currency: string } | null;
+    failure: QuoteFailure | null;
   } | null>(null);
   const [calendarPulse, setCalendarPulse] = useState(false);
   const pulseTimeout = useRef<ReturnType<typeof setTimeout>>(null);
@@ -134,6 +155,9 @@ export function useBooking({
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         if (data?.periods) setPeriods(data.periods);
+        // Optional min-stay fields — when absent, no minimum is enforced
+        if (data?.minStays) setMinStays(data.minStays);
+        if (typeof data?.defaultMinStay === "number") setDefaultMinStay(data.defaultMinStay);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -149,17 +173,38 @@ export function useBooking({
       `/api/availability/quote?property_id=${lodgifyPropertyId}&arrival=${checkIn}&departure=${checkOut}&guests=${guests}`,
       { signal: controller.signal }
     )
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        setQuoteResult({ key: quoteKey, data: data?.total ? data : null });
+      .then(async (r) => {
+        const body = await r.json().catch(() => null);
+        // A cleanup-abort mid-body resolves the catch above with null — bail
+        // instead of writing a stale "no data" result for this key.
+        if (controller.signal.aborted) return;
+        if (r.ok) {
+          setQuoteResult({ key: quoteKey, data: body?.total ? body : null, failure: null });
+          return;
+        }
+        // 422 quote_failed carries a structured reason; anything else is opaque
+        const failure: QuoteFailure | null =
+          r.status === 422 && body?.error === "quote_failed"
+            ? {
+                reason:
+                  body.reason === "min_stay" || body.reason === "unavailable"
+                    ? body.reason
+                    : "unknown",
+                minStay: typeof body.minStay === "number" ? body.minStay : null,
+                message: typeof body.message === "string" ? body.message : null,
+              }
+            : null;
+        setQuoteResult({ key: quoteKey, data: null, failure });
       })
       .catch((e) => {
-        if (e.name !== "AbortError") setQuoteResult({ key: quoteKey, data: null });
+        if (e.name !== "AbortError")
+          setQuoteResult({ key: quoteKey, data: null, failure: null });
       });
     return () => controller.abort();
   }, [quoteKey, checkIn, checkOut, guests, lodgifyPropertyId]);
 
   const quote = quoteKey && quoteResult?.key === quoteKey ? quoteResult.data : null;
+  const quoteFailure = quoteKey && quoteResult?.key === quoteKey ? quoteResult.failure : null;
   const quoteLoading = !!quoteKey && quoteResult?.key !== quoteKey;
 
   // Keep the URL shareable/refreshable without re-rendering the route
@@ -201,6 +246,12 @@ export function useBooking({
     return bookedNights.has(dateStr);
   }
 
+  // Minimum nights for a stay starting on the given date. Absent min-stay
+  // data falls back to 1 — identical to the pre-min-stay behavior.
+  function minStayFor(dateStr: string) {
+    return minStays[dateStr] ?? defaultMinStay ?? 1;
+  }
+
   // True when every night of the stay [ci, co) is free. The checkout day (co)
   // is excluded — that night belongs to the next guest, not this stay.
   function rangeNightsFree(ci: string, co: string) {
@@ -210,21 +261,36 @@ export function useBooking({
     return true;
   }
 
+  // A day can begin a stay only if its own night is free AND the minimum stay
+  // fits before the next occupied night — otherwise selecting it dead-ends
+  // with zero valid checkouts (e.g. a 2-night gap under a 3-night minimum).
+  function canStartStay(dateStr: string) {
+    if (isNightBooked(dateStr)) return false;
+    const d = parseDate(dateStr);
+    d.setDate(d.getDate() + minStayFor(dateStr));
+    return rangeNightsFree(dateStr, toDateStr(d));
+  }
+
   function isPast(d: Date) {
     return d < today;
   }
 
   // Whether a day can be clicked given the current selection. When picking a
   // checkout (check-in already set), a day is valid if all nights up to — but
-  // not including — it are free; that day's own night may be booked (turnover).
+  // not including — it are free (that day's own night may be booked: turnover)
+  // AND the stay meets the check-in day's minimum.
   function isSelectable(dateStr: string, d: Date) {
     if (isPast(d)) return false;
     if (checkIn && !checkOut) {
       if (dateStr === checkIn) return true; // click again to clear
-      if (dateStr > checkIn) return rangeNightsFree(checkIn, dateStr);
-      return !isNightBooked(dateStr); // earlier day → potential new check-in
+      if (dateStr > checkIn)
+        return (
+          rangeNightsFree(checkIn, dateStr) &&
+          getNightCount(checkIn, dateStr) >= minStayFor(checkIn)
+        );
+      return canStartStay(dateStr); // earlier day → potential new check-in
     }
-    return !isNightBooked(dateStr);
+    return canStartStay(dateStr);
   }
 
   function handleDateClick(dateStr: string) {
@@ -233,7 +299,7 @@ export function useBooking({
 
     // Starting a new selection (nothing selected, or a complete range exists)
     if (!checkIn || (checkIn && checkOut)) {
-      if (isNightBooked(dateStr)) return; // can't begin a stay on an occupied night
+      if (!canStartStay(dateStr)) return; // occupied night, or gap under the minimum
       setCheckIn(dateStr);
       setCheckOut(null);
       return;
@@ -244,15 +310,16 @@ export function useBooking({
       setCheckIn(null);
     } else if (dateStr < checkIn) {
       // Clicked before the check-in → restart selection here if it can begin a stay
-      if (!isNightBooked(dateStr)) {
+      if (canStartStay(dateStr)) {
         setCheckIn(dateStr);
         setCheckOut(null);
       }
     } else if (rangeNightsFree(checkIn, dateStr)) {
-      setCheckOut(dateStr);
+      // Days below the minimum stay are disabled in the UI; guard anyway
+      if (getNightCount(checkIn, dateStr) >= minStayFor(checkIn)) setCheckOut(dateStr);
     } else {
       // Range crosses an occupied night → restart from the clicked day if possible
-      if (!isNightBooked(dateStr)) {
+      if (canStartStay(dateStr)) {
         setCheckIn(dateStr);
         setCheckOut(null);
       }
@@ -272,6 +339,8 @@ export function useBooking({
   }
 
   const nights = checkIn && checkOut ? getNightCount(checkIn, checkOut) : null;
+  // Minimum that applies to the stay being picked right now (null = no check-in)
+  const activeMinStay = checkIn ? minStayFor(checkIn) : null;
   const checkoutUrl =
     checkIn && checkOut
       ? `/book/${propertySlug}/checkout?check_in=${checkIn}&check_out=${checkOut}&guests=${guests}&pets=${pets}`
@@ -289,8 +358,10 @@ export function useBooking({
     petsAllowed,
     loading,
     quote,
+    quoteFailure,
     quoteLoading,
     nights,
+    activeMinStay,
     checkoutUrl,
     calendarPulse,
     isNightBooked,
@@ -306,14 +377,112 @@ export function useBooking({
 export type BookingState = ReturnType<typeof useBooking>;
 
 /* ------------------------------------------------------------------ */
-/*  Availability calendar — two months, hover range preview            */
+/*  Month grid — day painting shared by the inline calendar & popover  */
 /* ------------------------------------------------------------------ */
 
-export function AvailabilityCalendar({ booking }: { booking: BookingState }) {
-  const {
-    today, checkIn, checkOut, loading, calendarPulse,
-    isPast, isSelectable, isNightBooked, rangeNightsFree, handleDateClick, clearDates, nights,
-  } = booking;
+function MonthGrid({
+  booking,
+  monthDate,
+  rangeStart,
+  rangeEnd,
+  onHoverDate,
+}: {
+  booking: BookingState;
+  monthDate: Date;
+  rangeStart: string | null;
+  rangeEnd: string | null;
+  onHoverDate: (dateStr: string | null) => void;
+}) {
+  const { today, isPast, isSelectable, isNightBooked, handleDateClick } = booking;
+
+  const year = monthDate.getFullYear();
+  const month = monthDate.getMonth();
+  const daysInMonth = getDaysInMonth(year, month);
+  const firstDayOfWeek = new Date(year, month, 1).getDay();
+  const cells: (number | null)[] = [];
+
+  for (let i = 0; i < firstDayOfWeek; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+
+  return (
+    <div>
+      <h3 className="text-center font-semibold text-sm mb-3">
+        {MONTH_NAMES[month]} {year}
+      </h3>
+      <div className="grid grid-cols-7">
+        {DAY_HEADERS.map((d) => (
+          <div key={d} className="text-center text-xs font-medium text-muted-foreground py-1.5">
+            {d}
+          </div>
+        ))}
+        {cells.map((day, i) => {
+          if (day === null) return <div key={`empty-${i}`} className="h-11" />;
+
+          const d = new Date(year, month, day);
+          const dateStr = toDateStr(d);
+          const past = isPast(d);
+          const disabled = !isSelectable(dateStr, d);
+          const isStart = rangeStart === dateStr;
+          const isEnd = rangeEnd === dateStr;
+          const inRange =
+            rangeStart && rangeEnd && dateStr > rangeStart && dateStr < rangeEnd;
+          const nightBooked = isNightBooked(dateStr);
+          // Show the "booked" treatment only for occupied nights the guest
+          // can't select right now and that aren't part of the current
+          // selection — so a turnover checkout day reads as selectable.
+          const booked = nightBooked && disabled && !isStart && !isEnd && !inRange;
+          // Free future days that still can't be clicked (stay would fall
+          // short of the minimum, or cross an occupied night) dim without a
+          // strike-through, so they don't read as "booked".
+          const dimmed = disabled && !past && !nightBooked;
+          const isToday = isSameDay(d, today);
+
+          return (
+            <button
+              key={dateStr}
+              disabled={disabled}
+              onClick={() => handleDateClick(dateStr)}
+              onMouseEnter={() => onHoverDate(dateStr)}
+              onMouseLeave={() => onHoverDate(null)}
+              className={`
+                h-11 text-sm relative transition-colors
+                ${past ? "text-muted-foreground/30 cursor-not-allowed" : ""}
+                ${booked && !past ? "text-muted-foreground/35 line-through cursor-not-allowed" : ""}
+                ${dimmed ? "text-muted-foreground/35 cursor-not-allowed" : ""}
+                ${!disabled && !isStart && !isEnd ? "hover:bg-primary/10 cursor-pointer rounded-full" : ""}
+                ${inRange ? "bg-primary/10" : ""}
+                ${isStart ? "bg-primary text-primary-foreground font-semibold z-10" : ""}
+                ${isEnd ? "bg-primary text-primary-foreground font-semibold z-10" : ""}
+                ${isStart && rangeEnd ? "rounded-l-full" : ""}
+                ${isEnd ? "rounded-r-full" : ""}
+                ${isStart && !rangeEnd ? "rounded-full" : ""}
+                ${isToday && !isStart && !isEnd ? "font-bold" : ""}
+              `}
+            >
+              {day}
+              {isToday && !isStart && !isEnd && (
+                <span className="absolute bottom-1.5 left-1/2 -translate-x-1/2 h-1 w-1 rounded-full bg-primary" />
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Calendar panel — header, two months, legend (inline & popover)     */
+/* ------------------------------------------------------------------ */
+
+function CalendarPanel({
+  booking,
+  variant,
+}: {
+  booking: BookingState;
+  variant: "inline" | "popover";
+}) {
+  const { today, checkIn, checkOut, nights, activeMinStay, isSelectable, clearDates } = booking;
 
   const currentMonth = useMemo(
     () => new Date(today.getFullYear(), today.getMonth(), 1),
@@ -329,87 +498,112 @@ export function AvailabilityCalendar({ booking }: { booking: BookingState }) {
   const [hoverDate, setHoverDate] = useState<string | null>(null);
 
   // The range to paint: a completed selection, or a live hover preview while
-  // picking the checkout day.
+  // picking the checkout day. isSelectable already folds in occupied nights
+  // and the minimum stay, so an invalid checkout never previews.
   const previewEnd =
-    checkIn && !checkOut && hoverDate && hoverDate > checkIn && rangeNightsFree(checkIn, hoverDate)
+    checkIn && !checkOut && hoverDate && hoverDate > checkIn &&
+    isSelectable(hoverDate, parseDate(hoverDate))
       ? hoverDate
       : null;
   const rangeStart = checkIn;
   const rangeEnd = checkOut ?? previewEnd;
 
-  function renderMonth(monthDate: Date) {
-    const year = monthDate.getFullYear();
-    const month = monthDate.getMonth();
-    const daysInMonth = getDaysInMonth(year, month);
-    const firstDayOfWeek = new Date(year, month, 1).getDay();
-    const cells: (number | null)[] = [];
-
-    for (let i = 0; i < firstDayOfWeek; i++) cells.push(null);
-    for (let d = 1; d <= daysInMonth; d++) cells.push(d);
-
-    return (
-      <div>
-        <h3 className="text-center font-semibold text-sm mb-3">
-          {MONTH_NAMES[month]} {year}
-        </h3>
-        <div className="grid grid-cols-7">
-          {DAY_HEADERS.map((d) => (
-            <div key={d} className="text-center text-xs font-medium text-muted-foreground py-1.5">
-              {d}
-            </div>
-          ))}
-          {cells.map((day, i) => {
-            if (day === null) return <div key={`empty-${i}`} className="h-11" />;
-
-            const d = new Date(year, month, day);
-            const dateStr = toDateStr(d);
-            const past = isPast(d);
-            const disabled = !isSelectable(dateStr, d);
-            const isStart = rangeStart === dateStr;
-            const isEnd = rangeEnd === dateStr;
-            const inRange =
-              rangeStart && rangeEnd && dateStr > rangeStart && dateStr < rangeEnd;
-            // Show the "booked" treatment only for occupied nights the guest
-            // can't select right now and that aren't part of the current
-            // selection — so a turnover checkout day reads as selectable.
-            const booked = isNightBooked(dateStr) && disabled && !isStart && !isEnd && !inRange;
-            const isToday = isSameDay(d, today);
-
-            return (
-              <button
-                key={dateStr}
-                disabled={disabled}
-                onClick={() => handleDateClick(dateStr)}
-                onMouseEnter={() => setHoverDate(dateStr)}
-                onMouseLeave={() => setHoverDate(null)}
-                className={`
-                  h-11 text-sm relative transition-colors
-                  ${past ? "text-muted-foreground/30 cursor-not-allowed" : ""}
-                  ${booked && !past ? "text-muted-foreground/35 line-through cursor-not-allowed" : ""}
-                  ${!disabled && !isStart && !isEnd ? "hover:bg-primary/10 cursor-pointer rounded-full" : ""}
-                  ${inRange ? "bg-primary/10" : ""}
-                  ${isStart ? "bg-primary text-primary-foreground font-semibold z-10" : ""}
-                  ${isEnd ? "bg-primary text-primary-foreground font-semibold z-10" : ""}
-                  ${isStart && rangeEnd ? "rounded-l-full" : ""}
-                  ${isEnd ? "rounded-r-full" : ""}
-                  ${isStart && !rangeEnd ? "rounded-full" : ""}
-                  ${isToday && !isStart && !isEnd ? "font-bold" : ""}
-                `}
-              >
-                {day}
-                {isToday && !isStart && !isEnd && (
-                  <span className="absolute bottom-1.5 left-1/2 -translate-x-1/2 h-1 w-1 rounded-full bg-primary" />
-                )}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-    );
-  }
-
   const nextMonth = addMonths(viewMonth, 1);
   const maxMonth = addMonths(today, 11);
+  const showMinStay = !!checkIn && !checkOut && activeMinStay !== null && activeMinStay > 1;
+
+  return (
+    <div className="space-y-4">
+      {/* Header: selection state + month nav */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="font-semibold text-sm truncate">
+            {checkIn && checkOut
+              ? `${fmtShort(checkIn)} → ${fmtShort(checkOut)} · ${nights} night${nights !== 1 ? "s" : ""}`
+              : checkIn
+                ? "Select your check-out date"
+                : "Select your check-in date"}
+          </p>
+          {checkIn && (
+            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+              {showMinStay && <span>{activeMinStay}-night minimum</span>}
+              <button
+                onClick={clearDates}
+                className="underline underline-offset-2 hover:text-foreground"
+              >
+                Clear dates
+              </button>
+            </div>
+          )}
+        </div>
+        <div className="flex items-center gap-1 shrink-0">
+          <button
+            onClick={() => setViewMonth(addMonths(viewMonth, -1))}
+            disabled={viewMonth <= currentMonth}
+            className="h-9 w-9 rounded-full flex items-center justify-center hover:bg-accent disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            aria-label="Previous month"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <button
+            onClick={() => setViewMonth(addMonths(viewMonth, 1))}
+            disabled={viewMonth >= maxMonth}
+            className="h-9 w-9 rounded-full flex items-center justify-center hover:bg-accent disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            aria-label="Next month"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+
+      {/* Two-month grid — the popover always shows both months side by side */}
+      <div
+        className={
+          variant === "popover"
+            ? "grid grid-cols-2 gap-8"
+            : "grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8"
+        }
+      >
+        <MonthGrid
+          booking={booking}
+          monthDate={viewMonth}
+          rangeStart={rangeStart}
+          rangeEnd={rangeEnd}
+          onHoverDate={setHoverDate}
+        />
+        <div className={variant === "popover" ? undefined : "hidden sm:block"}>
+          <MonthGrid
+            booking={booking}
+            monthDate={nextMonth}
+            rangeStart={rangeStart}
+            rangeEnd={rangeEnd}
+            onHoverDate={setHoverDate}
+          />
+        </div>
+      </div>
+
+      {/* Legend */}
+      <div className="flex items-center gap-4 text-xs text-muted-foreground pt-1">
+        <span className="flex items-center gap-1.5">
+          <span className="h-3 w-3 rounded-full bg-primary" /> Selected
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="h-3 w-3 rounded-full bg-primary/10" /> Your stay
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="text-muted-foreground/50 line-through">15</span> Booked
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Availability calendar — two months, hover range preview            */
+/* ------------------------------------------------------------------ */
+
+export function AvailabilityCalendar({ booking }: { booking: BookingState }) {
+  const { loading, calendarPulse } = booking;
 
   return (
     <div
@@ -422,65 +616,7 @@ export function AvailabilityCalendar({ booking }: { booking: BookingState }) {
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
         </div>
       ) : (
-        <div className="space-y-4">
-          {/* Header: selection state + month nav */}
-          <div className="flex items-center justify-between gap-3">
-            <div className="min-w-0">
-              <p className="font-semibold text-sm truncate">
-                {checkIn && checkOut
-                  ? `${fmtShort(checkIn)} → ${fmtShort(checkOut)} · ${nights} night${nights !== 1 ? "s" : ""}`
-                  : checkIn
-                    ? "Select your check-out date"
-                    : "Select your check-in date"}
-              </p>
-              {checkIn && (
-                <button
-                  onClick={clearDates}
-                  className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
-                >
-                  Clear dates
-                </button>
-              )}
-            </div>
-            <div className="flex items-center gap-1 shrink-0">
-              <button
-                onClick={() => setViewMonth(addMonths(viewMonth, -1))}
-                disabled={viewMonth <= currentMonth}
-                className="h-9 w-9 rounded-full flex items-center justify-center hover:bg-accent disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                aria-label="Previous month"
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </button>
-              <button
-                onClick={() => setViewMonth(addMonths(viewMonth, 1))}
-                disabled={viewMonth >= maxMonth}
-                className="h-9 w-9 rounded-full flex items-center justify-center hover:bg-accent disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                aria-label="Next month"
-              >
-                <ChevronRight className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
-
-          {/* Two-month grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8">
-            {renderMonth(viewMonth)}
-            <div className="hidden sm:block">{renderMonth(nextMonth)}</div>
-          </div>
-
-          {/* Legend */}
-          <div className="flex items-center gap-4 text-xs text-muted-foreground pt-1">
-            <span className="flex items-center gap-1.5">
-              <span className="h-3 w-3 rounded-full bg-primary" /> Selected
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="h-3 w-3 rounded-full bg-primary/10" /> Your stay
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="text-muted-foreground/50 line-through">15</span> Booked
-            </span>
-          </div>
-        </div>
+        <CalendarPanel booking={booking} variant="inline" />
       )}
     </div>
   );
@@ -533,15 +669,67 @@ function Stepper({
 export function BookingCard({
   booking,
   minPrice,
+  // "popover" anchors an Airbnb-style picker to the date fields (desktop
+  // rail); the default "scroll" hops to the inline calendar, which is a
+  // short hop where the card sits directly below it.
+  datePicker = "scroll",
 }: {
   booking: BookingState;
   minPrice: number | null;
+  datePicker?: "popover" | "scroll";
 }) {
   const router = useRouter();
   const {
     checkIn, checkOut, guests, setGuests, pets, setPets, maxGuests, petsAllowed,
-    quote, quoteLoading, nights, checkoutUrl, scrollToCalendar,
+    loading, quote, quoteFailure, quoteLoading, nights, checkoutUrl, scrollToCalendar,
   } = booking;
+
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const pickerRef = useRef<HTMLDivElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+
+  // The popover can open with its lower half below the fold (card low in the
+  // viewport before the rail sticks) — move focus in for keyboard users, then
+  // scroll just enough to reveal it.
+  useEffect(() => {
+    if (!pickerOpen) return;
+    popoverRef.current?.focus({ preventScroll: true });
+    popoverRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [pickerOpen]);
+
+  // Dismiss the popover on outside click or Escape
+  useEffect(() => {
+    if (!pickerOpen) return;
+    function onPointerDown(e: PointerEvent) {
+      // A classic-scrollbar drag targets the root element — not a dismissal
+      if (e.target === document.documentElement) return;
+      if (!pickerRef.current?.contains(e.target as Node)) setPickerOpen(false);
+    }
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setPickerOpen(false);
+    }
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [pickerOpen]);
+
+  // Auto-close shortly after a full range lands so the guest sees it selected.
+  // Only fires on the null → set transition, so opening the popover with a
+  // complete range already picked doesn't immediately dismiss it.
+  const prevCheckOut = useRef(checkOut);
+  useEffect(() => {
+    const justCompleted = checkOut !== null && prevCheckOut.current === null;
+    prevCheckOut.current = checkOut;
+    if (!pickerOpen || !justCompleted) return;
+    const t = setTimeout(() => setPickerOpen(false), 400);
+    return () => clearTimeout(t);
+  }, [checkOut, pickerOpen]);
+
+  const openDates = datePicker === "popover" ? () => setPickerOpen(true) : scrollToCalendar;
+  const quoteBlocked = blocksCheckout(quoteFailure);
 
   const nightly =
     quote?.roomRate && nights ? Math.round(quote.roomRate / nights) : null;
@@ -572,30 +760,55 @@ export function BookingCard({
         )}
       </div>
 
-      {/* Date fields — click to jump to the calendar */}
-      <div className="grid grid-cols-2 rounded-xl border overflow-hidden">
-        <button
-          onClick={scrollToCalendar}
-          className="p-3 text-left hover:bg-accent transition-colors border-r"
-        >
-          <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
-            Check-in
-          </p>
-          <p className={`text-sm font-medium ${checkIn ? "" : "text-muted-foreground"}`}>
-            {checkIn ? fmtShort(checkIn) : "Add date"}
-          </p>
-        </button>
-        <button
-          onClick={scrollToCalendar}
-          className="p-3 text-left hover:bg-accent transition-colors"
-        >
-          <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
-            Check-out
-          </p>
-          <p className={`text-sm font-medium ${checkOut ? "" : "text-muted-foreground"}`}>
-            {checkOut ? fmtShort(checkOut) : "Add date"}
-          </p>
-        </button>
+      {/* Date fields — anchored popover picker, or a hop to the inline calendar */}
+      <div ref={pickerRef} className="relative">
+        <div className="grid grid-cols-2 rounded-xl border overflow-hidden">
+          <button
+            onClick={openDates}
+            aria-haspopup={datePicker === "popover" ? "dialog" : undefined}
+            aria-expanded={datePicker === "popover" ? pickerOpen : undefined}
+            className="p-3 text-left hover:bg-accent transition-colors border-r"
+          >
+            <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+              Check-in
+            </p>
+            <p className={`text-sm font-medium ${checkIn ? "" : "text-muted-foreground"}`}>
+              {checkIn ? fmtShort(checkIn) : "Add date"}
+            </p>
+          </button>
+          <button
+            onClick={openDates}
+            aria-haspopup={datePicker === "popover" ? "dialog" : undefined}
+            aria-expanded={datePicker === "popover" ? pickerOpen : undefined}
+            className="p-3 text-left hover:bg-accent transition-colors"
+          >
+            <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+              Check-out
+            </p>
+            <p className={`text-sm font-medium ${checkOut ? "" : "text-muted-foreground"}`}>
+              {checkOut ? fmtShort(checkOut) : "Add date"}
+            </p>
+          </button>
+        </div>
+
+        {/* The 400px rail can't fit two months, so overhang to the left */}
+        {pickerOpen && (
+          <div
+            ref={popoverRef}
+            role="dialog"
+            aria-label="Choose dates"
+            tabIndex={-1}
+            className="absolute right-0 top-full mt-2 z-50 w-160 max-w-[calc(100vw-2rem)] max-h-[calc(100vh-19rem)] min-h-48 overflow-y-auto overscroll-contain rounded-2xl border bg-card p-5 shadow-2xl outline-none"
+          >
+            {loading ? (
+              <div className="flex items-center justify-center py-16">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : (
+              <CalendarPanel booking={booking} variant="popover" />
+            )}
+          </div>
+        )}
       </div>
 
       {/* Guests & pets */}
@@ -654,8 +867,9 @@ export function BookingCard({
               </div>
             </>
           ) : (
-            <p className="text-muted-foreground text-xs">
-              Live pricing unavailable right now — your total will be shown at checkout.
+            <p className={`text-xs ${quoteBlocked ? "text-destructive" : "text-muted-foreground"}`}>
+              {quoteFailure?.message ??
+                "Live pricing unavailable right now — your total will be shown at checkout."}
             </p>
           )}
         </div>
@@ -664,8 +878,8 @@ export function BookingCard({
       <Button
         size="lg"
         className="w-full text-base font-semibold"
-        disabled={!checkoutUrl}
-        onClick={() => checkoutUrl && router.push(checkoutUrl)}
+        disabled={!checkoutUrl || quoteBlocked}
+        onClick={() => checkoutUrl && !quoteBlocked && router.push(checkoutUrl)}
       >
         {checkIn && checkOut ? "Reserve" : "Select dates"}
       </Button>
@@ -696,7 +910,11 @@ export function MobileBookingBar({
   minPrice: number | null;
 }) {
   const router = useRouter();
-  const { checkIn, checkOut, quote, quoteLoading, nights, checkoutUrl, scrollToCalendar } = booking;
+  const {
+    checkIn, checkOut, quote, quoteFailure, quoteLoading, nights, checkoutUrl, scrollToCalendar,
+  } = booking;
+
+  const quoteBlocked = blocksCheckout(quoteFailure);
 
   return (
     <div
@@ -715,6 +933,8 @@ export function MobileBookingBar({
                     ${Math.round(quote.total).toLocaleString()}
                     <span className="font-normal text-muted-foreground"> total</span>
                   </>
+                ) : quoteFailure && quoteBlocked ? (
+                  <span className="text-destructive">{compactFailureLabel(quoteFailure)}</span>
                 ) : (
                   <>{nights} night{nights !== 1 ? "s" : ""}</>
                 )}
@@ -745,6 +965,7 @@ export function MobileBookingBar({
         <Button
           size="lg"
           className="shrink-0 font-semibold"
+          disabled={quoteBlocked}
           onClick={() => {
             if (checkoutUrl) router.push(checkoutUrl);
             else scrollToCalendar();

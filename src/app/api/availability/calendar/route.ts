@@ -24,27 +24,109 @@ function shiftIsoDate(iso: string, days: number): string {
   return dt.toISOString().slice(0, 10);
 }
 
-// Availability is now sourced entirely from our own database — the bookings
-// Lodgify channel-syncs into `registration` (Airbnb/VRBO/etc.), our direct
-// bookings, and manual owner blocks. No live Lodgify calls, so this never
-// stalls on Lodgify's rate limit.
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  // Callers pass the Lodgify property id (unchanged contract). We map it to our
-  // property row(s) below.
-  const lodgifyId = Number(searchParams.get("property_id"));
-  const start = searchParams.get("start");
-  const end = searchParams.get("end");
+/**
+ * Fetch per-date minimum stays from Lodgify's rates calendar. Runs alongside
+ * the DB queries and is fully failure-tolerant: any error, non-OK response, or
+ * a stall past the ~4s budget returns null and the fields are simply omitted.
+ * `minStays` maps arrival date → min nights for stays starting that date;
+ * `defaultMinStay` is the most common value across the window.
+ */
+// Successful Lodgify responses are cached for an hour by fetch revalidation,
+// but failures are not — during a Lodgify-degraded window every request would
+// otherwise re-attempt both calls and hold the response up to the 4s budget.
+// Back off per property for a minute after a miss instead.
+const minStayFailureAt = new Map<number, number>();
+const MIN_STAY_FAILURE_BACKOFF_MS = 60_000;
 
-  if (!lodgifyId || !start || !end) {
-    return NextResponse.json(
-      { error: "property_id, start, and end are required" },
-      { status: 400 }
-    );
+async function fetchMinStays(
+  lodgifyId: number,
+  start: string,
+  end: string
+): Promise<{ minStays: Record<string, number>; defaultMinStay: number } | null> {
+  const apiKey = process.env.LODGIFY_API_KEY;
+  if (!apiKey) return null;
+
+  const failedAt = minStayFailureAt.get(lodgifyId);
+  if (failedAt && Date.now() - failedAt < MIN_STAY_FAILURE_BACKOFF_MS) return null;
+
+  const result = await fetchMinStaysFromLodgify(lodgifyId, start, end, apiKey);
+  if (result) minStayFailureAt.delete(lodgifyId);
+  else minStayFailureAt.set(lodgifyId, Date.now());
+  return result;
+}
+
+async function fetchMinStaysFromLodgify(
+  lodgifyId: number,
+  start: string,
+  end: string,
+  apiKey: string
+): Promise<{ minStays: Record<string, number>; defaultMinStay: number } | null> {
+  try {
+    // One budget for both requests — availability must never wait on Lodgify.
+    const signal = AbortSignal.timeout(4000);
+    const headers = { "X-ApiKey": apiKey, Accept: "application/json" };
+
+    const roomsRes = await fetch(`https://api.lodgify.com/v2/properties/${lodgifyId}/rooms`, {
+      headers,
+      signal,
+      next: { revalidate: 3600 },
+    });
+    if (!roomsRes.ok) return null;
+    const rooms = (await roomsRes.json()) as { id?: number }[];
+    const roomId = rooms?.[0]?.id;
+    if (!roomId) return null;
+
+    const ratesUrl = new URL("https://api.lodgify.com/v2/rates/calendar");
+    ratesUrl.searchParams.set("RoomTypeId", String(roomId));
+    ratesUrl.searchParams.set("HouseId", String(lodgifyId));
+    ratesUrl.searchParams.set("StartDate", start);
+    ratesUrl.searchParams.set("EndDate", end);
+    const ratesRes = await fetch(ratesUrl.toString(), {
+      headers,
+      signal,
+      next: { revalidate: 3600 },
+    });
+    if (!ratesRes.ok) return null;
+    const rates = (await ratesRes.json()) as {
+      calendar_items?: { date?: string; prices?: { min_stay?: number }[] }[];
+    };
+
+    const minStays: Record<string, number> = {};
+    const counts = new Map<number, number>();
+    for (const item of rates.calendar_items ?? []) {
+      const minStay = item.prices?.[0]?.min_stay;
+      if (!item.date || typeof minStay !== "number") continue;
+      minStays[item.date] = minStay;
+      counts.set(minStay, (counts.get(minStay) ?? 0) + 1);
+    }
+    if (!Object.keys(minStays).length) return null;
+
+    let defaultMinStay = 1;
+    let bestCount = 0;
+    for (const [value, count] of counts) {
+      if (count > bestCount) {
+        bestCount = count;
+        defaultMinStay = value;
+      }
+    }
+    return { minStays, defaultMinStay };
+  } catch {
+    return null;
   }
+}
 
-  const admin = createAdminClient();
-
+/**
+ * Blocked spans sourced entirely from our own database — the bookings Lodgify
+ * channel-syncs into `registration` (Airbnb/VRBO/etc.), our direct bookings,
+ * and manual owner blocks. No live Lodgify calls here, so this never stalls
+ * on Lodgify's rate limit.
+ */
+async function loadPeriods(
+  admin: ReturnType<typeof createAdminClient>,
+  lodgifyId: number,
+  start: string,
+  end: string
+): Promise<CalendarPeriod[]> {
   // Resolve the selected listing, then expand to every listing of the same
   // physical house. A house is often two Lodgify listings (duplicate rows) —
   // a booking on one shows as an id-less mirror block on the other, so we must
@@ -56,7 +138,7 @@ export async function GET(request: Request) {
     .limit(1)
     .maybeSingle();
 
-  if (!selected) return NextResponse.json({ periods: [] });
+  if (!selected) return [];
 
   let groupIds = [selected.id];
   if (selected.nickname) {
@@ -113,5 +195,32 @@ export async function GET(request: Request) {
     });
   }
 
-  return NextResponse.json({ periods });
+  return periods;
+}
+
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  // Callers pass the Lodgify property id (unchanged contract). We map it to our
+  // property row(s) below.
+  const lodgifyId = Number(searchParams.get("property_id"));
+  const start = searchParams.get("start");
+  const end = searchParams.get("end");
+
+  if (!lodgifyId || !start || !end) {
+    return NextResponse.json(
+      { error: "property_id, start, and end are required" },
+      { status: 400 }
+    );
+  }
+
+  const admin = createAdminClient();
+
+  // Min stays come from Lodgify in parallel with the DB queries; on any
+  // failure they're omitted and the UI falls back to quote-time errors.
+  const [periods, minStayData] = await Promise.all([
+    loadPeriods(admin, lodgifyId, start, end),
+    fetchMinStays(lodgifyId, start, end),
+  ]);
+
+  return NextResponse.json(minStayData ? { periods, ...minStayData } : { periods });
 }

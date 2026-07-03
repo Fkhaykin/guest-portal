@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { GoogleMap, Marker, useJsApiLoader } from "@react-google-maps/api";
 import { SiteNav } from "@/components/site-nav";
 import { SiteFooter } from "@/components/site-footer";
 import {
@@ -9,40 +8,27 @@ import {
   Bath,
   BedDouble,
   Car,
-  Check,
   ChevronDown,
   Clock,
-  ExternalLink,
   Flame,
   Gamepad2,
   MapPin,
   PawPrint,
   Ruler,
   Sailboat,
-  Shirt,
-  Snowflake,
   Star,
-  Tv,
   Users,
-  UtensilsCrossed,
-  WashingMachine,
   Waves,
   Wifi,
 } from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
-import { Button } from "@/components/ui/button";
 import { ReviewsCarousel } from "@/components/guest/reviews-carousel";
 import { REVIEWS } from "@/lib/reviews-data";
 import type { PropertyDetails } from "@/lib/property-details";
 import { PropertyGallery } from "./gallery";
 import { AvailabilityCalendar, BookingCard, MobileBookingBar, useBooking } from "./booking";
+import { AmenitiesSection } from "./amenities";
+import { LocalPlacesSection } from "./local-places";
 
 /* ------------------------------------------------------------------ */
 /*  House aliases — some houses have an old + new property row; merge  */
@@ -57,47 +43,6 @@ const HOUSE_NAME_ALIASES: Record<string, string[]> = {
     "Lakefront Home w/ Hot Tub, Game Room, Deck, Boats, Fire Pit",
   ],
 };
-
-/* ------------------------------------------------------------------ */
-/*  Amenity icons                                                      */
-/* ------------------------------------------------------------------ */
-
-const AMENITY_LABELS: Record<string, string> = {
-  cooking: "Kitchen & Dining",
-  entertainment: "Entertainment",
-  heating: "Heating & Cooling",
-  laundry: "Laundry",
-  miscellaneous: "Home Safety",
-  sanitary: "Bathroom & Spa",
-  sleeping: "Sleeping",
-  parking: "Parking",
-  room: "Rooms",
-  "further-info": "Additional Info",
-  outside: "Outdoor",
-  livingroom: "Living Room",
-};
-
-/** Icon for a single amenity line, matched by keyword. */
-function amenityIcon(text: string) {
-  const t = text.toLowerCase();
-  if (t.includes("hot tub") || t.includes("jacuzzi")) return Bath;
-  if (t.includes("sauna")) return Flame;
-  if (t.includes("wifi") || t.includes("internet")) return Wifi;
-  if (t.includes("tv") || t.includes("television")) return Tv;
-  if (t.includes("game") || t.includes("billiard") || t.includes("ping pong")) return Gamepad2;
-  if (t.includes("fire")) return Flame;
-  if (t.includes("washer") || t.includes("laundry") || t.includes("washing")) return WashingMachine;
-  if (t.includes("dryer") || t.includes("iron")) return Shirt;
-  if (t.includes("air condition") || t.includes("a/c")) return Snowflake;
-  if (t.includes("boat") || t.includes("kayak") || t.includes("canoe") || t.includes("paddle")) return Sailboat;
-  if (t.includes("lake") || t.includes("beach") || t.includes("water")) return Waves;
-  if (t.includes("parking") || t.includes("garage") || t.includes("car")) return Car;
-  if (t.includes("kitchen") || t.includes("oven") || t.includes("stove") || t.includes("grill") || t.includes("bbq") || t.includes("dish")) return UtensilsCrossed;
-  if (t.includes("pet") || t.includes("dog")) return PawPrint;
-  if (t.includes("bed") || t.includes("linen") || t.includes("crib")) return BedDouble;
-  if (t.includes("bath") || t.includes("shower") || t.includes("towel")) return Bath;
-  return Check;
-}
 
 /* ------------------------------------------------------------------ */
 /*  Highlights — the headline features of the house                    */
@@ -237,64 +182,6 @@ function SectionNav() {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Location map                                                       */
-/* ------------------------------------------------------------------ */
-
-const MAP_OPTIONS: google.maps.MapOptions = {
-  disableDefaultUI: true,
-  zoomControl: true,
-  gestureHandling: "cooperative",
-  styles: [
-    { featureType: "poi", stylers: [{ visibility: "off" }] },
-    { featureType: "transit", stylers: [{ visibility: "off" }] },
-  ],
-};
-
-function LocationMap({ lat, lng }: { lat: number; lng: number }) {
-  const { isLoaded } = useJsApiLoader({
-    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "",
-  });
-
-  if (!process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY) return null;
-
-  if (!isLoaded) {
-    return <div className="w-full h-96 rounded-2xl bg-muted animate-pulse" />;
-  }
-
-  return (
-    <GoogleMap
-      mapContainerStyle={{ width: "100%", height: "24rem", borderRadius: "1rem" }}
-      center={{ lat, lng }}
-      zoom={13}
-      options={MAP_OPTIONS}
-    >
-      <Marker
-        position={{ lat, lng }}
-        icon={{
-          url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(
-            `<svg xmlns="http://www.w3.org/2000/svg" width="44" height="52" viewBox="0 0 44 52">
-              <path d="M22 0C10 0 0 10 0 22c0 16 22 30 22 30s22-14 22-30C44 10 34 0 22 0z" fill="#2d6a8f"/>
-              <circle cx="22" cy="20" r="11" fill="white"/>
-              <text x="22" y="26" text-anchor="middle" font-size="16" fill="#2d6a8f">&#8962;</text>
-            </svg>`
-          )}`,
-          scaledSize: new google.maps.Size(44, 52),
-          anchor: new google.maps.Point(22, 52),
-        }}
-      />
-    </GoogleMap>
-  );
-}
-
-const NEARBY = [
-  { label: "Camelback Mountain", detail: "Skiing & Aquatopia waterpark" },
-  { label: "Bushkill Falls", detail: "The “Niagara of Pennsylvania”" },
-  { label: "Shawnee Mountain", detail: "Family-friendly ski area" },
-  { label: "Crossings Premium Outlets", detail: "100+ outlet stores" },
-  { label: "Delaware Water Gap", detail: "Hiking & scenic drives" },
-];
-
-/* ------------------------------------------------------------------ */
 /*  Property Page                                                      */
 /* ------------------------------------------------------------------ */
 
@@ -346,12 +233,6 @@ export function PropertyPage({
   }, [reviewNames]);
 
   const highlights = useMemo(() => deriveHighlights(details), [details]);
-
-  const amenityCategories = lodgify
-    ? Object.entries(lodgify.amenities).filter(([, items]) => items.length > 0)
-    : [];
-  const allAmenities = amenityCategories.flatMap(([, items]) => items);
-  const topAmenities = allAmenities.slice(0, 10);
 
   const longDescription = (property.description?.length ?? 0) > 500;
 
@@ -478,61 +359,15 @@ export function PropertyPage({
                 )}
               </section>
 
-              {/* Amenities */}
-              {amenityCategories.length > 0 && (
+              {/* Amenities — sanitized + ranked (Lodgify's raw feed is unusable) */}
+              {lodgify && (
                 <>
                   <Separator />
                   <Reveal>
-                    <section id="amenities" className="scroll-mt-32 space-y-4">
-                      <h2 className="text-xl sm:text-2xl font-bold tracking-tight">
-                        What this place offers
-                      </h2>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
-                        {topAmenities.map((item, i) => {
-                          const Icon = amenityIcon(item.text);
-                          return (
-                            <div key={i} className="flex items-center gap-3 text-sm">
-                              <Icon className="h-4.5 w-4.5 text-muted-foreground shrink-0" />
-                              {item.text}
-                            </div>
-                          );
-                        })}
-                      </div>
-                      {allAmenities.length > topAmenities.length && (
-                        <Dialog>
-                          <DialogTrigger
-                            render={<Button variant="outline" className="mt-1" />}
-                          >
-                            Show all {allAmenities.length} amenities
-                          </DialogTrigger>
-                          <DialogContent className="max-h-[80vh] overflow-y-auto sm:max-w-lg">
-                            <DialogHeader>
-                              <DialogTitle>What this place offers</DialogTitle>
-                            </DialogHeader>
-                            <div className="space-y-6">
-                              {amenityCategories.map(([category, items]) => (
-                                <div key={category} className="space-y-2.5">
-                                  <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                                    {AMENITY_LABELS[category] || category}
-                                  </h3>
-                                  <ul className="space-y-2.5">
-                                    {items.map((item, i) => {
-                                      const Icon = amenityIcon(item.text);
-                                      return (
-                                        <li key={i} className="flex items-center gap-3 text-sm">
-                                          <Icon className="h-4.5 w-4.5 text-muted-foreground shrink-0" />
-                                          {item.text}
-                                        </li>
-                                      );
-                                    })}
-                                  </ul>
-                                </div>
-                              ))}
-                            </div>
-                          </DialogContent>
-                        </Dialog>
-                      )}
-                    </section>
+                    <AmenitiesSection
+                      amenities={lodgify.amenities}
+                      propertyName={property.name}
+                    />
                   </Reveal>
                 </>
               )}
@@ -561,7 +396,11 @@ export function PropertyPage({
             {/* ---------------- Sticky booking rail ---------------- */}
             <aside className="hidden lg:block">
               <div className="sticky top-24">
-                <BookingCard booking={booking} minPrice={lodgify?.min_price ?? null} />
+                <BookingCard
+                  booking={booking}
+                  minPrice={lodgify?.min_price ?? null}
+                  datePicker="popover"
+                />
               </div>
             </aside>
           </div>
@@ -579,47 +418,17 @@ export function PropertyPage({
         <div className="max-w-7xl mx-auto px-4 sm:px-6 pb-12 space-y-10">
           <Separator />
 
-          {/* Location */}
-          <Reveal>
-            <section id="location" className="scroll-mt-32 space-y-4">
-              <div className="flex flex-wrap items-end justify-between gap-2">
-                <div>
-                  <h2 className="text-xl sm:text-2xl font-bold tracking-tight">
-                    Where you&apos;ll be
-                  </h2>
-                  {lodgify?.city && (
-                    <p className="text-sm text-muted-foreground mt-1">
-                      {lodgify.city}, {lodgify.state} — about 1.5 hours from NYC
-                    </p>
-                  )}
-                </div>
-                {lodgify && (
-                  <a
-                    href={`https://www.google.com/maps?q=${lodgify.lat},${lodgify.lng}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-1.5 text-sm font-medium text-primary hover:underline underline-offset-4"
-                  >
-                    Open in Google Maps <ExternalLink className="h-3.5 w-3.5" />
-                  </a>
-                )}
-              </div>
-
-              {lodgify && <LocationMap lat={lodgify.lat} lng={lodgify.lng} />}
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {NEARBY.map((place) => (
-                  <div key={place.label} className="flex items-start gap-3 rounded-xl border bg-card p-3.5">
-                    <MapPin className="h-4 w-4 text-primary mt-0.5 shrink-0" />
-                    <div>
-                      <p className="text-sm font-medium">{place.label}</p>
-                      <p className="text-xs text-muted-foreground">{place.detail}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
-          </Reveal>
+          {/* Location — interactive area explorer */}
+          {lodgify && (
+            <Reveal>
+              <LocalPlacesSection
+                lat={lodgify.lat}
+                lng={lodgify.lng}
+                city={lodgify.city}
+                state={lodgify.state}
+              />
+            </Reveal>
+          )}
 
           <Separator />
 
