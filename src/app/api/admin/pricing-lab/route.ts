@@ -129,6 +129,36 @@ export async function GET(request: NextRequest) {
   };
   const { bookings, blocks } = await loadOccupancyDetail(admin, config.nickname, today, 365);
 
+  // Trailing-12-month realized ADR (mean nightly rent across past stays) — an
+  // input to the "Help Me Choose a Base Price" tool.
+  const yearAgo = new Date(Date.now() - 365 * 86_400_000).toISOString().slice(0, 10);
+  const { data: propRows } = await admin
+    .from("property")
+    .select("id")
+    .ilike("nickname", config.nickname);
+  const propIds = (propRows ?? []).map((p) => p.id);
+  let realizedAdr: number | null = null;
+  if (propIds.length) {
+    const { data: pastStays } = await admin
+      .from("registration")
+      .select("check_in_date, check_out_date, total_amount_cents")
+      .in("property_id", propIds)
+      .in("status", ["active", "completed"])
+      .not("total_amount_cents", "is", null)
+      .gte("check_in_date", yearAgo)
+      .lt("check_in_date", today);
+    const adrs: number[] = [];
+    for (const s of pastStays ?? []) {
+      const n = Math.round(
+        (new Date(s.check_out_date + "T00:00:00Z").getTime() -
+          new Date(s.check_in_date + "T00:00:00Z").getTime()) /
+          86_400_000
+      );
+      if (n > 0 && s.total_amount_cents) adrs.push(s.total_amount_cents / n);
+    }
+    if (adrs.length) realizedAdr = Math.round(adrs.reduce((a, b) => a + b, 0) / adrs.length);
+  }
+
   // Market position: ours vs comps over 30/60/90 + weekend/weeknight averages.
   const position = computePosition(
     (snapshot as { stay_date: string; our_price_cents: number | null; is_booked: boolean }[]),
@@ -186,6 +216,7 @@ export async function GET(request: NextRequest) {
       : null,
     latest_snapshot_at: latestRow?.created_at ?? null,
     pulse_date: pulse[0]?.snapshot_date ?? null,
+    realizedAdr,
   });
 }
 

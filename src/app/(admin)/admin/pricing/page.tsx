@@ -22,6 +22,7 @@ import { Loader2, RefreshCw, Scale, DollarSign, Percent, AlertTriangle } from "l
 import { toast } from "sonner";
 import { CalendarView } from "./calendar-view";
 import { ConfigureRail, MetricsRail } from "./calendar-sidebars";
+import { CustomizationsModal } from "./customizations-modal";
 import { NeighborhoodChart } from "./neighborhood-chart";
 import { CompetitorMap } from "./competitor-map";
 import { AlgorithmTab } from "./algorithm-tab";
@@ -39,6 +40,9 @@ export default function PricingLabPage() {
   const [error, setError] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
   const [saving, setSaving] = useState(false);
+  // Customizations modal: null = closed; "" = open at default page; a rule key
+  // = open at that page. Lifted here so both rails can open it.
+  const [custKey, setCustKey] = useState<string | null>(null);
   // Monotonic counter so a slow response for a previously-selected house can
   // never land under the current selection.
   const loadSeq = useRef(0);
@@ -246,7 +250,14 @@ export default function PricingLabPage() {
         <TabsContent value="calendar">
           {config && data && (
             <div className="grid gap-4 lg:grid-cols-[240px_1fr_220px]">
-              <ConfigureRail key={config.id} config={config} data={data} onSave={saveConfig} saving={saving} />
+              <ConfigureRail
+                key={config.id}
+                config={config}
+                data={data}
+                onSave={saveConfig}
+                onEdit={() => setCustKey("")}
+                saving={saving}
+              />
               <CalendarView
                 config={config}
                 snapshot={data.snapshot}
@@ -255,7 +266,7 @@ export default function PricingLabPage() {
                 blocks={data.blocks}
                 today={data.today}
               />
-              <MetricsRail metrics={data.metrics} />
+              <MetricsRail data={data} onEditRule={(k) => setCustKey(k)} />
             </div>
           )}
         </TabsContent>
@@ -326,6 +337,18 @@ export default function PricingLabPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {config && data && (
+        <CustomizationsModal
+          open={custKey !== null}
+          onOpenChange={(o) => setCustKey(o ? custKey ?? "" : null)}
+          config={config}
+          data={data}
+          initialKey={custKey || undefined}
+          onSave={saveConfig}
+          saving={saving}
+        />
+      )}
     </div>
   );
 }

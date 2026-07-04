@@ -28,6 +28,7 @@ export function CustomizationsModal({
   onOpenChange,
   config,
   data,
+  initialKey,
   onSave,
   saving,
 }: {
@@ -35,6 +36,7 @@ export function CustomizationsModal({
   onOpenChange: (open: boolean) => void;
   config: PricingConfig;
   data: PricingLabData;
+  initialKey?: string | null;
   onSave: (patch: Partial<PricingConfig>) => void;
   saving: boolean;
 }) {
@@ -44,13 +46,15 @@ export function CustomizationsModal({
   const [dirty, setDirty] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
 
-  // Re-seed local state whenever the dialog opens for a (possibly different) config.
+  // Re-seed local state whenever the dialog opens for a (possibly different)
+  // config or a requested rule page.
   const [seedKey, setSeedKey] = useState("");
-  const currentSeed = config.id + ":" + JSON.stringify(config.rules).length;
+  const currentSeed = config.id + ":" + JSON.stringify(config.rules).length + ":" + (initialKey ?? "");
   if (open && seedKey !== currentSeed) {
     setRules(config.rules);
     setSeedKey(currentSeed);
     setDirty(false);
+    if (initialKey && CUSTOMIZATION_ITEMS.some((it) => it.key === initialKey)) setSelectedKey(initialKey);
   }
 
   const filtered = useMemo(() => {

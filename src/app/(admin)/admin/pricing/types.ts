@@ -115,6 +115,7 @@ export interface PricingLabData {
   meta: { name: string; address: string | null; maxGuests: number | null; lodgifyId: number | null } | null;
   latest_snapshot_at: string | null;
   pulse_date: string | null;
+  realizedAdr: number | null;
 }
 
 /** "3 hours ago" relative-time for sync/staleness labels. */

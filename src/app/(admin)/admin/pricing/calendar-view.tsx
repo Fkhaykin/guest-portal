@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ChevronLeft, ChevronRight, Moon, CalendarDays } from "lucide-react";
 import type { PricingConfig, SnapshotRow, MarketPoint, BookingNight, BlockNight } from "./types";
 import { fmtUsd, fmtDate } from "./types";
@@ -12,6 +13,11 @@ import { buildLadder, demandLevel, DEMAND_COLORS, type DemandLevel } from "./bre
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 function ymd(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
+function addDaysUtc(iso: string, days: number): string {
+  const d = new Date(iso + "T00:00:00Z");
+  d.setUTCDate(d.getUTCDate() + days);
   return d.toISOString().slice(0, 10);
 }
 function monthLabel(y: number, m: number): string {
@@ -51,10 +57,28 @@ export function CalendarView({
     return { y: d.getUTCFullYear(), m: d.getUTCMonth() };
   });
 
+  const [weekly, setWeekly] = useState(false);
+  const [weekStart, setWeekStart] = useState(() => today);
+
   const byDate = useMemo(() => new Map(snapshot.map((r) => [r.stay_date, r])), [snapshot]);
   const marketByDate = useMemo(() => new Map(market.map((r) => [r.stay_date, r])), [market]);
 
+  // Months present in the snapshot range, for the month dropdown.
+  const monthOptions = useMemo(() => {
+    const seen = new Map<string, { y: number; m: number }>();
+    for (const r of snapshot) {
+      const d = new Date(r.stay_date + "T00:00:00Z");
+      const key = `${d.getUTCFullYear()}-${d.getUTCMonth()}`;
+      if (!seen.has(key)) seen.set(key, { y: d.getUTCFullYear(), m: d.getUTCMonth() });
+    }
+    return [...seen.entries()].map(([key, v]) => ({ key, ...v }));
+  }, [snapshot]);
+
   const cells = useMemo(() => {
+    if (weekly) {
+      // 7 consecutive days from weekStart.
+      return Array.from({ length: 7 }, (_, i) => addDaysUtc(weekStart, i));
+    }
     const first = new Date(Date.UTC(cursor.y, cursor.m, 1));
     const startPad = first.getUTCDay();
     const daysInMonth = new Date(Date.UTC(cursor.y, cursor.m + 1, 0)).getUTCDate();
@@ -63,9 +87,13 @@ export function CalendarView({
     for (let day = 1; day <= daysInMonth; day++) out.push(ymd(new Date(Date.UTC(cursor.y, cursor.m, day))));
     while (out.length % 7 !== 0) out.push(null);
     return out;
-  }, [cursor]);
+  }, [cursor, weekly, weekStart]);
 
   function shift(delta: number) {
+    if (weekly) {
+      setWeekStart((w) => addDaysUtc(w, delta * 7));
+      return;
+    }
     setCursor((c) => {
       const d = new Date(Date.UTC(c.y, c.m + delta, 1));
       return { y: d.getUTCFullYear(), m: d.getUTCMonth() };
@@ -74,11 +102,12 @@ export function CalendarView({
   function goToday() {
     const d = new Date(today + "T00:00:00Z");
     setCursor({ y: d.getUTCFullYear(), m: d.getUTCMonth() });
+    setWeekStart(today);
   }
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={goToday}>
             <CalendarDays className="h-4 w-4" /> Today
@@ -86,12 +115,41 @@ export function CalendarView({
           <Button variant="ghost" size="icon" onClick={() => shift(-1)}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <span className="min-w-40 text-center text-lg font-semibold">
-            {monthLabel(cursor.y, cursor.m)}
-          </span>
+          {weekly ? (
+            <span className="min-w-40 text-center text-sm font-semibold">
+              {fmtDate(cells[0] as string)} – {fmtDate(cells[6] as string)}
+            </span>
+          ) : (
+            <Select
+              value={`${cursor.y}-${cursor.m}`}
+              onValueChange={(v) => {
+                const o = monthOptions.find((x) => x.key === v);
+                if (o) setCursor({ y: o.y, m: o.m });
+              }}
+            >
+              <SelectTrigger className="h-8 w-40">
+                <SelectValue>{monthLabel(cursor.y, cursor.m)}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {monthOptions.map((o) => (
+                  <SelectItem key={o.key} value={o.key}>
+                    {monthLabel(o.y, o.m)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
           <Button variant="ghost" size="icon" onClick={() => shift(1)}>
             <ChevronRight className="h-4 w-4" />
           </Button>
+          <div className="ml-1 flex overflow-hidden rounded-md border border-border text-xs">
+            <button className={`px-2 py-1 ${!weekly ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`} onClick={() => setWeekly(false)}>
+              Monthly
+            </button>
+            <button className={`px-2 py-1 ${weekly ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`} onClick={() => { setWeekly(true); setWeekStart(today); }}>
+              Weekly
+            </button>
+          </div>
         </div>
         <DemandLegend />
       </div>
