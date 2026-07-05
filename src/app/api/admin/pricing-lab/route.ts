@@ -192,6 +192,38 @@ export async function GET(request: NextRequest) {
   const self = (comps ?? []).find((c) => c.is_self && c.lat != null && c.lng != null);
   const house = self ? { lat: self.lat as number, lng: self.lng as number } : null;
 
+  // Right-rail logs + notes.
+  const { data: logs } = await admin
+    .from("pricing_config_log")
+    .select("id, field, old_value, new_value, created_at")
+    .ilike("nickname", config.nickname)
+    .order("created_at", { ascending: false })
+    .limit(40);
+  const { data: notes } = await admin
+    .from("pricing_note")
+    .select("id, body, created_at")
+    .ilike("nickname", config.nickname)
+    .order("created_at", { ascending: false })
+    .limit(30);
+  // Pricing runs: recent snapshot days with row counts + PriceLabs coverage.
+  const { data: runRows } = await admin
+    .from("rate_snapshot")
+    .select("snapshot_date, pl_user_price_cents")
+    .ilike("nickname", config.nickname)
+    .order("snapshot_date", { ascending: false })
+    .limit(4000);
+  const runAgg = new Map<string, { rows: number; pl: number }>();
+  for (const r of runRows ?? []) {
+    const a = runAgg.get(r.snapshot_date as string) ?? { rows: 0, pl: 0 };
+    a.rows++;
+    if (r.pl_user_price_cents != null) a.pl++;
+    runAgg.set(r.snapshot_date as string, a);
+  }
+  const pricingRuns = [...runAgg.entries()]
+    .map(([date, a]) => ({ snapshot_date: date, rows: a.rows, pl_covered: a.pl }))
+    .sort((x, y) => y.snapshot_date.localeCompare(x.snapshot_date))
+    .slice(0, 14);
+
   return NextResponse.json({
     config,
     latest_snapshot_date: latestDate,
@@ -217,6 +249,9 @@ export async function GET(request: NextRequest) {
     latest_snapshot_at: latestRow?.created_at ?? null,
     pulse_date: pulse[0]?.snapshot_date ?? null,
     realizedAdr,
+    logs: logs ?? [],
+    notes: notes ?? [],
+    pricingRuns,
   });
 }
 
@@ -250,8 +285,39 @@ export async function PUT(request: NextRequest) {
   }
 
   const admin = createAdminClient();
+
+  // Snapshot the prior values so we can log what changed (Base Price History /
+  // Action Logs in the right rail).
+  const { data: before } = await admin
+    .from("pricing_config")
+    .select("nickname, mode, base_price_cents, min_price_cents, max_price_cents, rules")
+    .eq("id", body.id)
+    .maybeSingle();
+
   const { error } = await admin.from("pricing_config").update(updates).eq("id", body.id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  if (before) {
+    const changedBy = (await (await createClient()).auth.getUser()).data.user?.id ?? null;
+    const rows: {
+      nickname: string;
+      field: string;
+      old_value: string | null;
+      new_value: string | null;
+      changed_by: string | null;
+    }[] = [];
+    const fmt = (v: unknown) => (v == null ? null : typeof v === "object" ? JSON.stringify(v) : String(v));
+    for (const key of ["mode", "base_price_cents", "min_price_cents", "max_price_cents"] as const) {
+      if (updates[key] !== undefined && updates[key] !== (before as Record<string, unknown>)[key]) {
+        rows.push({ nickname: before.nickname, field: key, old_value: fmt((before as Record<string, unknown>)[key]), new_value: fmt(updates[key]), changed_by: changedBy });
+      }
+    }
+    if (updates.rules !== undefined && JSON.stringify(updates.rules) !== JSON.stringify(before.rules)) {
+      rows.push({ nickname: before.nickname, field: "rules", old_value: null, new_value: "updated", changed_by: changedBy });
+    }
+    if (rows.length) await admin.from("pricing_config_log").insert(rows);
+  }
+
   return NextResponse.json({ ok: true });
 }
 

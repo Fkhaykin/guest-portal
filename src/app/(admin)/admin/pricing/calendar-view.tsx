@@ -4,13 +4,30 @@ import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ChevronLeft, ChevronRight, Moon, CalendarDays } from "lucide-react";
+import { ChevronLeft, ChevronRight, Moon, CalendarDays, Settings2 } from "lucide-react";
 import type { PricingConfig, SnapshotRow, MarketPoint, BookingNight, BlockNight } from "./types";
 import { fmtUsd, fmtDate } from "./types";
 import { buildLadder, demandLevel, DEMAND_COLORS, type DemandLevel } from "./breakdown";
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+interface DisplaySettings {
+  minStay: boolean;
+  events: boolean;
+  marketMedian: boolean;
+}
+const DEFAULT_DISPLAY: DisplaySettings = { minStay: true, events: true, marketMedian: false };
+const DISPLAY_KEY = "pricing-lab-calendar-display";
+function loadDisplay(): DisplaySettings {
+  if (typeof window === "undefined") return DEFAULT_DISPLAY;
+  try {
+    return { ...DEFAULT_DISPLAY, ...JSON.parse(localStorage.getItem(DISPLAY_KEY) || "{}") };
+  } catch {
+    return DEFAULT_DISPLAY;
+  }
+}
 
 function ymd(d: Date): string {
   return d.toISOString().slice(0, 10);
@@ -59,6 +76,16 @@ export function CalendarView({
 
   const [weekly, setWeekly] = useState(false);
   const [weekStart, setWeekStart] = useState(() => today);
+  const [display, setDisplay] = useState<DisplaySettings>(loadDisplay);
+  function setDisplayKey(k: keyof DisplaySettings, v: boolean) {
+    setDisplay((d) => {
+      const next = { ...d, [k]: v };
+      try {
+        localStorage.setItem(DISPLAY_KEY, JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+  }
 
   const byDate = useMemo(() => new Map(snapshot.map((r) => [r.stay_date, r])), [snapshot]);
   const marketByDate = useMemo(() => new Map(market.map((r) => [r.stay_date, r])), [market]);
@@ -150,6 +177,29 @@ export function CalendarView({
               Weekly
             </button>
           </div>
+          <Popover>
+            <PopoverTrigger render={<Button variant="ghost" size="icon" className="h-8 w-8" />}>
+              <Settings2 className="h-4 w-4" />
+            </PopoverTrigger>
+            <PopoverContent className="w-56" align="start">
+              <div className="space-y-2.5 text-sm">
+                <div className="font-medium">Display</div>
+                {[
+                  ["minStay", "Min-stay indicator"],
+                  ["events", "Event labels"],
+                  ["marketMedian", "Market median"],
+                ].map(([k, label]) => (
+                  <label key={k} className="flex items-center justify-between">
+                    {label}
+                    <Switch
+                      checked={display[k as keyof DisplaySettings]}
+                      onCheckedChange={(v: boolean) => setDisplayKey(k as keyof DisplaySettings, v)}
+                    />
+                  </label>
+                ))}
+              </div>
+            </PopoverContent>
+          </Popover>
         </div>
         <DemandLegend />
       </div>
@@ -172,6 +222,7 @@ export function CalendarView({
               market={mkt}
               booking={bookings[date]}
               block={blocks[date]}
+              display={display}
               config={config}
               today={today}
               isLastCol={(i + 1) % 7 === 0}
@@ -189,6 +240,7 @@ function DayCell({
   market,
   booking,
   block,
+  display,
   config,
   today,
   isLastCol,
@@ -198,6 +250,7 @@ function DayCell({
   market: MarketPoint | undefined;
   booking: BookingNight | undefined;
   block: BlockNight | undefined;
+  display: DisplaySettings;
   config: PricingConfig;
   today: string;
   isLastCol: boolean;
@@ -238,7 +291,7 @@ function DayCell({
       )}
       <div className="flex items-start justify-between">
         <span className="flex items-center gap-0.5 pl-2 text-[11px] font-medium text-muted-foreground">
-          {!isBlocked && !booked && row?.our_min_stay ? (
+          {display.minStay && !isBlocked && !booked && row?.our_min_stay ? (
             <>
               <Moon className="h-3 w-3" />
               {row.our_min_stay}
@@ -247,9 +300,14 @@ function DayCell({
         </span>
         <span className="text-xs font-semibold text-muted-foreground">{dayNum}</span>
       </div>
-      {eventLabel && !booked && !isBlocked && (
+      {display.events && eventLabel && !booked && !isBlocked && (
         <div className="mt-0.5 truncate rounded bg-violet-500/15 px-1 text-[10px] font-medium text-violet-700 dark:text-violet-300">
           {eventLabel}
+        </div>
+      )}
+      {display.marketMedian && !booked && !isBlocked && market?.p50 != null && (
+        <div className="absolute bottom-1 right-1.5 text-[10px] tabular-nums text-muted-foreground" title="Market median">
+          mkt {fmtUsd(market.p50)}
         </div>
       )}
       {/* clamp / override indicator dot (top-right, below the day number) */}

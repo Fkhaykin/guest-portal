@@ -25,6 +25,7 @@ import { ConfigureRail, MetricsRail } from "./calendar-sidebars";
 import { CustomizationsModal } from "./customizations-modal";
 import { NeighborhoodChart } from "./neighborhood-chart";
 import { CompetitorMap } from "./competitor-map";
+import { CompetitorCalendar } from "./competitor-calendar";
 import { AlgorithmTab } from "./algorithm-tab";
 import { ComparisonChart, summarizeSnapshot } from "./comparison-chart";
 import { ConfigEditor } from "./config-editor";
@@ -283,6 +284,7 @@ export default function PricingLabPage() {
         <TabsContent value="neighborhood" className="space-y-4">
           {data && config && <NeighborhoodChart config={config} snapshot={data.snapshot} market={data.market} />}
           {data && <CompetitorMap comps={data.comps} house={data.house} />}
+          {data && <CompetitorCalendar nickname={data.config.nickname} />}
         </TabsContent>
 
         <TabsContent value="config">

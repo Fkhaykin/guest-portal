@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
-import { Loader2, Pencil, Check, Plus } from "lucide-react";
+import { Loader2, Pencil, Check, Plus, Trash2, ChevronDown, ChevronUp } from "lucide-react";
+import { toast } from "sonner";
 import type { PricingConfig, PricingLabData } from "./types";
 import { CUSTOMIZATION_ITEMS, appliedCount } from "./customization-items";
 import { HelpMeChooseBase } from "./base-price-helper";
@@ -155,6 +156,10 @@ export function MetricsRail({
         <CardContent className="divide-y divide-border p-0 text-sm">
           <RailRow label="Date Overrides" count={overrides} onClick={() => onEditRule("overrides")} />
           <RailRow label="Event / Holidays" count={events} onClick={() => onEditRule("events")} />
+          <NotesSection data={data} />
+          <BasePriceHistory logs={data.logs} />
+          <ActionLog logs={data.logs} />
+          <PricingLogs runs={data.pricingRuns} />
         </CardContent>
       </Card>
     </div>
@@ -170,5 +175,134 @@ function RailRow({ label, count, onClick }: { label: string; count: number; onCl
       </span>
       <Plus className="h-4 w-4 text-muted-foreground" />
     </button>
+  );
+}
+
+function Collapsible({ label, count, children }: { label: string; count?: number; children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div>
+      <button onClick={() => setOpen((v) => !v)} className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-muted/50">
+        <span className="flex items-center gap-2">
+          {label}
+          {count != null && count > 0 && <span className="rounded-full bg-muted px-1.5 text-xs font-medium text-muted-foreground">{count}</span>}
+        </span>
+        {open ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+      </button>
+      {open && <div className="px-4 pb-3">{children}</div>}
+    </div>
+  );
+}
+
+function NotesSection({ data }: { data: PricingLabData }) {
+  const [notes, setNotes] = useState(data.notes);
+  const [body, setBody] = useState("");
+  const [busy, setBusy] = useState(false);
+  async function add() {
+    if (!body.trim()) return;
+    setBusy(true);
+    try {
+      const res = await fetch("/api/admin/pricing-lab/notes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nickname: data.config.nickname, body }),
+      });
+      const json = await res.json();
+      if (res.ok) {
+        setNotes((n) => [json.note, ...n]);
+        setBody("");
+      } else toast.error(json.error || "Failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function remove(id: string) {
+    const res = await fetch(`/api/admin/pricing-lab/notes?id=${id}`, { method: "DELETE" });
+    if (res.ok) setNotes((n) => n.filter((x) => x.id !== id));
+  }
+  return (
+    <Collapsible label="Notes" count={notes.length}>
+      <div className="space-y-2">
+        <div className="flex gap-1.5">
+          <Input value={body} onChange={(e) => setBody(e.target.value)} placeholder="Add a note…" className="h-8 text-xs" onKeyDown={(e) => e.key === "Enter" && add()} />
+          <Button size="icon" className="h-8 w-8 shrink-0" onClick={add} disabled={busy}>
+            {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
+          </Button>
+        </div>
+        {notes.map((n) => (
+          <div key={n.id} className="group flex items-start justify-between gap-2 rounded border border-border px-2 py-1.5 text-xs">
+            <div>
+              <div>{n.body}</div>
+              <div className="text-[10px] text-muted-foreground">{new Date(n.created_at).toLocaleDateString()}</div>
+            </div>
+            <button onClick={() => remove(n.id)} className="opacity-0 transition-opacity group-hover:opacity-100">
+              <Trash2 className="h-3.5 w-3.5 text-destructive" />
+            </button>
+          </div>
+        ))}
+      </div>
+    </Collapsible>
+  );
+}
+
+function BasePriceHistory({ logs }: { logs: PricingLabData["logs"] }) {
+  const base = logs.filter((l) => l.field === "base_price_cents");
+  return (
+    <Collapsible label="Base Price History" count={base.length}>
+      {base.length === 0 ? (
+        <p className="text-xs text-muted-foreground">No changes yet.</p>
+      ) : (
+        <div className="space-y-1 text-xs">
+          {base.map((l) => (
+            <div key={l.id} className="flex items-center justify-between">
+              <span className="tabular-nums">
+                {l.old_value ? `$${Math.round(Number(l.old_value) / 100)}` : "—"} → ${Math.round(Number(l.new_value) / 100)}
+              </span>
+              <span className="text-muted-foreground">{new Date(l.created_at).toLocaleDateString()}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </Collapsible>
+  );
+}
+
+function ActionLog({ logs }: { logs: PricingLabData["logs"] }) {
+  const label = (f: string) =>
+    ({ base_price_cents: "Base price", min_price_cents: "Min price", max_price_cents: "Max price", mode: "Mode", rules: "Customizations" }[f] ?? f);
+  return (
+    <Collapsible label="Action Logs" count={logs.length}>
+      {logs.length === 0 ? (
+        <p className="text-xs text-muted-foreground">No actions yet.</p>
+      ) : (
+        <div className="space-y-1 text-xs">
+          {logs.slice(0, 20).map((l) => (
+            <div key={l.id} className="flex items-center justify-between gap-2">
+              <span>{label(l.field)}{l.field === "rules" ? " updated" : l.new_value && Number.isFinite(Number(l.new_value)) ? ` → $${Math.round(Number(l.new_value) / 100)}` : l.new_value ? ` → ${l.new_value}` : ""}</span>
+              <span className="shrink-0 text-muted-foreground">{new Date(l.created_at).toLocaleDateString()}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </Collapsible>
+  );
+}
+
+function PricingLogs({ runs }: { runs: PricingLabData["pricingRuns"] }) {
+  return (
+    <Collapsible label="Pricing Logs" count={runs.length}>
+      {runs.length === 0 ? (
+        <p className="text-xs text-muted-foreground">No runs yet.</p>
+      ) : (
+        <div className="space-y-1 text-xs">
+          {runs.map((r) => (
+            <div key={r.snapshot_date} className="flex items-center justify-between">
+              <span>{new Date(r.snapshot_date + "T12:00:00").toLocaleDateString()}</span>
+              <span className="text-muted-foreground">{r.rows} nights · {r.pl_covered} PL</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </Collapsible>
   );
 }

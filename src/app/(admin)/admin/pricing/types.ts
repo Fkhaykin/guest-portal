@@ -116,6 +116,27 @@ export interface PricingLabData {
   latest_snapshot_at: string | null;
   pulse_date: string | null;
   realizedAdr: number | null;
+  logs: ConfigLog[];
+  notes: PricingNote[];
+  pricingRuns: PricingRun[];
+}
+
+export interface ConfigLog {
+  id: number;
+  field: string;
+  old_value: string | null;
+  new_value: string | null;
+  created_at: string;
+}
+export interface PricingNote {
+  id: string;
+  body: string;
+  created_at: string;
+}
+export interface PricingRun {
+  snapshot_date: string;
+  rows: number;
+  pl_covered: number;
 }
 
 /** "3 hours ago" relative-time for sync/staleness labels. */
