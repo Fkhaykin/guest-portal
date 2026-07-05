@@ -18,7 +18,7 @@ import {
   Video,
   type LucideIcon,
 } from "lucide-react";
-import type { KioskData, KioskScreen } from "./types";
+import type { KioskContent, KioskData, KioskScreen } from "./types";
 import { formatShortDate, formatTime } from "./ui";
 
 function getNightCount(checkIn: string, checkOut: string) {
@@ -47,15 +47,17 @@ type Tile = {
   variant: Variant;
 } & ({ href: string; screen?: never } | { screen: KioskScreen; href?: never });
 
-const ICON = "h-8 w-8 lg:h-10 lg:w-10";
+const ICON = "h-6 w-6 lg:h-7 lg:w-7";
 
 export function MainScreen({
   data,
+  content,
   onHandoff,
   onNavigate,
   onHelp,
 }: {
   data: KioskData;
+  content: KioskContent | null;
   onHandoff: (href: string) => void;
   onNavigate: (screen: KioskScreen) => void;
   onHelp: () => void;
@@ -111,6 +113,10 @@ export function MainScreen({
       ]
     : [];
 
+  // Services & Videos only appear when the house actually has content for them.
+  const hasServices = (content?.services?.length ?? 0) > 0;
+  const hasVideos = (content?.videos?.length ?? 0) > 0;
+
   const browse: Tile[] = [
     ...(booking
       ? [
@@ -121,8 +127,12 @@ export function MainScreen({
     { label: "Weather", description: "Hourly forecast & live radar", screen: { kind: "weather" }, icon: CloudSun, variant: "from-sky-500 to-blue-700" },
     { label: "Explore", description: "Things to do in the Poconos", screen: { kind: "explore" }, icon: MapPin, variant: "from-lime-500 to-green-700" },
     { label: "Promotions", description: "Guest-exclusive deals", screen: { kind: "promos" }, icon: Tag, variant: "from-rose-500 to-red-700" },
-    { label: "Services", description: "Browse additional services", screen: { kind: "services" }, icon: ShoppingBag, variant: "from-fuchsia-500 to-purple-700" },
-    { label: "Videos", description: "How-to guides & welcome tour", screen: { kind: "videos" }, icon: Video, variant: "from-indigo-500 to-violet-700" },
+    ...(hasServices
+      ? [{ label: "Services", description: "Browse additional services", screen: { kind: "services" }, icon: ShoppingBag, variant: "from-fuchsia-500 to-purple-700" } as Tile]
+      : []),
+    ...(hasVideos
+      ? [{ label: "Videos", description: "How-to guides & welcome tour", screen: { kind: "videos" }, icon: Video, variant: "from-indigo-500 to-violet-700" } as Tile]
+      : []),
     { label: "FAQ", description: "Answers about the house", screen: { kind: "faq" }, icon: HelpCircle, variant: "from-cyan-600 to-sky-800" },
     { label: "House Rules", description: "The 8 rules & full policies", screen: { kind: "rules" }, icon: ScrollText, variant: "from-zinc-500 to-zinc-700" },
   ];
@@ -203,15 +213,15 @@ export function MainScreen({
                 key={tile.label}
                 type="button"
                 onClick={() => (tile.screen ? onNavigate(tile.screen) : onHandoff(tile.href!))}
-                className={`flex flex-col justify-between gap-3 rounded-3xl p-5 text-left shadow-lg transition-transform active:scale-[0.97] lg:p-6 ${widen} ${surface(tile.variant)}`}
+                className={`flex items-center gap-4 rounded-3xl p-5 text-left shadow-lg transition-transform active:scale-[0.97] lg:gap-5 lg:p-6 ${widen} ${surface(tile.variant)}`}
               >
-                <span className={`flex h-16 w-16 items-center justify-center rounded-2xl lg:h-18 lg:w-18 ${badge(tile.variant)}`}>
+                <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl lg:h-14 lg:w-14 ${badge(tile.variant)}`}>
                   <tile.icon className={ICON} />
                 </span>
-                <span>
-                  <span className="block text-xl font-extrabold leading-tight lg:text-2xl">{tile.label}</span>
+                <span className="min-w-0">
+                  <span className="block text-lg font-extrabold leading-tight lg:text-2xl">{tile.label}</span>
                   <span
-                    className={`mt-1 hidden text-sm font-medium lg:block lg:text-base ${
+                    className={`mt-0.5 hidden text-sm font-medium lg:block lg:text-base ${
                       tile.variant === "light" || tile.variant === "gold" ? "text-zinc-600" : "text-white/80"
                     }`}
                   >

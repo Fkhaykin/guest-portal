@@ -229,6 +229,7 @@ export function KioskClient({ token }: { token: string }) {
       {screen.kind === "home" && (
         <MainScreen
           data={data}
+          content={content}
           onHandoff={handoff}
           onNavigate={navigate}
           onHelp={() => setHelpOpen(true)}
