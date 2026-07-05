@@ -103,7 +103,7 @@ export function CustomizationsModal({
 
   return (
     <Dialog open={open} onOpenChange={(o) => (o ? onOpenChange(o) : discard())}>
-      <DialogContent className="flex h-[85vh] max-w-5xl flex-col gap-0 overflow-hidden p-0">
+      <DialogContent className="flex h-[85vh] w-[calc(100vw-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-5xl">
         <DialogHeader className="border-b border-border px-5 py-3.5">
           <DialogTitle>Customizations</DialogTitle>
           <p className="text-sm text-muted-foreground">{config.nickname}</p>

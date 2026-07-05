@@ -46,7 +46,7 @@ export function HelpMeChooseBase({ data, onPick }: { data: PricingLabData; onPic
         <Lightbulb className="h-4 w-4" /> Help Me Choose a Base Price
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Suggested base price</DialogTitle>
           </DialogHeader>
