@@ -43,12 +43,16 @@ export function computePreview(
   const occupiedNights = new Set(snapshot.filter((r) => r.is_booked).map((r) => r.stay_date));
   const velocityByDate = new Map<string, number>();
   for (const m of market) if (m.pickup_7d != null) velocityByDate.set(m.stay_date, m.pickup_7d);
+  // Carry forward the weather desirability the last snapshot used, so the
+  // preview's near-term prices reflect the forecast too.
+  const weatherByDate = new Map<string, number>();
+  for (const r of snapshot) if (r.factors?.weather_desirability != null) weatherByDate.set(r.stay_date, r.factors.weather_desirability);
   const oldByDate = new Map(snapshot.map((r) => [r.stay_date, r.our_price_cents]));
 
   const horizon = Math.min(days * 3, 120); // compute a bit past the display window
   const rates = computeRates(
     { ...config, rules: sanitize(draftRules) },
-    { today, horizonDays: horizon, occupiedNights, velocityByDate }
+    { today, horizonDays: horizon, occupiedNights, velocityByDate, weatherByDate }
   );
 
   const nights: PreviewNight[] = [];

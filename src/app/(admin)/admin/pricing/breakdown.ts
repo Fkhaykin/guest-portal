@@ -62,10 +62,11 @@ export function buildLadder(row: SnapshotRow, config: PricingConfig): LadderRow[
   if (f.event_pct) rows.push({ label: "Event / holiday", pct: f.event_pct, runningCents: Math.round(structural), kind: "factor" });
   rows.push({ label: "Uncustomized price", pct: null, runningCents: Math.round(structural), kind: "total" });
 
-  // Customizations: the surviving discount + any pace/velocity premium + gap.
+  // Customizations: the surviving discount + any pace/velocity/weather premium + gap.
   const velocity = f.velocity_pct ?? 0;
+  const weather = f.weather_pct ?? 0;
   const hasCust =
-    f.discount_src !== null || f.pace_pct > 0 || f.gap_pct !== 0 || velocity !== 0 || f.smoothing_adj_pct !== 0;
+    f.discount_src !== null || f.pace_pct > 0 || f.gap_pct !== 0 || velocity !== 0 || weather !== 0 || f.smoothing_adj_pct !== 0;
   if (hasCust) {
     // Each customization's $ contribution is applied to the structural
     // (uncustomized) price — the engine stacks them additively there.
@@ -82,6 +83,14 @@ export function buildLadder(row: SnapshotRow, config: PricingConfig): LadderRow[
         pct: velocity,
         runningCents: null,
         deltaCents: delta(velocity),
+        kind: "factor",
+      });
+    if (weather !== 0)
+      rows.push({
+        label: "Weather",
+        pct: weather,
+        runningCents: null,
+        deltaCents: delta(weather),
         kind: "factor",
       });
     if (f.smoothing_adj_pct) rows.push({ label: "Smoothing", pct: f.smoothing_adj_pct, runningCents: null, deltaCents: delta(f.smoothing_adj_pct), kind: "factor" });

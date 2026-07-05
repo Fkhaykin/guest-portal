@@ -10,6 +10,7 @@ import {
   occupancyWindow,
   computePosition,
 } from "@/lib/pricing/market";
+import { loadWeatherByDate } from "@/lib/pricing/weather";
 
 async function requireAdmin() {
   const supabase = await createClient();
@@ -224,6 +225,10 @@ export async function GET(request: NextRequest) {
     .sort((x, y) => y.snapshot_date.localeCompare(x.snapshot_date))
     .slice(0, 14);
 
+  // Weather forecast per stay date (near-term), for the calendar display.
+  const weatherMap = await loadWeatherByDate(admin, config.nickname);
+  const weather = Object.fromEntries(weatherMap);
+
   return NextResponse.json({
     config,
     latest_snapshot_date: latestDate,
@@ -252,6 +257,7 @@ export async function GET(request: NextRequest) {
     logs: logs ?? [],
     notes: notes ?? [],
     pricingRuns,
+    weather,
   });
 }
 

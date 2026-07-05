@@ -31,6 +31,7 @@ function cfg(rules: Partial<PricingRules> = {}, anchors: Partial<EngineConfig> =
       smoothingPct: 0,
       overrides: [],
       velocity: { enabled: false, tiers: [], maxPct: 15 },
+      weather: { enabled: false, maxPct: 8 },
       ...rules,
     },
   };
@@ -233,6 +234,38 @@ describe("velocity (comp-set pickup premium)", () => {
     expect(rateOn(rates, "2026-07-11").price_cents).toBe(50600);
     // neighbors unaffected (velocity is outside the smoothing pass)
     expect(rateOn(rates, "2026-07-10").price_cents).toBe(40000);
+  });
+});
+
+describe("weather (near-term forecast premium/discount)", () => {
+  it("premiums warm/dry days and discounts cold/wet days, bounded", () => {
+    const c = cfg({ weather: { enabled: true, maxPct: 8 } });
+    const weatherByDate = new Map([
+      [addDays(TODAY, 2), 1.0], // ideal → +8%
+      [addDays(TODAY, 3), 0.55], // neutral → 0
+      [addDays(TODAY, 4), 0.0], // miserable → −8%
+    ]);
+    const rates = computeRates(c, input({ weatherByDate }));
+    expect(rateOn(rates, addDays(TODAY, 2)).price_cents).toBe(43200); // +8%
+    expect(rateOn(rates, addDays(TODAY, 3)).price_cents).toBe(40000); // neutral
+    expect(rateOn(rates, addDays(TODAY, 4)).price_cents).toBe(36800); // −8%
+    expect(rateOn(rates, addDays(TODAY, 2)).factors.weather_pct).toBe(8);
+    expect(rateOn(rates, addDays(TODAY, 4)).factors.weather_pct).toBe(-8);
+  });
+
+  it("does nothing beyond the forecast window or when disabled", () => {
+    const on = computeRates(
+      cfg({ weather: { enabled: true, maxPct: 8 } }),
+      input({ weatherByDate: new Map([[addDays(TODAY, 2), 1.0]]) })
+    );
+    // day 10 has no forecast entry → unaffected
+    expect(rateOn(on, addDays(TODAY, 10)).price_cents).toBe(40000);
+
+    const off = computeRates(
+      cfg({ weather: { enabled: false, maxPct: 8 } }),
+      input({ weatherByDate: new Map([[addDays(TODAY, 2), 1.0]]) })
+    );
+    expect(rateOn(off, addDays(TODAY, 2)).price_cents).toBe(40000);
   });
 });
 

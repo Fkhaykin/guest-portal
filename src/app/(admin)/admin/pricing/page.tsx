@@ -265,6 +265,7 @@ export default function PricingLabPage() {
                 market={data.market}
                 bookings={data.bookings}
                 blocks={data.blocks}
+                weather={data.weather}
                 today={data.today}
               />
               <MetricsRail data={data} onEditRule={(k) => setCustKey(k)} />

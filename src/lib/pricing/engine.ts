@@ -42,6 +42,10 @@ export interface PricingRules {
    *  Tiers checked highest-first; premium only — cooling is handled by
    *  pace/lead-time discounts. */
   velocity: { enabled: boolean; tiers: VelocityTier[]; maxPct: number };
+  /** Weather factor (near-term only, ~16-day forecast horizon): warm/dry days
+   *  get a premium, cold/wet days a discount, bounded to ±maxPct. Something
+   *  PriceLabs doesn't do. */
+  weather: { enabled: boolean; maxPct: number };
 }
 
 export interface EngineConfig {
@@ -62,6 +66,8 @@ export interface RateFactors {
   gap_pct: number;
   velocity_pct: number;
   pickup_7d: number | null; // the raw comp-set pickup that drove velocity_pct
+  weather_pct: number;
+  weather_desirability: number | null; // the raw forecast score that drove weather_pct
   discount_src: "leadtime" | "pace" | "gap" | null;
   smoothing_adj_pct: number;
   pre_clamp_cents: number;
@@ -84,6 +90,9 @@ export interface EngineInput {
   /** Comp-set 7-day pickup per stay date (0..1), from market_pulse. Optional —
    *  the velocity factor is 0 wherever it's absent. */
   velocityByDate?: Map<string, number>;
+  /** Weather desirability per stay date (0..1), from the forecast. Optional —
+   *  the weather factor is 0 wherever it's absent (i.e. beyond the forecast). */
+  weatherByDate?: Map<string, number>;
 }
 
 export const DEFAULT_RULES: PricingRules = {
@@ -120,7 +129,11 @@ export const DEFAULT_RULES: PricingRules = {
     ],
     maxPct: 15,
   },
+  weather: { enabled: true, maxPct: 8 },
 };
+
+// Desirability that maps to a zero weather adjustment (a fair-weather day).
+const WEATHER_NEUTRAL = 0.55;
 
 // ---------------------------------------------------------------------------
 // Date helpers (UTC-anchored so results don't depend on server timezone)
@@ -221,6 +234,17 @@ function occupancyByBucket(input: EngineInput, buckets: PaceBucket[]): Map<numbe
   return out;
 }
 
+/** Weather adjustment: warm/dry days (desirability → 1) earn up to +maxPct,
+ *  cold/wet days (→ 0) up to −maxPct, centered on WEATHER_NEUTRAL. */
+function weatherPct(rules: PricingRules, desirability: number | undefined): number {
+  if (!rules.weather.enabled || desirability === undefined) return 0;
+  const above = desirability >= WEATHER_NEUTRAL;
+  const span = above ? 1 - WEATHER_NEUTRAL : WEATHER_NEUTRAL;
+  const raw = ((desirability - WEATHER_NEUTRAL) / span) * rules.weather.maxPct;
+  const clamped = Math.max(-rules.weather.maxPct, Math.min(rules.weather.maxPct, raw));
+  return Math.round(clamped * 10) / 10;
+}
+
 /** Velocity premium: highest tier whose minPickup the date's pickup meets. */
 function velocityPct(rules: PricingRules, pickup: number | undefined): number {
   if (!rules.velocity.enabled || pickup === undefined || pickup <= 0) return 0;
@@ -281,6 +305,8 @@ export function computeRates(cfg: EngineConfig, input: EngineInput): ComputedRat
     const gapPct = gapLen !== undefined ? rules.gap.pct : 0;
     const pickup = input.velocityByDate?.get(date);
     const velocity = velocityPct(rules, pickup);
+    const weatherDes = input.weatherByDate?.get(date);
+    const weather = weatherPct(rules, weatherDes);
 
     // Premiums stack; discounts compete — only the single largest applies.
     // A gap can be a discount (fill it) OR a premium (deter 1-night party
@@ -319,6 +345,8 @@ export function computeRates(cfg: EngineConfig, input: EngineInput): ComputedRat
         gap_pct: gapPart,
         velocity_pct: velocity,
         pickup_7d: pickup ?? null,
+        weather_pct: weather,
+        weather_desirability: weatherDes ?? null,
         discount_src: appliedDiscountSrc,
         smoothing_adj_pct: 0,
         pre_clamp_cents: 0,
@@ -344,10 +372,13 @@ export function computeRates(cfg: EngineConfig, input: EngineInput): ComputedRat
     }
   }
 
-  // Pass 3: final price = structural × (1 + dynamic + gap + velocity), clamp, override.
+  // Pass 3: final price = structural × (1 + dynamic + gap + velocity + weather),
+  // clamp, override. Gap/velocity/weather are date-specific spikes kept out of
+  // the smoothed dynamic.
   return working.map((w) => {
     const raw =
-      w.structuralCents * (1 + (w.dynamicPct + w.factors.gap_pct + w.factors.velocity_pct) / 100);
+      w.structuralCents *
+      (1 + (w.dynamicPct + w.factors.gap_pct + w.factors.velocity_pct + w.factors.weather_pct) / 100);
     w.factors.pre_clamp_cents = Math.round(raw);
 
     let price = Math.round(raw);

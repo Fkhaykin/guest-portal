@@ -204,6 +204,29 @@ function PaceEditor({ rules, onChange }: { rules: PricingRules; onChange: (r: Pr
   );
 }
 
+function WeatherEditor({ rules, onChange }: { rules: PricingRules; onChange: (r: PricingRules) => void }) {
+  const weather = rules.weather ?? { enabled: true, maxPct: 8 };
+  return (
+    <div className="space-y-3">
+      <label className="flex items-center gap-2 text-sm">
+        <Switch checked={weather.enabled} onCheckedChange={(v: boolean) => onChange({ ...rules, weather: { ...weather, enabled: v } })} />
+        Adjust near-term prices for the weather forecast
+      </label>
+      {weather.enabled && (
+        <div className="flex items-center gap-2">
+          <Label className="text-xs text-muted-foreground">Max adjustment ±</Label>
+          <NumInput value={weather.maxPct} onChange={(v) => onChange({ ...rules, weather: { ...weather, maxPct: Math.abs(v) } })} className="w-18" />
+          <Muted>%</Muted>
+        </div>
+      )}
+      <p className="text-xs text-muted-foreground">
+        Warm, dry days within the ~16-day forecast get a premium; cold, wet days a discount. Beyond the
+        forecast window there is no adjustment. Something PriceLabs doesn&apos;t do.
+      </p>
+    </div>
+  );
+}
+
 function VelocityEditor({ rules, onChange }: { rules: PricingRules; onChange: (r: PricingRules) => void }) {
   const velocity = rules.velocity ?? { enabled: true, tiers: [], maxPct: 15 };
   const patch = (v: typeof velocity) => onChange({ ...rules, velocity: v });
@@ -454,6 +477,16 @@ export const CUSTOMIZATION_ITEMS: CustomizationItem[] = [
         ? `${[...r.velocity.tiers].sort((a, b) => a.minPickup - b.minPickup).map((t) => `+${t.pct}% at ${Math.round(t.minPickup * 100)}% pickup`).join(", ")} (cap +${r.velocity.maxPct}%).`
         : "Off.",
     Editor: VelocityEditor,
+  },
+  {
+    key: "weather",
+    title: "Weather",
+    category: "smart",
+    explainer: "Prices near-term dates on the actual forecast — warm/dry up, cold/wet down. PriceLabs doesn't do this at all.",
+    applied: (r) => !!r.weather?.enabled,
+    summary: (r) =>
+      r.weather?.enabled ? `±up to ${r.weather.maxPct}% on the next ~16 days by forecast.` : "Off.",
+    Editor: WeatherEditor,
   },
   {
     key: "dow",

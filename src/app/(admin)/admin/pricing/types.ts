@@ -119,6 +119,16 @@ export interface PricingLabData {
   logs: ConfigLog[];
   notes: PricingNote[];
   pricingRuns: PricingRun[];
+  weather: Record<string, WeatherPoint>;
+}
+
+export interface WeatherPoint {
+  desirability: number;
+  tempMaxF: number | null;
+  precipProb: number | null;
+  code: number | null;
+  label: string;
+  emoji: string;
 }
 
 export interface ConfigLog {

@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ChevronLeft, ChevronRight, Moon, CalendarDays, Settings2 } from "lucide-react";
-import type { PricingConfig, SnapshotRow, MarketPoint, BookingNight, BlockNight } from "./types";
+import type { PricingConfig, SnapshotRow, MarketPoint, BookingNight, BlockNight, WeatherPoint } from "./types";
 import { fmtUsd, fmtDate } from "./types";
 import { buildLadder, demandLevel, DEMAND_COLORS, type DemandLevel } from "./breakdown";
 
@@ -17,8 +17,9 @@ interface DisplaySettings {
   minStay: boolean;
   events: boolean;
   marketMedian: boolean;
+  weather: boolean;
 }
-const DEFAULT_DISPLAY: DisplaySettings = { minStay: true, events: true, marketMedian: false };
+const DEFAULT_DISPLAY: DisplaySettings = { minStay: true, events: true, marketMedian: false, weather: true };
 const DISPLAY_KEY = "pricing-lab-calendar-display";
 function loadDisplay(): DisplaySettings {
   if (typeof window === "undefined") return DEFAULT_DISPLAY;
@@ -59,6 +60,7 @@ export function CalendarView({
   market,
   bookings,
   blocks,
+  weather,
   today,
 }: {
   config: PricingConfig;
@@ -66,6 +68,7 @@ export function CalendarView({
   market: MarketPoint[];
   bookings: Record<string, BookingNight>;
   blocks: Record<string, BlockNight>;
+  weather: Record<string, WeatherPoint>;
   today: string;
 }) {
   const firstStay = snapshot[0]?.stay_date ?? today;
@@ -188,6 +191,7 @@ export function CalendarView({
                   ["minStay", "Min-stay indicator"],
                   ["events", "Event labels"],
                   ["marketMedian", "Market median"],
+                  ["weather", "Weather forecast"],
                 ].map(([k, label]) => (
                   <label key={k} className="flex items-center justify-between">
                     {label}
@@ -222,6 +226,7 @@ export function CalendarView({
               market={mkt}
               booking={bookings[date]}
               block={blocks[date]}
+              weather={weather[date]}
               display={display}
               config={config}
               today={today}
@@ -240,6 +245,7 @@ function DayCell({
   market,
   booking,
   block,
+  weather,
   display,
   config,
   today,
@@ -250,6 +256,7 @@ function DayCell({
   market: MarketPoint | undefined;
   booking: BookingNight | undefined;
   block: BlockNight | undefined;
+  weather: WeatherPoint | undefined;
   display: DisplaySettings;
   config: PricingConfig;
   today: string;
@@ -298,7 +305,20 @@ function DayCell({
             </>
           ) : null}
         </span>
-        <span className="text-xs font-semibold text-muted-foreground">{dayNum}</span>
+        <span className="flex items-center gap-1">
+          {display.weather && !isBlocked && !booked && weather && (
+            <span
+              className="text-[11px] leading-none"
+              title={`${weather.label}, ${weather.tempMaxF != null ? Math.round(weather.tempMaxF) + "°F" : ""}${weather.precipProb != null ? `, ${weather.precipProb}% rain` : ""}`}
+            >
+              {weather.emoji}
+              {weather.tempMaxF != null && (
+                <span className="ml-0.5 text-[9px] text-muted-foreground">{Math.round(weather.tempMaxF)}°</span>
+              )}
+            </span>
+          )}
+          <span className="text-xs font-semibold text-muted-foreground">{dayNum}</span>
+        </span>
       </div>
       {display.events && eventLabel && !booked && !isBlocked && (
         <div className="mt-0.5 truncate rounded bg-violet-500/15 px-1 text-[10px] font-medium text-violet-700 dark:text-violet-300">
@@ -355,7 +375,7 @@ function DayCell({
         {inner}
       </PopoverTrigger>
       <PopoverContent className="w-80 p-0" align="center">
-        <BreakdownCard date={date} row={row} market={market} booking={booking} block={block} config={config} today={today} demand={demand} />
+        <BreakdownCard date={date} row={row} market={market} booking={booking} block={block} weather={weather} config={config} today={today} demand={demand} />
       </PopoverContent>
     </Popover>
   );
@@ -367,6 +387,7 @@ function BreakdownCard({
   market,
   booking,
   block,
+  weather,
   config,
   today,
   demand,
@@ -376,6 +397,7 @@ function BreakdownCard({
   market: MarketPoint | undefined;
   booking: BookingNight | undefined;
   block: BlockNight | undefined;
+  weather: WeatherPoint | undefined;
   config: PricingConfig;
   today: string;
   demand: DemandLevel;
@@ -458,6 +480,14 @@ function BreakdownCard({
           {demand.occPct != null && ` (${demand.occPct}% market occupancy)`}
           {market?.p50 != null && ` · market median ${fmtUsd(market.p50)}`}
         </div>
+        {weather && (
+          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+            <span>{weather.emoji}</span>
+            {weather.label}
+            {weather.tempMaxF != null && ` · ${Math.round(weather.tempMaxF)}°F`}
+            {weather.precipProb != null && ` · ${weather.precipProb}% rain`}
+          </div>
+        )}
       </div>
 
       <div className="divide-y divide-border">
