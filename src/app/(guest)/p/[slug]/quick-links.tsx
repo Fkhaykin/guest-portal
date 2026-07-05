@@ -4,11 +4,9 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   ClipboardList,
-  ShoppingBag,
   Tag,
   MapPin,
   HelpCircle,
-  Video,
   PenLine,
   Gift,
   Truck,
@@ -17,6 +15,8 @@ import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/ca
 
 const SESSION_KEY = "guest-portal-session";
 
+// Services and Videos are hidden until that content exists — restore their
+// tiles here when it does.
 const baseLinks = [
   {
     label: "Add-Ons",
@@ -29,12 +29,6 @@ const baseLinks = [
     description: "Register deliveries and rides",
     href: "/delivery",
     icon: Truck,
-  },
-  {
-    label: "Services",
-    description: "Browse additional services",
-    href: "/services",
-    icon: ShoppingBag,
   },
   {
     label: "Promotions",
@@ -54,12 +48,6 @@ const baseLinks = [
     description: "Frequently asked questions",
     href: "/faq",
     icon: HelpCircle,
-  },
-  {
-    label: "Videos",
-    description: "How-to guides & welcome",
-    href: "/videos",
-    icon: Video,
   },
 ];
 
@@ -103,14 +91,16 @@ export function QuickLinks({ slug }: { slug: string }) {
           className="rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         >
           <Card className="h-full cursor-pointer ring-1 ring-border/60 transition-all hover:-translate-y-0.5 hover:shadow-md hover:ring-border">
-            <CardHeader className="flex flex-col items-center text-center p-4 gap-2">
-              <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10">
-                <item.icon className="h-7 w-7 text-primary" />
+            <CardHeader className="flex flex-row items-center p-4 gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                <item.icon className="h-4.5 w-4.5 text-primary" />
               </div>
-              <CardTitle className="text-base">{item.label}</CardTitle>
-              <CardDescription className="text-xs">
-                {item.description}
-              </CardDescription>
+              <div className="min-w-0 space-y-0.5">
+                <CardTitle className="text-sm leading-tight">{item.label}</CardTitle>
+                <CardDescription className="text-xs leading-snug">
+                  {item.description}
+                </CardDescription>
+              </div>
             </CardHeader>
           </Card>
         </Link>
