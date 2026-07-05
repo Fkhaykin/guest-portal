@@ -830,6 +830,26 @@ export type Database = {
           updated_at?: string;
         };
       };
+      kiosk: {
+        Row: {
+          property_id: string;
+          token: string;
+          created_at: string;
+          rotated_at: string | null;
+        };
+        Insert: {
+          property_id: string;
+          token?: string;
+          created_at?: string;
+          rotated_at?: string | null;
+        };
+        Update: {
+          property_id?: string;
+          token?: string;
+          created_at?: string;
+          rotated_at?: string | null;
+        };
+      };
       registration_update_log: {
         Row: {
           id: string;

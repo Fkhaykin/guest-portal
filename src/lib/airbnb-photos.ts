@@ -214,9 +214,13 @@ const AIRBNB_PHOTOS: Record<string, AirbnbPhotoSet> = {
 
 // Old (now-inactive) property rows for the same physical houses — resolve to
 // the active row's photo set so any lingering references keep working.
+// (Lakehouse is the reverse case: its set is keyed by the legacy row's name,
+// so the ACTIVE row's name aliases to it.)
 const NAME_ALIASES: Record<string, string> = {
   "Lakeview Chalet w/ Hot Tub, Sauna, Decks, Boats, & Fire Pit!":
     "Lakeview Chalet w/ hot tub, sauna, fire pit & decks",
+  "Poconos Lakefront with Hot Tub, boats, and more!":
+    "Lakefront Home w/ Hot Tub, Game Room, Deck, Boats, Fire Pit",
 };
 
 function resolveSet(propertyName: string): AirbnbPhotoSet | null {

@@ -11,6 +11,7 @@ import {
   QrCode,
   Building2,
   Settings,
+  TabletSmartphone,
 } from "lucide-react";
 import { PropertyActiveToggle } from "@/components/admin/property-active-toggle";
 
@@ -50,6 +51,12 @@ const sections = [
     description: "Generate and manage QR codes",
     href: "/qr-codes",
     icon: QrCode,
+  },
+  {
+    label: "Kiosk",
+    description: "Wall-display URL, QR, and device setup for the in-house kiosk",
+    href: "/kiosk",
+    icon: TabletSmartphone,
   },
   {
     label: "Owner / HOA Settings",

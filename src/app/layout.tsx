@@ -4,6 +4,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/theme-provider";
 import { PWARegister } from "@/components/pwa-register";
 import { LiveChatGate } from "@/components/guest/live-chat-gate";
+import { IdleReturnGate } from "@/components/kiosk/idle-return";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -65,6 +66,7 @@ export default function RootLayout({
           <PWARegister />
           <Toaster />
           <LiveChatGate />
+          <IdleReturnGate />
         </ThemeProvider>
       </body>
     </html>

@@ -48,6 +48,8 @@ function shouldSkipRewrite(pathname: string): boolean {
     pathname.startsWith("/api") ||
     pathname.startsWith("/auth") ||
     pathname.startsWith("/_next") ||
+    // In-house kiosk displays — same page on every subdomain
+    pathname.startsWith("/kiosk") ||
     // PWA assets live in /public and must resolve on every subdomain —
     // prefixing them (e.g. /cleaner/sw.js) 404s and silently breaks
     // standalone install + push on the manager/admin subdomains.
