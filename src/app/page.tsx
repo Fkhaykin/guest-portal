@@ -10,7 +10,6 @@ import {
   CardContent,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { createClient } from "@/lib/supabase/client";
 import {
   clearGuestToken,
@@ -1270,9 +1269,25 @@ export default function HomeV2Page() {
       </StoryBand>
 
       {/* ============================================================ */}
+      {/*  GUEST REVIEWS                                                */}
+      {/* ============================================================ */}
+      <ReviewsCarousel />
+
+      {/* ============================================================ */}
       {/*  ONE LAKE, FOUR SEASONS — interactive explorer                */}
       {/* ============================================================ */}
       <SeasonsExplorer />
+
+      {/* ============================================================ */}
+      {/*  EXPLORE POCONOS CAROUSEL                                     */}
+      {/* ============================================================ */}
+      <div className="py-16 sm:py-20 max-w-6xl mx-auto w-full">
+        <Carousel
+          items={EXPLORE_POCONOS}
+          title="Explore the Poconos"
+          subtitle="Find your perfect mountain escape"
+        />
+      </div>
 
       {/* ============================================================ */}
       {/*  PET FRIENDLY                                                  */}
@@ -1298,30 +1313,6 @@ export default function HomeV2Page() {
       </StoryBand>
 
       {/* ============================================================ */}
-      {/*  GUEST REVIEWS                                                */}
-      {/* ============================================================ */}
-      <Separator className="max-w-6xl mx-auto" />
-      <ReviewsCarousel />
-
-      {/* ============================================================ */}
-      {/*  AFTER DARK — fire video interlude                            */}
-      {/* ============================================================ */}
-      <EveningInterlude />
-
-      {/* ============================================================ */}
-      {/*  EXPLORE POCONOS CAROUSEL                                     */}
-      {/* ============================================================ */}
-      <div className="py-16 sm:py-20 max-w-6xl mx-auto w-full">
-        <Carousel
-          items={EXPLORE_POCONOS}
-          title="Explore the Poconos"
-          subtitle="Find your perfect mountain escape"
-        />
-      </div>
-
-      <Separator className="max-w-6xl mx-auto" />
-
-      {/* ============================================================ */}
       {/*  LOCAL HIGHLIGHTS CAROUSEL                                    */}
       {/* ============================================================ */}
       <div className="py-16 sm:py-20 max-w-6xl mx-auto w-full">
@@ -1333,9 +1324,13 @@ export default function HomeV2Page() {
       </div>
 
       {/* ============================================================ */}
+      {/*  AFTER DARK — fire video interlude                            */}
+      {/* ============================================================ */}
+      <EveningInterlude />
+
+      {/* ============================================================ */}
       {/*  INSTAGRAM FEED                                               */}
       {/* ============================================================ */}
-      <Separator className="max-w-6xl mx-auto" />
       <InstagramFeedSection />
 
       <SiteFooter />
