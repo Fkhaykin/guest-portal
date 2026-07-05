@@ -22,6 +22,12 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { SiteNav } from "@/components/site-nav";
 import { SiteFooter } from "@/components/site-footer";
 import {
+  CountUp,
+  EveningInterlude,
+  SeasonsExplorer,
+  StoryBand,
+} from "@/components/home/story";
+import {
   Search,
   MapPin,
   Calendar,
@@ -159,17 +165,17 @@ function TrustBar() {
   const stats = [
     {
       icon: Star,
-      value: REVIEW_STATS.averageRating.toFixed(2),
+      value: <CountUp value={REVIEW_STATS.averageRating} decimals={2} />,
       label: "Average guest rating",
     },
     {
       icon: BadgeCheck,
-      value: `${REVIEW_STATS.totalCount.toLocaleString()}+`,
+      value: <CountUp value={REVIEW_STATS.totalCount} suffix="+" />,
       label: "Verified reviews",
     },
     {
       icon: KeyRound,
-      value: `${REVIEW_STATS.propertyCount}`,
+      value: <CountUp value={REVIEW_STATS.propertyCount} duration={800} />,
       label: "Lakefront homes",
     },
     {
@@ -1221,76 +1227,75 @@ export default function HomeV2Page() {
       )}
 
       {/* ============================================================ */}
-      {/*  UPSCALE EXPERIENCE                                           */}
+      {/*  THE SUMMIT STANDARD — full-bleed parallax band               */}
       {/* ============================================================ */}
-      <section className="px-4 sm:px-6 py-16 sm:py-20 max-w-6xl mx-auto w-full">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-10 lg:gap-16 items-center">
-          <div className="space-y-8">
-            <SectionHeading
-              eyebrow="The Summit Standard"
-              title="An upscale stay, down to the detail"
-              subtitle="Every lakehouse is newly renovated and thoughtfully furnished — gourmet kitchens, hot tubs, and private outdoor space, with seamless self check-in and everything stocked before you arrive."
-            />
-
-            <div className="grid grid-cols-2 gap-x-8 gap-y-3">
-              {[
-                "Stocked linens & towels",
-                "USB outlets throughout",
-                "Full kitchen essentials",
-                "Newly renovated",
-                "Toiletries provided",
-                "Games & toys",
-                "Plush blankets",
-                "Boats & kayaks",
-              ].map((amenity) => (
-                <div key={amenity} className="flex items-center gap-2.5">
-                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10">
-                    <Check className="h-3 w-3 text-primary" />
-                  </span>
-                  <span className="text-sm text-foreground/80">{amenity}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="relative w-full aspect-4/5 rounded-2xl overflow-hidden ring-1 ring-black/5 shadow-xl">
-            <img
-              src="https://a0.muscache.com/im/pictures/0f3c2d87-7cd0-45bc-bf57-efdcbda6ac7e.jpg?im_w=1200"
-              alt="Luxury bathroom with freestanding tub"
-              className="absolute inset-0 w-full h-full object-cover"
-            />
+      <StoryBand
+        img="https://arvbaoeszakyuxqhkogz.supabase.co/storage/v1/object/public/property-images/lodgify-588691/airbnb/10-living-room-3-image-3.jpg"
+        alt="Living room with a stone fireplace and black steel staircase"
+      >
+        <div className="max-w-xl">
+          <span className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.3em] text-white/70">
+            <span className="h-1 w-1 rounded-full bg-white/70" />
+            The Summit Standard
+          </span>
+          <h2 className="mt-4 text-4xl sm:text-6xl font-bold tracking-tight text-white text-balance [text-shadow:0_1px_24px_rgb(0_0_0/0.45)]">
+            An upscale stay, down to the detail.
+          </h2>
+          <p className="mt-5 text-lg text-white/85 leading-relaxed text-pretty [text-shadow:0_1px_16px_rgb(0_0_0/0.5)]">
+            Every lakehouse is newly renovated and thoughtfully furnished —
+            gourmet kitchens, hot tubs, and private outdoor space, stocked
+            before you arrive.
+          </p>
+          <div className="mt-7 flex flex-wrap gap-2">
+            {[
+              "Stocked linens & towels",
+              "Full kitchen essentials",
+              "Toiletries provided",
+              "Games & toys",
+              "Plush blankets",
+              "Boats & kayaks",
+              "Newly renovated",
+              "Self check-in",
+            ].map((amenity) => (
+              <span
+                key={amenity}
+                className="inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-white/10 px-4 py-1.5 text-sm text-white/90 backdrop-blur-sm"
+              >
+                <Check className="h-3.5 w-3.5 text-white/80" />
+                {amenity}
+              </span>
+            ))}
           </div>
         </div>
-      </section>
+      </StoryBand>
+
+      {/* ============================================================ */}
+      {/*  ONE LAKE, FOUR SEASONS — interactive explorer                */}
+      {/* ============================================================ */}
+      <SeasonsExplorer />
 
       {/* ============================================================ */}
       {/*  PET FRIENDLY                                                  */}
       {/* ============================================================ */}
-      <section className="px-4 sm:px-6 max-w-6xl mx-auto w-full">
-        <div className="relative w-full aspect-16/7 min-h-80 rounded-xl overflow-hidden">
-          <img
-            src="https://a0.muscache.com/im/pictures/370a991e-fefb-4218-8083-a52775bc931a.jpg?im_w=1200"
-            alt="Pet friendly lakefront property"
-            className="absolute inset-0 w-full h-full object-cover"
-          />
-          <div className="absolute inset-0 bg-linear-to-r from-black/70 via-black/40 to-transparent" />
-          <div className="absolute inset-0 flex items-center px-6 sm:px-12 md:px-16">
-            <div className="max-w-lg space-y-3">
-              <span className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-white/80">
-                <span className="h-1 w-1 rounded-full bg-white/80" />
-                Pet friendly
-              </span>
-              <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white leading-[1.05] text-balance">
-                No need for a dog sitter.
-              </h2>
-              <p className="text-lg sm:text-xl text-white/90 font-medium text-pretty">
-                Every Summit Lakeside home welcomes pets — so the whole family
-                comes along.
-              </p>
-            </div>
-          </div>
+      <StoryBand
+        img="https://a0.muscache.com/im/pictures/370a991e-fefb-4218-8083-a52775bc931a.jpg?im_w=1920"
+        alt="Pet friendly lakefront property"
+        minHeight="min-h-[55vh] sm:min-h-[60vh]"
+      >
+        <div className="max-w-lg space-y-3">
+          <span className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.3em] text-white/80">
+            <span className="h-1 w-1 rounded-full bg-white/80" />
+            Pet friendly
+          </span>
+          <h2 className="text-4xl sm:text-5xl md:text-6xl font-bold text-white leading-[1.02] text-balance [text-shadow:0_1px_24px_rgb(0_0_0/0.45)]">
+            No need for a dog sitter.
+          </h2>
+          <p className="text-lg sm:text-xl text-white/90 font-medium text-pretty [text-shadow:0_1px_16px_rgb(0_0_0/0.5)]">
+            Every Summit Lakeside home welcomes pets — so the whole family
+            comes along.
+          </p>
         </div>
-      </section>
+      </StoryBand>
 
       {/* ============================================================ */}
       {/*  GUEST REVIEWS                                                */}
@@ -1298,7 +1303,10 @@ export default function HomeV2Page() {
       <Separator className="max-w-6xl mx-auto" />
       <ReviewsCarousel />
 
-      <Separator className="max-w-6xl mx-auto" />
+      {/* ============================================================ */}
+      {/*  AFTER DARK — fire video interlude                            */}
+      {/* ============================================================ */}
+      <EveningInterlude />
 
       {/* ============================================================ */}
       {/*  EXPLORE POCONOS CAROUSEL                                     */}
