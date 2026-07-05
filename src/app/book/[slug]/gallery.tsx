@@ -626,6 +626,75 @@ export function EditorialCollage({
 }
 
 /* ------------------------------------------------------------------ */
+/*  Parallax spread — a wide shot with a floating card drifting        */
+/*  against it at a different depth                                    */
+/* ------------------------------------------------------------------ */
+
+export function ParallaxSpread({
+  images,
+  picks,
+  propertyName,
+}: {
+  images: GalleryImage[];
+  /** [backdrop, floating card] */
+  picks: number[];
+  propertyName: string;
+}) {
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  if (picks.length < 2) return null;
+  const [bg, float] = picks;
+
+  return (
+    <>
+      {/* Bottom margin makes room for the card's overhang */}
+      <div className="relative mb-14 sm:mb-20">
+        <button
+          onClick={() => setLightboxIndex(bg)}
+          className="group relative block w-full aspect-16/10 sm:aspect-2/1 rounded-3xl overflow-hidden focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <ParallaxImg
+            src={images[bg].url}
+            alt={images[bg].caption || `${propertyName} photo`}
+            strength={0.14}
+          />
+          <div className="absolute inset-x-0 bottom-0 h-1/3 bg-linear-to-t from-black/35 to-transparent" />
+          {images[bg].caption && (
+            <span className="absolute bottom-3 left-4 rounded-full bg-black/35 backdrop-blur-sm px-2.5 py-1 text-white/95 text-xs font-medium">
+              {displayLabel(images[bg].caption)}
+            </span>
+          )}
+        </button>
+
+        {/* Floating card — drifts the opposite way, half off the backdrop */}
+        <button
+          onClick={() => setLightboxIndex(float)}
+          className="group absolute -bottom-10 right-4 sm:-bottom-14 sm:right-10 w-2/5 sm:w-1/3 aspect-4/3 rounded-2xl overflow-hidden shadow-2xl ring-4 ring-background focus-visible:ring-ring"
+        >
+          <ParallaxImg
+            src={images[float].url}
+            alt={images[float].caption || `${propertyName} photo`}
+            strength={-0.07}
+          />
+          {images[float].caption && (
+            <span className="absolute bottom-2 left-2.5 rounded-full bg-black/35 backdrop-blur-sm px-2 py-0.5 text-white/95 text-[11px] font-medium">
+              {displayLabel(images[float].caption)}
+            </span>
+          )}
+        </button>
+      </div>
+      {lightboxIndex !== null && (
+        <Lightbox
+          images={images}
+          index={lightboxIndex}
+          onNavigate={setLightboxIndex}
+          onClose={() => setLightboxIndex(null)}
+        />
+      )}
+    </>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  Gallery wall — masonry of photos the page hasn't shown yet         */
 /* ------------------------------------------------------------------ */
 
@@ -881,11 +950,14 @@ export function ScenicBreak({
   images,
   pick,
   propertyName,
+  quote,
 }: {
   images: GalleryImage[];
   /** Index chosen by the photo plan; null hides the band */
   pick: number | null;
   propertyName: string;
+  /** A short real guest review to set over the image */
+  quote?: { text: string; name: string; date: string } | null;
 }) {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
@@ -896,22 +968,38 @@ export function ScenicBreak({
     <>
       <button
         onClick={() => setLightboxIndex(pick)}
-        className="group relative block w-full aspect-16/10 sm:aspect-21/9 rounded-3xl overflow-hidden focus-visible:ring-2 focus-visible:ring-ring"
+        className="group relative block w-full aspect-4/3 sm:aspect-2/1 rounded-3xl overflow-hidden focus-visible:ring-2 focus-visible:ring-ring"
       >
         <ParallaxImg
           src={img.url}
           alt={img.caption || `${propertyName} surroundings`}
           strength={0.16}
         />
-        <div className="absolute inset-x-0 bottom-0 h-2/3 bg-linear-to-t from-black/60 via-black/20 to-transparent" />
-        <div className="absolute bottom-4 left-5 sm:bottom-7 sm:left-8 text-left">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/70 mb-1">
-            The setting
-          </p>
-          {img.caption && (
-            <p className="text-white text-lg sm:text-2xl font-semibold drop-shadow max-w-xl text-balance">
-              {img.caption}
-            </p>
+        <div className="absolute inset-0 bg-linear-to-r from-black/60 via-black/25 to-transparent" />
+        <div className="absolute inset-y-0 left-0 flex flex-col justify-center max-w-md lg:max-w-lg px-6 sm:px-10 text-left">
+          {quote ? (
+            <>
+              <span className="text-white/50 text-5xl sm:text-6xl font-serif leading-none select-none">
+                &ldquo;
+              </span>
+              <p className="text-white text-lg sm:text-2xl font-medium leading-snug drop-shadow text-balance -mt-3">
+                {quote.text}
+              </p>
+              <p className="text-white/70 text-sm mt-3">
+                — {quote.name}, {quote.date} · verified guest
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/70 mb-1">
+                The setting
+              </p>
+              {img.caption && (
+                <p className="text-white text-lg sm:text-2xl font-semibold drop-shadow text-balance">
+                  {img.caption}
+                </p>
+              )}
+            </>
           )}
         </div>
       </button>

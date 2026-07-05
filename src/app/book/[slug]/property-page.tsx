@@ -28,6 +28,7 @@ import type { PropertyDetails } from "@/lib/property-details";
 import {
   EditorialCollage,
   GalleryWall,
+  ParallaxSpread,
   planPhotoSections,
   PropertyGallery,
   RoomShowcase,
@@ -246,6 +247,28 @@ export function PropertyPage({
     };
   }, [reviewNames]);
 
+  // A short, punchy 5-star line for the scenic pull-quote band — skip anything
+  // that airs a gripe, prefer lines that gush about the place itself.
+  const pullQuote = useMemo(() => {
+    const negative =
+      /issue|problem|however|but |unfortunately|broke|broken|dirty|cold|smell|wasn|didn|couldn|except|complaint|replied/i;
+    const glowing =
+      /beautiful|stunning|gorgeous|amazing|perfect|peaceful|magical|paradise|relax|serene|breathtaking|lake|view|cozy|spotless|wonderful|memories/gi;
+    const best = REVIEWS.filter(
+      (r) =>
+        reviewNames.includes(r.property) &&
+        r.rating === 5 &&
+        r.text.length >= 60 &&
+        r.text.length <= 170 &&
+        !negative.test(r.text)
+    )
+      .map((r) => ({ r, score: (r.text.match(glowing) ?? []).length }))
+      .sort((a, b) => b.score - a.score)[0]?.r;
+    return best
+      ? { text: best.text.replace(/\s+/g, " ").trim(), name: best.name, date: best.date }
+      : null;
+  }, [reviewNames]);
+
   const highlights = useMemo(() => deriveHighlights(details), [details]);
   const photoPlan = useMemo(() => planPhotoSections(images), [images]);
 
@@ -438,14 +461,13 @@ export function PropertyPage({
                 </div>
               </section>
 
-              {/* Outdoor collage — hot tub, fire pit, decks */}
-              {photoPlan.collageB.length === 3 && (
+              {/* Layered outdoor spread — two depths drifting against each other */}
+              {photoPlan.collageB.length >= 2 && (
                 <Reveal>
-                  <EditorialCollage
+                  <ParallaxSpread
                     images={images}
                     picks={photoPlan.collageB}
                     propertyName={property.name}
-                    flip
                   />
                 </Reveal>
               )}
@@ -487,7 +509,12 @@ export function PropertyPage({
         <div className="max-w-7xl mx-auto px-4 sm:px-6 pb-12 space-y-12">
           {/* Scenic interlude — a breath of the outdoors between sections */}
           <Reveal>
-            <ScenicBreak images={images} pick={photoPlan.scenic} propertyName={property.name} />
+            <ScenicBreak
+              images={images}
+              pick={photoPlan.scenic}
+              propertyName={property.name}
+              quote={pullQuote}
+            />
           </Reveal>
 
           {/* Location — interactive area explorer */}
