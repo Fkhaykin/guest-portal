@@ -571,7 +571,7 @@ export function EditorialCollage({
   flip?: boolean;
 }) {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
-  if (picks.length !== 3) return null;
+  if (picks.length !== 3 || picks.some((i) => !images[i])) return null;
 
   const chip = (idx: number) =>
     images[idx].caption && (
@@ -643,6 +643,7 @@ export function ParallaxSpread({
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   if (picks.length < 2) return null;
   const [bg, float] = picks;
+  if (!images[bg] || !images[float]) return null;
 
   return (
     <>
@@ -711,7 +712,8 @@ export function GalleryWall({
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const groups = useMemo(() => buildGroups(images), [images]);
 
-  if (picks.length < 6) return null;
+  const safePicks = picks.filter((i) => images[i]);
+  if (safePicks.length < 6) return null;
 
   return (
     <section id="gallery" className="scroll-mt-32 space-y-5">
@@ -731,7 +733,7 @@ export function GalleryWall({
       </div>
 
       <div className="columns-2 md:columns-3 gap-3">
-        {picks.map((idx) => (
+        {safePicks.map((idx) => (
           <button
             key={idx}
             onClick={() => setLightboxIndex(idx)}
@@ -785,7 +787,7 @@ export function Triptych({
   picks: number[];
 }) {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
-  if (picks.length !== 3) return null;
+  if (picks.length !== 3 || picks.some((i) => !images[i])) return null;
 
   return (
     <>
@@ -961,8 +963,9 @@ export function ScenicBreak({
 }) {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
-  if (pick === null || pick < 0 || pick >= images.length) return null;
+  if (pick === null || !Number.isInteger(pick)) return null;
   const img = images[pick];
+  if (!img) return null;
 
   return (
     <>
