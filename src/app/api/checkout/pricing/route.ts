@@ -98,7 +98,8 @@ export async function GET(request: Request) {
 
   const cleaningFeeCents = property.guest_cleaning_fee_cents || 0;
   const petFeeCents = property.guest_pet_fee_cents || 0;
-  const petFeeTotalCents = pets * petFeeCents;
+  // Flat fee: $100 covers up to 3 pets (create-session rejects more than 3)
+  const petFeeTotalCents = pets > 0 ? petFeeCents : 0;
   const stateTaxCents = Math.round(roomRateCents * PA_STATE_TAX_RATE);
   const countyTaxCents = Math.round(roomRateCents * MONROE_COUNTY_TAX_RATE);
   const taxTotalCents = stateTaxCents + countyTaxCents;

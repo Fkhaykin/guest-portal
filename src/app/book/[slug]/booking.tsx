@@ -151,7 +151,7 @@ export function useBooking({
   });
   const [pets, setPets] = useState(() => {
     const p = parseInt(initialPets || "0", 10);
-    return petsAllowed && Number.isFinite(p) && p > 0 ? Math.min(p, 4) : 0;
+    return petsAllowed && Number.isFinite(p) && p > 0 ? Math.min(p, 3) : 0;
   });
 
   const [periods, setPeriods] = useState<AvailabilityPeriod[]>([]);
@@ -365,9 +365,9 @@ export function useBooking({
   const nights = checkIn && checkOut ? getNightCount(checkIn, checkOut) : null;
   // Minimum that applies to the stay being picked right now (null = no check-in)
   const activeMinStay = checkIn ? minStayFor(checkIn) : null;
-  // The Lodgify quote knows nothing about pets — checkout charges a flat fee
-  // per pet on top, so the card and mobile bar must mirror it.
-  const petFee = pets > 0 ? (pets * petFeeCents) / 100 : 0;
+  // The Lodgify quote knows nothing about pets — checkout adds one flat fee
+  // that covers up to 3 pets, so the card and mobile bar must mirror it.
+  const petFee = pets > 0 ? petFeeCents / 100 : 0;
   const grandTotal = quote ? quote.total + petFee : null;
   const checkoutUrl =
     checkIn && checkOut
@@ -878,10 +878,10 @@ export function BookingCard({
               <PawPrint className="h-4 w-4 text-muted-foreground" />
               <div>
                 <p className="text-sm font-medium">Pets</p>
-                <p className="text-xs text-muted-foreground">Dogs welcome</p>
+                <p className="text-xs text-muted-foreground">Dogs welcome · up to 3</p>
               </div>
             </div>
-            <Stepper value={pets} min={0} max={4} onChange={setPets} label="pets" />
+            <Stepper value={pets} min={0} max={3} onChange={setPets} label="pets" />
           </div>
         )}
       </div>
@@ -943,9 +943,7 @@ export function BookingCard({
               )}
               {petFee > 0 && (
                 <div className="flex justify-between text-muted-foreground">
-                  <span>
-                    Pet fee ({pets} × ${(petFee / pets).toLocaleString()})
-                  </span>
+                  <span>Pet fee</span>
                   <span>${petFee.toLocaleString()}</span>
                 </div>
               )}

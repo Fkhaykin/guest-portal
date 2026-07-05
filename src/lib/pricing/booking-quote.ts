@@ -88,7 +88,8 @@ export async function buildBookingQuote(input: BookingQuoteInput): Promise<Booki
   nightlyRates = nightlyRates.map((r) => ({ ...r, date: dateOnly(r.date) }));
 
   const roomRateCents = nightlyRates.reduce((sum, r) => sum + r.price_cents, 0);
-  const petFeeTotalCents = Math.max(0, input.pets) * input.petFeeCents;
+  // Flat fee: one charge covers up to 3 pets
+  const petFeeTotalCents = input.pets > 0 ? input.petFeeCents : 0;
   const stateTaxCents = Math.round(roomRateCents * PA_STATE_TAX_RATE);
   const countyTaxCents = Math.round(roomRateCents * MONROE_COUNTY_TAX_RATE);
   const taxTotalCents = stateTaxCents + countyTaxCents;

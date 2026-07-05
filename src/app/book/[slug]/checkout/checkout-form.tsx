@@ -557,7 +557,7 @@ export function CheckoutForm({
                       {pricing.pet_fee_total_cents > 0 && (
                         <div className="flex justify-between text-muted-foreground">
                           <span>
-                            Pet Fee ({pets} &times; {fmt(pricing.pet_fee_cents)})
+                            Pet Fee ({pets} pet{pets !== 1 ? "s" : ""})
                           </span>
                           <span>{fmt(pricing.pet_fee_total_cents)}</span>
                         </div>
