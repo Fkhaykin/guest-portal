@@ -188,16 +188,19 @@ export default function PricingLabPage() {
         }
       />
 
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <Select value={nickname} onValueChange={(v) => v && setNickname(v)}>
-          <SelectTrigger className="h-auto w-64 py-2">
-            <div className="text-left">
-              <div className="font-semibold">{data?.meta?.name ?? nickname}</div>
+          <SelectTrigger
+            className="h-auto w-72 overflow-hidden py-1.5"
+            title={data?.meta?.address ?? undefined}
+          >
+            <div className="min-w-0 text-left">
+              <div className="truncate font-semibold">{data?.meta?.name ?? nickname}</div>
               {data?.meta && (
-                <div className="text-xs text-muted-foreground">
+                <div className="truncate text-xs text-muted-foreground">
                   {[
                     data.meta.maxGuests ? `Sleeps ${data.meta.maxGuests}` : null,
-                    data.meta.address,
+                    shortLocation(data.meta.address),
                     data.meta.lodgifyId ? `Lodgify ${data.meta.lodgifyId}` : null,
                   ]
                     .filter(Boolean)
@@ -463,6 +466,17 @@ function PricingSkeleton() {
       </div>
     </div>
   );
+}
+
+// Pull the town out of a full "Street, Number, City, State, Zip" address so the
+// house switcher stays compact (full address is on the trigger's title tooltip).
+function shortLocation(address: string | null): string | null {
+  if (!address) return null;
+  const parts = address.split(",").map((p) => p.trim()).filter(Boolean);
+  if (parts.length === 0) return null;
+  const dropRe = /^(\d+|\d{5}(-\d{4})?|[A-Z]{2}(\s+\d{5}(-\d{4})?)?|pennsylvania|new york|new jersey)$/i;
+  const cleaned = parts.filter((p) => !dropRe.test(p));
+  return cleaned.length ? cleaned[cleaned.length - 1] : null;
 }
 
 function FreshnessChips({ data }: { data: PricingLabData | null }) {
