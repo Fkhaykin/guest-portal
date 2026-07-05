@@ -193,10 +193,10 @@ export function MainScreen({
 
         {/* Greeting */}
         <div>
-          <h1 className="text-5xl font-extrabold tracking-tight text-white lg:text-7xl text-balance">
+          <h1 className="text-3xl font-extrabold tracking-tight text-white lg:text-5xl text-balance">
             {headline}
           </h1>
-          <p className="mt-2 text-xl font-medium text-white/75 lg:mt-3 lg:text-2xl">{subline}</p>
+          <p className="mt-1.5 text-lg font-medium text-white/75 lg:mt-2 lg:text-xl">{subline}</p>
         </div>
 
         {/* Menu board — trailing tiles widen so the last row always fills */}
