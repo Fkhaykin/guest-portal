@@ -1,0 +1,148 @@
+import type { Promo } from "@/lib/promo/types";
+
+// ---------------------------------------------------------------------------
+// Payload of GET /api/kiosk/[token]
+// ---------------------------------------------------------------------------
+
+export interface KioskWeatherDay {
+  date: string;
+  tempMaxF: number | null;
+  precipProb: number | null;
+  label: string;
+  emoji: string;
+}
+
+export interface KioskBooking {
+  first_name: string;
+  guest_name: string | null;
+  guest_token: string;
+  reservation: {
+    id: string;
+    check_in_date: string;
+    check_out_date: string;
+    num_guests: number | null;
+    signature_url: string | null;
+    booking_source: string | null;
+    property: { slug: string; name: string };
+    lodgify: { check_in_time: string | null; check_out_time: string | null } | null;
+  } & Record<string, unknown>;
+}
+
+export interface KioskData {
+  property: { id: string; name: string; slug: string; address: string | null; timezone: string };
+  today: string;
+  state: "arrival_day" | "mid_stay" | "checkout_day" | "none";
+  photos: string[];
+  weather: KioskWeatherDay[] | null;
+  booking: KioskBooking | null;
+}
+
+// ---------------------------------------------------------------------------
+// Payload of GET /api/kiosk/[token]/content
+// ---------------------------------------------------------------------------
+
+export interface KioskFaq {
+  id: string;
+  question: string;
+  answer: string;
+  category: string | null;
+  sort_order: number;
+}
+
+export interface KioskVideo {
+  id: string;
+  title: string;
+  description: string | null;
+  sort_order: number;
+}
+
+export interface KioskService {
+  id: string;
+  name: string;
+  description: string | null;
+  price_cents: number;
+  currency: string;
+  image_url: string | null;
+  sort_order: number;
+}
+
+export interface KioskContent {
+  faqs: KioskFaq[];
+  videos: KioskVideo[];
+  services: KioskService[];
+  promos: Promo[];
+}
+
+// ---------------------------------------------------------------------------
+// Payload of GET /api/kiosk/[token]/weather
+// ---------------------------------------------------------------------------
+
+export interface KioskWeatherCurrent {
+  time: string;
+  tempF: number | null;
+  feelsF: number | null;
+  humidity: number | null;
+  precipIn: number | null;
+  cloudCover: number | null;
+  windMph: number | null;
+  windGustMph: number | null;
+  windDir: number | null;
+  isDay: boolean;
+  code: number | null;
+  label: string;
+  emoji: string;
+}
+
+export interface KioskWeatherHour {
+  time: string;
+  tempF: number | null;
+  feelsF: number | null;
+  precipProb: number | null;
+  precipIn: number | null;
+  humidity: number | null;
+  windMph: number | null;
+  uv: number | null;
+  isDay: boolean;
+  code: number | null;
+  label: string;
+  emoji: string;
+}
+
+export interface KioskWeatherDaily {
+  date: string;
+  tempMaxF: number | null;
+  tempMinF: number | null;
+  precipProb: number | null;
+  precipIn: number | null;
+  sunrise: string;
+  sunset: string;
+  uvMax: number | null;
+  windMaxMph: number | null;
+  code: number | null;
+  label: string;
+  emoji: string;
+}
+
+export interface KioskWeatherFull {
+  location: { lat: number; lng: number; name: string };
+  current: KioskWeatherCurrent | null;
+  hourly: KioskWeatherHour[];
+  daily: KioskWeatherDaily[];
+  radar: { host: string; frames: { time: number; path: string }[] } | null;
+}
+
+// ---------------------------------------------------------------------------
+// Screen router
+// ---------------------------------------------------------------------------
+
+export type KioskScreen =
+  | { kind: "attract" }
+  | { kind: "home" }
+  | { kind: "weather" }
+  | { kind: "rules" }
+  | { kind: "faq" }
+  | { kind: "videos" }
+  | { kind: "video"; id: string }
+  | { kind: "services" }
+  | { kind: "promos" }
+  | { kind: "explore" };

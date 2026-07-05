@@ -7,7 +7,7 @@ import { headlineFromOffers, offerLabel } from "@/lib/promo/display";
 
 const BOOKING_URL = "https://summitlakeside.com";
 
-type AccentClasses = {
+export type AccentClasses = {
   text: string;
   muted: string;
   border: string;
@@ -15,7 +15,7 @@ type AccentClasses = {
   chip: string;
 };
 
-const ACCENT_CLASSES: Record<string, AccentClasses> = {
+export const ACCENT_CLASSES: Record<string, AccentClasses> = {
   emerald: {
     text: "text-emerald-700 dark:text-emerald-400",
     muted: "text-emerald-600/70 dark:text-emerald-400/70",
@@ -74,7 +74,7 @@ const ACCENT_CLASSES: Record<string, AccentClasses> = {
   },
 };
 
-function accentOf(accent: string | null | undefined): AccentClasses {
+export function accentOf(accent: string | null | undefined): AccentClasses {
   return ACCENT_CLASSES[accent ?? "emerald"] ?? ACCENT_CLASSES.emerald;
 }
 
@@ -83,7 +83,7 @@ function accentOf(accent: string | null | undefined): AccentClasses {
 // hardcoded style map rather than the DB, so migrated rows have empty offers and
 // no styling. Matched by title (codes are mostly absent). Any promo a host edits
 // in the builder (which sets an accent) opts out of this and is fully data-driven.
-type LegacyStyle = {
+export type LegacyStyle = {
   label: string;
   emoji: string;
   accent: string;
@@ -114,7 +114,7 @@ const LEGACY_STYLES: { match: string; style: LegacyStyle }[] = [
   },
 ];
 
-function legacyStyleFor(promo: Promo): LegacyStyle | null {
+export function legacyStyleFor(promo: Promo): LegacyStyle | null {
   // Only for untouched migrated rows: no configured offers and no accent.
   if (promo.offers.length > 0 || promo.accent) return null;
   const title = (promo.title ?? "").trim().toLowerCase();

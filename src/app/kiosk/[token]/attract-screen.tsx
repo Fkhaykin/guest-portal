@@ -1,25 +1,25 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { KioskData } from "./kiosk-client";
+import type { KioskData } from "./types";
+import { useNow } from "./ui";
 
 const SLIDE_MS = 9000;
-
-function useNow(intervalMs: number): Date {
-  const [now, setNow] = useState(() => new Date());
-  useEffect(() => {
-    const t = setInterval(() => setNow(new Date()), intervalMs);
-    return () => clearInterval(t);
-  }, [intervalMs]);
-  return now;
-}
 
 function weekdayShort(dateStr: string, today: string): string {
   if (dateStr === today) return "Today";
   return new Date(dateStr + "T00:00:00").toLocaleDateString("en-US", { weekday: "short" });
 }
 
-export function AttractScreen({ data, onWake }: { data: KioskData; onWake: () => void }) {
+export function AttractScreen({
+  data,
+  onWake,
+  onWeather,
+}: {
+  data: KioskData;
+  onWake: () => void;
+  onWeather: () => void;
+}) {
   const now = useNow(1000);
   const [slide, setSlide] = useState(0);
   const photos = data.photos.length ? data.photos : [];
@@ -35,10 +35,10 @@ export function AttractScreen({ data, onWake }: { data: KioskData; onWake: () =>
   const date = now.toLocaleDateString("en-US", { timeZone: tz, weekday: "long", month: "long", day: "numeric" });
 
   return (
-    <button
-      type="button"
+    <div
       onPointerDown={onWake}
       className="absolute inset-0 block h-full w-full cursor-pointer text-left"
+      role="button"
       aria-label="Touch to begin"
     >
       <style>{`
@@ -68,13 +68,21 @@ export function AttractScreen({ data, onWake }: { data: KioskData; onWake: () =>
       })}
       <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/95 via-zinc-950/30 to-zinc-950/40" />
 
-      {/* Top strip: property + weather */}
+      {/* Top strip: property + weather (weather taps straight into the forecast) */}
       <div className="absolute inset-x-0 top-0 flex items-start justify-between p-8 lg:p-12">
         <span className="text-sm font-semibold uppercase tracking-[0.35em] text-white/70">
           {data.property.name}
         </span>
         {data.weather && data.weather.length > 0 && (
-          <div className="flex gap-2">
+          <button
+            type="button"
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              onWeather();
+            }}
+            className="flex gap-2"
+            aria-label="Open the full weather forecast"
+          >
             {data.weather.slice(0, 3).map((w) => (
               <span
                 key={w.date}
@@ -85,7 +93,7 @@ export function AttractScreen({ data, onWake }: { data: KioskData; onWake: () =>
                 {w.tempMaxF != null && <span>{Math.round(w.tempMaxF)}°</span>}
               </span>
             ))}
-          </div>
+          </button>
         )}
       </div>
 
@@ -108,6 +116,6 @@ export function AttractScreen({ data, onWake }: { data: KioskData; onWake: () =>
           </div>
         </div>
       </div>
-    </button>
+    </div>
   );
 }

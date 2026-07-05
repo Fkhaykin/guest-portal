@@ -46,6 +46,7 @@ export function GuestNav({ slug: slugProp }: { slug?: string } = {}) {
   return (
     <nav
       aria-label="Property portal"
+      data-kiosk-hide
       className="fixed bottom-0 left-0 right-0 z-50 bg-background border-t pb-[env(safe-area-inset-bottom)] md:relative md:border-t-0 md:border-b md:pb-0"
     >
       <div className="grid grid-cols-5 md:flex md:items-center md:justify-center md:gap-6 px-2 py-2 max-w-4xl mx-auto">

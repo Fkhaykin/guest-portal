@@ -9,6 +9,7 @@ import {
   buildGuestSessionPayload,
   registrationSessionSelect,
 } from "@/lib/guest-session-payload";
+import { resolveKioskProperty, KIOSK_FALLBACK_COORDS } from "@/lib/kiosk";
 
 // Back-to-back turnover: greet the departing guest until this local hour,
 // then switch to the arriving one.
@@ -19,10 +20,6 @@ const CHECKOUT_STALE_HOUR = 14;
 
 const MAX_PHOTOS = 12;
 const WEATHER_DAYS = 5;
-// All houses sit in the same lake community — one fallback coordinate is
-// meteorologically identical when a house has no cached forecast.
-const FALLBACK_LAT = 41.32;
-const FALLBACK_LNG = -75.38;
 
 type KioskState = "arrival_day" | "mid_stay" | "checkout_day" | "none";
 
@@ -74,7 +71,7 @@ async function kioskWeather(
         });
       if (days.length) return days;
     }
-    const forecast = await fetchForecast(FALLBACK_LAT, FALLBACK_LNG);
+    const forecast = await fetchForecast(KIOSK_FALLBACK_COORDS.lat, KIOSK_FALLBACK_COORDS.lng);
     return forecast
       .filter((d) => dates.includes(d.date))
       .map((d) => ({
@@ -96,20 +93,7 @@ export async function GET(
   const admin = createAdminClient();
 
   // Generic 404 — don't reveal whether the token or the route is wrong.
-  const { data: kioskRow } = await admin
-    .from("kiosk")
-    .select("property_id")
-    .eq("token", token)
-    .maybeSingle();
-  if (!kioskRow) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
-  }
-
-  const { data: property } = await admin
-    .from("property")
-    .select("id, name, slug, nickname, address, timezone, cover_image_url")
-    .eq("id", kioskRow.property_id)
-    .single();
+  const property = await resolveKioskProperty(admin, token);
   if (!property) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }

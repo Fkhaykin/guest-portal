@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { PropertyProvider } from "@/components/guest/property-provider";
 import { GuestNav } from "@/components/guest/guest-nav";
 import { PropertyHeader } from "@/components/guest/guest-header";
+import { KioskChromeGate } from "@/components/kiosk/kiosk-chrome";
 
 export async function generateMetadata({
   params,
@@ -47,7 +48,11 @@ export default async function PropertyLayout({
 
   return (
     <PropertyProvider property={property}>
-      <div className="flex flex-col min-h-full pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-0">
+      <div
+        data-kiosk-pad
+        className="flex flex-col min-h-full pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-0"
+      >
+        <KioskChromeGate />
         <PropertyHeader propertyName={property.name} showBack />
         <GuestNav />
         <main className="flex-1 max-w-4xl mx-auto w-full px-4 py-6">

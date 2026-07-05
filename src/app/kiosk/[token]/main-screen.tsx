@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import {
+  CloudSun,
   ClipboardList,
   Gift,
   HelpCircle,
@@ -12,25 +13,10 @@ import {
   Tag,
   Truck,
   Video,
+  type LucideIcon,
 } from "lucide-react";
-import { QUICK_RULES } from "@/lib/house-rules";
-import type { KioskData } from "./kiosk-client";
-
-function formatShortDate(dateStr: string) {
-  return new Date(dateStr + "T00:00:00").toLocaleDateString("en-US", {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-  });
-}
-
-function formatTime(timeStr: string) {
-  const [hours, minutes] = timeStr.split(":");
-  const h = parseInt(hours);
-  const ampm = h >= 12 ? "PM" : "AM";
-  const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
-  return `${h12}:${minutes} ${ampm}`;
-}
+import type { KioskData, KioskScreen } from "./types";
+import { formatShortDate, formatTime } from "./ui";
 
 function getNightCount(checkIn: string, checkOut: string) {
   const d1 = new Date(checkIn + "T00:00:00");
@@ -48,12 +34,24 @@ function timeOfDayGreeting(tz: string): string {
   return "Good evening";
 }
 
+// Menu-board tiles: uniform, saturated, giant type — the whole grid fills the
+// screen like a self-order kiosk.
+type Tile = {
+  label: string;
+  description: string;
+  icon: LucideIcon;
+  accent: string; // gradient classes
+  featured?: boolean;
+} & ({ href: string; screen?: never } | { screen: KioskScreen; href?: never });
+
 export function MainScreen({
   data,
   onHandoff,
+  onNavigate,
 }: {
   data: KioskData;
   onHandoff: (href: string) => void;
+  onNavigate: (screen: KioskScreen) => void;
 }) {
   const [clock, setClock] = useState("");
   const tz = data.property.timezone;
@@ -92,25 +90,30 @@ export function MainScreen({
       break;
     default:
       headline = `Welcome to ${data.property.name}`;
-      subline = "Explore the guest portal below.";
+      subline = "Tap anything below to explore.";
   }
 
-  const registrationLink = booking
+  const registrationTile: Tile | null = booking
     ? res!.signature_url
-      ? { label: "Update Registration", description: "Edit guests, pets, or vehicles", href: `/p/${slug}/update`, icon: PenLine, featured: true }
-      : { label: "Register", description: "Register your guests and vehicles", href: `/p/${slug}/register`, icon: ClipboardList, featured: true }
+      ? { label: "Update Registration", description: "Edit guests, pets, or vehicles", href: `/p/${slug}/update`, icon: PenLine, accent: "", featured: true }
+      : { label: "Register", description: "Register your guests and vehicles", href: `/p/${slug}/register`, icon: ClipboardList, accent: "", featured: true }
     : null;
 
-  const links = [
-    ...(registrationLink ? [registrationLink] : []),
-    { label: "Add-Ons", description: "Extras and experiences for your stay", href: `/p/${slug}/add-ons`, icon: Gift, featured: false },
-    { label: "Delivery / Rideshare", description: "Register deliveries and rides", href: `/p/${slug}/delivery`, icon: Truck, featured: false },
-    { label: "Services", description: "Browse additional services", href: `/p/${slug}/services`, icon: ShoppingBag, featured: false },
-    { label: "Promotions", description: "See current deals", href: `/p/${slug}/promotions`, icon: Tag, featured: false },
-    { label: "Explore", description: "Things to do in the Poconos", href: "/things-to-do", icon: MapPin, featured: false },
-    { label: "FAQ", description: "Frequently asked questions", href: `/p/${slug}/faq`, icon: HelpCircle, featured: false },
-    { label: "Videos", description: "How-to guides & welcome", href: `/p/${slug}/videos`, icon: Video, featured: false },
-    { label: "House Rules", description: "The full rental policies", href: "/rental-policies", icon: ScrollText, featured: false },
+  const tiles: Tile[] = [
+    ...(registrationTile ? [registrationTile] : []),
+    ...(booking
+      ? [
+          { label: "Add-Ons", description: "Extras & experiences for your stay", href: `/p/${slug}/add-ons`, icon: Gift, accent: "from-amber-500 to-orange-600" } as Tile,
+          { label: "Delivery & Rides", description: "Register deliveries and rideshares", href: `/p/${slug}/delivery`, icon: Truck, accent: "from-emerald-500 to-teal-600" } as Tile,
+        ]
+      : []),
+    { label: "Weather", description: "Hourly forecast & live radar", screen: { kind: "weather" }, icon: CloudSun, accent: "from-sky-500 to-blue-700" },
+    { label: "Explore", description: "Things to do in the Poconos", screen: { kind: "explore" }, icon: MapPin, accent: "from-lime-500 to-green-700" },
+    { label: "Promotions", description: "Guest-exclusive deals", screen: { kind: "promos" }, icon: Tag, accent: "from-rose-500 to-red-700" },
+    { label: "Services", description: "Browse additional services", screen: { kind: "services" }, icon: ShoppingBag, accent: "from-fuchsia-500 to-purple-700" },
+    { label: "Videos", description: "How-to guides & welcome tour", screen: { kind: "videos" }, icon: Video, accent: "from-indigo-500 to-violet-700" },
+    { label: "FAQ", description: "Answers about the house", screen: { kind: "faq" }, icon: HelpCircle, accent: "from-cyan-600 to-sky-800" },
+    { label: "House Rules", description: "The 8 rules & full policies", screen: { kind: "rules" }, icon: ScrollText, accent: "from-zinc-500 to-zinc-700" },
   ];
 
   const todayWeather = data.weather?.find((w) => w.date === data.today) ?? data.weather?.[0];
@@ -123,12 +126,12 @@ export function MainScreen({
         <img
           src={data.photos[0]}
           alt=""
-          className="absolute inset-0 h-full w-full scale-110 object-cover blur-md brightness-[0.28]"
+          className="absolute inset-0 h-full w-full scale-110 object-cover blur-lg brightness-[0.22]"
         />
       )}
-      <div className="absolute inset-0 bg-gradient-to-b from-zinc-950/60 via-transparent to-zinc-950/80" />
+      <div className="absolute inset-0 bg-gradient-to-b from-zinc-950/70 via-zinc-950/30 to-zinc-950/80" />
 
-      <div className="relative flex h-full flex-col gap-6 overflow-y-auto p-6 lg:gap-8 lg:p-10">
+      <div className="relative flex h-full flex-col gap-5 p-5 lg:gap-6 lg:p-8">
         {/* Top bar */}
         <div className="flex items-center justify-between">
           <span className="text-xs font-semibold uppercase tracking-[0.35em] text-white/60 lg:text-sm">
@@ -136,72 +139,67 @@ export function MainScreen({
           </span>
           <div className="flex items-center gap-4">
             {todayWeather && (
-              <span className="flex items-center gap-2 text-sm font-medium text-white/70 lg:text-base">
+              <button
+                type="button"
+                onClick={() => onNavigate({ kind: "weather" })}
+                className="flex min-h-12 items-center gap-2 rounded-full bg-white/10 px-5 text-base font-semibold text-white/90 backdrop-blur-md transition-colors hover:bg-white/15 lg:text-lg"
+              >
                 <span>{todayWeather.emoji}</span>
-                {todayWeather.tempMaxF != null && <span>{Math.round(todayWeather.tempMaxF)}° today</span>}
-              </span>
+                {todayWeather.tempMaxF != null && <span>{Math.round(todayWeather.tempMaxF)}°</span>}
+              </button>
             )}
-            <span className="text-sm font-semibold text-white/80 tabular-nums lg:text-base">{clock}</span>
+            <span className="text-lg font-semibold text-white/80 tabular-nums lg:text-xl">{clock}</span>
           </div>
         </div>
 
         {/* Greeting */}
         <div>
-          <h1 className="text-4xl font-bold tracking-tight text-white lg:text-6xl text-balance">{headline}</h1>
-          <p className="mt-2 text-lg font-medium text-white/70 lg:mt-3 lg:text-2xl">{subline}</p>
+          <h1 className="text-5xl font-extrabold tracking-tight text-white lg:text-7xl text-balance">
+            {headline}
+          </h1>
+          <p className="mt-2 text-xl font-medium text-white/75 lg:mt-3 lg:text-2xl">{subline}</p>
         </div>
 
-        {/* Portal shortcuts */}
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 lg:gap-4">
-          {links.map((item) => (
+        {/* Menu board — trailing tiles widen so the last row always fills */}
+        <div className="grid min-h-0 flex-1 auto-rows-fr grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
+          {tiles.map((tile, i) => {
+            const remainder = tiles.length % 4;
+            const isLast = i === tiles.length - 1;
+            let widen = "";
+            if (remainder === 1 && isLast) widen = "lg:col-span-4";
+            else if (remainder === 2 && i >= tiles.length - 2) widen = "lg:col-span-2";
+            else if (remainder === 3 && isLast) widen = "lg:col-span-2";
+            return (
             <button
-              key={item.label}
+              key={tile.label}
               type="button"
-              onClick={() => onHandoff(item.href)}
-              className={`group flex min-h-24 items-center gap-4 rounded-2xl p-4 text-left backdrop-blur-md transition-all active:scale-[0.98] lg:min-h-28 lg:p-5 ${
-                item.featured
-                  ? "bg-white text-zinc-900 shadow-xl"
-                  : "bg-white/10 text-white ring-1 ring-white/15 hover:bg-white/15"
+              onClick={() => (tile.screen ? onNavigate(tile.screen) : onHandoff(tile.href!))}
+              className={`group relative flex flex-col justify-between overflow-hidden rounded-3xl p-4 text-left shadow-lg transition-transform active:scale-[0.97] lg:p-6 ${widen} ${
+                tile.featured
+                  ? "bg-white text-zinc-900"
+                  : `bg-gradient-to-br text-white ${tile.accent} ring-1 ring-white/10`
               }`}
             >
-              <span
-                className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl lg:h-14 lg:w-14 ${
-                  item.featured ? "bg-zinc-900/10" : "bg-white/10"
+              {/* Watermark icon for menu-board pop */}
+              <tile.icon
+                className={`pointer-events-none absolute -bottom-6 -right-6 h-32 w-32 lg:h-40 lg:w-40 ${
+                  tile.featured ? "text-zinc-900/10" : "text-white/15"
                 }`}
-              >
-                <item.icon className="h-6 w-6 lg:h-7 lg:w-7" />
-              </span>
-              <span>
-                <span className="block text-base font-bold lg:text-lg">{item.label}</span>
-                <span className={`mt-0.5 block text-xs lg:text-sm ${item.featured ? "text-zinc-600" : "text-white/60"}`}>
-                  {item.description}
+              />
+              <tile.icon className="h-9 w-9 lg:h-12 lg:w-12" />
+              <span className="relative">
+                <span className="block text-xl font-extrabold leading-tight lg:text-3xl">{tile.label}</span>
+                <span
+                  className={`mt-1 hidden text-sm font-medium lg:block lg:text-base ${
+                    tile.featured ? "text-zinc-600" : "text-white/80"
+                  }`}
+                >
+                  {tile.description}
                 </span>
               </span>
             </button>
-          ))}
-        </div>
-
-        {/* House rules strip */}
-        <div className="mt-auto">
-          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.3em] text-white/50 lg:text-sm">
-            House rules — the short version
-          </p>
-          <div className="-mx-6 flex snap-x gap-3 overflow-x-auto px-6 pb-2 lg:-mx-10 lg:px-10 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {QUICK_RULES.map((r) => (
-              <button
-                key={r.section}
-                type="button"
-                onClick={() => onHandoff(`/rental-policies${r.href}`)}
-                className="flex w-64 shrink-0 snap-start items-start gap-3 rounded-xl bg-white/[0.07] p-4 text-left ring-1 ring-white/10 backdrop-blur-md transition-colors hover:bg-white/[0.12] lg:w-72"
-              >
-                <r.icon className="mt-0.5 h-5 w-5 shrink-0 text-white/80" />
-                <span>
-                  <span className="block text-sm font-semibold text-white">{r.rule}</span>
-                  <span className="mt-1 block text-xs leading-relaxed text-white/55">{r.detail}</span>
-                </span>
-              </button>
-            ))}
-          </div>
+            );
+          })}
         </div>
       </div>
     </div>

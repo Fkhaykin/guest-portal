@@ -238,3 +238,19 @@
   opacity: 0;
   pointer-events: none;
 }
+
+/* --- Kiosk mode ------------------------------------------------------------
+   Set on <html> by KioskChromeGate when this browser is an in-house kiosk
+   (localStorage "kiosk-return-url", written by /kiosk/[token]). Portal pages
+   opened from the kiosk lose their regular chrome and get the kiosk top bar
+   instead; the layout's bottom padding for the fixed GuestNav goes with it. */
+html.kiosk-mode [data-kiosk-hide] {
+  display: none !important;
+}
+html.kiosk-mode [data-kiosk-pad] {
+  padding-bottom: 0 !important;
+}
+/* Bigger base type on the wall tablet — every rem-sized element scales up. */
+html.kiosk-mode {
+  font-size: 112.5%;
+}
