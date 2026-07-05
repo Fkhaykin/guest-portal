@@ -256,7 +256,11 @@ export function PropertyPage({
       <SiteNav />
 
       <div className="pt-16 pb-24 lg:pb-0">
-        <PropertyGallery images={images} propertyName={property.name} />
+        <PropertyGallery
+          images={images}
+          propertyName={property.name}
+          mosaicPicks={photoPlan.mosaic}
+        />
 
         <SectionNav hasGallery={photoPlan.wall.length >= 6} />
 
@@ -483,7 +487,7 @@ export function PropertyPage({
         <div className="max-w-7xl mx-auto px-4 sm:px-6 pb-12 space-y-12">
           {/* Scenic interlude — a breath of the outdoors between sections */}
           <Reveal>
-            <ScenicBreak images={images} propertyName={property.name} />
+            <ScenicBreak images={images} pick={photoPlan.scenic} propertyName={property.name} />
           </Reveal>
 
           {/* Location — interactive area explorer */}

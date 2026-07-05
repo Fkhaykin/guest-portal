@@ -303,55 +303,94 @@ function PhotoTour({
 }
 
 /* ------------------------------------------------------------------ */
-/*  Photo plan — allocate distinct photos to the page's image moments  */
+/*  Photo semantics — classify by caption, then allocate by role       */
 /* ------------------------------------------------------------------ */
 
+export type PhotoRole =
+  | "living"
+  | "kitchen"
+  | "dining"
+  | "bedroom"
+  | "bathroom"
+  | "amenity"
+  | "outdoor"
+  | "view"
+  | "area"
+  | "other";
+
+/** What a photo shows, judged from its room caption. `area` photos are
+ *  attractions and community spots — never house imagery. */
+export function classifyPhoto(caption?: string): PhotoRole {
+  if (!caption) return "other";
+  const c = caption.toLowerCase();
+  if (/falls|mountain|outlet|stable|downtown|min drive|min walk|community|soccer|court|marina|golf/.test(c))
+    return "area";
+  if (/view|gazebo|beach|lake across|lakefront|dock|aerial/.test(c)) return "view";
+  if (/hot tub|sauna|game|gym|theater|arcade|billiard|ping pong|foosball|projector|screen/.test(c))
+    return "amenity";
+  if (/living|sunroom|lounge|family room|den/.test(c)) return "living";
+  if (/kitchen/.test(c)) return "kitchen";
+  if (/dining|breakfast/.test(c)) return "dining";
+  if (/bedroom|bunk|loft/.test(c)) return "bedroom";
+  if (/bathroom|shower/.test(c)) return "bathroom";
+  if (/deck|patio|backyard|yard|exterior|porch|balcon|grill|fire pit|firepit|outside|front/.test(c))
+    return "outdoor";
+  return "other";
+}
+
 export type PhotoPlan = {
+  /** Curated hero mosaic — diverse rooms, never area shots */
+  mosaic: number[];
   /** Interior trio after the description */
   collageA: number[];
   /** Outdoor/amenity trio after the calendar */
   collageB: number[];
-  /** Masonry wall picks */
+  /** Wide scenic pick for the interlude band (null = hide) */
+  scenic: number | null;
+  /** Masonry wall picks, interleaved room-by-room */
   wall: number[];
   /** Area/attraction trio for the closing band */
   closing: number[];
 };
 
-const INTERIOR_RES = [/living/i, /kitchen/i, /dining/i, /sunroom/i, /game/i, /bedroom/i];
-const OUTDOOR_RES = [/hot tub/i, /fire/i, /deck/i, /patio/i, /backyard/i, /pool/i, /gazebo|beach/i];
-const AREA_RES = [/falls/i, /mountain/i, /outlets/i, /stables/i, /downtown/i, /min drive/i];
-
-/** Pick up to `count` unused photos matching the regex priority list, at most
- *  one per room (base caption), marking picks as used. */
-function pickByCaption(
+/** Take up to `count` unused photos from the given role buckets, at most one
+ *  per room — and optionally at most one per role, for maximum variety. */
+function takeFromRoles(
+  buckets: Map<PhotoRole, number[]>,
   images: GalleryImage[],
-  res: RegExp[],
+  roles: PhotoRole[],
   count: number,
-  used: Set<number>
+  used: Set<number>,
+  onePerRole = false
 ): number[] {
   const picks: number[] = [];
   const seenRooms = new Set<string>();
-  for (const re of res) {
-    if (picks.length >= count) break;
-    for (let i = 0; i < images.length; i++) {
-      if (picks.length >= count) break;
-      const cap = images[i].caption;
-      if (!cap || used.has(i) || !re.test(cap)) continue;
-      const room = displayLabel(cap);
+  for (const role of roles) {
+    let tookFromRole = false;
+    for (const i of buckets.get(role) ?? []) {
+      if (picks.length >= count) return picks;
+      if (used.has(i)) continue;
+      if (onePerRole && tookFromRole) break;
+      const room = images[i].caption ? displayLabel(images[i].caption!) : `#${i}`;
       if (seenRooms.has(room)) continue;
       seenRooms.add(room);
       used.add(i);
       picks.push(i);
+      tookFromRole = true;
     }
   }
   return picks;
 }
 
-/** Sequential fallback for caption-less sets. */
-function pickNext(images: GalleryImage[], count: number, used: Set<number>): number[] {
+/** Sequential fallback for caption-less sets (skips area photos). */
+function takeNext(
+  images: GalleryImage[],
+  count: number,
+  used: Set<number>
+): number[] {
   const picks: number[] = [];
   for (let i = 0; i < images.length && picks.length < count; i++) {
-    if (used.has(i)) continue;
+    if (used.has(i) || classifyPhoto(images[i].caption) === "area") continue;
     used.add(i);
     picks.push(i);
   }
@@ -359,34 +398,160 @@ function pickNext(images: GalleryImage[], count: number, used: Set<number>): num
 }
 
 export function planPhotoSections(images: GalleryImage[]): PhotoPlan {
-  const used = new Set<number>([0, 1, 2, 3, 4]); // the mosaic's five
+  const used = new Set<number>();
+  const buckets = new Map<PhotoRole, number[]>();
+  images.forEach((img, i) => {
+    const role = classifyPhoto(img.caption);
+    if (!buckets.has(role)) buckets.set(role, []);
+    buckets.get(role)!.push(i);
+  });
   const captioned = images.some((img) => img.caption);
 
-  const collageA = captioned
-    ? pickByCaption(images, INTERIOR_RES, 3, used)
-    : pickNext(images, 3, used);
-  if (collageA.length < 3) collageA.push(...pickNext(images, 3 - collageA.length, used));
+  // --- Hero mosaic: the listing's hero first, then one tile per distinct
+  // room role so the top of the page reads as a tour, not five takes of the
+  // same sofa — and never an attraction photo.
+  const mosaic: number[] = [];
+  if (images.length) {
+    const heroOk = classifyPhoto(images[0].caption) !== "area";
+    const hero = heroOk ? 0 : (takeNext(images, 1, used)[0] ?? 0);
+    used.add(hero);
+    mosaic.push(hero);
+    mosaic.push(
+      ...takeFromRoles(
+        buckets, images,
+        ["view", "outdoor", "kitchen", "bedroom", "amenity", "living", "dining", "bathroom"],
+        4, used, true
+      )
+    );
+    if (mosaic.length < 5) mosaic.push(...takeNext(images, 5 - mosaic.length, used));
+  }
 
-  const collageB = captioned
-    ? pickByCaption(images, OUTDOOR_RES, 3, used)
-    : pickNext(images, 3, used);
+  // --- Interior collage after the description
+  let collageA = takeFromRoles(
+    buckets, images, ["living", "kitchen", "dining", "bedroom", "amenity"], 3, used
+  );
+  if (collageA.length < 3) collageA = [...collageA, ...takeNext(images, 3 - collageA.length, used)];
 
-  const closing = captioned ? pickByCaption(images, AREA_RES, 3, used) : [];
+  // --- Outdoor/amenity collage after the calendar
+  let collageB = takeFromRoles(
+    buckets, images, ["amenity", "outdoor", "view", "bedroom"], 3, used
+  );
+  if (!captioned) collageB = [...collageB, ...takeNext(images, 3 - collageB.length, used)];
 
+  // --- Scenic interlude: a wide view shot
+  const scenic =
+    takeFromRoles(buckets, images, ["view"], 1, used)[0] ??
+    takeFromRoles(buckets, images, ["outdoor"], 1, used)[0] ??
+    (!captioned ? takeNext(images, 1, used)[0] : undefined) ??
+    null;
+
+  // --- Closing band: attractions only
+  const closing = takeFromRoles(buckets, images, ["area"], 3, used);
+
+  // --- Gallery wall: interleave the remaining photos round-robin across
+  // roles so the masonry flows room-by-room instead of dumping the tail of
+  // the tour order.
   const wall: number[] = [];
-  for (let i = 0; i < images.length && wall.length < 14; i++) {
-    if (!used.has(i)) {
-      used.add(i);
-      wall.push(i);
+  const wallRoles: PhotoRole[] = [
+    "living", "kitchen", "dining", "bedroom", "amenity", "outdoor", "bathroom", "view", "other",
+  ];
+  const cursors = new Map<PhotoRole, number>();
+  while (wall.length < 14) {
+    let advanced = false;
+    for (const role of wallRoles) {
+      if (wall.length >= 14) break;
+      const list = buckets.get(role) ?? [];
+      let cur = cursors.get(role) ?? 0;
+      while (cur < list.length && used.has(list[cur])) cur++;
+      cursors.set(role, cur + 1);
+      if (cur < list.length) {
+        used.add(list[cur]);
+        wall.push(list[cur]);
+        advanced = true;
+      }
     }
+    if (!advanced) break;
   }
 
   return {
+    mosaic: mosaic.length === 5 ? mosaic : [0, 1, 2, 3, 4].filter((i) => i < images.length),
     collageA: collageA.length === 3 ? collageA : [],
     collageB: collageB.length === 3 ? collageB : [],
+    scenic,
     wall: wall.length >= 6 ? wall : [],
     closing: closing.length === 3 ? closing : [],
   };
+}
+
+/* ------------------------------------------------------------------ */
+/*  Parallax image — drifts slower than the scroll inside its frame    */
+/* ------------------------------------------------------------------ */
+
+function ParallaxImg({
+  src,
+  alt,
+  strength = 0.1,
+  eager = false,
+}: {
+  src: string;
+  alt: string;
+  /** Fraction of viewport-offset translated onto the image */
+  strength?: number;
+  eager?: boolean;
+}) {
+  const ref = useRef<HTMLImageElement>(null);
+
+  useEffect(() => {
+    const img = ref.current;
+    if (!img) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    let raf = 0;
+    const update = () => {
+      raf = 0;
+      const frame = img.parentElement;
+      if (!frame) return;
+      const r = frame.getBoundingClientRect();
+      if (r.bottom < 0 || r.top > window.innerHeight) return;
+      // -1 … 1 as the frame's center crosses the viewport
+      const progress = (r.top + r.height / 2 - window.innerHeight / 2) / window.innerHeight;
+      img.style.transform = `translateY(${(-progress * strength * 100).toFixed(2)}px) scale(1.15)`;
+    };
+    const onScroll = () => {
+      if (!raf) raf = requestAnimationFrame(update);
+    };
+
+    // Only listen while the frame is anywhere near the viewport
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          update();
+          window.addEventListener("scroll", onScroll, { passive: true });
+        } else {
+          window.removeEventListener("scroll", onScroll);
+        }
+      },
+      { rootMargin: "20% 0px" }
+    );
+    io.observe(img.parentElement ?? img);
+    return () => {
+      io.disconnect();
+      window.removeEventListener("scroll", onScroll);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, [strength]);
+
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      ref={ref}
+      src={src}
+      alt={alt}
+      className="absolute inset-0 w-full h-full object-cover scale-115 will-change-transform"
+      loading={eager ? "eager" : "lazy"}
+      draggable={false}
+    />
+  );
 }
 
 /* ------------------------------------------------------------------ */
@@ -408,24 +573,35 @@ export function EditorialCollage({
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   if (picks.length !== 3) return null;
 
-  const tile = (idx: number, className: string) => (
+  const chip = (idx: number) =>
+    images[idx].caption && (
+      <span className="absolute bottom-3 left-3 rounded-full bg-black/35 backdrop-blur-sm px-2.5 py-1 text-white/95 text-xs font-medium">
+        {displayLabel(images[idx].caption!)}
+      </span>
+    );
+
+  const tile = (idx: number, className: string, parallax = false) => (
     <button
       key={idx}
       onClick={() => setLightboxIndex(idx)}
       className={`group relative overflow-hidden rounded-2xl focus-visible:ring-2 focus-visible:ring-ring ${className}`}
     >
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={images[idx].url}
-        alt={images[idx].caption || `${propertyName} photo`}
-        className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
-        loading="lazy"
-      />
-      {images[idx].caption && (
-        <span className="absolute bottom-2.5 left-3 text-white/90 text-xs font-medium drop-shadow opacity-0 group-hover:opacity-100 transition-opacity">
-          {displayLabel(images[idx].caption)}
-        </span>
+      {parallax ? (
+        <ParallaxImg
+          src={images[idx].url}
+          alt={images[idx].caption || `${propertyName} photo`}
+          strength={0.08}
+        />
+      ) : (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={images[idx].url}
+          alt={images[idx].caption || `${propertyName} photo`}
+          className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
+          loading="lazy"
+        />
       )}
+      {chip(idx)}
       <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
     </button>
   );
@@ -433,7 +609,7 @@ export function EditorialCollage({
   return (
     <>
       <div className="grid grid-cols-3 grid-rows-2 gap-2 md:gap-3">
-        {tile(picks[0], `row-span-2 ${flip ? "order-last" : ""} col-span-2`)}
+        {tile(picks[0], `row-span-2 ${flip ? "order-last" : ""} col-span-2`, true)}
         {tile(picks[1], "aspect-4/3")}
         {tile(picks[2], "aspect-4/3")}
       </div>
@@ -701,28 +877,19 @@ export function RoomShowcase({
 /*  Scenic break — full-width editorial image band                     */
 /* ------------------------------------------------------------------ */
 
-// "View …" shots first — the room showcase usually already features the
-// gazebo/backyard cards, so the interlude should add a fresh perspective.
-const SCENIC_PRIORITY = [/view/i, /lake/i, /gazebo|beach/i, /exterior/i, /backyard/i, /deck|patio/i];
-
 export function ScenicBreak({
   images,
+  pick,
   propertyName,
 }: {
   images: GalleryImage[];
+  /** Index chosen by the photo plan; null hides the band */
+  pick: number | null;
   propertyName: string;
 }) {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
-  const pick = useMemo(() => {
-    for (const re of SCENIC_PRIORITY) {
-      const i = images.findIndex((img) => img.caption && re.test(img.caption));
-      if (i >= 0) return i;
-    }
-    return images.length > 6 ? 5 : -1;
-  }, [images]);
-
-  if (pick < 0) return null;
+  if (pick === null || pick < 0 || pick >= images.length) return null;
   const img = images[pick];
 
   return (
@@ -731,19 +898,22 @@ export function ScenicBreak({
         onClick={() => setLightboxIndex(pick)}
         className="group relative block w-full aspect-16/10 sm:aspect-21/9 rounded-3xl overflow-hidden focus-visible:ring-2 focus-visible:ring-ring"
       >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
+        <ParallaxImg
           src={img.url}
           alt={img.caption || `${propertyName} surroundings`}
-          className="absolute inset-0 w-full h-full object-cover transition-transform duration-[1.2s] group-hover:scale-[1.03]"
-          loading="lazy"
+          strength={0.16}
         />
-        <div className="absolute inset-x-0 bottom-0 h-1/2 bg-linear-to-t from-black/55 to-transparent" />
-        {img.caption && (
-          <p className="absolute bottom-4 left-5 sm:bottom-6 sm:left-7 text-white text-base sm:text-lg font-semibold text-left drop-shadow">
-            {img.caption}
+        <div className="absolute inset-x-0 bottom-0 h-2/3 bg-linear-to-t from-black/60 via-black/20 to-transparent" />
+        <div className="absolute bottom-4 left-5 sm:bottom-7 sm:left-8 text-left">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/70 mb-1">
+            The setting
           </p>
-        )}
+          {img.caption && (
+            <p className="text-white text-lg sm:text-2xl font-semibold drop-shadow max-w-xl text-balance">
+              {img.caption}
+            </p>
+          )}
+        </div>
       </button>
       {lightboxIndex !== null && (
         <Lightbox
@@ -764,9 +934,12 @@ export function ScenicBreak({
 export function PropertyGallery({
   images,
   propertyName,
+  mosaicPicks,
 }: {
   images: GalleryImage[];
   propertyName: string;
+  /** Curated tile indices from the photo plan (hero first); defaults to tour order */
+  mosaicPicks?: number[];
 }) {
   const [tourOpen, setTourOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
@@ -777,7 +950,9 @@ export function PropertyGallery({
 
   if (images.length === 0) return null;
 
-  const mosaic = images.slice(0, 5);
+  const mosaic = (mosaicPicks?.length ? mosaicPicks : [0, 1, 2, 3, 4])
+    .filter((i) => i < images.length)
+    .map((i) => ({ ...images[i], index: i }));
 
   function onMobileScroll() {
     const el = mobileRef.current;
@@ -828,12 +1003,12 @@ export function PropertyGallery({
         <div className="relative grid grid-cols-4 grid-rows-2 gap-2 rounded-3xl overflow-hidden aspect-[2/0.95] lg:aspect-[2/0.82]">
           {mosaic.map((img, i) => (
             <button
-              key={i}
-              onClick={() => setLightboxIndex(i)}
+              key={img.index}
+              onClick={() => setLightboxIndex(img.index)}
               className={`relative overflow-hidden group focus-visible:ring-2 focus-visible:ring-ring focus-visible:z-10 ${
                 i === 0 ? "col-span-2 row-span-2" : ""
               }`}
-              aria-label={img.caption || `Photo ${i + 1}`}
+              aria-label={img.caption || `Photo ${img.index + 1}`}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img

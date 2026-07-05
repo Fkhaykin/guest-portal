@@ -13,12 +13,12 @@ export type Review = {
 };
 
 export const PROPERTY_IMAGES: Record<string, string> = {
-  "Lakefront Home w/ Hot Tub, Game Room, Deck, Boats, Fire Pit": "https://a0.muscache.com/im/pictures/6e8e7f2f-dd7b-4e29-8719-6e0d6ab78688.jpg?im_w=240",
+  "Lakefront Home w/ Hot Tub, Game Room, Deck, Boats, Fire Pit": "https://arvbaoeszakyuxqhkogz.supabase.co/storage/v1/object/public/property-images/lodgify-355872/airbnb/01-additional-photos-image-1.jpg",
   "Lakeview Chalet w/ Hot Tub, Sauna, Decks, Boats, & Fire Pit!": "https://arvbaoeszakyuxqhkogz.supabase.co/storage/v1/object/public/property-images/lodgify-588691/airbnb/01-living-room-3-image-2.jpg",
-  "Lake Adjacent Home w/ Hot Tub, Game Room, Boats, Fenced Yard": "https://a0.muscache.com/im/pictures/2a8bbc05-e02f-48e0-93b9-fe37adeaee3a.jpg?im_w=240",
-  "Poconos Lakefront with Hot Tub, boats, and more!": "https://a0.muscache.com/im/pictures/6e8e7f2f-dd7b-4e29-8719-6e0d6ab78688.jpg?im_w=240",
+  "Lake Adjacent Home w/ Hot Tub, Game Room, Boats, Fenced Yard": "https://arvbaoeszakyuxqhkogz.supabase.co/storage/v1/object/public/property-images/lodgify-355871/airbnb/01-gorgeous-lakefront-colonial-exterior.jpg",
+  "Poconos Lakefront with Hot Tub, boats, and more!": "https://arvbaoeszakyuxqhkogz.supabase.co/storage/v1/object/public/property-images/lodgify-355872/airbnb/01-additional-photos-image-1.jpg",
   "Cozy Lakefront Home w/ Game Room, Hot Tub, Fire Pit, & Boats": "https://a0.muscache.com/im/pictures/ca104183-2a19-4800-99d2-4b34ba9ea23c.jpg?im_w=240",
-  "Lakefront Mansion w/ 3 Decks, Hot Tub, Boats, & Game Room!": "https://a0.muscache.com/im/pictures/f5f31bab-faec-4b26-b3c9-cb356293126a.jpg?im_w=240",
+  "Lakefront Mansion w/ 3 Decks, Hot Tub, Boats, & Game Room!": "https://arvbaoeszakyuxqhkogz.supabase.co/storage/v1/object/public/property-images/lodgify-368901/airbnb/01-living-room-image-1.jpg",
   "Lakeview Chalet w/ hot tub, sauna, fire pit & decks": "https://arvbaoeszakyuxqhkogz.supabase.co/storage/v1/object/public/property-images/lodgify-588691/airbnb/01-living-room-3-image-2.jpg",
 };
 
