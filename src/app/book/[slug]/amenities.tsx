@@ -427,7 +427,10 @@ export function AmenitiesSection({
 
   return (
     <section id="amenities" className="scroll-mt-32 space-y-4">
-      <h2 className="text-xl sm:text-2xl font-bold tracking-tight">
+<p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary mb-2">
+        Amenities
+      </p>
+            <h2 className="text-xl sm:text-2xl font-bold tracking-tight">
         What this place offers
       </h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">

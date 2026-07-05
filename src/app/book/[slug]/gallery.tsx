@@ -99,7 +99,7 @@ function Lightbox({
 
   return (
     <div
-      className="fixed inset-0 z-[100] bg-black/95 flex flex-col animate-in fade-in duration-200"
+      className="fixed inset-0 z-100 bg-black/95 flex flex-col animate-in fade-in duration-200"
       role="dialog"
       aria-label="Photo viewer"
     >
@@ -233,7 +233,7 @@ function PhotoTour({
 
   return (
     <div
-      className="fixed inset-0 z-[90] bg-background flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-300"
+      className="fixed inset-0 z-90 bg-background flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-300"
       role="dialog"
       aria-label="All photos"
     >
@@ -281,7 +281,7 @@ function PhotoTour({
                     key={idx}
                     onClick={() => onOpenPhoto(idx)}
                     className={`relative overflow-hidden rounded-lg group focus-visible:ring-2 focus-visible:ring-ring ${
-                      pos === 0 ? "col-span-2 aspect-[2/1]" : "aspect-[4/3]"
+                      pos === 0 ? "col-span-2 aspect-2/1" : "aspect-4/3"
                     }`}
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -299,6 +299,184 @@ function PhotoTour({
         </div>
       </div>
     </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Room showcase — editorial strip of one card per room               */
+/* ------------------------------------------------------------------ */
+
+/** "Living room 3" → "Living room"; "Gazebo and Lake Beach (10 min…)" → "Gazebo and Lake Beach" */
+function displayLabel(label: string) {
+  return label.replace(/\s+\d+$/, "").replace(/\s*\(.*\)\s*$/, "");
+}
+
+export function RoomShowcase({
+  images,
+  propertyName,
+}: {
+  images: GalleryImage[];
+  propertyName: string;
+}) {
+  const [tourOpen, setTourOpen] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+
+  const groups = useMemo(() => buildGroups(images), [images]);
+
+  // One card per room: merge caption groups that share a base label
+  // ("Living room 1/2/3" → Living room). Caption-less sets fall back to the
+  // photos the mosaic didn't show, unlabeled.
+  const cards = useMemo(() => {
+    const captioned = groups.filter((g) => g.label !== "More photos" && g.label !== "All photos");
+    if (captioned.length >= 4) {
+      const byBase = new Map<string, { label: string; index: number; count: number }>();
+      for (const g of captioned) {
+        const base = displayLabel(g.label);
+        const existing = byBase.get(base);
+        if (existing) existing.count += g.indexes.length;
+        else byBase.set(base, { label: base, index: g.indexes[0], count: g.indexes.length });
+      }
+      return [...byBase.values()];
+    }
+    return images.slice(5, 15).map((_, i) => ({ label: "", index: i + 5, count: 1 }));
+  }, [groups, images]);
+
+  if (images.length < 8 || cards.length < 4) return null;
+
+  const shown = cards.slice(0, 10);
+
+  return (
+    <section className="space-y-5">
+      <div className="flex flex-wrap items-end justify-between gap-2">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary mb-2">
+            The space
+          </p>
+          <h2 className="text-xl sm:text-2xl font-bold tracking-tight">Wander the house</h2>
+        </div>
+        <button
+          onClick={() => setTourOpen(true)}
+          className="text-sm font-medium text-primary hover:underline underline-offset-4"
+        >
+          View all {images.length} photos →
+        </button>
+      </div>
+
+      <div
+        className="flex gap-4 overflow-x-auto snap-x pb-2 -mx-4 px-4 sm:mx-0 sm:px-0"
+        style={{ scrollbarWidth: "none" }}
+      >
+        {shown.map((card) => (
+          <button
+            key={card.index}
+            onClick={() => setLightboxIndex(card.index)}
+            className="group relative shrink-0 snap-start w-52 sm:w-60 aspect-3/4 rounded-2xl overflow-hidden focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={images[card.index].url}
+              alt={card.label || `${propertyName} photo`}
+              className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.05]"
+              loading="lazy"
+            />
+            <div className="absolute inset-x-0 bottom-0 h-1/2 bg-linear-to-t from-black/60 via-black/20 to-transparent" />
+            {card.label && (
+              <div className="absolute bottom-3 left-3 right-3 text-left">
+                <p className="text-white text-sm font-semibold leading-tight">{card.label}</p>
+                {card.count > 1 && (
+                  <p className="text-white/70 text-xs">{card.count} photos</p>
+                )}
+              </div>
+            )}
+          </button>
+        ))}
+        {/* Trailing card → the full tour */}
+        <button
+          onClick={() => setTourOpen(true)}
+          className="shrink-0 snap-start w-52 sm:w-60 aspect-3/4 rounded-2xl border-2 border-dashed flex flex-col items-center justify-center gap-2 text-muted-foreground hover:text-foreground hover:border-solid transition-colors"
+        >
+          <Grip className="h-5 w-5" />
+          <span className="text-sm font-medium">All {images.length} photos</span>
+        </button>
+      </div>
+
+      {tourOpen && (
+        <PhotoTour
+          images={images}
+          groups={groups}
+          onOpenPhoto={(i) => setLightboxIndex(i)}
+          onClose={() => setTourOpen(false)}
+        />
+      )}
+      {lightboxIndex !== null && (
+        <Lightbox
+          images={images}
+          index={lightboxIndex}
+          onNavigate={setLightboxIndex}
+          onClose={() => setLightboxIndex(null)}
+        />
+      )}
+    </section>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Scenic break — full-width editorial image band                     */
+/* ------------------------------------------------------------------ */
+
+// "View …" shots first — the room showcase usually already features the
+// gazebo/backyard cards, so the interlude should add a fresh perspective.
+const SCENIC_PRIORITY = [/view/i, /lake/i, /gazebo|beach/i, /exterior/i, /backyard/i, /deck|patio/i];
+
+export function ScenicBreak({
+  images,
+  propertyName,
+}: {
+  images: GalleryImage[];
+  propertyName: string;
+}) {
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+
+  const pick = useMemo(() => {
+    for (const re of SCENIC_PRIORITY) {
+      const i = images.findIndex((img) => img.caption && re.test(img.caption));
+      if (i >= 0) return i;
+    }
+    return images.length > 6 ? 5 : -1;
+  }, [images]);
+
+  if (pick < 0) return null;
+  const img = images[pick];
+
+  return (
+    <>
+      <button
+        onClick={() => setLightboxIndex(pick)}
+        className="group relative block w-full aspect-16/10 sm:aspect-21/9 rounded-3xl overflow-hidden focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={img.url}
+          alt={img.caption || `${propertyName} surroundings`}
+          className="absolute inset-0 w-full h-full object-cover transition-transform duration-[1.2s] group-hover:scale-[1.03]"
+          loading="lazy"
+        />
+        <div className="absolute inset-x-0 bottom-0 h-1/2 bg-linear-to-t from-black/55 to-transparent" />
+        {img.caption && (
+          <p className="absolute bottom-4 left-5 sm:bottom-6 sm:left-7 text-white text-base sm:text-lg font-semibold text-left drop-shadow">
+            {img.caption}
+          </p>
+        )}
+      </button>
+      {lightboxIndex !== null && (
+        <Lightbox
+          images={images}
+          index={lightboxIndex}
+          onNavigate={setLightboxIndex}
+          onClose={() => setLightboxIndex(null)}
+        />
+      )}
+    </>
   );
 }
 
@@ -344,7 +522,7 @@ export function PropertyGallery({
             <button
               key={i}
               onClick={() => setLightboxIndex(i)}
-              className="relative shrink-0 w-full snap-start aspect-[4/3]"
+              className="relative shrink-0 w-full snap-start aspect-4/3"
               aria-label={img.caption || `Photo ${i + 1}`}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}

@@ -25,7 +25,7 @@ import { Separator } from "@/components/ui/separator";
 import { ReviewsCarousel } from "@/components/guest/reviews-carousel";
 import { REVIEWS } from "@/lib/reviews-data";
 import type { PropertyDetails } from "@/lib/property-details";
-import { PropertyGallery } from "./gallery";
+import { PropertyGallery, RoomShowcase, ScenicBreak } from "./gallery";
 import { AvailabilityCalendar, BookingCard, MobileBookingBar, useBooking } from "./booking";
 import { AmenitiesSection } from "./amenities";
 import { LocalPlacesSection } from "./local-places";
@@ -212,6 +212,7 @@ export function PropertyPage({
     propertySlug: property.slug,
     maxGuests,
     petsAllowed: lodgify?.pets_allowed ?? true,
+    petFeeCents: property.pet_fee_cents,
     initialCheckIn: checkIn,
     initialCheckOut: checkOut,
     initialGuests: guests,
@@ -248,10 +249,13 @@ export function PropertyPage({
         <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-8">
           <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-12 xl:gap-16">
             {/* ---------------- Main column ---------------- */}
-            <main className="space-y-10 min-w-0">
+            <main className="space-y-12 min-w-0">
               {/* Overview */}
               <section id="overview" className="scroll-mt-32 space-y-5">
                 <div className="space-y-2">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
+                    Summit Lakeside · Pocono Mountains
+                  </p>
                   <h1 className="text-2xl sm:text-4xl font-bold tracking-tight text-balance">
                     {property.name}
                   </h1>
@@ -313,7 +317,7 @@ export function PropertyPage({
                     {highlights.map((h) => (
                       <div
                         key={h.label}
-                        className="flex items-center gap-3 rounded-xl border bg-card p-3.5"
+                        className="flex items-center gap-3 rounded-2xl border bg-card p-3.5"
                       >
                         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
                           <h.icon className="h-4.5 w-4.5" />
@@ -372,11 +376,24 @@ export function PropertyPage({
                 </>
               )}
 
+              {/* Room-by-room photo strip */}
+              {images.length >= 8 && (
+                <>
+                  <Separator />
+                  <Reveal>
+                    <RoomShowcase images={images} propertyName={property.name} />
+                  </Reveal>
+                </>
+              )}
+
               <Separator />
 
               {/* Availability */}
               <section id="availability" className="scroll-mt-32 space-y-4">
                 <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary mb-2">
+                    Your stay
+                  </p>
                   <h2 className="text-xl sm:text-2xl font-bold tracking-tight">
                     Choose your dates
                   </h2>
@@ -413,8 +430,11 @@ export function PropertyPage({
           />
         </section>
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 pb-12 space-y-10">
-          <Separator />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 pb-12 space-y-12">
+          {/* Scenic interlude — a breath of the outdoors between sections */}
+          <Reveal>
+            <ScenicBreak images={images} propertyName={property.name} />
+          </Reveal>
 
           {/* Location — interactive area explorer */}
           {lodgify && (
@@ -433,26 +453,31 @@ export function PropertyPage({
           {/* Policies */}
           <Reveal>
             <section id="policies" className="scroll-mt-32 space-y-4">
-              <h2 className="text-xl sm:text-2xl font-bold tracking-tight">Good to know</h2>
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary mb-2">
+                  House notes
+                </p>
+                <h2 className="text-xl sm:text-2xl font-bold tracking-tight">Good to know</h2>
+              </div>
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                <div className="rounded-xl border bg-card p-4 space-y-1">
+                <div className="rounded-2xl border bg-card p-4 space-y-1">
                   <Clock className="h-4.5 w-4.5 text-primary" />
                   <p className="text-sm font-semibold pt-1">Check-in</p>
                   <p className="text-sm text-muted-foreground">After 4:00 PM</p>
                 </div>
-                <div className="rounded-xl border bg-card p-4 space-y-1">
+                <div className="rounded-2xl border bg-card p-4 space-y-1">
                   <Clock className="h-4.5 w-4.5 text-primary" />
                   <p className="text-sm font-semibold pt-1">Check-out</p>
                   <p className="text-sm text-muted-foreground">Before 11:00 AM</p>
                 </div>
-                <div className="rounded-xl border bg-card p-4 space-y-1">
+                <div className="rounded-2xl border bg-card p-4 space-y-1">
                   <PawPrint className="h-4.5 w-4.5 text-primary" />
                   <p className="text-sm font-semibold pt-1">Pets</p>
                   <p className="text-sm text-muted-foreground">
                     {(lodgify?.pets_allowed ?? true) ? "Dogs welcome" : "Not allowed"}
                   </p>
                 </div>
-                <div className="rounded-xl border bg-card p-4 space-y-1">
+                <div className="rounded-2xl border bg-card p-4 space-y-1">
                   <Ban className="h-4.5 w-4.5 text-primary" />
                   <p className="text-sm font-semibold pt-1">Smoking</p>
                   <p className="text-sm text-muted-foreground">Not allowed</p>

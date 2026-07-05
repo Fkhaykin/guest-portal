@@ -39,6 +39,8 @@ export type PropertyDetails = {
     cover_image_url: string | null;
     max_guests: number | null;
     lodgify_property_id: number;
+    /** Flat fee per pet per stay, charged at checkout — mirrored in the booking card */
+    pet_fee_cents: number;
   };
   lodgify: PropertyDetailsLodgify | null;
 };
@@ -59,7 +61,9 @@ export async function getPropertyDetails(slug: string): Promise<PropertyDetails 
   const supabase = createAdminClient();
   const { data: property } = await supabase
     .from("property")
-    .select("id, name, slug, address, description, cover_image_url, max_guests, lodgify_property_id")
+    .select(
+      "id, name, slug, address, description, cover_image_url, max_guests, lodgify_property_id, guest_pet_fee_cents"
+    )
     .eq("slug", slug)
     .eq("is_active", true)
     .single();
@@ -117,6 +121,7 @@ export async function getPropertyDetails(slug: string): Promise<PropertyDetails 
         cover_image_url: property.cover_image_url,
         max_guests: property.max_guests ?? room?.max_people ?? null,
         lodgify_property_id: property.lodgify_property_id,
+        pet_fee_cents: property.guest_pet_fee_cents ?? 0,
       },
       lodgify: {
         min_price: propData.original_min_price || propData.min_price,
@@ -154,6 +159,7 @@ export async function getPropertyDetails(slug: string): Promise<PropertyDetails 
         cover_image_url: property.cover_image_url,
         max_guests: property.max_guests,
         lodgify_property_id: property.lodgify_property_id,
+        pet_fee_cents: property.guest_pet_fee_cents ?? 0,
       },
       lodgify: null,
     };

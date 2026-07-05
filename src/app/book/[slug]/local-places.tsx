@@ -362,6 +362,9 @@ export function LocalPlacesSection({
     <section id="location" className="scroll-mt-32 space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-2">
         <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary mb-2">
+        The area
+      </p>
           <h2 className="text-xl sm:text-2xl font-bold tracking-tight">Where you&apos;ll be</h2>
           {city && (
             <p className="text-sm text-muted-foreground mt-1">

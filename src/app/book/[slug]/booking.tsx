@@ -115,6 +115,7 @@ export function useBooking({
   propertySlug,
   maxGuests,
   petsAllowed,
+  petFeeCents = 0,
   initialCheckIn,
   initialCheckOut,
   initialGuests,
@@ -124,6 +125,8 @@ export function useBooking({
   propertySlug: string;
   maxGuests: number;
   petsAllowed: boolean;
+  /** Flat per-pet fee charged at checkout — folded into the card's total */
+  petFeeCents?: number;
   initialCheckIn?: string;
   initialCheckOut?: string;
   initialGuests?: string;
@@ -362,6 +365,10 @@ export function useBooking({
   const nights = checkIn && checkOut ? getNightCount(checkIn, checkOut) : null;
   // Minimum that applies to the stay being picked right now (null = no check-in)
   const activeMinStay = checkIn ? minStayFor(checkIn) : null;
+  // The Lodgify quote knows nothing about pets — checkout charges a flat fee
+  // per pet on top, so the card and mobile bar must mirror it.
+  const petFee = pets > 0 ? (pets * petFeeCents) / 100 : 0;
+  const grandTotal = quote ? quote.total + petFee : null;
   const checkoutUrl =
     checkIn && checkOut
       ? `/book/${propertySlug}/checkout?check_in=${checkIn}&check_out=${checkOut}&guests=${guests}&pets=${pets}`
@@ -384,6 +391,8 @@ export function useBooking({
     nights,
     activeMinStay,
     nightlyPrices,
+    petFee,
+    grandTotal,
     checkoutUrl,
     calendarPulse,
     isNightBooked,
@@ -703,8 +712,8 @@ export function BookingCard({
   const router = useRouter();
   const {
     checkIn, checkOut, guests, setGuests, pets, setPets, maxGuests, petsAllowed,
-    loading, quote, quoteFailure, quoteLoading, nights, nightlyPrices, checkoutUrl,
-    scrollToCalendar,
+    loading, quote, quoteFailure, quoteLoading, nights, nightlyPrices, petFee,
+    grandTotal, checkoutUrl, scrollToCalendar,
   } = booking;
 
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -932,9 +941,17 @@ export function BookingCard({
                   <span>${feesAndTaxes.toLocaleString()}</span>
                 </div>
               )}
+              {petFee > 0 && (
+                <div className="flex justify-between text-muted-foreground">
+                  <span>
+                    Pet fee ({pets} × ${(petFee / pets).toLocaleString()})
+                  </span>
+                  <span>${petFee.toLocaleString()}</span>
+                </div>
+              )}
               <div className="flex justify-between font-semibold border-t pt-2">
                 <span>Total</span>
-                <span>${Math.round(quote.total).toLocaleString()}</span>
+                <span>${Math.round(grandTotal ?? quote.total).toLocaleString()}</span>
               </div>
             </>
           ) : (
@@ -982,7 +999,8 @@ export function MobileBookingBar({
 }) {
   const router = useRouter();
   const {
-    checkIn, checkOut, quote, quoteFailure, quoteLoading, nights, checkoutUrl, scrollToCalendar,
+    checkIn, checkOut, quote, quoteFailure, quoteLoading, nights, grandTotal,
+    checkoutUrl, scrollToCalendar,
   } = booking;
 
   const quoteBlocked = blocksCheckout(quoteFailure);
@@ -1001,7 +1019,7 @@ export function MobileBookingBar({
                   <span className="text-muted-foreground font-normal">Fetching price…</span>
                 ) : quote ? (
                   <>
-                    ${Math.round(quote.total).toLocaleString()}
+                    ${Math.round(grandTotal ?? quote.total).toLocaleString()}
                     <span className="font-normal text-muted-foreground"> total</span>
                   </>
                 ) : quoteFailure && quoteBlocked ? (
