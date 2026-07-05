@@ -303,6 +303,283 @@ function PhotoTour({
 }
 
 /* ------------------------------------------------------------------ */
+/*  Photo plan — allocate distinct photos to the page's image moments  */
+/* ------------------------------------------------------------------ */
+
+export type PhotoPlan = {
+  /** Interior trio after the description */
+  collageA: number[];
+  /** Outdoor/amenity trio after the calendar */
+  collageB: number[];
+  /** Masonry wall picks */
+  wall: number[];
+  /** Area/attraction trio for the closing band */
+  closing: number[];
+};
+
+const INTERIOR_RES = [/living/i, /kitchen/i, /dining/i, /sunroom/i, /game/i, /bedroom/i];
+const OUTDOOR_RES = [/hot tub/i, /fire/i, /deck/i, /patio/i, /backyard/i, /pool/i, /gazebo|beach/i];
+const AREA_RES = [/falls/i, /mountain/i, /outlets/i, /stables/i, /downtown/i, /min drive/i];
+
+/** Pick up to `count` unused photos matching the regex priority list, at most
+ *  one per room (base caption), marking picks as used. */
+function pickByCaption(
+  images: GalleryImage[],
+  res: RegExp[],
+  count: number,
+  used: Set<number>
+): number[] {
+  const picks: number[] = [];
+  const seenRooms = new Set<string>();
+  for (const re of res) {
+    if (picks.length >= count) break;
+    for (let i = 0; i < images.length; i++) {
+      if (picks.length >= count) break;
+      const cap = images[i].caption;
+      if (!cap || used.has(i) || !re.test(cap)) continue;
+      const room = displayLabel(cap);
+      if (seenRooms.has(room)) continue;
+      seenRooms.add(room);
+      used.add(i);
+      picks.push(i);
+    }
+  }
+  return picks;
+}
+
+/** Sequential fallback for caption-less sets. */
+function pickNext(images: GalleryImage[], count: number, used: Set<number>): number[] {
+  const picks: number[] = [];
+  for (let i = 0; i < images.length && picks.length < count; i++) {
+    if (used.has(i)) continue;
+    used.add(i);
+    picks.push(i);
+  }
+  return picks;
+}
+
+export function planPhotoSections(images: GalleryImage[]): PhotoPlan {
+  const used = new Set<number>([0, 1, 2, 3, 4]); // the mosaic's five
+  const captioned = images.some((img) => img.caption);
+
+  const collageA = captioned
+    ? pickByCaption(images, INTERIOR_RES, 3, used)
+    : pickNext(images, 3, used);
+  if (collageA.length < 3) collageA.push(...pickNext(images, 3 - collageA.length, used));
+
+  const collageB = captioned
+    ? pickByCaption(images, OUTDOOR_RES, 3, used)
+    : pickNext(images, 3, used);
+
+  const closing = captioned ? pickByCaption(images, AREA_RES, 3, used) : [];
+
+  const wall: number[] = [];
+  for (let i = 0; i < images.length && wall.length < 14; i++) {
+    if (!used.has(i)) {
+      used.add(i);
+      wall.push(i);
+    }
+  }
+
+  return {
+    collageA: collageA.length === 3 ? collageA : [],
+    collageB: collageB.length === 3 ? collageB : [],
+    wall: wall.length >= 6 ? wall : [],
+    closing: closing.length === 3 ? closing : [],
+  };
+}
+
+/* ------------------------------------------------------------------ */
+/*  Editorial collage — one tall photo, two stacked beside it          */
+/* ------------------------------------------------------------------ */
+
+export function EditorialCollage({
+  images,
+  picks,
+  propertyName,
+  flip = false,
+}: {
+  images: GalleryImage[];
+  picks: number[];
+  propertyName: string;
+  /** Mirror the layout so consecutive collages don't look stamped */
+  flip?: boolean;
+}) {
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  if (picks.length !== 3) return null;
+
+  const tile = (idx: number, className: string) => (
+    <button
+      key={idx}
+      onClick={() => setLightboxIndex(idx)}
+      className={`group relative overflow-hidden rounded-2xl focus-visible:ring-2 focus-visible:ring-ring ${className}`}
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={images[idx].url}
+        alt={images[idx].caption || `${propertyName} photo`}
+        className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
+        loading="lazy"
+      />
+      {images[idx].caption && (
+        <span className="absolute bottom-2.5 left-3 text-white/90 text-xs font-medium drop-shadow opacity-0 group-hover:opacity-100 transition-opacity">
+          {displayLabel(images[idx].caption)}
+        </span>
+      )}
+      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+    </button>
+  );
+
+  return (
+    <>
+      <div className="grid grid-cols-3 grid-rows-2 gap-2 md:gap-3">
+        {tile(picks[0], `row-span-2 ${flip ? "order-last" : ""} col-span-2`)}
+        {tile(picks[1], "aspect-4/3")}
+        {tile(picks[2], "aspect-4/3")}
+      </div>
+      {lightboxIndex !== null && (
+        <Lightbox
+          images={images}
+          index={lightboxIndex}
+          onNavigate={setLightboxIndex}
+          onClose={() => setLightboxIndex(null)}
+        />
+      )}
+    </>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Gallery wall — masonry of photos the page hasn't shown yet         */
+/* ------------------------------------------------------------------ */
+
+export function GalleryWall({
+  images,
+  picks,
+  propertyName,
+}: {
+  images: GalleryImage[];
+  picks: number[];
+  propertyName: string;
+}) {
+  const [tourOpen, setTourOpen] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const groups = useMemo(() => buildGroups(images), [images]);
+
+  if (picks.length < 6) return null;
+
+  return (
+    <section id="gallery" className="scroll-mt-32 space-y-5">
+      <div className="flex flex-wrap items-end justify-between gap-2">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary mb-2">
+            Gallery
+          </p>
+          <h2 className="text-xl sm:text-2xl font-bold tracking-tight">The full picture</h2>
+        </div>
+        <button
+          onClick={() => setTourOpen(true)}
+          className="text-sm font-medium text-primary hover:underline underline-offset-4"
+        >
+          View all {images.length} photos →
+        </button>
+      </div>
+
+      <div className="columns-2 md:columns-3 gap-3">
+        {picks.map((idx) => (
+          <button
+            key={idx}
+            onClick={() => setLightboxIndex(idx)}
+            className="group relative block w-full mb-3 overflow-hidden rounded-xl focus-visible:ring-2 focus-visible:ring-ring break-inside-avoid"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={images[idx].url}
+              alt={images[idx].caption || `${propertyName} photo`}
+              className="w-full transition-transform duration-700 group-hover:scale-[1.03]"
+              loading="lazy"
+            />
+            {images[idx].caption && (
+              <span className="absolute bottom-2 left-2.5 text-white/90 text-xs font-medium drop-shadow opacity-0 group-hover:opacity-100 transition-opacity">
+                {displayLabel(images[idx].caption)}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {tourOpen && (
+        <PhotoTour
+          images={images}
+          groups={groups}
+          onOpenPhoto={(i) => setLightboxIndex(i)}
+          onClose={() => setTourOpen(false)}
+        />
+      )}
+      {lightboxIndex !== null && (
+        <Lightbox
+          images={images}
+          index={lightboxIndex}
+          onNavigate={setLightboxIndex}
+          onClose={() => setLightboxIndex(null)}
+        />
+      )}
+    </section>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Triptych — three captioned tiles (closing area band)               */
+/* ------------------------------------------------------------------ */
+
+export function Triptych({
+  images,
+  picks,
+}: {
+  images: GalleryImage[];
+  picks: number[];
+}) {
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  if (picks.length !== 3) return null;
+
+  return (
+    <>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        {picks.map((idx) => (
+          <button
+            key={idx}
+            onClick={() => setLightboxIndex(idx)}
+            className="group relative aspect-4/3 overflow-hidden rounded-2xl focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={images[idx].url}
+              alt={images[idx].caption || "Nearby"}
+              className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
+              loading="lazy"
+            />
+            <div className="absolute inset-x-0 bottom-0 h-1/2 bg-linear-to-t from-black/55 to-transparent" />
+            {images[idx].caption && (
+              <p className="absolute bottom-2.5 left-3 right-3 text-left text-white text-sm font-medium drop-shadow">
+                {images[idx].caption}
+              </p>
+            )}
+          </button>
+        ))}
+      </div>
+      {lightboxIndex !== null && (
+        <Lightbox
+          images={images}
+          index={lightboxIndex}
+          onNavigate={setLightboxIndex}
+          onClose={() => setLightboxIndex(null)}
+        />
+      )}
+    </>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  Room showcase — editorial strip of one card per room               */
 /* ------------------------------------------------------------------ */
 
@@ -343,7 +620,7 @@ export function RoomShowcase({
 
   if (images.length < 8 || cards.length < 4) return null;
 
-  const shown = cards.slice(0, 10);
+  const shown = cards;
 
   return (
     <section className="space-y-5">

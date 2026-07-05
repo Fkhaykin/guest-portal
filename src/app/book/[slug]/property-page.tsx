@@ -25,7 +25,15 @@ import { Separator } from "@/components/ui/separator";
 import { ReviewsCarousel } from "@/components/guest/reviews-carousel";
 import { REVIEWS } from "@/lib/reviews-data";
 import type { PropertyDetails } from "@/lib/property-details";
-import { PropertyGallery, RoomShowcase, ScenicBreak } from "./gallery";
+import {
+  EditorialCollage,
+  GalleryWall,
+  planPhotoSections,
+  PropertyGallery,
+  RoomShowcase,
+  ScenicBreak,
+  Triptych,
+} from "./gallery";
 import { AvailabilityCalendar, BookingCard, MobileBookingBar, useBooking } from "./booking";
 import { AmenitiesSection } from "./amenities";
 import { LocalPlacesSection } from "./local-places";
@@ -122,6 +130,7 @@ const SECTIONS = [
   { id: "overview", label: "Overview" },
   { id: "amenities", label: "Amenities" },
   { id: "availability", label: "Availability" },
+  { id: "gallery", label: "Gallery" },
   { id: "reviews", label: "Reviews" },
   { id: "location", label: "Location" },
   { id: "policies", label: "Policies" },
@@ -149,8 +158,12 @@ function useScrollSpy(ids: string[]) {
   return active;
 }
 
-function SectionNav() {
-  const active = useScrollSpy(useMemo(() => SECTIONS.map((s) => s.id), []));
+function SectionNav({ hasGallery }: { hasGallery: boolean }) {
+  const sections = useMemo(
+    () => SECTIONS.filter((s) => hasGallery || s.id !== "gallery"),
+    [hasGallery]
+  );
+  const active = useScrollSpy(useMemo(() => sections.map((s) => s.id), [sections]));
 
   return (
     <div className="sticky top-16 z-30 bg-background/85 backdrop-blur-xl border-b mt-6">
@@ -159,7 +172,7 @@ function SectionNav() {
         style={{ scrollbarWidth: "none" }}
         aria-label="Page sections"
       >
-        {SECTIONS.map((s) => (
+        {sections.map((s) => (
           <a
             key={s.id}
             href={`#${s.id}`}
@@ -234,6 +247,7 @@ export function PropertyPage({
   }, [reviewNames]);
 
   const highlights = useMemo(() => deriveHighlights(details), [details]);
+  const photoPlan = useMemo(() => planPhotoSections(images), [images]);
 
   const longDescription = (property.description?.length ?? 0) > 500;
 
@@ -244,7 +258,7 @@ export function PropertyPage({
       <div className="pt-16 pb-24 lg:pb-0">
         <PropertyGallery images={images} propertyName={property.name} />
 
-        <SectionNav />
+        <SectionNav hasGallery={photoPlan.wall.length >= 6} />
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-8">
           <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-12 xl:gap-16">
@@ -361,6 +375,17 @@ export function PropertyPage({
                     )}
                   </div>
                 )}
+
+                {/* Interior collage — a first look inside */}
+                {photoPlan.collageA.length === 3 && (
+                  <div className="pt-2">
+                    <EditorialCollage
+                      images={images}
+                      picks={photoPlan.collageA}
+                      propertyName={property.name}
+                    />
+                  </div>
+                )}
               </section>
 
               {/* Amenities — sanitized + ranked (Lodgify's raw feed is unusable) */}
@@ -408,6 +433,18 @@ export function PropertyPage({
                   <BookingCard booking={booking} minPrice={lodgify?.min_price ?? null} />
                 </div>
               </section>
+
+              {/* Outdoor collage — hot tub, fire pit, decks */}
+              {photoPlan.collageB.length === 3 && (
+                <Reveal>
+                  <EditorialCollage
+                    images={images}
+                    picks={photoPlan.collageB}
+                    propertyName={property.name}
+                    flip
+                  />
+                </Reveal>
+              )}
             </main>
 
             {/* ---------------- Sticky booking rail ---------------- */}
@@ -420,6 +457,19 @@ export function PropertyPage({
             </aside>
           </div>
         </div>
+
+        {/* Masonry gallery wall */}
+        {photoPlan.wall.length >= 6 && (
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-12">
+            <Reveal>
+              <GalleryWall
+                images={images}
+                picks={photoPlan.wall}
+                propertyName={property.name}
+              />
+            </Reveal>
+          </div>
+        )}
 
         {/* Reviews */}
         <section id="reviews" className="scroll-mt-24">
@@ -491,6 +541,23 @@ export function PropertyPage({
               </a>
             </section>
           </Reveal>
+
+          {/* Closing band — the Poconos beyond the front door */}
+          {photoPlan.closing.length === 3 && (
+            <Reveal>
+              <section className="space-y-4">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary mb-2">
+                    Out &amp; about
+                  </p>
+                  <h2 className="text-xl sm:text-2xl font-bold tracking-tight">
+                    Beyond the front door
+                  </h2>
+                </div>
+                <Triptych images={images} picks={photoPlan.closing} />
+              </section>
+            </Reveal>
+          )}
         </div>
       </div>
 
