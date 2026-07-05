@@ -29,7 +29,15 @@ export interface KioskBooking {
 }
 
 export interface KioskData {
-  property: { id: string; name: string; slug: string; address: string | null; timezone: string };
+  property: {
+    id: string;
+    name: string;
+    slug: string;
+    address: string | null;
+    timezone: string;
+    community: "penn-estates" | "blue-mountain-lake";
+    host_phone: string | null;
+  };
   today: string;
   state: "arrival_day" | "mid_stay" | "checkout_day" | "none";
   photos: string[];
@@ -145,4 +153,5 @@ export type KioskScreen =
   | { kind: "video"; id: string }
   | { kind: "services" }
   | { kind: "promos" }
-  | { kind: "explore" };
+  | { kind: "explore" }
+  | { kind: "tip" };

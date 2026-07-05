@@ -2,10 +2,13 @@
 
 import { useEffect, useState } from "react";
 import {
+  CalendarPlus,
   CloudSun,
   ClipboardList,
   Gift,
+  HandCoins,
   HelpCircle,
+  LifeBuoy,
   MapPin,
   PenLine,
   ScrollText,
@@ -34,24 +37,28 @@ function timeOfDayGreeting(tz: string): string {
   return "Good evening";
 }
 
-// Menu-board tiles: uniform, saturated, giant type — the whole grid fills the
-// screen like a self-order kiosk.
+// Menu-board tile. `variant` sets the surface; every icon renders at ONE size
+// inside an identical badge, so the grid reads as a consistent set.
+type Variant = "light" | "gold" | string; // string = gradient class group
 type Tile = {
   label: string;
   description: string;
   icon: LucideIcon;
-  accent: string; // gradient classes
-  featured?: boolean;
+  variant: Variant;
 } & ({ href: string; screen?: never } | { screen: KioskScreen; href?: never });
+
+const ICON = "h-8 w-8 lg:h-10 lg:w-10";
 
 export function MainScreen({
   data,
   onHandoff,
   onNavigate,
+  onHelp,
 }: {
   data: KioskData;
   onHandoff: (href: string) => void;
   onNavigate: (screen: KioskScreen) => void;
+  onHelp: () => void;
 }) {
   const [clock, setClock] = useState("");
   const tz = data.property.timezone;
@@ -93,30 +100,44 @@ export function MainScreen({
       subline = "Tap anything below to explore.";
   }
 
-  const registrationTile: Tile | null = booking
-    ? res!.signature_url
-      ? { label: "Update Registration", description: "Edit guests, pets, or vehicles", href: `/p/${slug}/update`, icon: PenLine, accent: "", featured: true }
-      : { label: "Register", description: "Register your guests and vehicles", href: `/p/${slug}/register`, icon: ClipboardList, accent: "", featured: true }
-    : null;
+  // Primary actions first (booked guests), then the browse grid. All one size.
+  const primary: Tile[] = booking
+    ? [
+        res!.signature_url
+          ? { label: "Update Registration", description: "Edit guests, pets, or vehicles", href: `/p/${slug}/update`, icon: PenLine, variant: "light" }
+          : { label: "Register", description: "Register your guests and vehicles", href: `/p/${slug}/register`, icon: ClipboardList, variant: "light" },
+        { label: "Extend Your Stay", description: "Add nights — pick dates on a calendar", href: `/p/${slug}/extend-stay`, icon: CalendarPlus, variant: "light" },
+        { label: "Tip the Crew", description: "Thank the team that keeps it spotless", screen: { kind: "tip" }, icon: HandCoins, variant: "gold" },
+      ]
+    : [];
 
-  const tiles: Tile[] = [
-    ...(registrationTile ? [registrationTile] : []),
+  const browse: Tile[] = [
     ...(booking
       ? [
-          { label: "Add-Ons", description: "Extras & experiences for your stay", href: `/p/${slug}/add-ons`, icon: Gift, accent: "from-amber-500 to-orange-600" } as Tile,
-          { label: "Delivery & Rides", description: "Register deliveries and rideshares", href: `/p/${slug}/delivery`, icon: Truck, accent: "from-emerald-500 to-teal-600" } as Tile,
+          { label: "Add-Ons", description: "Extras & experiences for your stay", href: `/p/${slug}/add-ons`, icon: Gift, variant: "from-orange-500 to-amber-600" } as Tile,
+          { label: "Delivery & Rides", description: "Register deliveries and rideshares", href: `/p/${slug}/delivery`, icon: Truck, variant: "from-emerald-500 to-teal-600" } as Tile,
         ]
       : []),
-    { label: "Weather", description: "Hourly forecast & live radar", screen: { kind: "weather" }, icon: CloudSun, accent: "from-sky-500 to-blue-700" },
-    { label: "Explore", description: "Things to do in the Poconos", screen: { kind: "explore" }, icon: MapPin, accent: "from-lime-500 to-green-700" },
-    { label: "Promotions", description: "Guest-exclusive deals", screen: { kind: "promos" }, icon: Tag, accent: "from-rose-500 to-red-700" },
-    { label: "Services", description: "Browse additional services", screen: { kind: "services" }, icon: ShoppingBag, accent: "from-fuchsia-500 to-purple-700" },
-    { label: "Videos", description: "How-to guides & welcome tour", screen: { kind: "videos" }, icon: Video, accent: "from-indigo-500 to-violet-700" },
-    { label: "FAQ", description: "Answers about the house", screen: { kind: "faq" }, icon: HelpCircle, accent: "from-cyan-600 to-sky-800" },
-    { label: "House Rules", description: "The 8 rules & full policies", screen: { kind: "rules" }, icon: ScrollText, accent: "from-zinc-500 to-zinc-700" },
+    { label: "Weather", description: "Hourly forecast & live radar", screen: { kind: "weather" }, icon: CloudSun, variant: "from-sky-500 to-blue-700" },
+    { label: "Explore", description: "Things to do in the Poconos", screen: { kind: "explore" }, icon: MapPin, variant: "from-lime-500 to-green-700" },
+    { label: "Promotions", description: "Guest-exclusive deals", screen: { kind: "promos" }, icon: Tag, variant: "from-rose-500 to-red-700" },
+    { label: "Services", description: "Browse additional services", screen: { kind: "services" }, icon: ShoppingBag, variant: "from-fuchsia-500 to-purple-700" },
+    { label: "Videos", description: "How-to guides & welcome tour", screen: { kind: "videos" }, icon: Video, variant: "from-indigo-500 to-violet-700" },
+    { label: "FAQ", description: "Answers about the house", screen: { kind: "faq" }, icon: HelpCircle, variant: "from-cyan-600 to-sky-800" },
+    { label: "House Rules", description: "The 8 rules & full policies", screen: { kind: "rules" }, icon: ScrollText, variant: "from-zinc-500 to-zinc-700" },
   ];
 
+  const tiles = [...primary, ...browse];
   const todayWeather = data.weather?.find((w) => w.date === data.today) ?? data.weather?.[0];
+
+  function surface(variant: Variant): string {
+    if (variant === "light") return "bg-white text-zinc-900";
+    if (variant === "gold") return "bg-amber-400 text-zinc-900";
+    return `bg-linear-to-br text-white ${variant} ring-1 ring-white/10`;
+  }
+  function badge(variant: Variant): string {
+    return variant === "light" || variant === "gold" ? "bg-zinc-900/10" : "bg-white/15";
+  }
 
   return (
     <div className="absolute inset-0 flex flex-col">
@@ -129,15 +150,15 @@ export function MainScreen({
           className="absolute inset-0 h-full w-full scale-110 object-cover blur-lg brightness-[0.22]"
         />
       )}
-      <div className="absolute inset-0 bg-gradient-to-b from-zinc-950/70 via-zinc-950/30 to-zinc-950/80" />
+      <div className="absolute inset-0 bg-linear-to-b from-zinc-950/70 via-zinc-950/30 to-zinc-950/80" />
 
       <div className="relative flex h-full flex-col gap-5 p-5 lg:gap-6 lg:p-8">
         {/* Top bar */}
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-semibold uppercase tracking-[0.35em] text-white/60 lg:text-sm">
+        <div className="flex items-center justify-between gap-4">
+          <span className="min-w-0 truncate text-xs font-semibold uppercase tracking-[0.35em] text-white/60 lg:text-sm">
             {data.property.name}
           </span>
-          <div className="flex items-center gap-4">
+          <div className="flex shrink-0 items-center gap-3">
             {todayWeather && (
               <button
                 type="button"
@@ -148,6 +169,14 @@ export function MainScreen({
                 {todayWeather.tempMaxF != null && <span>{Math.round(todayWeather.tempMaxF)}°</span>}
               </button>
             )}
+            <button
+              type="button"
+              onClick={onHelp}
+              className="flex min-h-12 items-center gap-2 rounded-full bg-white/10 px-5 text-base font-bold text-white backdrop-blur-md transition-colors hover:bg-white/15 lg:text-lg"
+            >
+              <LifeBuoy className="h-5 w-5" />
+              Help
+            </button>
             <span className="text-lg font-semibold text-white/80 tabular-nums lg:text-xl">{clock}</span>
           </div>
         </div>
@@ -170,34 +199,26 @@ export function MainScreen({
             else if (remainder === 2 && i >= tiles.length - 2) widen = "lg:col-span-2";
             else if (remainder === 3 && isLast) widen = "lg:col-span-2";
             return (
-            <button
-              key={tile.label}
-              type="button"
-              onClick={() => (tile.screen ? onNavigate(tile.screen) : onHandoff(tile.href!))}
-              className={`group relative flex flex-col justify-between overflow-hidden rounded-3xl p-4 text-left shadow-lg transition-transform active:scale-[0.97] lg:p-6 ${widen} ${
-                tile.featured
-                  ? "bg-white text-zinc-900"
-                  : `bg-gradient-to-br text-white ${tile.accent} ring-1 ring-white/10`
-              }`}
-            >
-              {/* Watermark icon for menu-board pop */}
-              <tile.icon
-                className={`pointer-events-none absolute -bottom-6 -right-6 h-32 w-32 lg:h-40 lg:w-40 ${
-                  tile.featured ? "text-zinc-900/10" : "text-white/15"
-                }`}
-              />
-              <tile.icon className="h-9 w-9 lg:h-12 lg:w-12" />
-              <span className="relative">
-                <span className="block text-xl font-extrabold leading-tight lg:text-3xl">{tile.label}</span>
-                <span
-                  className={`mt-1 hidden text-sm font-medium lg:block lg:text-base ${
-                    tile.featured ? "text-zinc-600" : "text-white/80"
-                  }`}
-                >
-                  {tile.description}
+              <button
+                key={tile.label}
+                type="button"
+                onClick={() => (tile.screen ? onNavigate(tile.screen) : onHandoff(tile.href!))}
+                className={`flex flex-col justify-between gap-3 rounded-3xl p-5 text-left shadow-lg transition-transform active:scale-[0.97] lg:p-6 ${widen} ${surface(tile.variant)}`}
+              >
+                <span className={`flex h-16 w-16 items-center justify-center rounded-2xl lg:h-18 lg:w-18 ${badge(tile.variant)}`}>
+                  <tile.icon className={ICON} />
                 </span>
-              </span>
-            </button>
+                <span>
+                  <span className="block text-xl font-extrabold leading-tight lg:text-2xl">{tile.label}</span>
+                  <span
+                    className={`mt-1 hidden text-sm font-medium lg:block lg:text-base ${
+                      tile.variant === "light" || tile.variant === "gold" ? "text-zinc-600" : "text-white/80"
+                    }`}
+                  >
+                    {tile.description}
+                  </span>
+                </span>
+              </button>
             );
           })}
         </div>

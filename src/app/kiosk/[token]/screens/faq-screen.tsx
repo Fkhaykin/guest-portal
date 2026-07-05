@@ -41,13 +41,15 @@ export function FaqScreen({
                   {category}
                 </h2>
               )}
-              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+              {/* items-start so an open card grows downward without stretching
+                  its row-neighbor; no col-span change → width stays constant. */}
+              <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
                 {items.map((faq) => {
                   const isOpen = open === faq.id;
                   return (
                     <div
                       key={faq.id}
-                      className={`${glassPanel} ${isOpen ? "lg:col-span-2 bg-white/[0.12]" : ""}`}
+                      className={`${glassPanel} ${isOpen ? "bg-white/12" : ""}`}
                     >
                       <button
                         type="button"

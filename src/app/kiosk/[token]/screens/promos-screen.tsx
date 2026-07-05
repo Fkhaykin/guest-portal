@@ -53,24 +53,32 @@ export function PromosScreen({
                 key={promo.id}
                 className={`flex flex-col rounded-3xl border p-7 backdrop-blur-md ${accent.border} ${accent.bg}`}
               >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex items-center gap-3">
-                    <span className="text-4xl">{emoji}</span>
-                    <span className={`text-xs font-semibold uppercase tracking-[0.25em] ${accent.muted}`}>
-                      {label}
-                    </span>
-                  </div>
-                  {highlight && (
-                    <div className="text-right">
-                      <p className={`text-4xl font-extrabold leading-none lg:text-5xl ${accent.text}`}>{highlight.big}</p>
-                      <p className={`mt-1.5 text-sm ${accent.muted}`}>{highlight.sub}</p>
-                    </div>
-                  )}
+                {/* Eyebrow: fixed-size emoji badge + label */}
+                <div className="flex items-center gap-3">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center text-2xl leading-none">
+                    {emoji}
+                  </span>
+                  <span className={`text-sm font-semibold uppercase tracking-[0.2em] ${accent.muted}`}>
+                    {label}
+                  </span>
                 </div>
 
-                <h2 className="mt-5 text-3xl font-extrabold text-white lg:text-4xl">{promo.title || "Guest Offer"}</h2>
+                {/* Hero: the discount is the single biggest thing on the card */}
+                {highlight && (
+                  <div className="mt-5">
+                    <span className={`text-5xl font-bold leading-none lg:text-6xl ${accent.text}`}>
+                      {highlight.big}
+                    </span>
+                    <span className={`ml-2 text-base ${accent.muted}`}>{highlight.sub}</span>
+                  </div>
+                )}
+
+                {/* Title (medium) + description (body) */}
+                <h2 className="mt-4 text-2xl font-bold leading-snug text-white">
+                  {promo.title || "Guest Offer"}
+                </h2>
                 {promo.description && (
-                  <p className="mt-3 text-lg leading-relaxed text-white/70">{promo.description}</p>
+                  <p className="mt-2 text-base leading-relaxed text-white/65">{promo.description}</p>
                 )}
 
                 {(pills.length > 0 || perks.length > 0) && (
@@ -78,7 +86,7 @@ export function PromosScreen({
                     {pills.map((pill) => (
                       <span
                         key={pill}
-                        className={`rounded-full px-4 py-2 text-base font-medium text-white/85 ${accent.chip}`}
+                        className={`rounded-full px-3 py-1.5 text-sm font-medium text-white/80 ${accent.chip}`}
                       >
                         {pill}
                       </span>
@@ -86,7 +94,7 @@ export function PromosScreen({
                     {perks.map((perk) => (
                       <span
                         key={perk.label}
-                        className={`rounded-full px-4 py-2 text-base font-medium text-white/85 ${accent.chip}`}
+                        className={`rounded-full px-3 py-1.5 text-sm font-medium text-white/80 ${accent.chip}`}
                       >
                         🎁 {perk.label}
                       </span>
@@ -97,11 +105,11 @@ export function PromosScreen({
                 <div className="mt-auto pt-5">
                   {promo.code ? (
                     <div className="flex items-center justify-between gap-3 rounded-xl bg-zinc-950/40 px-4 py-3 ring-1 ring-white/10">
-                      <span className="text-sm uppercase tracking-[0.25em] text-white/50">Code</span>
-                      <span className={`text-3xl font-extrabold tracking-widest ${accent.text}`}>{promo.code}</span>
+                      <span className="text-xs font-semibold uppercase tracking-[0.25em] text-white/50">Code</span>
+                      <span className={`text-2xl font-bold tracking-[0.2em] ${accent.text}`}>{promo.code}</span>
                     </div>
                   ) : (
-                    <p className="text-lg text-white/60">
+                    <p className="text-base text-white/60">
                       {promo.auto_apply
                         ? "Automatic — applied at checkout"
                         : "No code needed — just mention this offer"}

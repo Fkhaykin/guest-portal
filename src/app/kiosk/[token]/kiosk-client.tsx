@@ -13,6 +13,8 @@ import { VideoPlayerScreen } from "./screens/video-player-screen";
 import { ServicesScreen } from "./screens/services-screen";
 import { PromosScreen } from "./screens/promos-screen";
 import { ExploreScreen } from "./screens/explore-screen";
+import { TipScreen } from "./screens/tip-screen";
+import { HelpOverlay } from "./help-overlay";
 
 const SESSION_KEY = "guest-portal-session";
 const TOKEN_KEY = "guest-portal-token";
@@ -32,6 +34,7 @@ export function KioskClient({ token }: { token: string }) {
   const [screen, setScreen] = useState<KioskScreen>({ kind: "attract" });
   const [exited, setExited] = useState(false);
   const [notice, setNotice] = useState<"success" | "cancelled" | null>(null);
+  const [helpOpen, setHelpOpen] = useState(false);
   const idleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const load = useCallback(async () => {
@@ -72,22 +75,45 @@ export function KioskClient({ token }: { token: string }) {
     localStorage.setItem(KIOSK_RETURN_KEY, `/kiosk/${token}`);
   }, [token]);
 
-  // Stripe return from a kiosk service purchase. The URL cleanup makes this
-  // non-idempotent, so the dismiss timer lives in its own effect below —
+  // A tip's Stripe session still needs finalizing (mark paid + notify host)
+  // via the guest upsells confirm route; captured here, run once data loads.
+  const [pendingTipSession, setPendingTipSession] = useState<string | null>(null);
+
+  // Stripe return from a kiosk service purchase or tip. The URL cleanup makes
+  // this non-idempotent, so the dismiss timer lives in its own effect below —
   // under a double mount (StrictMode) the re-run early-returns and a timer
   // armed here would have been cleared, leaving the banner stuck.
   useEffect(() => {
     const search = new URLSearchParams(window.location.search);
-    const success = search.get("service_success") === "1";
-    const cancelled = search.get("service_cancelled") === "1";
+    const success = search.get("service_success") === "1" || search.get("tip_success") === "1";
+    const cancelled = search.get("service_cancelled") === "1" || search.get("tip_cancelled") === "1";
     if (!success && !cancelled) return;
+    if (search.get("tip_success") === "1") setPendingTipSession(search.get("session_id"));
     setNotice(success ? "success" : "cancelled");
     setScreen({ kind: "home" });
-    search.delete("service_success");
-    search.delete("service_cancelled");
+    for (const k of ["service_success", "service_cancelled", "tip_success", "tip_cancelled", "session_id"]) {
+      search.delete(k);
+    }
     const qs = search.toString();
     window.history.replaceState({}, "", window.location.pathname + (qs ? `?${qs}` : ""));
   }, []);
+
+  // Finalize a returned tip once the booking (and its guest token) is loaded.
+  useEffect(() => {
+    if (!pendingTipSession || !data?.booking) return;
+    const sessionId = pendingTipSession;
+    setPendingTipSession(null);
+    fetch(`/api/guest/upsells/confirm`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-guest-token": data.booking.guest_token,
+      },
+      body: JSON.stringify({ session_id: sessionId, registration_id: data.booking.reservation.id }),
+    }).catch(() => {
+      // Best-effort; the Stripe webhook is the durable fallback.
+    });
+  }, [pendingTipSession, data]);
 
   useEffect(() => {
     if (!notice) return;
@@ -201,7 +227,12 @@ export function KioskClient({ token }: { token: string }) {
         />
       )}
       {screen.kind === "home" && (
-        <MainScreen data={data} onHandoff={handoff} onNavigate={navigate} />
+        <MainScreen
+          data={data}
+          onHandoff={handoff}
+          onNavigate={navigate}
+          onHelp={() => setHelpOpen(true)}
+        />
       )}
       {screen.kind === "weather" && (
         <WeatherScreen token={token} data={data} onBack={goHome} />
@@ -240,7 +271,14 @@ export function KioskClient({ token }: { token: string }) {
       {screen.kind === "promos" && (
         <PromosScreen promos={content?.promos ?? null} failed={contentFailed} timezone={tz} onBack={goHome} />
       )}
-      {screen.kind === "explore" && <ExploreScreen timezone={tz} onBack={goHome} />}
+      {screen.kind === "explore" && (
+        <ExploreScreen community={data.property.community} timezone={tz} onBack={goHome} />
+      )}
+      {screen.kind === "tip" && (
+        <TipScreen token={token} booking={data.booking} timezone={tz} onBack={goHome} />
+      )}
+
+      {helpOpen && <HelpOverlay data={data} onClose={() => setHelpOpen(false)} />}
 
       {notice && (
         <div className="pointer-events-none absolute inset-x-0 top-6 z-50 flex justify-center px-6">

@@ -163,6 +163,13 @@ export async function GET(
 
   const weather = await kioskWeather(admin, property.nickname, today);
 
+  // Which community the house sits in drives the Explore screen + help card.
+  const { data: hoaRow } = await admin
+    .from("property")
+    .select("hoa_type, owner_phone")
+    .eq("id", property.id)
+    .single();
+
   return NextResponse.json(
     {
       property: {
@@ -171,6 +178,8 @@ export async function GET(
         slug: property.slug,
         address: property.address,
         timezone: tz,
+        community: hoaRow?.hoa_type === "bmlc" ? "blue-mountain-lake" : "penn-estates",
+        host_phone: hoaRow?.owner_phone ?? null,
       },
       today,
       state,

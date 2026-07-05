@@ -101,7 +101,18 @@ function ActivityCard({ activity }: { activity: Activity }) {
   );
 }
 
-export function ExploreScreen({ timezone, onBack }: { timezone: string; onBack: () => void }) {
+export function ExploreScreen({
+  community,
+  timezone,
+  onBack,
+}: {
+  community: "penn-estates" | "blue-mountain-lake";
+  timezone: string;
+  onBack: () => void;
+}) {
+  // Only show the amenities for the community this house actually sits in.
+  const communities = COMMUNITIES.filter((c) => c.id === community);
+
   return (
     <KioskScreenShell
       title="Explore the Poconos"
@@ -118,7 +129,7 @@ export function ExploreScreen({ timezone, onBack }: { timezone: string; onBack: 
             className={`flex min-h-14 shrink-0 snap-start items-center gap-2 whitespace-nowrap px-5 text-base font-semibold text-white ${glassButton}`}
           >
             <Home className="h-5 w-5" />
-            Our Communities
+            Your Community
           </button>
           {CATEGORIES.map((category) => (
             <button
@@ -136,9 +147,9 @@ export function ExploreScreen({ timezone, onBack }: { timezone: string; onBack: 
         {/* Our Communities */}
         <section id={COMMUNITIES_SECTION_ID} className="flex scroll-mt-4 flex-col gap-8">
           <p className="text-xs font-semibold uppercase tracking-[0.3em] text-white/50 lg:text-sm">
-            Our Communities
+            Your Community
           </p>
-          {COMMUNITIES.map((community) => (
+          {communities.map((community) => (
             <div key={community.id} className="flex flex-col gap-4">
               <div>
                 <h2 className="text-2xl font-bold tracking-tight text-white lg:text-3xl">
@@ -166,7 +177,7 @@ export function ExploreScreen({ timezone, onBack }: { timezone: string; onBack: 
           >
             <div className="flex items-center gap-4">
               <span
-                className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${category.gradient}`}
+                className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-linear-to-br ${category.gradient}`}
               >
                 <category.icon className="h-6 w-6 text-white" />
               </span>
