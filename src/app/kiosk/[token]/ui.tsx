@@ -85,7 +85,7 @@ export function KioskScreenShell({
             {backLabel}
           </button>
           <div className="min-w-0 flex-1">
-            <h1 className="truncate text-3xl font-extrabold tracking-tight text-white lg:text-4xl">{title}</h1>
+            <h1 className="truncate text-2xl font-extrabold tracking-tight text-white lg:text-3xl">{title}</h1>
             {subtitle && <p className="truncate text-base text-white/60 lg:text-lg">{subtitle}</p>}
           </div>
           <span className="text-xl font-semibold text-white/80 tabular-nums lg:text-2xl">{clock}</span>

@@ -92,7 +92,7 @@ export function RulesScreen({
                       <p className="text-xs font-semibold uppercase tracking-[0.25em] text-white/40">
                         Chapter {chapter.index} · §{sections[0].number}–{sections[sections.length - 1].number}
                       </p>
-                      <h2 className="text-2xl font-extrabold text-white lg:text-3xl">{chapter.title}</h2>
+                      <h2 className="text-xl font-extrabold text-white lg:text-2xl">{chapter.title}</h2>
                       <p className="truncate text-base text-white/60">{chapter.blurb}</p>
                     </div>
                     <ChevronDown

@@ -193,7 +193,7 @@ export function MainScreen({
 
         {/* Greeting */}
         <div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-white lg:text-5xl text-balance">
+          <h1 className="text-3xl font-extrabold tracking-tight text-white lg:text-4xl text-balance">
             {headline}
           </h1>
           <p className="mt-1.5 text-lg font-medium text-white/75 lg:mt-2 lg:text-xl">{subline}</p>
@@ -219,7 +219,7 @@ export function MainScreen({
                   <tile.icon className={ICON} />
                 </span>
                 <span className="min-w-0">
-                  <span className="block text-lg font-extrabold leading-tight lg:text-2xl">{tile.label}</span>
+                  <span className="block text-lg font-extrabold leading-tight lg:text-xl">{tile.label}</span>
                   <span
                     className={`mt-0.5 hidden text-sm font-medium lg:block lg:text-base ${
                       tile.variant === "light" || tile.variant === "gold" ? "text-zinc-600" : "text-white/80"

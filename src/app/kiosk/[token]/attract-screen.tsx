@@ -107,7 +107,7 @@ export function AttractScreen({
             <p className="mt-3 text-xl font-medium text-white/70 lg:text-2xl">{date}</p>
           </div>
           <div className="text-right">
-            <p className="text-2xl font-semibold text-white lg:text-4xl text-balance">
+            <p className="text-2xl font-semibold text-white lg:text-3xl text-balance">
               {data.booking ? `Welcome, ${data.booking.first_name}` : `Welcome to ${data.property.name}`}
             </p>
             <span className="mt-5 inline-flex animate-pulse items-center gap-3 rounded-full bg-white/15 px-6 py-3 text-base font-semibold text-white backdrop-blur-md lg:text-lg">

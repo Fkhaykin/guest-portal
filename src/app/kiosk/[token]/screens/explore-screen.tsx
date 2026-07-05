@@ -152,7 +152,7 @@ export function ExploreScreen({
           {communities.map((community) => (
             <div key={community.id} className="flex flex-col gap-4">
               <div>
-                <h2 className="text-2xl font-bold tracking-tight text-white lg:text-3xl">
+                <h2 className="text-xl font-bold tracking-tight text-white lg:text-2xl">
                   {community.name}
                 </h2>
                 <p className="mt-1 text-white/60">{community.tagline}</p>
@@ -182,7 +182,7 @@ export function ExploreScreen({
                 <category.icon className="h-6 w-6 text-white" />
               </span>
               <div className="min-w-0">
-                <h2 className="text-2xl font-bold tracking-tight text-white lg:text-3xl">
+                <h2 className="text-xl font-bold tracking-tight text-white lg:text-2xl">
                   {category.title}
                 </h2>
                 <p className="mt-0.5 text-white/60">{category.subtitle}</p>

@@ -29,7 +29,7 @@ export function HelpOverlay({ data, onClose }: { data: KioskData; onClose: () =>
     <div className="absolute inset-0 z-[60] flex flex-col bg-zinc-950/95 backdrop-blur-xl">
       <header className="flex items-center justify-between border-b border-white/10 px-6 py-5 lg:px-10">
         <div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-white lg:text-4xl">
+          <h1 className="text-2xl font-extrabold tracking-tight text-white lg:text-3xl">
             Help & Contacts
           </h1>
           <p className="mt-1 text-base text-white/60 lg:text-lg">
