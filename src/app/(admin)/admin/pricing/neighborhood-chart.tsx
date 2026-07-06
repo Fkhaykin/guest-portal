@@ -14,6 +14,7 @@ import {
   Legend,
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { addDays } from "@/lib/pricing/engine";
 import type { PricingConfig, SnapshotRow, MarketPoint } from "./types";
 import { fmtDate } from "./types";
 
@@ -64,9 +65,10 @@ export function NeighborhoodChart({
         date: r.stay_date,
         ours: r.our_price_cents != null ? Math.round(r.our_price_cents / 100) : null,
         published: m?.published_cents != null ? Math.round(m.published_cents / 100) : null,
-        // Interquartile band as a transparent base (p25) + filled delta (p75−p25).
-        iqrBase: p25,
-        iqrBand: p25 != null && p75 != null ? p75 - p25 : null,
+        // Interquartile band as a [p25, p75] range — recharts fills between the
+        // two. (A stacked transparent-base + delta hack truncated sibling lines
+        // wherever its null-gaps started.)
+        iqr: p25 != null && p75 != null ? [p25, p75] : null,
         marketMedian: p50,
         pricesCounted: n,
         booked: r.is_booked,
@@ -84,7 +86,7 @@ export function NeighborhoodChart({
     [config.rules.events, data, lastDate]
   );
 
-  const hasBand = data.some((d) => d.iqrBand != null);
+  const hasBand = data.some((d) => d.iqr != null);
   const hasMedian = data.some((d) => d.marketMedian != null);
   const hasPublished = data.some((d) => d.published != null);
   const hasOcc = data.some((d) => d.occupancy != null);
@@ -136,15 +138,14 @@ export function NeighborhoodChart({
               {events.map((e, i) => (
                 <ReferenceArea key={i} x1={e.from < data[0]?.date ? data[0]?.date : e.from} x2={e.to > lastDate ? lastDate : e.to} fill="var(--series-pl-rec)" fillOpacity={0.08} stroke="none" />
               ))}
-              {/* Market interquartile range: transparent base at p25 + filled delta to p75 */}
+              {/* Market interquartile range: a [p25, p75] range area, no stacking
+                  and connectNulls so its path never breaks — a broken/stacked
+                  area truncates the sibling price line at the first gap. */}
               {hasBand && (
-                <>
-                  <Area dataKey="iqrBase" stackId="band" stroke="none" fill="transparent" isAnimationActive={false} legendType="none" connectNulls={false} />
-                  <Area dataKey="iqrBand" stackId="band" stroke="none" fill="var(--series-pl)" fillOpacity={0.18} isAnimationActive={false} name="Market 25–75th" connectNulls={false} />
-                </>
+                <Area dataKey="iqr" stroke="none" fill="var(--series-pl)" fillOpacity={0.18} isAnimationActive={false} name="Market 25–75th" connectNulls />
               )}
               {hasMedian && (
-                <Line type="monotone" dataKey="marketMedian" name="Market median" stroke="var(--series-pl)" strokeWidth={2} dot={false} connectNulls={false} isAnimationActive={false} />
+                <Line type="monotone" dataKey="marketMedian" name="Market median" stroke="var(--series-pl)" strokeWidth={2} dot={false} connectNulls isAnimationActive={false} />
               )}
               {hasPublished && (
                 <Line type="monotone" dataKey="published" name="Published (Airbnb)" stroke="var(--color-muted-foreground)" strokeWidth={1.5} strokeDasharray="4 3" dot={false} connectNulls isAnimationActive={false} />
@@ -180,9 +181,11 @@ export function NeighborhoodChart({
                 <YAxis tickFormatter={(v) => v + "%"} width={44} domain={[0, 100]} tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} stroke="var(--color-border)" />
                 <Tooltip contentStyle={TOOLTIP_STYLE} labelFormatter={(l) => fmtDate(l as string)} formatter={(v, n) => (n === "Market occupancy" && v != null ? [v + "%", n as string] : (null as unknown as [string, string]))} />
                 <Legend wrapperStyle={{ fontSize: 12 }} />
-                {/* Your booked nights: vertical markers, not a value on the % axis */}
+                {/* Your booked nights: one-day-wide vertical markers, not a value
+                    on the % axis. x1==x2 renders zero-width (invisible), so span
+                    each night to the next day. */}
                 {bookedDates.map((d) => (
-                  <ReferenceArea key={d} x1={d} x2={d} fill="var(--series-ours)" fillOpacity={0.5} stroke="none" ifOverflow="extendDomain" />
+                  <ReferenceArea key={d} x1={d} x2={addDays(d, 1)} fill="var(--series-ours)" fillOpacity={0.55} stroke="none" ifOverflow="hidden" />
                 ))}
                 <Area type="monotone" dataKey="occupancy" name="Market occupancy" stroke="var(--series-pl)" fill="var(--series-pl)" fillOpacity={0.12} strokeWidth={2} dot={false} connectNulls isAnimationActive={false} />
               </ComposedChart>
