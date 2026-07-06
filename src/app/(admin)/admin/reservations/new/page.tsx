@@ -238,6 +238,12 @@ export default function NewReservationPage() {
       : effectiveBreakdown.totalCents
     : 0;
 
+  // Submit gating + labels. Past-dated bookings have no engine breakdown, so they
+  // gate on the manual total; everything else gates on the (possibly overridden) quote.
+  const canSubmitPricing = isPastCheckIn ? manualTotalCents > 0 : !!effectiveBreakdown;
+  const submitTotalCents = isPastCheckIn ? manualTotalCents : effectiveBreakdown?.totalCents ?? 0;
+  const submitDueNowCents = isPastCheckIn ? manualTotalCents : dueNowCents;
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
@@ -636,14 +642,14 @@ export default function NewReservationPage() {
             {error && <p className="text-sm text-destructive">{error}</p>}
 
             <div className="flex gap-3 pt-2">
-              <Button type="submit" disabled={submitting || !breakdown || (dateConflict && !ackDoubleBook)}>
+              <Button type="submit" disabled={submitting || !canSubmitPricing || (dateConflict && !ackDoubleBook)}>
                 {submitting
                   ? "Creating…"
                   : paymentPlan === "paid"
-                    ? `Create booking & mark paid${breakdown ? ` (${fmt(breakdown.totalCents)} total)` : ""}`
+                    ? `Create booking & mark paid${submitTotalCents > 0 ? ` (${fmt(submitTotalCents)} total)` : ""}`
                     : paymentPlan === "automatic"
-                      ? `Create booking & email plan picker${breakdown ? ` (${fmt(breakdown.totalCents)} total)` : ""}`
-                      : `Create booking & send invoice${breakdown ? ` (${fmt(dueNowCents)} due now)` : ""}`}
+                      ? `Create booking & email plan picker${submitTotalCents > 0 ? ` (${fmt(submitTotalCents)} total)` : ""}`
+                      : `Create booking & send invoice${submitDueNowCents > 0 ? ` (${fmt(submitDueNowCents)} due now)` : ""}`}
               </Button>
               <Button type="button" variant="outline" onClick={() => router.back()}>
                 Cancel
