@@ -31,11 +31,12 @@ import { ComparisonChart, summarizeSnapshot } from "./comparison-chart";
 import { ConfigEditor } from "./config-editor";
 import { CompsPanel } from "./comps-panel";
 import type { PricingConfig, PricingLabData } from "./types";
-import { fmtUsd, fmtDate, timeAgo, daysSince } from "./types";
+import { fmtUsd, fmtDate, timeAgo, daysSince, hoaLabel } from "./types";
 
 export default function PricingLabPage() {
   const [configs, setConfigs] = useState<PricingConfig[]>([]);
   const [nickname, setNickname] = useState<string>("");
+  const [hoaFilter, setHoaFilter] = useState<string | null>(null);
   const [data, setData] = useState<PricingLabData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -175,6 +176,16 @@ export default function PricingLabPage() {
 
   const config = data?.config;
 
+  // HOA filter for the house list (e.g. Penn Estates vs Big Bass Lake).
+  const hoaTypes = [...new Set(configs.map((c) => c.hoa_type).filter((t): t is string => !!t))];
+  const visibleConfigs = hoaFilter ? configs.filter((c) => c.hoa_type === hoaFilter) : configs;
+
+  function applyHoaFilter(type: string | null) {
+    setHoaFilter(type);
+    const next = type ? configs.filter((c) => c.hoa_type === type) : configs;
+    if (next.length && !next.some((c) => c.nickname === nickname)) setNickname(next[0].nickname);
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -189,6 +200,25 @@ export default function PricingLabPage() {
       />
 
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        {hoaTypes.length > 1 && (
+          <div className="flex items-center overflow-hidden rounded-md border border-border">
+            <button
+              onClick={() => applyHoaFilter(null)}
+              className={`px-2.5 py-1.5 text-xs ${hoaFilter === null ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
+            >
+              All HOAs
+            </button>
+            {hoaTypes.map((t) => (
+              <button
+                key={t}
+                onClick={() => applyHoaFilter(t)}
+                className={`border-l border-border px-2.5 py-1.5 text-xs ${hoaFilter === t ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
+              >
+                {hoaLabel(t)}
+              </button>
+            ))}
+          </div>
+        )}
         <Select value={nickname} onValueChange={(v) => v && setNickname(v)}>
           <SelectTrigger
             className="h-auto w-72 overflow-hidden py-1.5"
@@ -210,9 +240,10 @@ export default function PricingLabPage() {
             </div>
           </SelectTrigger>
           <SelectContent>
-            {configs.map((c) => (
+            {visibleConfigs.map((c) => (
               <SelectItem key={c.id} value={c.nickname}>
                 {c.nickname}
+                {c.hoa_type && <span className="ml-2 text-xs text-muted-foreground">{hoaLabel(c.hoa_type)}</span>}
               </SelectItem>
             ))}
           </SelectContent>

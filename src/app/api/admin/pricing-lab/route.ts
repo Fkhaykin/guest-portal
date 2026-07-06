@@ -33,7 +33,18 @@ export async function GET(request: NextRequest) {
     .from("pricing_config")
     .select("id, nickname, mode, base_price_cents, min_price_cents, max_price_cents, rules")
     .order("nickname");
-  if (!nickname) return NextResponse.json({ configs: configs ?? [] });
+  if (!nickname) {
+    // Attach each house's HOA (from its property row) so the page can offer a
+    // "filter by HOA" control (e.g. Penn Estates / Big Bass Lake).
+    const { data: props } = await admin.from("property").select("nickname, hoa_type").eq("is_active", true);
+    const hoaByNick = new Map<string, string | null>();
+    for (const p of props ?? []) {
+      const k = p.nickname.toLowerCase();
+      if (!hoaByNick.has(k)) hoaByNick.set(k, p.hoa_type);
+    }
+    const withHoa = (configs ?? []).map((c) => ({ ...c, hoa_type: hoaByNick.get(c.nickname.toLowerCase()) ?? null }));
+    return NextResponse.json({ configs: withHoa });
+  }
 
   const config = (configs ?? []).find((c) => c.nickname.toLowerCase() === nickname.toLowerCase());
   if (!config) return NextResponse.json({ error: "No config for that house" }, { status: 404 });

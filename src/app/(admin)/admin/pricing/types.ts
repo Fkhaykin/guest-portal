@@ -8,7 +8,15 @@ export interface PricingConfig {
   min_price_cents: number;
   max_price_cents: number;
   rules: PricingRules;
+  hoa_type?: string | null;
 }
+
+// HOA code → display label for the pricing-lab house filter.
+export const HOA_LABELS: Record<string, string> = {
+  pepoa: "Penn Estates",
+  bmlc: "Big Bass Lake",
+};
+export const hoaLabel = (t: string | null | undefined): string => (t ? HOA_LABELS[t] ?? t.toUpperCase() : "Other");
 
 export interface SnapshotRow {
   stay_date: string;
