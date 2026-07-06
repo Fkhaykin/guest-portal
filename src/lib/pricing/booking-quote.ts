@@ -1,10 +1,13 @@
 import { getNightlyRates } from "@/lib/pricelabs/client";
 import { getQuote } from "@/lib/lodgify/client";
+import { computeQuoteFromRates, PA_STATE_TAX_RATE, MONROE_COUNTY_TAX_RATE } from "./quote-math";
+import type { NightlyRate, QuoteBreakdown } from "./quote-math";
 
-export const PA_STATE_TAX_RATE = 0.06;
-export const MONROE_COUNTY_TAX_RATE = 0.03;
-
-export type NightlyRate = { date: string; price_cents: number; min_stay: number };
+// Re-exported so existing consumers (extend-stay, checkout routes, etc.) keep
+// their imports; the definitions now live in the client-safe quote-math module.
+export { PA_STATE_TAX_RATE, MONROE_COUNTY_TAX_RATE };
+export type { NightlyRate };
+export type BookingQuoteBreakdown = QuoteBreakdown;
 
 export interface BookingQuoteInput {
   lodgifyPropertyId: number;
@@ -15,19 +18,6 @@ export interface BookingQuoteInput {
   cleaningFeeCents: number;
   petFeeCents: number;
   discountCents?: number;
-}
-
-export interface BookingQuoteBreakdown {
-  nightlyRates: NightlyRate[];
-  nights: number;
-  roomRateCents: number;
-  cleaningFeeCents: number;
-  petFeeTotalCents: number;
-  stateTaxCents: number;
-  countyTaxCents: number;
-  taxTotalCents: number;
-  discountCents: number;
-  totalCents: number;
 }
 
 async function getLodgifyRoomId(lodgifyPropertyId: number): Promise<number | null> {
@@ -87,28 +77,10 @@ export async function buildBookingQuote(input: BookingQuoteInput): Promise<Booki
   // Normalize to date-only strings.
   nightlyRates = nightlyRates.map((r) => ({ ...r, date: dateOnly(r.date) }));
 
-  const roomRateCents = nightlyRates.reduce((sum, r) => sum + r.price_cents, 0);
-  // Flat fee: one charge covers up to 3 pets
-  const petFeeTotalCents = input.pets > 0 ? input.petFeeCents : 0;
-  const stateTaxCents = Math.round(roomRateCents * PA_STATE_TAX_RATE);
-  const countyTaxCents = Math.round(roomRateCents * MONROE_COUNTY_TAX_RATE);
-  const taxTotalCents = stateTaxCents + countyTaxCents;
-
-  const subtotal = roomRateCents + input.cleaningFeeCents + petFeeTotalCents + taxTotalCents;
-  const rawDiscount = Math.max(0, input.discountCents ?? 0);
-  const discountCents = Math.min(rawDiscount, subtotal);
-  const totalCents = subtotal - discountCents;
-
-  return {
-    nightlyRates,
-    nights,
-    roomRateCents,
+  return computeQuoteFromRates(nightlyRates, {
     cleaningFeeCents: input.cleaningFeeCents,
-    petFeeTotalCents,
-    stateTaxCents,
-    countyTaxCents,
-    taxTotalCents,
-    discountCents,
-    totalCents,
-  };
+    petFeeCents: input.petFeeCents,
+    pets: input.pets,
+    discountCents: input.discountCents,
+  });
 }

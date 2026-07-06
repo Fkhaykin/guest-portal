@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { buildBookingQuote } from "@/lib/pricing/booking-quote";
+import { computeQuoteFromRates, nightsOfStay, type NightlyRate } from "@/lib/pricing/quote-math";
 import {
   createAndFinalizeBookingInvoice,
   getOrCreateStripeCustomer,
@@ -15,6 +16,35 @@ import { sendDirectBookingConfirmation } from "@/lib/guest-messages/send";
 
 const SPLIT_MIN_LEAD_DAYS = 60;
 const INVOICE_DUE_DAYS = 7;
+
+/**
+ * Validate an admin per-night rate override. Returns a rate array covering every
+ * occupied night of the stay (check-in through the night before check-out), or
+ * null if the input is malformed, has a negative price, or misses any night.
+ */
+function parseOverrideRates(
+  input: { date: string; price_cents: number }[] | undefined,
+  checkIn: string,
+  checkOut: string
+): NightlyRate[] | null {
+  if (!Array.isArray(input) || input.length === 0) return null;
+  const byDate = new Map<string, number>();
+  for (const r of input) {
+    if (!r || typeof r.date !== "string" || !Number.isFinite(r.price_cents) || r.price_cents < 0) {
+      return null;
+    }
+    byDate.set(r.date.slice(0, 10), Math.round(r.price_cents));
+  }
+  const nights = nightsOfStay(checkIn, checkOut);
+  if (nights.length === 0) return null;
+  const rates: NightlyRate[] = [];
+  for (const date of nights) {
+    const cents = byDate.get(date);
+    if (cents === undefined) return null; // a night is missing from the override
+    rates.push({ date, price_cents: cents, min_stay: 1 });
+  }
+  return rates;
+}
 
 export async function POST(request: NextRequest) {
   // Admin auth
@@ -42,6 +72,9 @@ export async function POST(request: NextRequest) {
     notes?: string;
     // Admin-supplied total (cents) for past-dated backfills that can't be auto-priced.
     manual_total_cents?: number;
+    // Admin per-night rate override (cents). When present, replaces the engine
+    // rates entirely — one entry per occupied night of the stay.
+    override_nightly_rates?: { date: string; price_cents: number }[];
   };
   try {
     body = await request.json();
@@ -132,8 +165,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Property not found or missing Lodgify mapping" }, { status: 404 });
   }
 
-  // Re-quote on the server so the admin can't tamper with totals from the client.
-  // Past-dated backfills use the admin's manual total instead (see manualTotalCents).
+  // Determine the priced quote. Precedence:
+  //   1. Per-night rate override (admin edited the nightly rates) — any dates.
+  //   2. Manual total (past-dated backfill that can't be auto-priced).
+  //   3. Server re-quote from the pricing engine (default; prevents client tampering).
   let quote: {
     totalCents: number;
     cleaningFeeCents: number;
@@ -142,7 +177,35 @@ export async function POST(request: NextRequest) {
     discountCents: number;
     nightlyRates: { date: string; price_cents: number; min_stay: number }[];
   };
-  if (manualTotalCents !== null) {
+
+  // Validate the override up front so malformed input fails loudly instead of
+  // silently falling back to engine pricing.
+  const overrideRates = parseOverrideRates(
+    body.override_nightly_rates,
+    body.check_in_date,
+    body.check_out_date
+  );
+  if (
+    Array.isArray(body.override_nightly_rates) &&
+    body.override_nightly_rates.length > 0 &&
+    !overrideRates
+  ) {
+    return NextResponse.json(
+      { error: "Rate override must include a non-negative price for every night of the stay." },
+      { status: 400 }
+    );
+  }
+
+  if (overrideRates) {
+    // Admin-set nightly rates. Fees, taxes and discount are still applied server-
+    // side by the shared math, so only the room rates are admin-controlled.
+    quote = computeQuoteFromRates(overrideRates, {
+      cleaningFeeCents: property.guest_cleaning_fee_cents || 0,
+      petFeeCents: property.guest_pet_fee_cents || 0,
+      pets: body.num_pets ?? 0,
+      discountCents: body.discount_cents ?? 0,
+    });
+  } else if (manualTotalCents !== null) {
     quote = {
       totalCents: manualTotalCents,
       cleaningFeeCents: 0,

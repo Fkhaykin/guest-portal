@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BookingDatePicker } from "@/components/admin/booking-date-picker";
+import { computeQuoteFromRates } from "@/lib/pricing/quote-math";
 import { Loader2 } from "lucide-react";
 
 type Property = {
@@ -70,6 +71,10 @@ export default function NewReservationPage() {
   const [discountDollars, setDiscountDollars] = useState("");
   const [discountLabel, setDiscountLabel] = useState("Loyalty Discount");
   const [manualTotalDollars, setManualTotalDollars] = useState("");
+  // Per-night rate override (admin edits nightly rates directly). Keyed by ISO date,
+  // stored as dollar text so the inputs stay stable while typing.
+  const [overrideEnabled, setOverrideEnabled] = useState(false);
+  const [overrideDollars, setOverrideDollars] = useState<Record<string, string>>({});
   const [paymentPlan, setPaymentPlan] = useState<"full" | "split" | "automatic" | "paid">("full");
   const [notes, setNotes] = useState("");
   const [dateConflict, setDateConflict] = useState(false);
@@ -127,6 +132,56 @@ export default function NewReservationPage() {
     return Math.round(n * 100);
   }, [discountDollars]);
 
+  // Reset any rate override when the dates change — a different stay has different
+  // nights, so the previously edited rates no longer apply.
+  useEffect(() => {
+    setOverrideEnabled(false);
+    setOverrideDollars({});
+  }, [checkIn, checkOut]);
+
+  // Overridden nightly rates in cents, keyed by date (blank/invalid → 0).
+  const overrideRatesCents = useMemo(() => {
+    const m: Record<string, number> = {};
+    for (const [date, txt] of Object.entries(overrideDollars)) {
+      const n = parseFloat(txt);
+      m[date] = isFinite(n) && n >= 0 ? Math.round(n * 100) : 0;
+    }
+    return m;
+  }, [overrideDollars]);
+
+  // The breakdown actually shown and charged: the auto quote, or — when overriding —
+  // recomputed from the admin's nightly rates via the same shared math the server
+  // uses on submit, so the displayed total always matches what gets saved.
+  const effectiveBreakdown: Breakdown | null = useMemo(() => {
+    if (!breakdown) return null;
+    if (!overrideEnabled || !property) return breakdown;
+    const rates = breakdown.nightlyRates.map((r) => ({
+      date: r.date,
+      price_cents: overrideRatesCents[r.date] ?? r.price_cents,
+      min_stay: 1,
+    }));
+    return computeQuoteFromRates(rates, {
+      cleaningFeeCents: property.guest_cleaning_fee_cents || 0,
+      petFeeCents: property.guest_pet_fee_cents || 0,
+      pets: parseInt(numPets, 10) || 0,
+      discountCents,
+    });
+  }, [breakdown, overrideEnabled, overrideRatesCents, property, numPets, discountCents]);
+
+  // Toggle override on (seeding the inputs from the current auto rates) or off.
+  function toggleOverride() {
+    if (overrideEnabled) {
+      setOverrideEnabled(false);
+      setOverrideDollars({});
+      return;
+    }
+    if (!breakdown) return;
+    const seed: Record<string, string> = {};
+    for (const r of breakdown.nightlyRates) seed[r.date] = (r.price_cents / 100).toFixed(2);
+    setOverrideDollars(seed);
+    setOverrideEnabled(true);
+  }
+
   // Fetch breakdown whenever the inputs that affect price change.
   useEffect(() => {
     if (!propertyId || !checkIn || !checkOut) {
@@ -177,10 +232,10 @@ export default function NewReservationPage() {
       });
   }, [propertyId, checkIn, checkOut, numGuests, numPets, discountCents]);
 
-  const dueNowCents = breakdown
+  const dueNowCents = effectiveBreakdown
     ? paymentPlan === "split"
-      ? Math.round(breakdown.totalCents / 2)
-      : breakdown.totalCents
+      ? Math.round(effectiveBreakdown.totalCents / 2)
+      : effectiveBreakdown.totalCents
     : 0;
 
   async function handleSubmit(e: React.FormEvent) {
@@ -223,6 +278,13 @@ export default function NewReservationPage() {
           payment_plan: markPaid ? "full" : paymentPlan,
           mark_paid: markPaid,
           manual_total_cents: isPastCheckIn ? manualTotalCents : undefined,
+          override_nightly_rates:
+            overrideEnabled && breakdown
+              ? breakdown.nightlyRates.map((r) => ({
+                  date: r.date,
+                  price_cents: overrideRatesCents[r.date] ?? r.price_cents,
+                }))
+              : undefined,
           notes,
         }),
       });
@@ -425,45 +487,71 @@ export default function NewReservationPage() {
               </div>
             ) : breakdownError ? (
               <p className="text-sm text-destructive py-4 text-center">{breakdownError}</p>
-            ) : breakdown ? (
+            ) : effectiveBreakdown ? (
               <div className="rounded-md border">
-                <div className="px-4 py-3 border-b bg-muted/30">
-                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Nightly rates ({breakdown.nights} night{breakdown.nights === 1 ? "" : "s"})</p>
+                <div className="px-4 py-3 border-b bg-muted/30 flex items-center justify-between gap-2">
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Nightly rates ({effectiveBreakdown.nights} night{effectiveBreakdown.nights === 1 ? "" : "s"})</p>
+                  <button
+                    type="button"
+                    onClick={toggleOverride}
+                    className="text-xs font-medium text-primary hover:underline"
+                  >
+                    {overrideEnabled ? "Use auto rates" : "Override rates"}
+                  </button>
                 </div>
                 <div className="divide-y text-sm">
-                  {breakdown.nightlyRates.map((r) => (
-                    <div key={r.date} className="px-4 py-1.5 flex items-center justify-between">
+                  {effectiveBreakdown.nightlyRates.map((r) => (
+                    <div key={r.date} className="px-4 py-1.5 flex items-center justify-between gap-3">
                       <span className="text-muted-foreground">{fmtDate(r.date)}</span>
-                      <span>{fmt(r.price_cents)}</span>
+                      {overrideEnabled ? (
+                        <div className="flex items-center gap-1">
+                          <span className="text-muted-foreground">$</span>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={overrideDollars[r.date] ?? ""}
+                            onChange={(e) => setOverrideDollars((prev) => ({ ...prev, [r.date]: e.target.value }))}
+                            className="h-8 w-28 text-right"
+                          />
+                        </div>
+                      ) : (
+                        <span>{fmt(r.price_cents)}</span>
+                      )}
                     </div>
                   ))}
                 </div>
                 <div className="border-t divide-y text-sm">
-                  <Row label={`Room subtotal (${breakdown.nights} night${breakdown.nights === 1 ? "" : "s"})`} value={fmt(breakdown.roomRateCents)} />
-                  {breakdown.cleaningFeeCents > 0 && <Row label="Cleaning fee" value={fmt(breakdown.cleaningFeeCents)} />}
-                  {breakdown.petFeeTotalCents > 0 && <Row label={`Pet fee × ${parseInt(numPets, 10) || 0}`} value={fmt(breakdown.petFeeTotalCents)} />}
-                  {breakdown.stateTaxCents > 0 && <Row label="PA state hotel tax (6%)" value={fmt(breakdown.stateTaxCents)} />}
-                  {breakdown.countyTaxCents > 0 && <Row label="Monroe County tax (3%)" value={fmt(breakdown.countyTaxCents)} />}
+                  <Row label={`Room subtotal (${effectiveBreakdown.nights} night${effectiveBreakdown.nights === 1 ? "" : "s"})`} value={fmt(effectiveBreakdown.roomRateCents)} />
+                  {effectiveBreakdown.cleaningFeeCents > 0 && <Row label="Cleaning fee" value={fmt(effectiveBreakdown.cleaningFeeCents)} />}
+                  {effectiveBreakdown.petFeeTotalCents > 0 && <Row label={`Pet fee × ${parseInt(numPets, 10) || 0}`} value={fmt(effectiveBreakdown.petFeeTotalCents)} />}
+                  {effectiveBreakdown.stateTaxCents > 0 && <Row label="PA state hotel tax (6%)" value={fmt(effectiveBreakdown.stateTaxCents)} />}
+                  {effectiveBreakdown.countyTaxCents > 0 && <Row label="Monroe County tax (3%)" value={fmt(effectiveBreakdown.countyTaxCents)} />}
                 </div>
-                {breakdown.discountCents > 0 ? (
+                {effectiveBreakdown.discountCents > 0 ? (
                   <>
                     <div className="px-4 py-2 border-t bg-muted/20 flex items-center justify-between text-sm">
                       <span>Subtotal</span>
-                      <span>{fmt(breakdown.totalCents + breakdown.discountCents)}</span>
+                      <span>{fmt(effectiveBreakdown.totalCents + effectiveBreakdown.discountCents)}</span>
                     </div>
                     <div className="px-4 py-2 border-t flex items-center justify-between text-sm text-muted-foreground">
                       <span>{discountLabel.trim() || "Discount"}</span>
-                      <span>− {fmt(breakdown.discountCents)}</span>
+                      <span>− {fmt(effectiveBreakdown.discountCents)}</span>
                     </div>
                     <div className="px-4 py-3 border-t bg-muted/30 flex items-center justify-between">
                       <span className="font-semibold">Total</span>
-                      <span className="font-semibold">{fmt(breakdown.totalCents)}</span>
+                      <span className="font-semibold">{fmt(effectiveBreakdown.totalCents)}</span>
                     </div>
                   </>
                 ) : (
                   <div className="px-4 py-3 border-t bg-muted/30 flex items-center justify-between">
                     <span className="font-semibold">Total</span>
-                    <span className="font-semibold">{fmt(breakdown.totalCents)}</span>
+                    <span className="font-semibold">{fmt(effectiveBreakdown.totalCents)}</span>
+                  </div>
+                )}
+                {overrideEnabled && (
+                  <div className="px-4 py-2 border-t bg-amber-50 dark:bg-amber-950/30 text-xs text-amber-800 dark:text-amber-300">
+                    Manual rate override active — these nightly rates replace the engine pricing.
                   </div>
                 )}
               </div>
@@ -482,7 +570,7 @@ export default function NewReservationPage() {
               >
                 <div className="font-medium">Pay in full</div>
                 <div className="text-xs text-muted-foreground mt-1">
-                  Guest pays {breakdown ? fmt(breakdown.totalCents) : "the full total"} when invoice is sent.
+                  Guest pays {effectiveBreakdown ? fmt(effectiveBreakdown.totalCents) : "the full total"} when invoice is sent.
                 </div>
               </button>
               <button
@@ -494,7 +582,7 @@ export default function NewReservationPage() {
                 <div className="font-medium">50% deposit + 50% balance</div>
                 <div className="text-xs text-muted-foreground mt-1">
                   {splitAllowed
-                    ? `Guest pays ${breakdown ? fmt(Math.round((breakdown?.totalCents ?? 0) / 2)) : "50%"} now; balance auto-charged 30 days before check-in.`
+                    ? `Guest pays ${effectiveBreakdown ? fmt(Math.round(effectiveBreakdown.totalCents / 2)) : "50%"} now; balance auto-charged 30 days before check-in.`
                     : `Available only when check-in is ${SPLIT_MIN_LEAD_DAYS}+ days out${checkIn ? ` (currently ${daysOut} day${daysOut === 1 ? "" : "s"})` : ""}.`}
                 </div>
               </button>
