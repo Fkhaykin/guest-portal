@@ -32,6 +32,7 @@ export interface CompRow {
   airbnb_id: string;
   label: string | null;
   url: string | null;
+  photo_url: string | null;
   is_self: boolean;
   is_active: boolean;
   last_scraped_at: string | null;

@@ -89,7 +89,7 @@ export async function GET(request: NextRequest) {
   const { data: comps } = await admin
     .from("comp_listing")
     .select(
-      "id, airbnb_id, label, url, is_self, is_active, last_scraped_at, last_priced_at, last_error, lat, lng, bedrooms, bathrooms, rating, review_count, is_lakefront, has_hot_tub, has_sauna, has_game_room, occupancy_30, occupancy_60, occupancy_90, median_price_cents, median_weekend_cents, median_weeknight_cents"
+      "id, airbnb_id, label, url, photo_url, is_self, is_active, last_scraped_at, last_priced_at, last_error, lat, lng, bedrooms, bathrooms, rating, review_count, is_lakefront, has_hot_tub, has_sauna, has_game_room, occupancy_30, occupancy_60, occupancy_90, median_price_cents, median_weekend_cents, median_weeknight_cents"
     )
     .ilike("nickname", config.nickname)
     .order("is_self", { ascending: false })

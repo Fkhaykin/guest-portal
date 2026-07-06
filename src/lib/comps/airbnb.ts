@@ -45,6 +45,7 @@ export interface ListingDetails {
   hasHotTub: boolean;
   hasSauna: boolean;
   hasGameRoom: boolean;
+  photoUrl: string | null;
 }
 
 // Amenity keyword sets. Airbnb doesn't expose a clean amenity API anonymously,
@@ -66,11 +67,16 @@ export async function fetchListingDetails(airbnbId: string): Promise<ListingDeta
   if (!res.ok) throw new Error(`Airbnb rooms page ${res.status}`);
   const html = await res.text();
   const bath = html.match(/(\d+(?:\.\d)?)\s*baths?\b/i);
+  // Cover photo: the PDP's og:image (the listing's hero shot on muscache CDN).
+  const og =
+    html.match(/<meta[^>]+property="og:image"[^>]+content="([^"]+)"/i) ??
+    html.match(/<meta[^>]+content="([^"]+)"[^>]+property="og:image"/i);
   return {
     bathrooms: bath ? parseFloat(bath[1]) : null,
     hasHotTub: HOT_TUB_RE.test(html),
     hasSauna: SAUNA_RE.test(html),
     hasGameRoom: GAME_ROOM_RE.test(html),
+    photoUrl: og ? og[1].replace(/&amp;/g, "&") : null,
   };
 }
 

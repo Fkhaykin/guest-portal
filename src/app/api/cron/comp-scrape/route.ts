@@ -69,7 +69,7 @@ export async function GET(request: Request) {
   // Availability batch: oldest-scraped comps first.
   const { data: availComps, error } = await admin
     .from("comp_listing")
-    .select("id, nickname, airbnb_id, has_hot_tub")
+    .select("id, nickname, airbnb_id, has_hot_tub, photo_url")
     .eq("is_active", true)
     .order("last_scraped_at", { ascending: true, nullsFirst: true })
     .limit(AVAIL_BATCH);
@@ -168,8 +168,10 @@ export async function GET(request: Request) {
         update.median_weeknight_cents = median(weeknight);
         priced++;
       }
-      // One-time amenity/bathroom enrichment (static detail), bounded per run.
-      if (comp.has_hot_tub == null && enriched < ENRICH_BATCH) {
+      // One-time amenity/bathroom/photo enrichment (static detail), bounded per
+      // run. Re-runs for comps still missing a cover photo even if amenities are
+      // already set.
+      if ((comp.has_hot_tub == null || comp.photo_url == null) && enriched < ENRICH_BATCH) {
         enriched++;
         try {
           await sleep(jitterMs(200, 600));
@@ -178,6 +180,7 @@ export async function GET(request: Request) {
           update.has_hot_tub = det.hasHotTub;
           update.has_sauna = det.hasSauna;
           update.has_game_room = det.hasGameRoom;
+          update.photo_url = det.photoUrl;
         } catch {
           // leave un-enriched; a later run retries
         }

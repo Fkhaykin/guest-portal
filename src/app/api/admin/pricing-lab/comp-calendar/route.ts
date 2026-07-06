@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
 
   const { data: comps } = await admin
     .from("comp_listing")
-    .select("id, label, airbnb_id, url, is_self, is_lakefront, bedrooms, occupancy_30, median_price_cents")
+    .select("id, label, airbnb_id, url, is_self, is_lakefront, bedrooms, bathrooms, occupancy_30, median_price_cents")
     .ilike("nickname", nickname)
     .eq("is_active", true)
     .order("is_self", { ascending: false })
@@ -68,6 +68,7 @@ export async function GET(request: NextRequest) {
       is_self: comp.is_self,
       is_lakefront: comp.is_lakefront,
       bedrooms: comp.bedrooms,
+      bathrooms: comp.bathrooms,
       occupancy30: comp.occupancy_30 != null ? Math.round(comp.occupancy_30 * 100) : null,
       days: dates.map((d) => byDate[d] ?? { available: null, price: null }),
     });

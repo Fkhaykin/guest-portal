@@ -12,7 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ExternalLink, Trash2, AlertTriangle, Waves, Bath, Flame, Gamepad2, Star, ArrowUpDown, Search } from "lucide-react";
+import { ExternalLink, Trash2, AlertTriangle, Waves, Bath, Flame, Gamepad2, Star, ArrowUpDown, Search, ImageOff } from "lucide-react";
 import { toast } from "sonner";
 import type { CompRow } from "./types";
 import { fmtUsd } from "./types";
@@ -25,6 +25,54 @@ type SortKey =
   | "occupancy30"
   | "medianPrice"
   | "lakefront";
+
+// Cover-photo thumbnail (Airbnb og:image on muscache CDN). Plain <img> so it
+// doesn't require next/image domain config; falls back to a placeholder tile.
+function CompThumb({ c }: { c: CompRow }) {
+  if (!c.photo_url) {
+    return (
+      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
+        <ImageOff className="h-4 w-4" />
+      </div>
+    );
+  }
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={c.photo_url}
+      alt=""
+      loading="lazy"
+      className="h-11 w-11 shrink-0 rounded-md border border-border object-cover"
+    />
+  );
+}
+
+// A compact "≥ N beds/baths" dropdown for the filter toolbar.
+function FilterSelect({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string;
+  value: number;
+  onChange: (v: number) => void;
+  options: number[];
+}) {
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(Number(e.target.value))}
+      className={`h-9 rounded-md border px-2 text-sm ${value ? "border-primary bg-primary/5 font-medium text-foreground" : "border-border bg-background text-muted-foreground"}`}
+    >
+      {options.map((o) => (
+        <option key={o} value={o}>
+          {o === 0 ? `Any ${label}` : `${o}+ ${label}`}
+        </option>
+      ))}
+    </select>
+  );
+}
 
 // Amenity icons shown per comp — lakefront plus the three amenities hosts filter
 // comps by. Each is title-labeled so identity is never icon-alone.
@@ -55,6 +103,8 @@ export function CompsTable({ comps, onChanged }: { comps: CompRow[]; onChanged: 
   const [sortKey, setSortKey] = useState<SortKey>("occupancy30");
   const [asc, setAsc] = useState(false);
   const [lakefrontOnly, setLakefrontOnly] = useState(false);
+  const [minBeds, setMinBeds] = useState(0);
+  const [minBaths, setMinBaths] = useState(0);
   const [removing, setRemoving] = useState<string | null>(null);
 
   const market = useMemo(() => comps.filter((c) => !c.is_self), [comps]);
@@ -65,6 +115,8 @@ export function CompsTable({ comps, onChanged }: { comps: CompRow[]; onChanged: 
     let rows = market;
     if (q) rows = rows.filter((c) => (c.label || c.airbnb_id).toLowerCase().includes(q));
     if (lakefrontOnly) rows = rows.filter((c) => c.is_lakefront);
+    if (minBeds) rows = rows.filter((c) => (c.bedrooms ?? 0) >= minBeds);
+    if (minBaths) rows = rows.filter((c) => (c.bathrooms ?? 0) >= minBaths);
     const val = (c: CompRow): number | string => {
       switch (sortKey) {
         case "label": return (c.label || c.airbnb_id).toLowerCase();
@@ -81,7 +133,7 @@ export function CompsTable({ comps, onChanged }: { comps: CompRow[]; onChanged: 
       const cmp = typeof va === "string" ? va.localeCompare(vb as string) : (va as number) - (vb as number);
       return asc ? cmp : -cmp;
     });
-  }, [market, query, lakefrontOnly, sortKey, asc]);
+  }, [market, query, lakefrontOnly, minBeds, minBaths, sortKey, asc]);
 
   function toggleSort(k: SortKey) {
     if (sortKey === k) setAsc((v) => !v);
@@ -118,6 +170,8 @@ export function CompsTable({ comps, onChanged }: { comps: CompRow[]; onChanged: 
         <Button variant={lakefrontOnly ? "default" : "outline"} size="sm" onClick={() => setLakefrontOnly((v) => !v)}>
           <Waves className="h-3.5 w-3.5" /> Lakefront ({lakefrontCount})
         </Button>
+        <FilterSelect label="beds" value={minBeds} onChange={setMinBeds} options={[0, 2, 3, 4, 5, 6]} />
+        <FilterSelect label="baths" value={minBaths} onChange={setMinBaths} options={[0, 1, 2, 3, 4]} />
         <span className="ml-auto text-xs text-muted-foreground">
           {market.length} comps · {pricedCount} priced{self.length ? ` · ${self.length} own listing` : ""}
         </span>
@@ -150,15 +204,16 @@ export function CompsTable({ comps, onChanged }: { comps: CompRow[]; onChanged: 
               {filtered.map((c) => (
                 <TableRow key={c.id}>
                   <TableCell>
-                    <div className="flex items-center gap-2">
-                      <span className="max-w-[280px] truncate font-medium">{c.label || `Listing ${c.airbnb_id}`}</span>
+                    <div className="flex items-center gap-2.5">
+                      <CompThumb c={c} />
+                      <span className="max-w-60 truncate font-medium">{c.label || `Listing ${c.airbnb_id}`}</span>
                       {c.url && (
-                        <a href={c.url} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground">
+                        <a href={c.url} target="_blank" rel="noopener noreferrer" className="shrink-0 text-muted-foreground hover:text-foreground">
                           <ExternalLink className="h-3.5 w-3.5" />
                         </a>
                       )}
                       {c.last_error && (
-                        <span title={c.last_error} className="text-amber-600">
+                        <span title={c.last_error} className="shrink-0 text-amber-600">
                           <AlertTriangle className="h-3.5 w-3.5" />
                         </span>
                       )}

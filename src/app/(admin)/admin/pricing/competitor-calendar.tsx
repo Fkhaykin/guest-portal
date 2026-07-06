@@ -13,8 +13,23 @@ interface CompCalRow {
   is_self: boolean;
   is_lakefront: boolean;
   bedrooms: number | null;
+  bathrooms: number | null;
   occupancy30: number | null;
   days: { available: boolean | null; price: number | null }[];
+}
+
+function FilterSelect({ label, value, onChange, options }: { label: string; value: number; onChange: (v: number) => void; options: number[] }) {
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(Number(e.target.value))}
+      className={`h-8 rounded-md border px-2 text-xs ${value ? "border-primary bg-primary/5 font-medium text-foreground" : "border-border bg-background text-muted-foreground"}`}
+    >
+      {options.map((o) => (
+        <option key={o} value={o}>{o === 0 ? `Any ${label}` : `${o}+ ${label}`}</option>
+      ))}
+    </select>
+  );
 }
 
 // Competitor Calendar — each comp's next 21 nights of availability + price,
@@ -22,6 +37,12 @@ interface CompCalRow {
 export function CompetitorCalendar({ nickname }: { nickname: string }) {
   const [data, setData] = useState<{ dates: string[]; comps: CompCalRow[] } | null>(null);
   const [loading, setLoading] = useState(false);
+  const [minBeds, setMinBeds] = useState(0);
+  const [minBaths, setMinBaths] = useState(0);
+
+  const visibleComps = (data?.comps ?? []).filter(
+    (c) => (!minBeds || (c.bedrooms ?? 0) >= minBeds) && (!minBaths || (c.bathrooms ?? 0) >= minBaths)
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -45,8 +66,16 @@ export function CompetitorCalendar({ nickname }: { nickname: string }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Competitor Calendar</CardTitle>
-        <p className="text-sm text-muted-foreground">Next 21 nights across your comp set — booked (grey) vs open, with probed prices.</p>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <CardTitle className="text-base">Competitor Calendar</CardTitle>
+            <p className="text-sm text-muted-foreground">Next 21 nights across your comp set — booked (grey) vs open, with probed prices.</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <FilterSelect label="beds" value={minBeds} onChange={setMinBeds} options={[0, 2, 3, 4, 5, 6]} />
+            <FilterSelect label="baths" value={minBaths} onChange={setMinBaths} options={[0, 1, 2, 3, 4]} />
+          </div>
+        </div>
       </CardHeader>
       <CardContent>
         {loading ? (
@@ -55,6 +84,8 @@ export function CompetitorCalendar({ nickname }: { nickname: string }) {
           </div>
         ) : !data || data.comps.length === 0 ? (
           <p className="py-6 text-center text-sm text-muted-foreground">No comp data yet.</p>
+        ) : visibleComps.length === 0 ? (
+          <p className="py-6 text-center text-sm text-muted-foreground">No comps match the bed/bath filter.</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="text-xs">
@@ -74,7 +105,7 @@ export function CompetitorCalendar({ nickname }: { nickname: string }) {
                 </tr>
               </thead>
               <tbody>
-                {data.comps.map((c) => (
+                {visibleComps.map((c) => (
                   <tr key={c.id} className="border-t border-border">
                     <td className="sticky left-0 z-10 max-w-50 truncate bg-card px-2 py-1.5">
                       <span className="flex items-center gap-1">
