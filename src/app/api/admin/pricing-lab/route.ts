@@ -89,7 +89,7 @@ export async function GET(request: NextRequest) {
   const { data: comps } = await admin
     .from("comp_listing")
     .select(
-      "id, airbnb_id, label, url, is_self, is_active, last_scraped_at, last_priced_at, last_error, lat, lng, bedrooms, bathrooms, rating, review_count, is_lakefront, has_hot_tub, has_sauna, has_game_room, occupancy_30, occupancy_60, occupancy_90, median_price_cents"
+      "id, airbnb_id, label, url, is_self, is_active, last_scraped_at, last_priced_at, last_error, lat, lng, bedrooms, bathrooms, rating, review_count, is_lakefront, has_hot_tub, has_sauna, has_game_room, occupancy_30, occupancy_60, occupancy_90, median_price_cents, median_weekend_cents, median_weeknight_cents"
     )
     .ilike("nickname", config.nickname)
     .order("is_self", { ascending: false })
@@ -97,7 +97,14 @@ export async function GET(request: NextRequest) {
   const pct = (v: number | null | undefined) => (v != null ? Math.round(v * 100) : null);
   const compStats: Record<
     string,
-    { occupancy30: number | null; occupancy60: number | null; occupancy90: number | null; medianPriceCents: number | null }
+    {
+      occupancy30: number | null;
+      occupancy60: number | null;
+      occupancy90: number | null;
+      medianPriceCents: number | null;
+      medianWeekendCents: number | null;
+      medianWeeknightCents: number | null;
+    }
   > = {};
   for (const comp of comps ?? []) {
     compStats[comp.id] = {
@@ -105,6 +112,8 @@ export async function GET(request: NextRequest) {
       occupancy60: pct(comp.occupancy_60),
       occupancy90: pct(comp.occupancy_90),
       medianPriceCents: comp.median_price_cents ?? null,
+      medianWeekendCents: comp.median_weekend_cents ?? null,
+      medianWeeknightCents: comp.median_weeknight_cents ?? null,
     };
   }
 

@@ -52,6 +52,8 @@ export interface CompRow {
     occupancy60: number | null;
     occupancy90: number | null;
     medianPriceCents: number | null;
+    medianWeekendCents: number | null;
+    medianWeeknightCents: number | null;
   };
 }
 

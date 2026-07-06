@@ -134,7 +134,7 @@ export function CompsTable({ comps, onChanged }: { comps: CompRow[]; onChanged: 
                 <TableHead className="text-center">Amenities</TableHead>
                 <SortHead label="Rating" k="rating" center {...{ sortKey, asc, toggleSort }} />
                 <SortHead label="Occ 30/60/90d" k="occupancy30" right {...{ sortKey, asc, toggleSort }} />
-                <SortHead label="Median" k="medianPrice" right {...{ sortKey, asc, toggleSort }} />
+                <SortHead label="Median wknd/wk" k="medianPrice" right {...{ sortKey, asc, toggleSort }} />
                 <TableHead className="text-right">Scraped</TableHead>
                 <TableHead />
               </TableRow>
@@ -191,7 +191,17 @@ export function CompsTable({ comps, onChanged }: { comps: CompRow[]; onChanged: 
                       "—"
                     )}
                   </TableCell>
-                  <TableCell className="text-right text-sm tabular-nums">{fmtUsd(c.stats.medianPriceCents)}</TableCell>
+                  <TableCell className="whitespace-nowrap text-right text-sm tabular-nums">
+                    {c.stats.medianWeekendCents != null || c.stats.medianWeeknightCents != null ? (
+                      <>
+                        <span title="Weekend (Fri/Sat) median">{fmtUsd(c.stats.medianWeekendCents)}</span>
+                        <span className="text-muted-foreground"> / </span>
+                        <span title="Weeknight (Sun–Thu) median">{fmtUsd(c.stats.medianWeeknightCents)}</span>
+                      </>
+                    ) : (
+                      fmtUsd(c.stats.medianPriceCents)
+                    )}
+                  </TableCell>
                   <TableCell className="text-right text-xs text-muted-foreground">
                     {c.last_scraped_at ? new Date(c.last_scraped_at).toLocaleDateString() : "—"}
                   </TableCell>

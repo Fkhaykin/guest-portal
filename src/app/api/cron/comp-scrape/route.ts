@@ -142,7 +142,18 @@ export async function GET(request: Request) {
         const withAvail = nights.filter((r) => r.available !== null).length;
         return withAvail ? unavail / withAvail : null;
       };
-      const probed = [...priceByDate.values()].sort((a, b) => a - b);
+      const median = (xs: number[]): number | null => {
+        if (!xs.length) return null;
+        const s = [...xs].sort((a, b) => a - b);
+        return s[Math.floor(s.length / 2)];
+      };
+      const isWeekendNight = (d: string) => {
+        const dow = new Date(d + "T00:00:00Z").getUTCDay();
+        return dow === 5 || dow === 6; // Fri, Sat nights
+      };
+      const weekend: number[] = [];
+      const weeknight: number[] = [];
+      for (const [d, cents] of priceByDate) (isWeekendNight(d) ? weekend : weeknight).push(cents);
       const update: Record<string, unknown> = {
         last_scraped_at: new Date().toISOString(),
         last_error: null,
@@ -152,7 +163,9 @@ export async function GET(request: Request) {
       };
       if (priceSet.has(comp.id)) {
         update.last_priced_at = new Date().toISOString();
-        if (probed.length) update.median_price_cents = probed[Math.floor(probed.length / 2)];
+        if (priceByDate.size) update.median_price_cents = median([...priceByDate.values()]);
+        update.median_weekend_cents = median(weekend);
+        update.median_weeknight_cents = median(weeknight);
         priced++;
       }
       // One-time amenity/bathroom enrichment (static detail), bounded per run.
