@@ -822,7 +822,7 @@ export default function AdminMessagesPage() {
               <div
                 className={cn(
                   composerExpanded
-                    ? "fixed inset-0 z-50 flex flex-col gap-2 bg-background p-4"
+                    ? "fixed inset-0 z-50 flex flex-col gap-2 bg-background p-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]"
                     : "p-3 border-t"
                 )}
               >
