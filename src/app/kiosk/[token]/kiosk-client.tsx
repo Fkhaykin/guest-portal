@@ -91,8 +91,11 @@ export function KioskClient({ token }: { token: string }) {
   // Kiosk-mode flag lives in sessionStorage so it is scoped to THIS tab and
   // cleared when it closes — it can never leak kiosk chrome to a normal guest's
   // browsing (localStorage stuck to any browser that once opened the kiosk URL).
-  // The handoff is a same-tab navigation, so the flag survives to /p/[slug]/*.
-  // ?exit=1 is the escape hatch; ?preview=1 (admin preview) never sets it.
+  // The handoff is a same-tab navigation, so the flag survives to /p/[slug]/*,
+  // which keeps the kiosk chrome (and hides the website header/logo whose links
+  // point back at the marketing site). Admin preview sets it too so the full
+  // experience previews accurately — it's tab-scoped, so no stickiness. ?exit=1
+  // is the escape hatch.
   useEffect(() => {
     try {
       // Purge the legacy localStorage flag so previously-stuck browsers recover.
@@ -110,7 +113,6 @@ export function KioskClient({ token }: { token: string }) {
       setExited(true);
       return;
     }
-    if (search.get("preview") === "1") return;
     try {
       sessionStorage.setItem(KIOSK_RETURN_KEY, `/kiosk/${token}`);
     } catch {
