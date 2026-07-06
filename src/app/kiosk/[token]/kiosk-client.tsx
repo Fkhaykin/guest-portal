@@ -51,6 +51,7 @@ export function KioskClient({ token }: { token: string }) {
   const [exited, setExited] = useState(false);
   const [notice, setNotice] = useState<"success" | "cancelled" | null>(null);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [navigating, setNavigating] = useState(false);
   const idleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const theme = useSyncExternalStore(subscribeTheme, readTheme, () => "dark" as KioskTheme);
@@ -228,7 +229,12 @@ export function KioskClient({ token }: { token: string }) {
       } catch {
         // Storage unavailable — portal pages fall back to their own lookups
       }
-      window.location.assign(href);
+      // Show a matching loading cover FIRST so the old screen doesn't linger
+      // during the full-page navigation; wait two frames so it actually paints.
+      setNavigating(true);
+      requestAnimationFrame(() =>
+        requestAnimationFrame(() => window.location.assign(href))
+      );
     },
     [data]
   );
@@ -329,6 +335,12 @@ export function KioskClient({ token }: { token: string }) {
       )}
 
       {helpOpen && <HelpOverlay data={data} onClose={() => setHelpOpen(false)} />}
+
+      {navigating && (
+        <div className="absolute inset-0 z-70 flex items-center justify-center bg-(--k-bg)">
+          <div className="h-12 w-12 animate-spin rounded-full border-2 border-(--k-surf-20) border-t-(--k-fg)" />
+        </div>
+      )}
 
       {notice && (
         <div className="pointer-events-none absolute inset-x-0 top-6 z-50 flex justify-center px-6">

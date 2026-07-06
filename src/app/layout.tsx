@@ -54,6 +54,16 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="Summit Lakeside" />
         <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+        {/* Kiosk tabs: apply kiosk-mode + theme before first paint so portal
+            hand-off pages (register/update/add-ons) don't flash the website
+            header/light theme before KioskChromeGate's effect runs. Sync
+            next-themes' own key so it agrees and doesn't flip it back. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "try{if(sessionStorage.getItem('kiosk-return-url')){var e=document.documentElement,d=localStorage.getItem('kiosk-theme')!=='light';e.classList.add('kiosk-mode');localStorage.setItem('theme',d?'dark':'light');if(d){e.classList.add('dark')}else{e.classList.remove('dark')}}}catch(_){}",
+          }}
+        />
       </head>
       <body className="min-h-full flex flex-col">
         <ThemeProvider
