@@ -40,6 +40,40 @@ export interface PdpContext {
   variablesTemplate: Record<string, unknown>;
 }
 
+export interface ListingDetails {
+  bathrooms: number | null;
+  hasHotTub: boolean;
+  hasSauna: boolean;
+  hasGameRoom: boolean;
+}
+
+// Amenity keyword sets. Airbnb doesn't expose a clean amenity API anonymously,
+// but a present amenity is named many times across a listing page (amenities
+// section + description + reviews), so keyword presence is a reliable-enough
+// signal — the same approach discover.ts uses for lakefront. Game room has many
+// aliases hosts use.
+const HOT_TUB_RE = /\bhot\s?tub\b/i;
+const SAUNA_RE = /\bsauna\b/i;
+const GAME_ROOM_RE = /\b(game\s?room|game\s?console|pool\s?table|billiards|ping.?pong|foosball|arcade|shuffleboard|air\s?hockey)\b/i;
+
+/** Static per-listing detail scraped once from the Airbnb PDP: bathroom count
+ *  and amenity flags for the comp table. Kept separate from discover.ts's
+ *  getListingProfile so it can run in the daily scrape's enrichment pass. */
+export async function fetchListingDetails(airbnbId: string): Promise<ListingDetails> {
+  const res = await fetch(`https://www.airbnb.com/rooms/${airbnbId}`, {
+    headers: { "User-Agent": UA, Accept: "text/html" },
+  });
+  if (!res.ok) throw new Error(`Airbnb rooms page ${res.status}`);
+  const html = await res.text();
+  const bath = html.match(/(\d+(?:\.\d)?)\s*baths?\b/i);
+  return {
+    bathrooms: bath ? parseFloat(bath[1]) : null,
+    hasHotTub: HOT_TUB_RE.test(html),
+    hasSauna: SAUNA_RE.test(html),
+    hasGameRoom: GAME_ROOM_RE.test(html),
+  };
+}
+
 async function airbnbApi(url: string): Promise<string> {
   const res = await fetch(url, {
     headers: { "X-Airbnb-API-Key": AIRBNB_API_KEY, "User-Agent": UA },

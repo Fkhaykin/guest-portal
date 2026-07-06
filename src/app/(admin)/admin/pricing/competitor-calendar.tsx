@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Waves } from "lucide-react";
+import { Loader2, Waves, ExternalLink } from "lucide-react";
 import { fmtUsd } from "./types";
 
 interface CompCalRow {
@@ -79,8 +79,21 @@ export function CompetitorCalendar({ nickname }: { nickname: string }) {
                     <td className="sticky left-0 z-10 max-w-50 truncate bg-card px-2 py-1.5">
                       <span className="flex items-center gap-1">
                         {c.is_self && <Badge variant="secondary" className="px-1 py-0 text-[10px]">Ours</Badge>}
-                        {c.is_lakefront && <Waves className="h-3 w-3 text-muted-foreground" />}
-                        <span className="truncate">{c.label}</span>
+                        {c.is_lakefront && <Waves className="h-3 w-3 shrink-0 text-muted-foreground" />}
+                        {c.url ? (
+                          <a
+                            href={c.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex min-w-0 items-center gap-1 hover:text-foreground hover:underline"
+                            title={`Open ${c.label} on Airbnb`}
+                          >
+                            <span className="truncate">{c.label}</span>
+                            <ExternalLink className="h-3 w-3 shrink-0 text-muted-foreground" />
+                          </a>
+                        ) : (
+                          <span className="truncate">{c.label}</span>
+                        )}
                       </span>
                     </td>
                     <td className="px-2 py-1.5 text-right tabular-nums text-muted-foreground">{c.occupancy30 != null ? `${c.occupancy30}%` : "—"}</td>

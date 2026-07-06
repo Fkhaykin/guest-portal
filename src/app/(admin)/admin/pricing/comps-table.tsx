@@ -12,12 +12,43 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ExternalLink, Trash2, AlertTriangle, Waves, Star, ArrowUpDown, Search } from "lucide-react";
+import { ExternalLink, Trash2, AlertTriangle, Waves, Bath, Flame, Gamepad2, Star, ArrowUpDown, Search } from "lucide-react";
 import { toast } from "sonner";
 import type { CompRow } from "./types";
 import { fmtUsd } from "./types";
 
-type SortKey = "label" | "bedrooms" | "rating" | "occupancy30" | "medianPrice" | "lakefront";
+type SortKey =
+  | "label"
+  | "bedrooms"
+  | "bathrooms"
+  | "rating"
+  | "occupancy30"
+  | "occupancy60"
+  | "occupancy90"
+  | "medianPrice"
+  | "lakefront";
+
+// Amenity icons shown per comp — lakefront plus the three amenities hosts filter
+// comps by. Each is title-labeled so identity is never icon-alone.
+function AmenityIcons({ c }: { c: CompRow }) {
+  const items: { on: boolean | null; icon: React.ReactNode; label: string; color: string }[] = [
+    { on: c.is_lakefront, icon: <Waves className="h-3.5 w-3.5" />, label: "Lakefront", color: "var(--series-ours)" },
+    { on: c.has_hot_tub, icon: <Bath className="h-3.5 w-3.5" />, label: "Hot tub", color: "var(--series-pl-rec)" },
+    { on: c.has_sauna, icon: <Flame className="h-3.5 w-3.5" />, label: "Sauna", color: "var(--series-pl-rec)" },
+    { on: c.has_game_room, icon: <Gamepad2 className="h-3.5 w-3.5" />, label: "Game room", color: "var(--series-pl)" },
+  ];
+  const on = items.filter((i) => i.on);
+  if (on.length === 0) return <span className="text-muted-foreground">—</span>;
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      {on.map((i) => (
+        <span key={i.label} title={i.label} style={{ color: i.color }}>
+          {i.icon}
+        </span>
+      ))}
+    </span>
+  );
+}
 
 // Sortable, filterable comp table — scales to the ~100 comps/house the program
 // now tracks (PriceLabs' "Manage Competitors" equivalent).
@@ -40,8 +71,11 @@ export function CompsTable({ comps, onChanged }: { comps: CompRow[]; onChanged: 
       switch (sortKey) {
         case "label": return (c.label || c.airbnb_id).toLowerCase();
         case "bedrooms": return c.bedrooms ?? -1;
+        case "bathrooms": return c.bathrooms ?? -1;
         case "rating": return c.rating ?? -1;
         case "occupancy30": return c.stats.occupancy30 ?? -1;
+        case "occupancy60": return c.stats.occupancy60 ?? -1;
+        case "occupancy90": return c.stats.occupancy90 ?? -1;
         case "medianPrice": return c.stats.medianPriceCents ?? -1;
         case "lakefront": return c.is_lakefront ? 1 : 0;
       }
@@ -100,8 +134,12 @@ export function CompsTable({ comps, onChanged }: { comps: CompRow[]; onChanged: 
               <TableRow>
                 <SortHead label="Listing" k="label" {...{ sortKey, asc, toggleSort }} />
                 <SortHead label="BR" k="bedrooms" center {...{ sortKey, asc, toggleSort }} />
+                <SortHead label="BA" k="bathrooms" center {...{ sortKey, asc, toggleSort }} />
+                <TableHead className="text-center">Amenities</TableHead>
                 <SortHead label="Rating" k="rating" center {...{ sortKey, asc, toggleSort }} />
                 <SortHead label="Occ 30d" k="occupancy30" right {...{ sortKey, asc, toggleSort }} />
+                <SortHead label="Occ 60d" k="occupancy60" right {...{ sortKey, asc, toggleSort }} />
+                <SortHead label="Occ 90d" k="occupancy90" right {...{ sortKey, asc, toggleSort }} />
                 <SortHead label="Median" k="medianPrice" right {...{ sortKey, asc, toggleSort }} />
                 <TableHead className="text-right">Scraped</TableHead>
                 <TableHead />
@@ -110,7 +148,7 @@ export function CompsTable({ comps, onChanged }: { comps: CompRow[]; onChanged: 
             <TableBody>
               {filtered.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={7} className="py-8 text-center text-sm text-muted-foreground">
+                  <TableCell colSpan={11} className="py-8 text-center text-sm text-muted-foreground">
                     {market.length === 0 ? "No comps yet — add some below or Auto-build 100." : "No comps match."}
                   </TableCell>
                 </TableRow>
@@ -120,11 +158,6 @@ export function CompsTable({ comps, onChanged }: { comps: CompRow[]; onChanged: 
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <span className="max-w-[280px] truncate font-medium">{c.label || `Listing ${c.airbnb_id}`}</span>
-                      {c.is_lakefront && (
-                        <Badge variant="secondary" className="gap-0.5 px-1">
-                          <Waves className="h-3 w-3" />
-                        </Badge>
-                      )}
                       {c.url && (
                         <a href={c.url} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground">
                           <ExternalLink className="h-3.5 w-3.5" />
@@ -138,6 +171,10 @@ export function CompsTable({ comps, onChanged }: { comps: CompRow[]; onChanged: 
                     </div>
                   </TableCell>
                   <TableCell className="text-center text-sm">{c.bedrooms ?? "—"}</TableCell>
+                  <TableCell className="text-center text-sm">{c.bathrooms ?? "—"}</TableCell>
+                  <TableCell className="text-center">
+                    <AmenityIcons c={c} />
+                  </TableCell>
                   <TableCell className="text-center text-sm">
                     {c.rating != null ? (
                       <span className="inline-flex items-center gap-0.5">
@@ -149,6 +186,12 @@ export function CompsTable({ comps, onChanged }: { comps: CompRow[]; onChanged: 
                   </TableCell>
                   <TableCell className="text-right text-sm tabular-nums">
                     {c.stats.occupancy30 != null ? `${c.stats.occupancy30}%` : "—"}
+                  </TableCell>
+                  <TableCell className="text-right text-sm tabular-nums">
+                    {c.stats.occupancy60 != null ? `${c.stats.occupancy60}%` : "—"}
+                  </TableCell>
+                  <TableCell className="text-right text-sm tabular-nums">
+                    {c.stats.occupancy90 != null ? `${c.stats.occupancy90}%` : "—"}
                   </TableCell>
                   <TableCell className="text-right text-sm tabular-nums">{fmtUsd(c.stats.medianPriceCents)}</TableCell>
                   <TableCell className="text-right text-xs text-muted-foreground">

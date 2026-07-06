@@ -40,10 +40,19 @@ export interface CompRow {
   lat: number | null;
   lng: number | null;
   bedrooms: number | null;
+  bathrooms: number | null;
   rating: number | null;
   review_count: number | null;
   is_lakefront: boolean;
-  stats: { occupancy30: number | null; medianPriceCents: number | null };
+  has_hot_tub: boolean | null;
+  has_sauna: boolean | null;
+  has_game_room: boolean | null;
+  stats: {
+    occupancy30: number | null;
+    occupancy60: number | null;
+    occupancy90: number | null;
+    medianPriceCents: number | null;
+  };
 }
 
 export interface MarketPoint {

@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import {
   discoverPdpContext,
   fetchCompCalendar,
+  fetchListingDetails,
   jitterMs,
   pickProbeWindows,
   probeCompPrice,
@@ -26,6 +27,9 @@ const PROBE_HORIZON_DAYS = 180; // price-probe out to the pulse/chart horizon
 const AVAIL_BATCH = 60;
 const PRICE_BATCH = 12;
 const CONCURRENCY = 6;
+// Amenity/bathroom detail is static — scrape it once per comp (an extra PDP
+// fetch), a bounded number per run, self-healing across the day's rotation.
+const ENRICH_BATCH = 20;
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -65,7 +69,7 @@ export async function GET(request: Request) {
   // Availability batch: oldest-scraped comps first.
   const { data: availComps, error } = await admin
     .from("comp_listing")
-    .select("id, nickname, airbnb_id")
+    .select("id, nickname, airbnb_id, has_hot_tub")
     .eq("is_active", true)
     .order("last_scraped_at", { ascending: true, nullsFirst: true })
     .limit(AVAIL_BATCH);
@@ -85,6 +89,7 @@ export async function GET(request: Request) {
   let sharedHash: string | undefined;
   let scraped = 0;
   let priced = 0;
+  let enriched = 0;
   const errors: { airbnb_id: string; reason: string }[] = [];
 
   await mapPool(availComps ?? [], CONCURRENCY, async (comp) => {
@@ -129,20 +134,40 @@ export async function GET(request: Request) {
         if (upErr) throw new Error(`comp_snapshot upsert: ${upErr.message}`);
       }
 
-      // Per-comp rollups for the comps list (next 30 days occupancy + median price).
-      const next30 = rows.filter((r) => r.stay_date >= today && r.stay_date <= addDays(today, 30));
-      const unavail = next30.filter((r) => r.available === false).length;
-      const withAvail = next30.filter((r) => r.available !== null).length;
+      // Per-comp occupancy rollups for the comps list: fraction of the next
+      // N nights that are unavailable, for the 30/60/90-day windows.
+      const occFor = (win: number): number | null => {
+        const nights = rows.filter((r) => r.stay_date >= today && r.stay_date <= addDays(today, win));
+        const unavail = nights.filter((r) => r.available === false).length;
+        const withAvail = nights.filter((r) => r.available !== null).length;
+        return withAvail ? unavail / withAvail : null;
+      };
       const probed = [...priceByDate.values()].sort((a, b) => a - b);
       const update: Record<string, unknown> = {
         last_scraped_at: new Date().toISOString(),
         last_error: null,
-        occupancy_30: withAvail ? (unavail / withAvail) : null,
+        occupancy_30: occFor(30),
+        occupancy_60: occFor(60),
+        occupancy_90: occFor(90),
       };
       if (priceSet.has(comp.id)) {
         update.last_priced_at = new Date().toISOString();
         if (probed.length) update.median_price_cents = probed[Math.floor(probed.length / 2)];
         priced++;
+      }
+      // One-time amenity/bathroom enrichment (static detail), bounded per run.
+      if (comp.has_hot_tub == null && enriched < ENRICH_BATCH) {
+        enriched++;
+        try {
+          await sleep(jitterMs(200, 600));
+          const det = await fetchListingDetails(comp.airbnb_id);
+          update.bathrooms = det.bathrooms;
+          update.has_hot_tub = det.hasHotTub;
+          update.has_sauna = det.hasSauna;
+          update.has_game_room = det.hasGameRoom;
+        } catch {
+          // leave un-enriched; a later run retries
+        }
       }
       await admin.from("comp_listing").update(update).eq("id", comp.id);
       scraped++;
@@ -156,5 +181,5 @@ export async function GET(request: Request) {
     }
   });
 
-  return NextResponse.json({ ok: errors.length === 0, snapshot_date: today, scraped, priced, errors });
+  return NextResponse.json({ ok: errors.length === 0, snapshot_date: today, scraped, priced, enriched, errors });
 }
