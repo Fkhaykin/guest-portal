@@ -205,6 +205,29 @@ function PaceEditor({ rules, onChange }: { rules: PricingRules; onChange: (r: Pr
   );
 }
 
+function DemandEditor({ rules, onChange }: { rules: PricingRules; onChange: (r: PricingRules) => void }) {
+  const demand = rules.demand ?? { enabled: true, maxPct: 170 };
+  return (
+    <div className="space-y-3">
+      <label className="flex items-center gap-2 text-sm">
+        <Switch checked={demand.enabled} onCheckedChange={(v: boolean) => onChange({ ...rules, demand: { ...demand, enabled: v } })} />
+        Raise prices as the neighborhood fills for a date
+      </label>
+      {demand.enabled && (
+        <div className="flex items-center gap-2">
+          <Label className="text-xs text-muted-foreground">Max premium at full occupancy +</Label>
+          <NumInput value={demand.maxPct} onChange={(v) => onChange({ ...rules, demand: { ...demand, maxPct: Math.max(0, v) } })} className="w-20" />
+          <Muted>%</Muted>
+        </div>
+      )}
+      <p className="text-xs text-muted-foreground">
+        Scarcity pricing from your comp set&apos;s occupancy: flat until ~35% of nearby listings are booked
+        for a date, then ramps up as it fills. Reverse-engineered from PriceLabs&apos; own demand factor.
+      </p>
+    </div>
+  );
+}
+
 function WeatherEditor({ rules, onChange }: { rules: PricingRules; onChange: (r: PricingRules) => void }) {
   const weather = rules.weather ?? { enabled: true, maxPct: 8 };
   return (
@@ -495,6 +518,15 @@ export const CUSTOMIZATION_ITEMS: CustomizationItem[] = [
         ? `±up to ${r.pace.maxPct}% vs targets: ${r.pace.buckets.map((b) => `${Math.round(b.targetOcc * 100)}% @ ${b.days}d`).join(", ")}.`
         : "Off.",
     Editor: PaceEditor,
+  },
+  {
+    key: "demand",
+    title: "Demand Factor",
+    category: "smart",
+    explainer: "Scarcity pricing — raises a date as comparable listings fill up for it. PriceLabs' core demand signal, reverse-engineered from their API.",
+    applied: (r) => !!r.demand?.enabled,
+    summary: (r) => (r.demand?.enabled ? `Up to +${r.demand.maxPct}% as the neighborhood books up (from ~35% occupancy).` : "Off."),
+    Editor: DemandEditor,
   },
   {
     key: "velocity",

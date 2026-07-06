@@ -52,6 +52,11 @@ export interface PricingRules {
    *  get a premium, cold/wet days a discount, bounded to ±maxPct. Something
    *  PriceLabs doesn't do. */
   weather: { enabled: boolean; maxPct: number };
+  /** Demand factor — scarcity pricing on neighborhood (comp-set) occupancy, the
+   *  mechanism reverse-engineered from PriceLabs' own API: flat until the
+   *  neighborhood is ~35% booked for a date, then ramps toward +maxPct as it
+   *  fills. This is what makes a specific near-term Wednesday cost more. */
+  demand: { enabled: boolean; maxPct: number };
 }
 
 export interface EngineConfig {
@@ -68,6 +73,8 @@ export interface RateFactors {
   dow_pct: number;
   event_pct: number;
   event_label: string | null; // the winning event/holiday name, for the UI
+  demand_pct: number;
+  demand_occ: number | null; // the comp-set occupancy that drove demand_pct
   leadtime_pct: number;
   pace_pct: number;
   gap_pct: number;
@@ -100,6 +107,9 @@ export interface EngineInput {
   /** Weather desirability per stay date (0..1), from the forecast. Optional —
    *  the weather factor is 0 wherever it's absent (i.e. beyond the forecast). */
   weatherByDate?: Map<string, number>;
+  /** Comp-set occupancy per stay date (0..1), from market_pulse. Drives the
+   *  demand factor; absent (far-out / thin data) → demand 0. */
+  demandOccByDate?: Map<string, number>;
 }
 
 export const DEFAULT_RULES: PricingRules = {
@@ -141,10 +151,20 @@ export const DEFAULT_RULES: PricingRules = {
     maxPct: 15,
   },
   weather: { enabled: true, maxPct: 8 },
+  // Off by default: keyed on absolute comp-set occupancy, it double-counts
+  // seasonality (peak-summer occupancy is normal for summer, not scarcity) and
+  // only has data <180d out. PriceLabs' real demand factor averages ~0 as a
+  // deviation around each date's seasonal norm; our season × DOW × lead-time
+  // decomposition carries that level instead. Kept for future relative-demand work.
+  demand: { enabled: false, maxPct: 170 },
 };
 
 // Desirability that maps to a zero weather adjustment (a fair-weather day).
 const WEATHER_NEUTRAL = 0.55;
+// Demand scarcity curve, fitted to PriceLabs' demand factor vs neighborhood
+// occupancy (2,128 observations): flat below the threshold, convex ramp above.
+const DEMAND_THRESHOLD = 0.35;
+const DEMAND_GAMMA = 1.2;
 
 // ---------------------------------------------------------------------------
 // Date helpers (UTC-anchored so results don't depend on server timezone)
@@ -261,6 +281,14 @@ function weatherPct(rules: PricingRules, desirability: number | undefined): numb
   return Math.round(clamped * 10) / 10;
 }
 
+/** Demand factor: scarcity premium as the neighborhood fills for a date.
+ *  Flat below the threshold occupancy, then a convex ramp to +maxPct. */
+function demandPct(rules: PricingRules, occ: number | undefined): number {
+  if (!rules.demand.enabled || occ === undefined || occ <= DEMAND_THRESHOLD) return 0;
+  const frac = Math.min(1, (occ - DEMAND_THRESHOLD) / (1 - DEMAND_THRESHOLD));
+  return Math.round(rules.demand.maxPct * Math.pow(frac, DEMAND_GAMMA) * 10) / 10;
+}
+
 /** Velocity premium: highest tier whose minPickup the date's pickup meets. */
 function velocityPct(rules: PricingRules, pickup: number | undefined): number {
   if (!rules.velocity.enabled || pickup === undefined || pickup <= 0) return 0;
@@ -330,6 +358,8 @@ export function computeRates(cfg: EngineConfig, input: EngineInput): ComputedRat
     const velocity = velocityPct(rules, pickup);
     const weatherDes = input.weatherByDate?.get(date);
     const weather = weatherPct(rules, weatherDes);
+    const demandOcc = input.demandOccByDate?.get(date);
+    const demand = demandPct(rules, demandOcc);
 
     // Premiums stack; discounts compete — only the single largest applies.
     // A gap can be a discount (fill it) OR a premium (deter 1-night party
@@ -345,8 +375,10 @@ export function computeRates(cfg: EngineConfig, input: EngineInput): ComputedRat
     const worst = discounts.reduce((a, b) => (b.pct < a.pct ? b : a));
     const appliedDiscountSrc = worst.pct < 0 ? worst.src : null;
 
+    // Market layer, mirroring PriceLabs: base × seasonality × (dow+event) ×
+    // demand. Demand is a market factor (part of "uncustomized"), not smoothed.
     const seasonalBase = cfg.base_price_cents * (1 + season / 100);
-    const structuralCents = seasonalBase * (1 + (dow + event) / 100);
+    const structuralCents = seasonalBase * (1 + (dow + event) / 100) * (1 + demand / 100);
     // Gap and velocity are spiky by design (specific dates); keep them out of
     // the smoothed dynamic so smoothing can't dilute them.
     const gapPart = gapPremium + (appliedDiscountSrc === "gap" ? worst.pct : 0);
@@ -364,6 +396,8 @@ export function computeRates(cfg: EngineConfig, input: EngineInput): ComputedRat
         dow_pct: dow,
         event_pct: event,
         event_label: event !== 0 ? eventLabel : null,
+        demand_pct: demand,
+        demand_occ: demandOcc ?? null,
         leadtime_pct: lt,
         pace_pct: pace,
         gap_pct: gapPart,

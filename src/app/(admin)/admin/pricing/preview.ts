@@ -47,12 +47,16 @@ export function computePreview(
   // preview's near-term prices reflect the forecast too.
   const weatherByDate = new Map<string, number>();
   for (const r of snapshot) if (r.factors?.weather_desirability != null) weatherByDate.set(r.stay_date, r.factors.weather_desirability);
+  // Carry forward the comp occupancy the last snapshot used so the preview's
+  // demand factor reflects real scarcity.
+  const demandOccByDate = new Map<string, number>();
+  for (const r of snapshot) if (r.factors?.demand_occ != null) demandOccByDate.set(r.stay_date, r.factors.demand_occ);
   const oldByDate = new Map(snapshot.map((r) => [r.stay_date, r.our_price_cents]));
 
   const horizon = Math.min(days * 3, 120); // compute a bit past the display window
   const rates = computeRates(
     { ...config, rules: sanitize(draftRules) },
-    { today, horizonDays: horizon, occupiedNights, velocityByDate, weatherByDate }
+    { today, horizonDays: horizon, occupiedNights, velocityByDate, weatherByDate, demandOccByDate }
   );
 
   const nights: PreviewNight[] = [];

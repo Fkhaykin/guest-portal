@@ -32,6 +32,7 @@ function cfg(rules: Partial<PricingRules> = {}, anchors: Partial<EngineConfig> =
       overrides: [],
       velocity: { enabled: false, tiers: [], maxPct: 15 },
       weather: { enabled: false, maxPct: 8 },
+      demand: { enabled: false, maxPct: 170 },
       holidays: [],
       ...rules,
     },
@@ -235,6 +236,36 @@ describe("velocity (comp-set pickup premium)", () => {
     expect(rateOn(rates, "2026-07-11").price_cents).toBe(50600);
     // neighbors unaffected (velocity is outside the smoothing pass)
     expect(rateOn(rates, "2026-07-10").price_cents).toBe(40000);
+  });
+});
+
+describe("demand factor (comp-occupancy scarcity)", () => {
+  it("is flat below the threshold and ramps above it", () => {
+    const c = cfg({ demand: { enabled: true, maxPct: 170 } }, { max_price_cents: 200000 });
+    const demandOccByDate = new Map([
+      [addDays(TODAY, 1), 0.3], // below 0.35 threshold → 0
+      [addDays(TODAY, 2), 0.7], // → ~+81%
+      [addDays(TODAY, 3), 1.0], // full → +maxPct
+    ]);
+    const rates = computeRates(c, input({ demandOccByDate }));
+    expect(rateOn(rates, addDays(TODAY, 1)).factors.demand_pct).toBe(0);
+    expect(rateOn(rates, addDays(TODAY, 1)).price_cents).toBe(40000);
+    // 0.7: frac=(0.35/0.65)=0.538, ^1.2=0.477, ×170≈81.1%
+    const d2 = rateOn(rates, addDays(TODAY, 2));
+    expect(d2.factors.demand_pct).toBeGreaterThan(78);
+    expect(d2.factors.demand_pct).toBeLessThan(84);
+    expect(rateOn(rates, addDays(TODAY, 3)).factors.demand_pct).toBe(170);
+    expect(rateOn(rates, addDays(TODAY, 3)).price_cents).toBe(108000); // 40000×2.7
+  });
+
+  it("does nothing when disabled or without occupancy data", () => {
+    const off = computeRates(
+      cfg({ demand: { enabled: false, maxPct: 170 } }),
+      input({ demandOccByDate: new Map([[addDays(TODAY, 2), 0.9]]) })
+    );
+    expect(rateOn(off, addDays(TODAY, 2)).price_cents).toBe(40000);
+    const noData = computeRates(cfg({ demand: { enabled: true, maxPct: 170 } }), input());
+    expect(rateOn(noData, addDays(TODAY, 5)).factors.demand_pct).toBe(0);
   });
 });
 

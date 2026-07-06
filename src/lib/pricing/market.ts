@@ -206,6 +206,22 @@ export async function loadVelocityByDate(admin: Admin, nickname: string): Promis
   return map;
 }
 
+// Demand needs a reliable occupancy estimate; ignore dates tracked by too few
+// comps (thin data would produce noisy scarcity premiums).
+const DEMAND_MIN_COMPS = 8;
+
+/** Demand input for the engine: stay date → comp-set occupancy (0..1). */
+export async function loadDemandOccByDate(admin: Admin, nickname: string): Promise<Map<string, number>> {
+  const pulse = await loadLatestPulse(admin, nickname);
+  const map = new Map<string, number>();
+  for (const row of pulse) {
+    if (row.occupancy !== null && row.comps_tracked >= DEMAND_MIN_COMPS) {
+      map.set(row.stay_date, row.occupancy);
+    }
+  }
+  return map;
+}
+
 /** "Last seen published price" per stay date — the nightly price actually live
  *  on our own Airbnb listing, from price-probes on the is_self comp. Mirrors
  *  PriceLabs' dotted published-price line. */

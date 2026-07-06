@@ -50,16 +50,25 @@ export function buildLadder(row: SnapshotRow, config: PricingConfig): LadderRow[
   if (!f) return [];
   const rows: LadderRow[] = [];
 
+  const demand = f.demand_pct ?? 0;
   const seasonalBase = f.base_cents * (1 + f.season_pct / 100);
   const afterDow = seasonalBase * (1 + f.dow_pct / 100);
-  const structural = seasonalBase * (1 + (f.dow_pct + f.event_pct) / 100);
+  const afterEvent = seasonalBase * (1 + (f.dow_pct + f.event_pct) / 100);
+  const structural = afterEvent * (1 + demand / 100);
 
   rows.push({ label: "Base price", pct: null, runningCents: f.base_cents, kind: "total" });
 
   rows.push({ label: "Market factors", pct: null, runningCents: null, kind: "section" });
   if (f.season_pct) rows.push({ label: "Seasonality", pct: f.season_pct, runningCents: Math.round(seasonalBase), kind: "factor" });
   if (f.dow_pct) rows.push({ label: "Day of week", pct: f.dow_pct, runningCents: Math.round(afterDow), kind: "factor" });
-  if (f.event_pct) rows.push({ label: f.event_label ?? "Event / holiday", pct: f.event_pct, runningCents: Math.round(structural), kind: "factor" });
+  if (f.event_pct) rows.push({ label: f.event_label ?? "Event / holiday", pct: f.event_pct, runningCents: Math.round(afterEvent), kind: "factor" });
+  if (demand)
+    rows.push({
+      label: f.demand_occ != null ? `Demand (${Math.round(f.demand_occ * 100)}% booked nearby)` : "Demand factor",
+      pct: demand,
+      runningCents: Math.round(structural),
+      kind: "factor",
+    });
   rows.push({ label: "Uncustomized price", pct: null, runningCents: Math.round(structural), kind: "total" });
 
   // Customizations: the surviving discount + any pace/velocity/weather premium + gap.
