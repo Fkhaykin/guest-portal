@@ -23,8 +23,6 @@ type SortKey =
   | "bathrooms"
   | "rating"
   | "occupancy30"
-  | "occupancy60"
-  | "occupancy90"
   | "medianPrice"
   | "lakefront";
 
@@ -74,8 +72,6 @@ export function CompsTable({ comps, onChanged }: { comps: CompRow[]; onChanged: 
         case "bathrooms": return c.bathrooms ?? -1;
         case "rating": return c.rating ?? -1;
         case "occupancy30": return c.stats.occupancy30 ?? -1;
-        case "occupancy60": return c.stats.occupancy60 ?? -1;
-        case "occupancy90": return c.stats.occupancy90 ?? -1;
         case "medianPrice": return c.stats.medianPriceCents ?? -1;
         case "lakefront": return c.is_lakefront ? 1 : 0;
       }
@@ -137,9 +133,7 @@ export function CompsTable({ comps, onChanged }: { comps: CompRow[]; onChanged: 
                 <SortHead label="BA" k="bathrooms" center {...{ sortKey, asc, toggleSort }} />
                 <TableHead className="text-center">Amenities</TableHead>
                 <SortHead label="Rating" k="rating" center {...{ sortKey, asc, toggleSort }} />
-                <SortHead label="Occ 30d" k="occupancy30" right {...{ sortKey, asc, toggleSort }} />
-                <SortHead label="Occ 60d" k="occupancy60" right {...{ sortKey, asc, toggleSort }} />
-                <SortHead label="Occ 90d" k="occupancy90" right {...{ sortKey, asc, toggleSort }} />
+                <SortHead label="Occ 30/60/90d" k="occupancy30" right {...{ sortKey, asc, toggleSort }} />
                 <SortHead label="Median" k="medianPrice" right {...{ sortKey, asc, toggleSort }} />
                 <TableHead className="text-right">Scraped</TableHead>
                 <TableHead />
@@ -148,7 +142,7 @@ export function CompsTable({ comps, onChanged }: { comps: CompRow[]; onChanged: 
             <TableBody>
               {filtered.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={11} className="py-8 text-center text-sm text-muted-foreground">
+                  <TableCell colSpan={9} className="py-8 text-center text-sm text-muted-foreground">
                     {market.length === 0 ? "No comps yet — add some below or Auto-build 100." : "No comps match."}
                   </TableCell>
                 </TableRow>
@@ -184,14 +178,18 @@ export function CompsTable({ comps, onChanged }: { comps: CompRow[]; onChanged: 
                       "—"
                     )}
                   </TableCell>
-                  <TableCell className="text-right text-sm tabular-nums">
-                    {c.stats.occupancy30 != null ? `${c.stats.occupancy30}%` : "—"}
-                  </TableCell>
-                  <TableCell className="text-right text-sm tabular-nums">
-                    {c.stats.occupancy60 != null ? `${c.stats.occupancy60}%` : "—"}
-                  </TableCell>
-                  <TableCell className="text-right text-sm tabular-nums">
-                    {c.stats.occupancy90 != null ? `${c.stats.occupancy90}%` : "—"}
+                  <TableCell className="whitespace-nowrap text-right text-sm tabular-nums">
+                    {c.stats.occupancy30 != null || c.stats.occupancy60 != null || c.stats.occupancy90 != null ? (
+                      <>
+                        {c.stats.occupancy30 != null ? `${c.stats.occupancy30}%` : "—"}
+                        <span className="text-muted-foreground"> · </span>
+                        {c.stats.occupancy60 != null ? `${c.stats.occupancy60}%` : "—"}
+                        <span className="text-muted-foreground"> · </span>
+                        {c.stats.occupancy90 != null ? `${c.stats.occupancy90}%` : "—"}
+                      </>
+                    ) : (
+                      "—"
+                    )}
                   </TableCell>
                   <TableCell className="text-right text-sm tabular-nums">{fmtUsd(c.stats.medianPriceCents)}</TableCell>
                   <TableCell className="text-right text-xs text-muted-foreground">
