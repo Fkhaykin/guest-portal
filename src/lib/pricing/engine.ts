@@ -320,8 +320,26 @@ function minStayFor(
 
 // ---------------------------------------------------------------------------
 
+/** Merge a stored (possibly partial) rules object over the defaults. The nested
+ *  factor objects are merged one level deep so a stored `{ enabled: true }` for
+ *  velocity/weather/pace/etc. can't wipe out the default tiers/buckets/maxPct —
+ *  a shallow spread would leave `rules.velocity.tiers` undefined and crash. */
+export function mergeRules(partial?: Partial<PricingRules>): PricingRules {
+  const p = partial ?? {};
+  return {
+    ...DEFAULT_RULES,
+    ...p,
+    pace: { ...DEFAULT_RULES.pace, ...(p.pace ?? {}) },
+    gap: { ...DEFAULT_RULES.gap, ...(p.gap ?? {}) },
+    minStay: { ...DEFAULT_RULES.minStay, ...(p.minStay ?? {}) },
+    velocity: { ...DEFAULT_RULES.velocity, ...(p.velocity ?? {}) },
+    weather: { ...DEFAULT_RULES.weather, ...(p.weather ?? {}) },
+    demand: { ...DEFAULT_RULES.demand, ...(p.demand ?? {}) },
+  };
+}
+
 export function computeRates(cfg: EngineConfig, input: EngineInput): ComputedRate[] {
-  const rules: PricingRules = { ...DEFAULT_RULES, ...cfg.rules };
+  const rules: PricingRules = mergeRules(cfg.rules);
   const gaps = findGapNights(input, rules.gap.maxGapNights);
   const occBuckets = occupancyByBucket(input, rules.pace.buckets);
   const overrides = new Map(rules.overrides.map((o) => [o.date, o]));

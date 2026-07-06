@@ -12,18 +12,19 @@ import { todayInTz } from "@/lib/pricing/engine";
 export const maxDuration = 300;
 
 const CALENDAR_HORIZON_DAYS = 365;
-const PROBE_HORIZON_DAYS = 120;
-const PROBE_WEEKENDS = 4;
-const PROBE_MIDWEEKS = 2;
+const PROBE_HORIZON_DAYS = 180; // price-probe out to the pulse/chart horizon
 
 // With hundreds of comps, one invocation can't scrape everyone. Each run:
 //  - refreshes AVAILABILITY (one cheap calendar call) for a batch, oldest first
-//  - PRICE-PROBES only the comps whose prices are most stale (rotated), since
-//    probes are many calls each
-// Multiple daily cron times + oldest-first ordering cover the whole set within
-// ~a day. Concurrency keeps each run inside the 300s budget.
+//  - PRICE-PROBES only the comps whose prices are most stale (rotated). Each
+//    priced comp now tiles the whole horizon (~2 windows/week, ≈50 probes) so a
+//    real percentile band can form per night — so we price FEWER comps per run
+//    than we scrape for availability, and rely on rotation across the day's cron
+//    runs to refresh the price-tracked set. market_pulse reads each comp's
+//    latest priced snapshot, so a comp priced a day ago still feeds the bands.
+// Concurrency keeps each run inside the 300s budget.
 const AVAIL_BATCH = 60;
-const PRICE_BATCH = 24;
+const PRICE_BATCH = 12;
 const CONCURRENCY = 6;
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -105,11 +106,7 @@ export async function GET(request: Request) {
         try {
           const ctx = await discoverPdpContext(comp.airbnb_id, sharedHash);
           sharedHash = ctx.hash;
-          const windows = pickProbeWindows(horizon, {
-            weekends: PROBE_WEEKENDS,
-            midweeks: PROBE_MIDWEEKS,
-            horizonDays: PROBE_HORIZON_DAYS,
-          });
+          const windows = pickProbeWindows(horizon, { horizonDays: PROBE_HORIZON_DAYS });
           for (const w of windows) {
             await sleep(jitterMs(250, 700));
             const quote = await probeCompPrice(ctx, w.checkIn, w.checkOut);

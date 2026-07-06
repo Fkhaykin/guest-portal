@@ -3,7 +3,7 @@
 // and the per-house pricing configs.
 
 import { createAdminClient } from "@/lib/supabase/admin";
-import { addDays, type EngineConfig, type PricingRules, DEFAULT_RULES } from "./engine";
+import { addDays, type EngineConfig, type PricingRules, mergeRules } from "./engine";
 
 type Admin = ReturnType<typeof createAdminClient>;
 
@@ -20,7 +20,7 @@ export async function loadPricingConfigs(admin: Admin): Promise<PricingConfigRec
   if (error) throw new Error(`pricing_config load failed: ${error.message}`);
   return (data ?? []).map((row) => ({
     ...row,
-    rules: { ...DEFAULT_RULES, ...(row.rules as Partial<PricingRules>) },
+    rules: mergeRules(row.rules as Partial<PricingRules>),
   }));
 }
 

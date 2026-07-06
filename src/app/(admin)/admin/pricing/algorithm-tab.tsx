@@ -5,6 +5,8 @@ import {
   Area,
   Bar,
   ComposedChart,
+  Line,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -14,7 +16,7 @@ import {
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { TrendingUp, Waves } from "lucide-react";
+import { TrendingUp, Waves, SlidersHorizontal } from "lucide-react";
 import type { PricingLabData } from "./types";
 import { fmtUsd, fmtDate } from "./types";
 
@@ -51,6 +53,23 @@ export function AlgorithmTab({ data, lakefront }: { data: PricingLabData; lakefr
 
   const hasVelocity = velocityData.some((d) => d.pickup != null);
 
+  // Dynamic price factors over the near horizon: the adjustments the algorithm
+  // layers on the seasonal base — lead-time (how far out), weather (near-term
+  // forecast), booking velocity (comp-set pickup). Each is a signed % of price,
+  // so they share one axis around a zero baseline.
+  const factorData = useMemo(
+    () =>
+      data.snapshot.slice(0, 60).map((r) => ({
+        date: r.stay_date,
+        leadtime: r.factors?.leadtime_pct ?? 0,
+        weather: r.factors?.weather_pct ?? 0,
+        velocity: r.factors?.velocity_pct ?? 0,
+      })),
+    [data.snapshot]
+  );
+  const hasWeather = factorData.some((d) => d.weather !== 0);
+  const hasVelocityPremium = factorData.some((d) => d.velocity !== 0);
+
   return (
     <div className="space-y-4">
       {/* Position vs market over 30/60/90 */}
@@ -80,6 +99,43 @@ export function AlgorithmTab({ data, lakefront }: { data: PricingLabData; lakefr
                 )}
               </div>
             ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Dynamic price factors over time */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <SlidersHorizontal className="h-4 w-4" /> What&apos;s moving the price (next 60 days)
+          </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            The adjustments layered on the seasonal base, each a ± percent of price. Lead-time discounts
+            unsold near-term nights; weather nudges the ~16-day forecast window; booking velocity prices up
+            dates the comp set is booking fast.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <ResponsiveContainer width="100%" height={240}>
+            <ComposedChart data={factorData} margin={{ top: 8, right: 16, bottom: 4, left: 4 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+              <XAxis dataKey="date" tickFormatter={fmtDate} minTickGap={40} tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} stroke="var(--color-border)" />
+              <YAxis tickFormatter={(v) => (v > 0 ? "+" : "") + v + "%"} width={48} tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} stroke="var(--color-border)" />
+              <Tooltip
+                contentStyle={TOOLTIP_STYLE}
+                labelFormatter={(l) => fmtDate(l as string)}
+                formatter={(v, n) => [(Number(v) > 0 ? "+" : "") + v + "%", n as string]}
+              />
+              <Legend wrapperStyle={{ fontSize: 12 }} />
+              <ReferenceLine y={0} stroke="var(--color-border)" />
+              <Line type="monotone" dataKey="leadtime" name="Lead-time" stroke="var(--series-ours)" strokeWidth={2} dot={false} isAnimationActive={false} />
+              <Line type="monotone" dataKey="weather" name="Weather" stroke="var(--series-pl-rec)" strokeWidth={2} dot={false} isAnimationActive={false} />
+              <Line type="monotone" dataKey="velocity" name="Booking velocity" stroke="var(--series-pl)" strokeWidth={2} dot={false} isAnimationActive={false} />
+            </ComposedChart>
+          </ResponsiveContainer>
+          <div className="mt-1 flex flex-wrap gap-3 text-xs text-muted-foreground">
+            {!hasWeather && <span>Weather is flat here — it only moves nights inside the ~16-day forecast.</span>}
+            {!hasVelocityPremium && <span>No velocity premium yet — the comp set isn&apos;t booking any near date fast enough to cross a tier.</span>}
           </div>
         </CardContent>
       </Card>

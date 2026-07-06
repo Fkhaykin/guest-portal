@@ -203,41 +203,48 @@ export async function probeCompPrice(
   };
 }
 
-/** Pick representative stay windows to price-probe: upcoming weekends
- *  (Fri→Sun) and midweek pairs (Tue→Thu) that the calendar says are open,
- *  honoring each date's min-stay by extending the window when needed. */
+/** Tile the horizon with stay windows to price-probe, so a percentile band can
+ *  be built for (almost) every night rather than a handful of sampled dates.
+ *  Two windows per week — a Friday weekend pair (Fri+Sat nights) and a Sunday
+ *  weekday block (Sun→Thu) — together cover all seven nights, and one probe's
+ *  "N nights × $X" average nightly fills every night of its span. A window is
+ *  emitted only if the whole span is open on the comp's calendar and the
+ *  check-in day honors min-stay (we extend to min-stay, capped so we never
+ *  probe an extreme long-stay-only window). Booked spans are simply skipped —
+ *  other comps fill those nights, and a booked comp is an occupancy signal, not
+ *  a price one. */
 export function pickProbeWindows(
   days: CompCalendarDay[],
-  opts: { weekends: number; midweeks: number; horizonDays: number }
+  opts: { horizonDays: number }
 ): { checkIn: string; checkOut: string }[] {
   const byDate = new Map(days.map((d) => [d.date, d]));
+  const horizon = days.slice(0, opts.horizonDays);
   const windows: { checkIn: string; checkOut: string }[] = [];
-  const wanted: { dow: number; count: number }[] = [
-    { dow: 5, count: opts.weekends }, // Friday check-ins
-    { dow: 2, count: opts.midweeks }, // Tuesday check-ins
+
+  // Wanted check-ins: Friday → 2-night weekend, Sunday → 5-night weekday block.
+  const plan: { dow: number; targetNights: number }[] = [
+    { dow: 5, targetNights: 2 },
+    { dow: 0, targetNights: 5 },
   ];
 
-  for (const { dow, count } of wanted) {
-    let found = 0;
-    for (const day of days.slice(0, opts.horizonDays)) {
-      if (found >= count) break;
-      if (new Date(day.date + "T00:00:00Z").getUTCDay() !== dow) continue;
-      if (!day.available || !day.availableForCheckin) continue;
-      const nights = Math.max(2, day.minNights);
-      if (nights > 7) continue; // don't probe extreme min-stay windows
-      let open = true;
-      let cursor = day.date;
-      for (let n = 0; n < nights; n++) {
-        if (!byDate.get(cursor)?.available) {
-          open = false;
-          break;
-        }
-        cursor = addDaysUtc(cursor, 1);
+  for (const day of horizon) {
+    if (!day.available || !day.availableForCheckin) continue;
+    const dow = new Date(day.date + "T00:00:00Z").getUTCDay();
+    const want = plan.find((p) => p.dow === dow);
+    if (!want) continue;
+    // Honor min-stay, but never probe a window longer than 7 nights.
+    const nights = Math.min(7, Math.max(want.targetNights, day.minNights));
+    let open = true;
+    let cursor = day.date;
+    for (let n = 0; n < nights; n++) {
+      if (!byDate.get(cursor)?.available) {
+        open = false;
+        break;
       }
-      if (!open) continue;
-      windows.push({ checkIn: day.date, checkOut: addDaysUtc(day.date, nights) });
-      found++;
+      cursor = addDaysUtc(cursor, 1);
     }
+    if (!open) continue;
+    windows.push({ checkIn: day.date, checkOut: addDaysUtc(day.date, nights) });
   }
   return windows;
 }
