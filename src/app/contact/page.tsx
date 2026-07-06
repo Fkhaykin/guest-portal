@@ -24,7 +24,7 @@ import {
 } from "lucide-react";
 
 const HERO_IMG =
-  "https://arvbaoeszakyuxqhkogz.supabase.co/storage/v1/object/public/property-images/lodgify-588691/airbnb/48-gazebo-and-lake-beach-10-min-walk-from-the-house.jpg";
+  "https://arvbaoeszakyuxqhkogz.supabase.co/storage/v1/object/public/property-images/lodgify-355872/airbnb/46-lake-dock.jpg";
 
 const TOPICS = [
   "General inquiry",
@@ -108,7 +108,7 @@ export default function ContactPage() {
       <section className="relative h-[60vh] min-h-120 overflow-hidden">
         <img
           src={HERO_IMG}
-          alt="Lakeside gazebo looking out over a Pocono lake beach"
+          alt="Lakeside dock at dusk with string lights and Adirondack chairs"
           className="absolute inset-0 w-full h-full object-cover"
         />
         <div className="absolute inset-0 bg-linear-to-b from-black/50 via-black/40 to-black/80" />
