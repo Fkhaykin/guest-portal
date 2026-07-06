@@ -69,6 +69,7 @@ export default function NewReservationPage() {
   const [numPets, setNumPets] = useState("0");
   const [discountDollars, setDiscountDollars] = useState("");
   const [discountLabel, setDiscountLabel] = useState("Loyalty Discount");
+  const [manualTotalDollars, setManualTotalDollars] = useState("");
   const [paymentPlan, setPaymentPlan] = useState<"full" | "split" | "automatic" | "paid">("full");
   const [notes, setNotes] = useState("");
   const [dateConflict, setDateConflict] = useState(false);
@@ -112,6 +113,14 @@ export default function NewReservationPage() {
   const daysOut = useMemo(() => (checkIn ? diffDays(todayIso(), checkIn) : 0), [checkIn]);
   const splitAllowed = daysOut >= SPLIT_MIN_LEAD_DAYS;
 
+  // A check-in already in the past can't be auto-priced — the admin enters the total.
+  const isPastCheckIn = useMemo(() => !!checkIn && checkIn < todayIso(), [checkIn]);
+  const manualTotalCents = useMemo(() => {
+    const n = parseFloat(manualTotalDollars);
+    if (!isFinite(n) || n <= 0) return 0;
+    return Math.round(n * 100);
+  }, [manualTotalDollars]);
+
   const discountCents = useMemo(() => {
     const n = parseFloat(discountDollars);
     if (!isFinite(n) || n <= 0) return 0;
@@ -123,6 +132,14 @@ export default function NewReservationPage() {
     if (!propertyId || !checkIn || !checkOut) {
       setBreakdown(null);
       setBreakdownError(null);
+      return;
+    }
+    if (checkIn < todayIso()) {
+      // Past-dated backfill — the engine can't price past nights; the admin enters
+      // the total manually below, so skip the preview fetch entirely.
+      setBreakdown(null);
+      setBreakdownError(null);
+      setBreakdownLoading(false);
       return;
     }
     const seq = ++fetchSeq.current;
@@ -173,7 +190,11 @@ export default function NewReservationPage() {
     if (!propertyId) return setError("Choose a property");
     if (!guestName.trim() || !guestEmail.trim()) return setError("Guest name and email are required");
     if (!checkIn || !checkOut) return setError("Select check-in and check-out dates");
-    if (!breakdown) return setError("Pricing not loaded yet");
+    if (isPastCheckIn) {
+      if (manualTotalCents <= 0) return setError("Enter the total charged for this past-dated booking");
+    } else if (!breakdown) {
+      return setError("Pricing not loaded yet");
+    }
     if (paymentPlan === "split" && !splitAllowed) {
       return setError(`Split payment requires check-in to be at least ${SPLIT_MIN_LEAD_DAYS} days out`);
     }
@@ -201,6 +222,7 @@ export default function NewReservationPage() {
           discount_label: discountCents > 0 ? discountLabel.trim() || null : null,
           payment_plan: markPaid ? "full" : paymentPlan,
           mark_paid: markPaid,
+          manual_total_cents: isPastCheckIn ? manualTotalCents : undefined,
           notes,
         }),
       });
@@ -315,6 +337,7 @@ export default function NewReservationPage() {
                 checkOut={checkOut}
                 onChange={(r) => { setCheckIn(r.checkIn); setCheckOut(r.checkOut); setAckDoubleBook(false); }}
                 onConflictChange={setDateConflict}
+                allowPast
               />
             </div>
           </CardContent>
@@ -380,6 +403,22 @@ export default function NewReservationPage() {
 
             {!checkIn || !checkOut ? (
               <p className="text-sm text-muted-foreground py-4 text-center">Select dates to see the price breakdown.</p>
+            ) : isPastCheckIn ? (
+              <div className="space-y-2">
+                <Label htmlFor="manual_total">Total charged (USD)</Label>
+                <Input
+                  id="manual_total"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="0.00"
+                  value={manualTotalDollars}
+                  onChange={(e) => setManualTotalDollars(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Check-in has already passed, so this stay can&apos;t be auto-priced. Enter the total the guest was charged — best used with the Mark as paid option.
+                </p>
+              </div>
             ) : breakdownLoading ? (
               <div className="flex items-center justify-center py-6 text-muted-foreground text-sm">
                 <Loader2 className="h-4 w-4 animate-spin mr-2" /> Loading pricing…

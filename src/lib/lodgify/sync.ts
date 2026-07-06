@@ -229,10 +229,21 @@ export async function syncBooking(booking: LodgifyBooking, options?: { skipNotif
   if (shouldRemove) {
     const { data: existing } = await supabase
       .from("registration")
-      .select("id")
+      .select("id, booking_source")
       .eq("lodgify_booking_id", booking.id)
       .maybeSingle();
     if (existing) {
+      // Never delete a booking we created locally (admin "New booking" / direct).
+      // Lodgify frequently records our own pushed bookings as "Open" (e.g. when they
+      // overlap an existing reservation), and an Open/Tentative status would otherwise
+      // reap the row here — silently erasing a confirmed booking after the guest was
+      // already emailed. OTA-originated Tentative/Open holds are still removed.
+      if (existing.booking_source === "admin" || existing.booking_source === "direct") {
+        console.log(
+          `[lodgify-sync] Keeping locally-created booking ${booking.id} despite Lodgify status "${booking.status}" (source: ${existing.booking_source})`
+        );
+        return { skipped: true, reason: "local_booking_preserved" };
+      }
       await supabase.from("vehicle").delete().eq("registration_id", existing.id);
       await supabase.from("cleaning_status").delete().eq("registration_id", existing.id);
       await supabase.from("registration_update_log").delete().eq("registration_id", existing.id);

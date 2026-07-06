@@ -50,6 +50,9 @@ interface Props {
   onConflictChange?: (conflict: boolean) => void;
   monthsToShow?: number;       // calendar fetch window (default 12)
   monthsVisible?: number;      // months rendered side-by-side (default 2)
+  // Allow selecting dates in the past (admin backfill of already-started/completed
+  // stays). Off by default so normal flows keep past dates locked.
+  allowPast?: boolean;
 }
 
 // Two-month calendar with Lodgify availability shaded as booked.
@@ -64,6 +67,7 @@ export function BookingDatePicker({
   onConflictChange,
   monthsToShow = 12,
   monthsVisible = 2,
+  allowPast = false,
 }: Props) {
   const today = useMemo(() => {
     const d = new Date();
@@ -142,9 +146,9 @@ export function BookingDatePicker({
   }, [selectionConflict, onConflictChange]);
 
   function handleClick(dateStr: string) {
-    // Past dates stay locked; booked dates are intentionally selectable so the
-    // admin can override and double-book.
-    if (parseDate(dateStr) < today) return;
+    // Past dates stay locked unless allowPast is set; booked dates are intentionally
+    // selectable so the admin can override and double-book.
+    if (!allowPast && parseDate(dateStr) < today) return;
 
     if (!checkIn || (checkIn && checkOut)) {
       onChange({ checkIn: dateStr, checkOut: null });
@@ -190,7 +194,8 @@ export function BookingDatePicker({
             const booked = isBooked(dateStr);
             const tentative = isTentative(dateStr);
             const past = isPast(d);
-            const disabled = past || !lodgifyPropertyId;
+            const lockedPast = past && !allowPast;
+            const disabled = lockedPast || !lodgifyPropertyId;
             const inSel = inRange(dateStr);
             const start = checkIn === dateStr;
             const end = checkOut === dateStr;
@@ -212,7 +217,7 @@ export function BookingDatePicker({
                 }
                 className={[
                   "h-9 text-sm relative transition-colors",
-                  past || !lodgifyPropertyId ? "text-muted-foreground/30 cursor-not-allowed" : "",
+                  lockedPast || !lodgifyPropertyId ? "text-muted-foreground/30 cursor-not-allowed" : "",
                   // Booked nights stay red so the overlap is always visible, even when selected.
                   booked && !past ? "bg-red-100 dark:bg-red-950/40 text-red-600 dark:text-red-400" : "",
                   tentative && !booked && !past ? "bg-amber-100 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300" : "",
@@ -237,6 +242,8 @@ export function BookingDatePicker({
   }
 
   const currentMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+  // When backfilling past stays, let the admin page back up to a year.
+  const minMonth = allowPast ? addMonths(currentMonth, -12) : currentMonth;
   const maxMonth = addMonths(today, monthsToShow - monthsVisible);
   const visibleMonths = Array.from({ length: monthsVisible }, (_, i) => addMonths(viewMonth, i));
 
@@ -246,7 +253,7 @@ export function BookingDatePicker({
         <button
           type="button"
           onClick={() => setViewMonth(addMonths(viewMonth, -1))}
-          disabled={viewMonth <= currentMonth}
+          disabled={viewMonth <= minMonth}
           className="h-7 w-7 rounded-md flex items-center justify-center hover:bg-accent disabled:opacity-30 disabled:cursor-not-allowed"
         >
           <ChevronLeft className="h-4 w-4" />

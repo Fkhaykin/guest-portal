@@ -40,6 +40,8 @@ export async function POST(request: NextRequest) {
     discount_cents?: number;
     discount_label?: string | null;
     notes?: string;
+    // Admin-supplied total (cents) for past-dated backfills that can't be auto-priced.
+    manual_total_cents?: number;
   };
   try {
     body = await request.json();
@@ -71,6 +73,18 @@ export async function POST(request: NextRequest) {
   today.setUTCHours(0, 0, 0, 0);
   const checkInTs = new Date(body.check_in_date + "T00:00:00Z").getTime();
   const daysUntilCheckin = Math.round((checkInTs - today.getTime()) / 86_400_000);
+
+  // Past-dated backfill: a stay whose check-in has already passed can't be priced by
+  // the engine (PriceLabs returns no rates for past nights), so the admin supplies the
+  // total directly. This manual bypass is honored ONLY when check-in is in the past —
+  // future bookings are always server-priced so the client can't tamper with totals.
+  const isPastCheckIn = daysUntilCheckin < 0;
+  const manualTotalCents =
+    isPastCheckIn &&
+    Number.isFinite(body.manual_total_cents) &&
+    (body.manual_total_cents as number) > 0
+      ? Math.round(body.manual_total_cents as number)
+      : null;
 
   if (!markPaid && body.payment_plan === "split" && daysUntilCheckin < SPLIT_MIN_LEAD_DAYS) {
     return NextResponse.json(
@@ -119,21 +133,47 @@ export async function POST(request: NextRequest) {
   }
 
   // Re-quote on the server so the admin can't tamper with totals from the client.
-  let quote;
-  try {
-    quote = await buildBookingQuote({
-      lodgifyPropertyId: property.lodgify_property_id,
-      checkIn: body.check_in_date,
-      checkOut: body.check_out_date,
-      guests: body.num_guests || 2,
-      pets: body.num_pets ?? 0,
-      cleaningFeeCents: property.guest_cleaning_fee_cents || 0,
-      petFeeCents: property.guest_pet_fee_cents || 0,
-      discountCents: body.discount_cents ?? 0,
-    });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Failed to build quote";
-    return NextResponse.json({ error: message }, { status: 502 });
+  // Past-dated backfills use the admin's manual total instead (see manualTotalCents).
+  let quote: {
+    totalCents: number;
+    cleaningFeeCents: number;
+    taxTotalCents: number;
+    petFeeTotalCents: number;
+    discountCents: number;
+    nightlyRates: { date: string; price_cents: number; min_stay: number }[];
+  };
+  if (manualTotalCents !== null) {
+    quote = {
+      totalCents: manualTotalCents,
+      cleaningFeeCents: 0,
+      taxTotalCents: 0,
+      petFeeTotalCents: 0,
+      discountCents: 0,
+      nightlyRates: [],
+    };
+  } else {
+    try {
+      quote = await buildBookingQuote({
+        lodgifyPropertyId: property.lodgify_property_id,
+        checkIn: body.check_in_date,
+        checkOut: body.check_out_date,
+        guests: body.num_guests || 2,
+        pets: body.num_pets ?? 0,
+        cleaningFeeCents: property.guest_cleaning_fee_cents || 0,
+        petFeeCents: property.guest_pet_fee_cents || 0,
+        discountCents: body.discount_cents ?? 0,
+      });
+    } catch (err) {
+      // A past-dated booking can't be auto-priced — the admin must supply a total.
+      if (isPastCheckIn) {
+        return NextResponse.json(
+          { error: "Enter the total charged for this past-dated booking." },
+          { status: 400 }
+        );
+      }
+      const message = err instanceof Error ? err.message : "Failed to build quote";
+      return NextResponse.json({ error: message }, { status: 502 });
+    }
   }
 
   if (quote.totalCents <= 0) {
