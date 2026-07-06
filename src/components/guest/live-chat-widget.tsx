@@ -383,9 +383,9 @@ export function LiveChatWidget() {
 
       {/* Panel */}
       {open && (
-        <div className="fixed right-4 bottom-4 z-50 flex w-[calc(100vw-2rem)] max-w-sm flex-col overflow-hidden rounded-2xl border bg-background shadow-2xl h-[70vh] max-h-140">
+        <div className="fixed right-4 bottom-4 z-50 flex w-[calc(100vw-2rem)] max-w-sm flex-col overflow-hidden rounded-2xl border border-white/15 bg-background/70 shadow-2xl ring-1 ring-black/5 backdrop-blur-xl h-[70vh] max-h-140">
           {/* Header */}
-          <div className="flex items-center justify-between bg-primary px-4 py-3 text-primary-foreground">
+          <div className="flex items-center justify-between bg-primary/85 px-4 py-3 text-primary-foreground backdrop-blur-md">
             <div>
               <p className="text-sm font-semibold leading-tight">Chat with Summit Lakeside</p>
               <p className="text-xs opacity-80 leading-tight">Avg. response under 5 minutes</p>
@@ -454,10 +454,10 @@ export function LiveChatWidget() {
                     <div
                       key={m.id}
                       className={cn(
-                        "max-w-[80%] rounded-2xl px-3 py-2 text-sm",
+                        "max-w-[80%] rounded-2xl px-3 py-2 text-sm backdrop-blur-sm",
                         m.from === "you"
-                          ? "ml-auto bg-primary text-primary-foreground"
-                          : "mr-auto bg-muted text-foreground"
+                          ? "ml-auto bg-primary/90 text-primary-foreground"
+                          : "mr-auto bg-muted/70 text-foreground ring-1 ring-white/10"
                       )}
                     >
                       {m.message}
@@ -466,7 +466,7 @@ export function LiveChatWidget() {
                 )}
               </div>
               {error && <p className="px-4 pb-1 text-xs text-destructive">{error}</p>}
-              <div className="flex items-end gap-2 border-t p-3">
+              <div className="flex items-end gap-2 border-t border-border/50 p-3">
                 <Textarea
                   placeholder="Type a message…"
                   value={input}
