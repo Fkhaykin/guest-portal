@@ -67,7 +67,7 @@ export function TipScreen({
       ) : (
         <div className="mx-auto flex h-full max-w-3xl flex-col items-center justify-center gap-8 pb-10">
           <HandCoins className="h-16 w-16 text-amber-300" />
-          <p className="max-w-xl text-center text-xl leading-relaxed text-white/70 lg:text-2xl">
+          <p className="max-w-xl text-center text-xl leading-relaxed text-(--k-fg-70) lg:text-2xl">
             The cleaning crew turns this house over before every stay. Tips go straight to
             them — nothing is held back.
           </p>
@@ -80,8 +80,8 @@ export function TipScreen({
                 onClick={() => setAmount(cents)}
                 className={`min-h-24 rounded-3xl text-3xl font-extrabold tabular-nums transition-transform active:scale-[0.97] lg:text-4xl ${
                   amount === cents
-                    ? "bg-white text-zinc-900 shadow-xl"
-                    : "bg-white/10 text-white ring-1 ring-white/15 hover:bg-white/15"
+                    ? "bg-(--k-featured-bg) text-(--k-featured-fg) shadow-xl"
+                    : "bg-(--k-surf-10) text-(--k-fg) ring-1 ring-(--k-surf-15) hover:bg-(--k-surf-15)"
                 }`}
               >
                 ${cents / 100}
@@ -94,21 +94,21 @@ export function TipScreen({
             <button
               type="button"
               onClick={() => setAmount((a) => Math.max(MIN_CENTS, a - STEP_CENTS))}
-              className="flex h-16 w-16 items-center justify-center rounded-full bg-white/10 ring-1 ring-white/15 active:scale-[0.94]"
+              className="flex h-16 w-16 items-center justify-center rounded-full bg-(--k-surf-10) ring-1 ring-(--k-surf-15) active:scale-[0.94]"
               aria-label="Lower tip by five dollars"
             >
-              <Minus className="h-8 w-8 text-white" />
+              <Minus className="h-8 w-8 text-(--k-fg)" />
             </button>
-            <span className="w-40 text-center text-5xl font-extrabold text-white tabular-nums">
+            <span className="w-40 text-center text-5xl font-extrabold text-(--k-fg) tabular-nums">
               ${(amount / 100).toFixed(amount % 100 === 0 ? 0 : 2)}
             </span>
             <button
               type="button"
               onClick={() => setAmount((a) => Math.min(MAX_CENTS, a + STEP_CENTS))}
-              className="flex h-16 w-16 items-center justify-center rounded-full bg-white/10 ring-1 ring-white/15 active:scale-[0.94]"
+              className="flex h-16 w-16 items-center justify-center rounded-full bg-(--k-surf-10) ring-1 ring-(--k-surf-15) active:scale-[0.94]"
               aria-label="Raise tip by five dollars"
             >
-              <Plus className="h-8 w-8 text-white" />
+              <Plus className="h-8 w-8 text-(--k-fg)" />
             </button>
           </div>
 

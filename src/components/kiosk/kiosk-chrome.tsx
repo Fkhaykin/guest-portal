@@ -33,10 +33,15 @@ export function KioskChromeGate() {
   useEffect(() => {
     if (!returnUrl) return;
     document.documentElement.classList.add("kiosk-mode");
-    // Kiosk devices render the portal pages in dark to match the kiosk shell.
-    // setTheme (not a raw class) so next-themes doesn't strip it on re-apply;
-    // it persists per-device, which is exactly right for a wall tablet.
-    setTheme("dark");
+    // Match the portal pages to the kiosk's own light/dark choice (localStorage
+    // "kiosk-theme", set by the kiosk SPA) so switching is consistent everywhere.
+    let kioskTheme = "dark";
+    try {
+      kioskTheme = localStorage.getItem("kiosk-theme") === "light" ? "light" : "dark";
+    } catch {
+      // storage unavailable — default dark
+    }
+    setTheme(kioskTheme);
     return () => document.documentElement.classList.remove("kiosk-mode");
   }, [returnUrl, setTheme]);
 

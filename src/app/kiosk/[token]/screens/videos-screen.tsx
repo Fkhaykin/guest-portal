@@ -37,13 +37,13 @@ export function VideosScreen({
               onClick={() => onPlay(video.id)}
               className={`flex min-h-40 items-center gap-6 p-6 text-left ${glassButton}`}
             >
-              <span className="flex h-24 w-24 shrink-0 items-center justify-center rounded-full bg-white/15">
-                <Play className="ml-1.5 h-12 w-12 text-white" />
+              <span className="flex h-24 w-24 shrink-0 items-center justify-center rounded-full bg-(--k-surf-15)">
+                <Play className="ml-1.5 h-12 w-12 text-(--k-fg)" />
               </span>
               <span className="min-w-0">
-                <span className="block text-2xl font-extrabold leading-tight text-white">{video.title}</span>
+                <span className="block text-2xl font-extrabold leading-tight text-(--k-fg)">{video.title}</span>
                 {video.description && (
-                  <span className="mt-2 line-clamp-3 block text-base text-white/65">
+                  <span className="mt-2 line-clamp-3 block text-base text-(--k-fg-65)">
                     {video.description}
                   </span>
                 )}

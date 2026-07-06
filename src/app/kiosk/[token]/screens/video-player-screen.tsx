@@ -56,7 +56,7 @@ export function VideoPlayerScreen({
         <KioskSpinner />
       ) : (
         <div className="flex h-full items-center justify-center pb-4">
-          <div className="w-full max-w-5xl overflow-hidden rounded-2xl bg-black ring-1 ring-white/10">
+          <div className="w-full max-w-5xl overflow-hidden rounded-2xl bg-black ring-1 ring-(--k-surf-10)">
             <video controls autoPlay playsInline className="max-h-[70vh] w-full" src={player.url} />
           </div>
         </div>

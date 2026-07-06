@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { CheckCircle2, XCircle } from "lucide-react";
 import type { KioskContent, KioskData, KioskScreen } from "./types";
+import { KioskThemeContext, type KioskTheme } from "./ui";
 import { AttractScreen } from "./attract-screen";
 import { MainScreen } from "./main-screen";
 import { WeatherScreen } from "./screens/weather-screen";
@@ -26,6 +27,21 @@ const VIDEO_IDLE_MS = 30 * 60 * 1000; // don't idle out mid-video
 const NOTICE_MS = 12 * 1000;
 const RELOAD_HOUR = 4; // nightly self-reload picks up deploys, clears leaks
 
+// Kiosk light/dark theme, persisted per-device. useSyncExternalStore keeps it
+// out of an effect (no cascading-render lint) and in sync across the tree.
+const THEME_KEY = "kiosk-theme";
+function readTheme(): KioskTheme {
+  try {
+    return localStorage.getItem(THEME_KEY) === "light" ? "light" : "dark";
+  } catch {
+    return "dark";
+  }
+}
+function subscribeTheme(cb: () => void) {
+  window.addEventListener("kiosk-theme-change", cb);
+  return () => window.removeEventListener("kiosk-theme-change", cb);
+}
+
 export function KioskClient({ token }: { token: string }) {
   const [data, setData] = useState<KioskData | null>(null);
   const [content, setContent] = useState<KioskContent | null>(null);
@@ -36,6 +52,17 @@ export function KioskClient({ token }: { token: string }) {
   const [notice, setNotice] = useState<"success" | "cancelled" | null>(null);
   const [helpOpen, setHelpOpen] = useState(false);
   const idleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const theme = useSyncExternalStore(subscribeTheme, readTheme, () => "dark" as KioskTheme);
+  const toggleTheme = useCallback(() => {
+    const next: KioskTheme = readTheme() === "dark" ? "light" : "dark";
+    try {
+      localStorage.setItem(THEME_KEY, next);
+    } catch {
+      // storage unavailable — theme just won't persist across reloads
+    }
+    window.dispatchEvent(new Event("kiosk-theme-change"));
+  }, []);
 
   const load = useCallback(async () => {
     try {
@@ -216,9 +243,12 @@ export function KioskClient({ token }: { token: string }) {
   const tz = data.property.timezone;
 
   return (
-    // `dark` scopes the theme tokens so embedded shadcn styling + promo
-    // accents render their dark variants inside the kiosk canvas.
-    <div className="dark fixed inset-0 z-50 select-none overflow-hidden bg-zinc-950 text-zinc-50 font-(family-name:--font-plus-jakarta)">
+    // `dark` (dark mode only) scopes shadcn/promo-accent dark: variants; the
+    // .kiosk-canvas/.kiosk-light classes drive the --k-* neutral palette.
+    <KioskThemeContext.Provider value={{ theme, toggle: toggleTheme }}>
+    <div
+      className={`kiosk-canvas ${theme === "dark" ? "dark" : "kiosk-light"} fixed inset-0 z-50 select-none overflow-hidden bg-(--k-bg) text-(--k-fg) font-(family-name:--font-plus-jakarta)`}
+    >
       {screen.kind === "attract" && (
         <AttractScreen
           data={data}
@@ -287,7 +317,7 @@ export function KioskClient({ token }: { token: string }) {
             className={`flex items-center gap-3 rounded-2xl px-6 py-4 text-lg font-semibold backdrop-blur-md ${
               notice === "success"
                 ? "bg-emerald-500/20 text-emerald-100 ring-1 ring-emerald-400/40"
-                : "bg-white/10 text-white/90 ring-1 ring-white/20"
+                : "bg-(--k-surf-10) text-(--k-fg-90) ring-1 ring-(--k-surf-20)"
             }`}
           >
             {notice === "success" ? (
@@ -303,5 +333,6 @@ export function KioskClient({ token }: { token: string }) {
         </div>
       )}
     </div>
+    </KioskThemeContext.Provider>
   );
 }

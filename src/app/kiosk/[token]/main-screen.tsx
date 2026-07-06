@@ -19,7 +19,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import type { KioskContent, KioskData, KioskScreen } from "./types";
-import { formatShortDate, formatTime } from "./ui";
+import { formatShortDate, formatTime, KioskThemeToggle, useKioskTheme } from "./ui";
 
 function getNightCount(checkIn: string, checkOut: string) {
   const d1 = new Date(checkIn + "T00:00:00");
@@ -63,6 +63,7 @@ export function MainScreen({
   onHelp: () => void;
 }) {
   const [clock, setClock] = useState("");
+  const { theme } = useKioskTheme();
   const tz = data.property.timezone;
 
   useEffect(() => {
@@ -140,32 +141,43 @@ export function MainScreen({
   const tiles = [...primary, ...browse];
   const todayWeather = data.weather?.find((w) => w.date === data.today) ?? data.weather?.[0];
 
+  // Primary (light) tiles flip white↔dark with the theme; gold stays amber and
+  // vibrant gradient tiles keep white text in both modes.
   function surface(variant: Variant): string {
-    if (variant === "light") return "bg-white text-zinc-900";
+    if (variant === "light") return "bg-(--k-featured-bg) text-(--k-featured-fg)";
     if (variant === "gold") return "bg-amber-400 text-zinc-900";
     return `bg-linear-to-br text-white ${variant} ring-1 ring-white/10`;
   }
   function badge(variant: Variant): string {
-    return variant === "light" || variant === "gold" ? "bg-zinc-900/10" : "bg-white/15";
+    if (variant === "light") return "bg-(--k-featured-badge)";
+    if (variant === "gold") return "bg-zinc-900/10";
+    return "bg-white/15";
+  }
+  function descClass(variant: Variant): string {
+    if (variant === "light") return "text-(--k-featured-muted)";
+    if (variant === "gold") return "text-zinc-800/70";
+    return "text-white/80";
   }
 
   return (
-    <div className="absolute inset-0 flex flex-col">
-      {/* Backdrop */}
-      {data.photos[0] && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={data.photos[0]}
-          alt=""
-          className="absolute inset-0 h-full w-full scale-110 object-cover blur-lg brightness-[0.22]"
-        />
+    <div className="absolute inset-0 flex flex-col bg-(--k-bg)">
+      {/* Photo backdrop + dark scrim only in dark mode; light mode is a clean canvas */}
+      {theme === "dark" && data.photos[0] && (
+        <>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={data.photos[0]}
+            alt=""
+            className="absolute inset-0 h-full w-full scale-110 object-cover blur-lg brightness-[0.22]"
+          />
+          <div className="absolute inset-0 bg-linear-to-b from-zinc-950/70 via-zinc-950/30 to-zinc-950/80" />
+        </>
       )}
-      <div className="absolute inset-0 bg-linear-to-b from-zinc-950/70 via-zinc-950/30 to-zinc-950/80" />
 
       <div className="relative flex h-full flex-col gap-5 p-5 lg:gap-6 lg:p-8">
         {/* Top bar */}
         <div className="flex items-center justify-between gap-4">
-          <span className="min-w-0 truncate text-xs font-semibold uppercase tracking-[0.35em] text-white/60 lg:text-sm">
+          <span className="min-w-0 truncate text-xs font-semibold uppercase tracking-[0.35em] text-(--k-fg-60) lg:text-sm">
             {data.property.name}
           </span>
           <div className="flex shrink-0 items-center gap-3">
@@ -173,7 +185,7 @@ export function MainScreen({
               <button
                 type="button"
                 onClick={() => onNavigate({ kind: "weather" })}
-                className="flex min-h-12 items-center gap-2 rounded-full bg-white/10 px-5 text-base font-semibold text-white/90 backdrop-blur-md transition-colors hover:bg-white/15 lg:text-lg"
+                className="flex min-h-12 items-center gap-2 rounded-full bg-(--k-surf-10) px-5 text-base font-semibold text-(--k-fg-90) backdrop-blur-md transition-colors hover:bg-(--k-surf-15) lg:text-lg"
               >
                 <span>{todayWeather.emoji}</span>
                 {todayWeather.tempMaxF != null && <span>{Math.round(todayWeather.tempMaxF)}°</span>}
@@ -182,21 +194,22 @@ export function MainScreen({
             <button
               type="button"
               onClick={onHelp}
-              className="flex min-h-12 items-center gap-2 rounded-full bg-white/10 px-5 text-base font-bold text-white backdrop-blur-md transition-colors hover:bg-white/15 lg:text-lg"
+              className="flex min-h-12 items-center gap-2 rounded-full bg-(--k-surf-10) px-5 text-base font-bold text-(--k-fg) backdrop-blur-md transition-colors hover:bg-(--k-surf-15) lg:text-lg"
             >
               <LifeBuoy className="h-5 w-5" />
               Help
             </button>
-            <span className="text-lg font-semibold text-white/80 tabular-nums lg:text-xl">{clock}</span>
+            <KioskThemeToggle className="rounded-full" />
+            <span className="text-lg font-semibold text-(--k-fg-80) tabular-nums lg:text-xl">{clock}</span>
           </div>
         </div>
 
         {/* Greeting */}
         <div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-white lg:text-4xl text-balance">
+          <h1 className="text-3xl font-extrabold tracking-tight text-(--k-fg) lg:text-4xl text-balance">
             {headline}
           </h1>
-          <p className="mt-1.5 text-lg font-medium text-white/75 lg:mt-2 lg:text-xl">{subline}</p>
+          <p className="mt-1.5 text-lg font-medium text-(--k-fg-75) lg:mt-2 lg:text-xl">{subline}</p>
         </div>
 
         {/* Menu board — trailing tiles widen so the last row always fills */}
@@ -220,11 +233,7 @@ export function MainScreen({
                 </span>
                 <span className="min-w-0">
                   <span className="block text-lg font-extrabold leading-tight lg:text-xl">{tile.label}</span>
-                  <span
-                    className={`mt-0.5 hidden text-sm font-medium lg:block lg:text-base ${
-                      tile.variant === "light" || tile.variant === "gold" ? "text-zinc-600" : "text-white/80"
-                    }`}
-                  >
+                  <span className={`mt-0.5 hidden text-sm font-medium lg:block lg:text-base ${descClass(tile.variant)}`}>
                     {tile.description}
                   </span>
                 </span>

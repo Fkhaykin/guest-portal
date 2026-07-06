@@ -59,7 +59,7 @@ function uvWord(uv: number): string {
   return "Very high";
 }
 
-const sectionHeading = "mb-4 text-base font-bold uppercase tracking-[0.3em] text-white/50 lg:text-lg";
+const sectionHeading = "mb-4 text-base font-bold uppercase tracking-[0.3em] text-(--k-fg-50) lg:text-lg";
 
 // ---------------------------------------------------------------------------
 // Screen
@@ -124,28 +124,28 @@ export function WeatherScreen({
           {/* ---- Current conditions hero ---- */}
           {current && (
             <div className={`flex flex-wrap items-center gap-x-8 gap-y-4 p-6 lg:p-8 ${glassPanel}`}>
-              <span className="text-8xl font-bold tracking-tight text-white tabular-nums lg:text-9xl">
+              <span className="text-8xl font-bold tracking-tight text-(--k-fg) tabular-nums lg:text-9xl">
                 {num(current.tempF, "°")}
               </span>
               <div className="min-w-0">
                 <div className="flex items-center gap-3">
                   <span className="text-4xl lg:text-5xl">{current.emoji}</span>
-                  <span className="text-2xl font-semibold text-white lg:text-3xl">{current.label}</span>
+                  <span className="text-2xl font-semibold text-(--k-fg) lg:text-3xl">{current.label}</span>
                 </div>
-                <p className="mt-1.5 text-lg text-white/60">Feels like {num(current.feelsF, "°")}</p>
+                <p className="mt-1.5 text-lg text-(--k-fg-60)">Feels like {num(current.feelsF, "°")}</p>
               </div>
               <div className="ml-auto flex flex-wrap items-center gap-2">
-                <span className="flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-sm font-medium text-white/80">
+                <span className="flex items-center gap-2 rounded-full bg-(--k-surf-10) px-4 py-2 text-sm font-medium text-(--k-fg-80)">
                   <Droplets className="h-4 w-4 text-sky-300" />
                   {num(current.humidity, "%")} humidity
                 </span>
-                <span className="flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-sm font-medium text-white/80">
-                  <Wind className="h-4 w-4 text-white/60" />
+                <span className="flex items-center gap-2 rounded-full bg-(--k-surf-10) px-4 py-2 text-sm font-medium text-(--k-fg-80)">
+                  <Wind className="h-4 w-4 text-(--k-fg-60)" />
                   {num(current.windMph)} mph
                   {current.windGustMph != null && ` · gusts ${Math.round(current.windGustMph)}`}
                 </span>
-                <span className="flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-sm font-medium text-white/80">
-                  <Cloud className="h-4 w-4 text-white/60" />
+                <span className="flex items-center gap-2 rounded-full bg-(--k-surf-10) px-4 py-2 text-sm font-medium text-(--k-fg-80)">
+                  <Cloud className="h-4 w-4 text-(--k-fg-60)" />
                   {num(current.cloudCover, "%")} clouds
                 </span>
               </div>
@@ -162,11 +162,11 @@ export function WeatherScreen({
                     key={h.time}
                     className={`flex w-20 shrink-0 snap-start flex-col items-center gap-1.5 py-4 ${glassPanel}`}
                   >
-                    <span className="text-xs font-semibold uppercase text-white/60">
+                    <span className="text-xs font-semibold uppercase text-(--k-fg-60)">
                       {i === 0 ? "Now" : hourLabel(h.time)}
                     </span>
                     <span className="text-2xl">{h.emoji}</span>
-                    <span className="text-lg font-bold text-white tabular-nums">{num(h.tempF, "°")}</span>
+                    <span className="text-lg font-bold text-(--k-fg) tabular-nums">{num(h.tempF, "°")}</span>
                     <span className="text-xs font-semibold text-sky-300 tabular-nums">
                       {h.precipProb != null && h.precipProb >= 20 ? `${Math.round(h.precipProb)}%` : " "}
                     </span>
@@ -181,7 +181,7 @@ export function WeatherScreen({
             <section>
               <h2 className={sectionHeading}>8-day forecast</h2>
               <div className={`px-5 py-2 lg:px-6 ${glassPanel}`}>
-                <div className="divide-y divide-white/5">
+                <div className="divide-y divide-(--k-surf-05)">
                   {daily.map((d, i) => {
                     const hasBar = range != null && gMin != null && d.tempMinF != null && d.tempMaxF != null;
                     const left = hasBar ? ((d.tempMinF! - gMin!) / range!) * 100 : 0;
@@ -190,20 +190,20 @@ export function WeatherScreen({
                       : 0;
                     return (
                       <div key={d.date} className="flex min-h-14 items-center gap-3 py-2.5 lg:gap-4">
-                        <span className="w-16 shrink-0 text-base font-semibold text-white lg:w-20">
+                        <span className="w-16 shrink-0 text-base font-semibold text-(--k-fg) lg:w-20">
                           {i === 0 ? "Today" : weekdayLabel(d.date)}
                         </span>
                         <span className="w-9 shrink-0 text-center text-2xl">{d.emoji}</span>
-                        <span className="hidden min-w-0 flex-1 truncate text-base text-white/60 sm:block">
+                        <span className="hidden min-w-0 flex-1 truncate text-base text-(--k-fg-60) sm:block">
                           {d.label}
                         </span>
                         <span className="w-12 shrink-0 text-right text-sm font-semibold text-sky-300 tabular-nums">
                           {d.precipProb != null && d.precipProb >= 20 ? `${Math.round(d.precipProb)}%` : ""}
                         </span>
-                        <span className="w-10 shrink-0 text-right text-base font-semibold text-white/50 tabular-nums">
+                        <span className="w-10 shrink-0 text-right text-base font-semibold text-(--k-fg-50) tabular-nums">
                           {num(d.tempMinF, "°")}
                         </span>
-                        <div className="relative h-1.5 w-28 shrink-0 rounded-full bg-white/10 sm:w-44 lg:w-64">
+                        <div className="relative h-1.5 w-28 shrink-0 rounded-full bg-(--k-surf-10) sm:w-44 lg:w-64">
                           {hasBar && (
                             <div
                               className="absolute inset-y-0 rounded-full bg-linear-to-r from-sky-400 to-amber-400"
@@ -211,7 +211,7 @@ export function WeatherScreen({
                             />
                           )}
                         </div>
-                        <span className="w-10 shrink-0 text-base font-bold text-white tabular-nums">
+                        <span className="w-10 shrink-0 text-base font-bold text-(--k-fg) tabular-nums">
                           {num(d.tempMaxF, "°")}
                         </span>
                       </div>
@@ -292,12 +292,12 @@ function DetailTile({
 }) {
   return (
     <div className={`flex flex-col gap-1.5 p-5 ${glassPanel}`}>
-      <span className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-white/50">
+      <span className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-(--k-fg-50)">
         <Icon className="h-4 w-4" />
         {label}
       </span>
-      <span className="text-2xl font-bold text-white tabular-nums">{value}</span>
-      {sub && <span className="text-sm text-white/50">{sub}</span>}
+      <span className="text-2xl font-bold text-(--k-fg) tabular-nums">{value}</span>
+      {sub && <span className="text-sm text-(--k-fg-50)">{sub}</span>}
     </div>
   );
 }
@@ -458,13 +458,13 @@ function RadarPanel({
         <button
           type="button"
           onClick={() => setPlaying((p) => !p)}
-          className={`flex h-16 w-16 shrink-0 items-center justify-center text-white ${glassButton}`}
+          className={`flex h-16 w-16 shrink-0 items-center justify-center text-(--k-fg) ${glassButton}`}
           aria-label={playing ? "Pause radar animation" : "Play radar animation"}
         >
           {playing ? <Pause className="h-7 w-7" /> : <Play className="h-7 w-7" />}
         </button>
         <div className="min-w-0">
-          <p className="flex items-center gap-2 text-lg font-semibold text-white tabular-nums">
+          <p className="flex items-center gap-2 text-lg font-semibold text-(--k-fg) tabular-nums">
             Radar · {frameTime}
             <span
               className={`rounded-full px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wider ${
@@ -474,7 +474,7 @@ function RadarPanel({
               {isForecast ? "Forecast" : "Observed"}
             </span>
           </p>
-          <p className="mt-0.5 text-xs text-white/40">© OpenStreetMap · Radar by RainViewer</p>
+          <p className="mt-0.5 text-xs text-(--k-fg-40)">© OpenStreetMap · Radar by RainViewer</p>
         </div>
         <div className="ml-auto hidden items-center gap-1 sm:flex">
           {frames.map((f, i) => (

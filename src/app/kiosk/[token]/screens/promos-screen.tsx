@@ -74,11 +74,11 @@ export function PromosScreen({
                 )}
 
                 {/* Title (medium) + description (body) */}
-                <h2 className="mt-4 text-2xl font-bold leading-snug text-white">
+                <h2 className="mt-4 text-2xl font-bold leading-snug text-(--k-fg)">
                   {promo.title || "Guest Offer"}
                 </h2>
                 {promo.description && (
-                  <p className="mt-2 text-base leading-relaxed text-white/65">{promo.description}</p>
+                  <p className="mt-2 text-base leading-relaxed text-(--k-fg-65)">{promo.description}</p>
                 )}
 
                 {(pills.length > 0 || perks.length > 0) && (
@@ -86,7 +86,7 @@ export function PromosScreen({
                     {pills.map((pill) => (
                       <span
                         key={pill}
-                        className={`rounded-full px-3 py-1.5 text-sm font-medium text-white/80 ${accent.chip}`}
+                        className={`rounded-full px-3 py-1.5 text-sm font-medium text-(--k-fg-80) ${accent.chip}`}
                       >
                         {pill}
                       </span>
@@ -94,7 +94,7 @@ export function PromosScreen({
                     {perks.map((perk) => (
                       <span
                         key={perk.label}
-                        className={`rounded-full px-3 py-1.5 text-sm font-medium text-white/80 ${accent.chip}`}
+                        className={`rounded-full px-3 py-1.5 text-sm font-medium text-(--k-fg-80) ${accent.chip}`}
                       >
                         🎁 {perk.label}
                       </span>
@@ -104,19 +104,19 @@ export function PromosScreen({
 
                 <div className="mt-auto pt-5">
                   {promo.code ? (
-                    <div className="flex items-center justify-between gap-3 rounded-xl bg-zinc-950/40 px-4 py-3 ring-1 ring-white/10">
-                      <span className="text-xs font-semibold uppercase tracking-[0.25em] text-white/50">Code</span>
+                    <div className="flex items-center justify-between gap-3 rounded-xl bg-(--k-surf-12) px-4 py-3 ring-1 ring-(--k-surf-10)">
+                      <span className="text-xs font-semibold uppercase tracking-[0.25em] text-(--k-fg-50)">Code</span>
                       <span className={`text-2xl font-bold tracking-[0.2em] ${accent.text}`}>{promo.code}</span>
                     </div>
                   ) : (
-                    <p className="text-base text-white/60">
+                    <p className="text-base text-(--k-fg-60)">
                       {promo.auto_apply
                         ? "Automatic — applied at checkout"
                         : "No code needed — just mention this offer"}
                     </p>
                   )}
                   {(promo.valid_from || promo.valid_until) && (
-                    <p className="mt-4 text-sm text-white/45">
+                    <p className="mt-4 text-sm text-(--k-fg-45)">
                       {promo.valid_from &&
                         `From ${new Date(promo.valid_from).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`}
                       {promo.valid_from && promo.valid_until && " — "}

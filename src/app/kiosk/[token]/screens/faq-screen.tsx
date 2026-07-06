@@ -37,7 +37,7 @@ export function FaqScreen({
           {[...groups.entries()].map(([category, items]) => (
             <section key={category}>
               {groups.size > 1 && (
-                <h2 className="mb-4 text-base font-bold uppercase tracking-[0.3em] text-white/50 lg:text-lg">
+                <h2 className="mb-4 text-base font-bold uppercase tracking-[0.3em] text-(--k-fg-50) lg:text-lg">
                   {category}
                 </h2>
               )}
@@ -49,26 +49,26 @@ export function FaqScreen({
                   return (
                     <div
                       key={faq.id}
-                      className={`${glassPanel} ${isOpen ? "bg-white/12" : ""}`}
+                      className={`${glassPanel} ${isOpen ? "bg-(--k-surf-12)" : ""}`}
                     >
                       <button
                         type="button"
                         onClick={() => setOpen(isOpen ? null : faq.id)}
                         className="flex min-h-24 w-full items-center justify-between gap-5 px-6 py-5 text-left"
                       >
-                        <span className="text-xl font-bold leading-snug text-white lg:text-2xl">
+                        <span className="text-xl font-bold leading-snug text-(--k-fg) lg:text-2xl">
                           {faq.question}
                         </span>
                         <span
-                          className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white/10 transition-transform ${
+                          className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-(--k-surf-10) transition-transform ${
                             isOpen ? "rotate-180" : ""
                           }`}
                         >
-                          <ChevronDown className="h-7 w-7 text-white/70" />
+                          <ChevronDown className="h-7 w-7 text-(--k-fg-70)" />
                         </span>
                       </button>
                       {isOpen && (
-                        <p className="whitespace-pre-wrap px-6 pb-6 text-lg leading-relaxed text-white/75 lg:text-xl">
+                        <p className="whitespace-pre-wrap px-6 pb-6 text-lg leading-relaxed text-(--k-fg-75) lg:text-xl">
                           {faq.answer}
                         </p>
                       )}

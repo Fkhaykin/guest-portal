@@ -72,7 +72,7 @@ export function ServicesScreen({
             </p>
           )}
           {!booking && (
-            <p className="rounded-2xl bg-white/5 px-5 py-4 text-lg text-white/60 ring-1 ring-white/10">
+            <p className="rounded-2xl bg-(--k-surf-05) px-5 py-4 text-lg text-(--k-fg-60) ring-1 ring-(--k-surf-10)">
               Purchases open once a stay is checked in — browse away for now.
             </p>
           )}
@@ -88,13 +88,13 @@ export function ServicesScreen({
                   />
                 )}
                 <div className="min-w-0 flex-1">
-                  <h2 className="text-2xl font-extrabold text-white">{service.name}</h2>
+                  <h2 className="text-2xl font-extrabold text-(--k-fg)">{service.name}</h2>
                   {service.description && (
-                    <p className="mt-2 text-base leading-relaxed text-white/65">{service.description}</p>
+                    <p className="mt-2 text-base leading-relaxed text-(--k-fg-65)">{service.description}</p>
                   )}
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-3">
-                  <span className="text-3xl font-extrabold text-white tabular-nums">
+                  <span className="text-3xl font-extrabold text-(--k-fg) tabular-nums">
                     ${(service.price_cents / 100).toFixed(2)}
                   </span>
                   {booking && (
@@ -102,7 +102,7 @@ export function ServicesScreen({
                       type="button"
                       onClick={() => purchase(service)}
                       disabled={buying !== null}
-                      className="flex min-h-16 items-center gap-3 rounded-2xl bg-white px-7 text-xl font-bold text-zinc-900 transition-transform active:scale-[0.97] disabled:opacity-60"
+                      className="flex min-h-16 items-center gap-3 rounded-2xl bg-(--k-featured-bg) px-7 text-xl font-bold text-(--k-featured-fg) transition-transform active:scale-[0.97] disabled:opacity-60"
                     >
                       <ShoppingBag className="h-6 w-6" />
                       {buying === service.id ? "Starting…" : "Purchase"}

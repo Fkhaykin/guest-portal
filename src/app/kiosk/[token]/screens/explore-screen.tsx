@@ -25,7 +25,7 @@ const snapRow =
   "-mx-6 flex snap-x gap-3 overflow-x-auto px-6 pb-2 lg:-mx-10 lg:px-10 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
 
 const tinyChip =
-  "rounded-full bg-white/10 px-2.5 py-1 text-xs font-medium text-white/70 ring-1 ring-white/10";
+  "rounded-full bg-(--k-surf-10) px-2.5 py-1 text-xs font-medium text-(--k-fg-70) ring-1 ring-(--k-surf-10)";
 
 function hideBrokenImage(e: React.SyntheticEvent<HTMLImageElement>) {
   e.currentTarget.style.display = "none";
@@ -44,7 +44,7 @@ function AmenityCard({ amenity }: { amenity: CommunityAmenity }) {
       />
       <div className="flex flex-col gap-2 p-4">
         <div className="flex items-start justify-between gap-2">
-          <h4 className="text-base font-bold text-white">{amenity.name}</h4>
+          <h4 className="text-base font-bold text-(--k-fg)">{amenity.name}</h4>
           {amenity.featured && (
             <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-amber-400/15 px-2.5 py-1 text-xs font-semibold text-amber-300 ring-1 ring-amber-300/30">
               <Star className="h-3 w-3 fill-current" />
@@ -53,7 +53,7 @@ function AmenityCard({ amenity }: { amenity: CommunityAmenity }) {
           )}
         </div>
         {amenity.description && (
-          <p className="text-sm leading-relaxed text-white/60 line-clamp-2">{amenity.description}</p>
+          <p className="text-sm leading-relaxed text-(--k-fg-60) line-clamp-2">{amenity.description}</p>
         )}
         {(amenity.tags?.length ?? 0) > 0 && (
           <div className="flex flex-wrap gap-1.5">
@@ -81,11 +81,11 @@ function ActivityCard({ activity }: { activity: Activity }) {
         className="h-52 w-full object-cover"
       />
       <div className="flex flex-col gap-2 p-4">
-        <h4 className="text-2xl font-extrabold text-white">{activity.name}</h4>
-        <p className="text-sm leading-relaxed text-white/60 line-clamp-3">{activity.description}</p>
+        <h4 className="text-2xl font-extrabold text-(--k-fg)">{activity.name}</h4>
+        <p className="text-sm leading-relaxed text-(--k-fg-60) line-clamp-3">{activity.description}</p>
         <div className="flex flex-wrap gap-1.5 pt-1">
           {activity.distance && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-1 text-xs font-medium text-white/80 ring-1 ring-white/10">
+            <span className="inline-flex items-center gap-1 rounded-full bg-(--k-surf-10) px-2.5 py-1 text-xs font-medium text-(--k-fg-80) ring-1 ring-(--k-surf-10)">
               <MapPin className="h-3.5 w-3.5" />
               {activity.distance}
             </span>
@@ -126,7 +126,7 @@ export function ExploreScreen({
           <button
             type="button"
             onClick={() => scrollToSection(COMMUNITIES_SECTION_ID)}
-            className={`flex min-h-14 shrink-0 snap-start items-center gap-2 whitespace-nowrap px-5 text-base font-semibold text-white ${glassButton}`}
+            className={`flex min-h-14 shrink-0 snap-start items-center gap-2 whitespace-nowrap px-5 text-base font-semibold text-(--k-fg) ${glassButton}`}
           >
             <Home className="h-5 w-5" />
             Your Community
@@ -136,7 +136,7 @@ export function ExploreScreen({
               key={category.key}
               type="button"
               onClick={() => scrollToSection(sectionId(category.key))}
-              className={`flex min-h-14 shrink-0 snap-start items-center gap-2 whitespace-nowrap px-5 text-base font-semibold text-white ${glassButton}`}
+              className={`flex min-h-14 shrink-0 snap-start items-center gap-2 whitespace-nowrap px-5 text-base font-semibold text-(--k-fg) ${glassButton}`}
             >
               <category.icon className="h-5 w-5" />
               {category.title}
@@ -146,16 +146,16 @@ export function ExploreScreen({
 
         {/* Our Communities */}
         <section id={COMMUNITIES_SECTION_ID} className="flex scroll-mt-4 flex-col gap-8">
-          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-white/50 lg:text-sm">
+          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-(--k-fg-50) lg:text-sm">
             Your Community
           </p>
           {communities.map((community) => (
             <div key={community.id} className="flex flex-col gap-4">
               <div>
-                <h2 className="text-xl font-bold tracking-tight text-white lg:text-2xl">
+                <h2 className="text-xl font-bold tracking-tight text-(--k-fg) lg:text-2xl">
                   {community.name}
                 </h2>
-                <p className="mt-1 text-white/60">{community.tagline}</p>
+                <p className="mt-1 text-(--k-fg-60)">{community.tagline}</p>
               </div>
               <div className={snapRow}>
                 {community.groups.flatMap((group) =>
@@ -182,10 +182,10 @@ export function ExploreScreen({
                 <category.icon className="h-6 w-6 text-white" />
               </span>
               <div className="min-w-0">
-                <h2 className="text-xl font-bold tracking-tight text-white lg:text-2xl">
+                <h2 className="text-xl font-bold tracking-tight text-(--k-fg) lg:text-2xl">
                   {category.title}
                 </h2>
-                <p className="mt-0.5 text-white/60">{category.subtitle}</p>
+                <p className="mt-0.5 text-(--k-fg-60)">{category.subtitle}</p>
               </div>
             </div>
             <div className={snapRow}>
