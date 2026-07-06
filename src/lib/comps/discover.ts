@@ -212,20 +212,25 @@ export async function discoverCompsBulk(
   const minBedrooms = Math.max(1, (profile.bedrooms ?? 3) - 1);
   const maxBedrooms = (profile.bedrooms ?? 3) + 1;
 
-  // A 3×3 grid of tiles at ~4km spacing plus a wide backstop sweep. Each tile
-  // is a ~5km-radius box; overlap ensures edge listings aren't missed.
-  const stepKm = 4;
+  // A 5×5 grid of overlapping tiles (~5km spacing, ~4km radius each) covers a
+  // ~25km span densely — Airbnb returns only ~18 results per search, so tight
+  // tiling is how you reach ~100 in a busy market. Plus two wider backstop
+  // sweeps for anything the grid misses. Distances are still measured from the
+  // house, so far tiles just contribute the nearest of their results.
+  const stepKm = 5;
   const centers: { lat: number; lng: number; r: number }[] = [];
-  for (let dy = -1; dy <= 1; dy++) {
-    for (let dx = -1; dx <= 1; dx++) {
+  const lngScale = 111 * Math.cos((profile.lat * Math.PI) / 180);
+  for (let dy = -2; dy <= 2; dy++) {
+    for (let dx = -2; dx <= 2; dx++) {
       centers.push({
         lat: profile.lat + (dy * stepKm) / 111,
-        lng: profile.lng + (dx * stepKm) / (111 * Math.cos((profile.lat * Math.PI) / 180)),
-        r: 5,
+        lng: profile.lng + (dx * stepKm) / lngScale,
+        r: 4,
       });
     }
   }
-  centers.push({ lat: profile.lat, lng: profile.lng, r: 18 }); // wide backstop
+  centers.push({ lat: profile.lat, lng: profile.lng, r: 12 });
+  centers.push({ lat: profile.lat, lng: profile.lng, r: 20 }); // wide backstop
 
   const anchor = { lat: profile.lat, lng: profile.lng };
   const byId = new Map<string, CompCandidate>();
