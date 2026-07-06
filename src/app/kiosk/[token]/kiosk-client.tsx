@@ -269,6 +269,7 @@ export function KioskClient({ token }: { token: string }) {
     >
       {screen.kind === "attract" && (
         <AttractScreen
+          token={token}
           data={data}
           onWake={() => setScreen({ kind: "home" })}
           onWeather={() => setScreen({ kind: "weather" })}
