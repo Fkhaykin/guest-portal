@@ -41,8 +41,27 @@ export function describeCode(code: number | null): { label: string; emoji: strin
   return { label: "Thunderstorm", emoji: "⛈️" };
 }
 
+// The forecast's dominant WMO weather code — a storm/rain/snow day is a poor
+// lake getaway even when the max precip *probability* reads modest, so the code
+// caps desirability directly. Without this, a warm thunderstorm day scored high
+// on temperature alone and wrongly earned a premium.
+function conditionScore(code: number | null): number {
+  if (code == null) return 1;
+  if (code === 0) return 1.0; // clear
+  if (code <= 2) return 0.98; // partly cloudy
+  if (code === 3) return 0.92; // cloudy
+  if (code <= 48) return 0.82; // fog
+  if (code <= 57) return 0.68; // drizzle
+  if (code <= 67) return 0.5; // rain
+  if (code <= 77) return 0.4; // snow
+  if (code <= 82) return 0.5; // showers
+  if (code <= 86) return 0.4; // snow showers
+  return 0.3; // thunderstorm
+}
+
 /** Desirability for a warm-weather lake/outdoor getaway: comfortable warmth ×
- *  dryness. Peaks ~78–86°F and clear; collapses when cold or wet. */
+ *  dryness × the forecast conditions. Peaks ~78–86°F and clear; collapses when
+ *  cold, wet, or stormy. */
 export function desirability(day: ForecastDay): number {
   const t = day.tempMaxF;
   let tempScore: number;
@@ -60,7 +79,7 @@ export function desirability(day: ForecastDay): number {
   const mmPenalty = Math.min(mm / 15, 1) * 0.5;
   const precipScore = Math.max(0.15, 1 - Math.max(probPenalty, mmPenalty));
 
-  return Math.max(0, Math.min(1, tempScore * precipScore));
+  return Math.max(0, Math.min(1, tempScore * precipScore * conditionScore(day.code)));
 }
 
 const OPEN_METEO = "https://api.open-meteo.com/v1/forecast";
