@@ -37,14 +37,33 @@ function timeOfDayGreeting(tz: string): string {
   return "Good evening";
 }
 
-// Menu-board tile. `variant` sets the surface; every icon renders at ONE size
-// inside an identical badge, so the grid reads as a consistent set.
-type Variant = "light" | "gold" | string; // string = gradient class group
+// Menu-board tile. Every tile is the same frosted-glass panel with a soft
+// colored accent (tinted surface + ring + icon badge); nothing is a stark
+// solid fill. Static class strings per accent so Tailwind keeps them.
+type AccentKey =
+  | "indigo" | "sky" | "amber" | "orange" | "emerald"
+  | "cyan" | "lime" | "rose" | "fuchsia" | "violet" | "teal" | "slate";
+
+const ACCENTS: Record<AccentKey, { tile: string; badge: string }> = {
+  indigo: { tile: "bg-indigo-500/12 ring-indigo-500/25 dark:bg-indigo-400/12 dark:ring-indigo-400/25", badge: "bg-indigo-500/20 text-indigo-700 dark:bg-indigo-400/20 dark:text-indigo-200" },
+  sky: { tile: "bg-sky-500/12 ring-sky-500/25 dark:bg-sky-400/12 dark:ring-sky-400/25", badge: "bg-sky-500/20 text-sky-700 dark:bg-sky-400/20 dark:text-sky-200" },
+  amber: { tile: "bg-amber-500/14 ring-amber-500/30 dark:bg-amber-400/14 dark:ring-amber-400/30", badge: "bg-amber-500/25 text-amber-700 dark:bg-amber-400/25 dark:text-amber-200" },
+  orange: { tile: "bg-orange-500/12 ring-orange-500/25 dark:bg-orange-400/12 dark:ring-orange-400/25", badge: "bg-orange-500/20 text-orange-700 dark:bg-orange-400/20 dark:text-orange-200" },
+  emerald: { tile: "bg-emerald-500/12 ring-emerald-500/25 dark:bg-emerald-400/12 dark:ring-emerald-400/25", badge: "bg-emerald-500/20 text-emerald-700 dark:bg-emerald-400/20 dark:text-emerald-200" },
+  cyan: { tile: "bg-cyan-500/12 ring-cyan-500/25 dark:bg-cyan-400/12 dark:ring-cyan-400/25", badge: "bg-cyan-500/20 text-cyan-700 dark:bg-cyan-400/20 dark:text-cyan-200" },
+  lime: { tile: "bg-lime-500/14 ring-lime-500/30 dark:bg-lime-400/12 dark:ring-lime-400/25", badge: "bg-lime-500/25 text-lime-700 dark:bg-lime-400/20 dark:text-lime-200" },
+  rose: { tile: "bg-rose-500/12 ring-rose-500/25 dark:bg-rose-400/12 dark:ring-rose-400/25", badge: "bg-rose-500/20 text-rose-700 dark:bg-rose-400/20 dark:text-rose-200" },
+  fuchsia: { tile: "bg-fuchsia-500/12 ring-fuchsia-500/25 dark:bg-fuchsia-400/12 dark:ring-fuchsia-400/25", badge: "bg-fuchsia-500/20 text-fuchsia-700 dark:bg-fuchsia-400/20 dark:text-fuchsia-200" },
+  violet: { tile: "bg-violet-500/12 ring-violet-500/25 dark:bg-violet-400/12 dark:ring-violet-400/25", badge: "bg-violet-500/20 text-violet-700 dark:bg-violet-400/20 dark:text-violet-200" },
+  teal: { tile: "bg-teal-500/12 ring-teal-500/25 dark:bg-teal-400/12 dark:ring-teal-400/25", badge: "bg-teal-500/20 text-teal-700 dark:bg-teal-400/20 dark:text-teal-200" },
+  slate: { tile: "bg-slate-400/12 ring-slate-400/25 dark:bg-slate-300/12 dark:ring-slate-300/20", badge: "bg-slate-400/20 text-slate-700 dark:bg-slate-300/20 dark:text-slate-200" },
+};
+
 type Tile = {
   label: string;
   description: string;
   icon: LucideIcon;
-  variant: Variant;
+  accent: AccentKey;
 } & ({ href: string; screen?: never } | { screen: KioskScreen; href?: never });
 
 const ICON = "h-6 w-6 lg:h-7 lg:w-7";
@@ -107,10 +126,10 @@ export function MainScreen({
   const primary: Tile[] = booking
     ? [
         res!.signature_url
-          ? { label: "Update Registration", description: "Edit guests, pets, or vehicles", href: `/p/${slug}/update`, icon: PenLine, variant: "light" }
-          : { label: "Register", description: "Register your guests and vehicles", href: `/p/${slug}/register`, icon: ClipboardList, variant: "light" },
-        { label: "Extend Your Stay", description: "Add nights — pick dates on a calendar", href: `/p/${slug}/extend-stay`, icon: CalendarPlus, variant: "light" },
-        { label: "Tip the Crew", description: "Thank the team that keeps it spotless", screen: { kind: "tip" }, icon: HandCoins, variant: "gold" },
+          ? { label: "Update Registration", description: "Edit guests, pets, or vehicles", href: `/p/${slug}/update`, icon: PenLine, accent: "indigo" }
+          : { label: "Register", description: "Register your guests and vehicles", href: `/p/${slug}/register`, icon: ClipboardList, accent: "indigo" },
+        { label: "Extend Your Stay", description: "Add nights — pick dates on a calendar", href: `/p/${slug}/extend-stay`, icon: CalendarPlus, accent: "sky" },
+        { label: "Tip the Crew", description: "Thank the team that keeps it spotless", screen: { kind: "tip" }, icon: HandCoins, accent: "amber" },
       ]
     : [];
 
@@ -121,43 +140,25 @@ export function MainScreen({
   const browse: Tile[] = [
     ...(booking
       ? [
-          { label: "Add-Ons", description: "Extras & experiences for your stay", href: `/p/${slug}/add-ons`, icon: Gift, variant: "from-orange-500 to-amber-600" } as Tile,
-          { label: "Delivery & Rides", description: "Register deliveries and rideshares", href: `/p/${slug}/delivery`, icon: Truck, variant: "from-emerald-500 to-teal-600" } as Tile,
+          { label: "Add-Ons", description: "Extras & experiences for your stay", href: `/p/${slug}/add-ons`, icon: Gift, accent: "orange" } as Tile,
+          { label: "Delivery & Rides", description: "Register deliveries and rideshares", href: `/p/${slug}/delivery`, icon: Truck, accent: "emerald" } as Tile,
         ]
       : []),
-    { label: "Weather", description: "Hourly forecast & live radar", screen: { kind: "weather" }, icon: CloudSun, variant: "from-sky-500 to-blue-700" },
-    { label: "Explore", description: "Things to do in the Poconos", screen: { kind: "explore" }, icon: MapPin, variant: "from-lime-500 to-green-700" },
-    { label: "Promotions", description: "Guest-exclusive deals", screen: { kind: "promos" }, icon: Tag, variant: "from-rose-500 to-red-700" },
+    { label: "Weather", description: "Hourly forecast & live radar", screen: { kind: "weather" }, icon: CloudSun, accent: "cyan" },
+    { label: "Explore", description: "Things to do in the Poconos", screen: { kind: "explore" }, icon: MapPin, accent: "lime" },
+    { label: "Promotions", description: "Guest-exclusive deals", screen: { kind: "promos" }, icon: Tag, accent: "rose" },
     ...(hasServices
-      ? [{ label: "Services", description: "Browse additional services", screen: { kind: "services" }, icon: ShoppingBag, variant: "from-fuchsia-500 to-purple-700" } as Tile]
+      ? [{ label: "Services", description: "Browse additional services", screen: { kind: "services" }, icon: ShoppingBag, accent: "fuchsia" } as Tile]
       : []),
     ...(hasVideos
-      ? [{ label: "Videos", description: "How-to guides & welcome tour", screen: { kind: "videos" }, icon: Video, variant: "from-indigo-500 to-violet-700" } as Tile]
+      ? [{ label: "Videos", description: "How-to guides & welcome tour", screen: { kind: "videos" }, icon: Video, accent: "violet" } as Tile]
       : []),
-    { label: "FAQ", description: "Answers about the house", screen: { kind: "faq" }, icon: HelpCircle, variant: "from-cyan-600 to-sky-800" },
-    { label: "House Rules", description: "The 8 rules & full policies", screen: { kind: "rules" }, icon: ScrollText, variant: "from-zinc-500 to-zinc-700" },
+    { label: "FAQ", description: "Answers about the house", screen: { kind: "faq" }, icon: HelpCircle, accent: "teal" },
+    { label: "House Rules", description: "The 8 rules & full policies", screen: { kind: "rules" }, icon: ScrollText, accent: "slate" },
   ];
 
   const tiles = [...primary, ...browse];
   const todayWeather = data.weather?.find((w) => w.date === data.today) ?? data.weather?.[0];
-
-  // Primary (light) tiles flip white↔dark with the theme; gold stays amber and
-  // vibrant gradient tiles keep white text in both modes.
-  function surface(variant: Variant): string {
-    if (variant === "light") return "bg-(--k-featured-bg) text-(--k-featured-fg)";
-    if (variant === "gold") return "bg-amber-400 text-zinc-900";
-    return `bg-linear-to-br text-white ${variant} ring-1 ring-white/10`;
-  }
-  function badge(variant: Variant): string {
-    if (variant === "light") return "bg-(--k-featured-badge)";
-    if (variant === "gold") return "bg-zinc-900/10";
-    return "bg-white/15";
-  }
-  function descClass(variant: Variant): string {
-    if (variant === "light") return "text-(--k-featured-muted)";
-    if (variant === "gold") return "text-zinc-800/70";
-    return "text-white/80";
-  }
 
   return (
     <div className="absolute inset-0 flex flex-col bg-(--k-bg)">
@@ -221,19 +222,20 @@ export function MainScreen({
             if (remainder === 1 && isLast) widen = "lg:col-span-4";
             else if (remainder === 2 && i >= tiles.length - 2) widen = "lg:col-span-2";
             else if (remainder === 3 && isLast) widen = "lg:col-span-2";
+            const accent = ACCENTS[tile.accent];
             return (
               <button
                 key={tile.label}
                 type="button"
                 onClick={() => (tile.screen ? onNavigate(tile.screen) : onHandoff(tile.href!))}
-                className={`flex items-center gap-4 rounded-3xl p-5 text-left shadow-lg transition-transform active:scale-[0.97] lg:gap-5 lg:p-6 ${widen} ${surface(tile.variant)}`}
+                className={`flex items-center gap-4 rounded-3xl p-5 text-left ring-1 backdrop-blur-md transition-transform active:scale-[0.97] lg:gap-5 lg:p-6 ${widen} ${accent.tile}`}
               >
-                <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl lg:h-14 lg:w-14 ${badge(tile.variant)}`}>
+                <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl lg:h-14 lg:w-14 ${accent.badge}`}>
                   <tile.icon className={ICON} />
                 </span>
                 <span className="min-w-0">
-                  <span className="block text-lg font-extrabold leading-tight lg:text-xl">{tile.label}</span>
-                  <span className={`mt-0.5 hidden text-sm font-medium lg:block lg:text-base ${descClass(tile.variant)}`}>
+                  <span className="block text-lg font-extrabold leading-tight text-(--k-fg) lg:text-xl">{tile.label}</span>
+                  <span className="mt-0.5 hidden text-sm font-medium text-(--k-fg-60) lg:block lg:text-base">
                     {tile.description}
                   </span>
                 </span>
