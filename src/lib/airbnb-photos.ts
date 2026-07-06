@@ -388,6 +388,28 @@ export function getAirbnbPhotos(propertyName: string): string[] | null {
     : null;
 }
 
+// Branded marketing images baked into the Airbnb photo tours — a logo collage
+// and text-annotated aerials/directions maps. Fine on the marketing site, but
+// they don't belong in a clean photo rotation like the kiosk slideshow.
+// Matched by their distinctive path fragment.
+const BRANDED_IMAGE_FRAGMENTS = [
+  "lodgify-355872/airbnb/01-additional-photos-image-1", // 4-up logo collage
+  "lodgify-355872/airbnb/61-additional-photos-image-2", // annotated aerial
+  "lodgify-355872/airbnb/62-additional-photos-image-3", // directions map
+  "lodgify-588691/airbnb/60-additional-photos-image-2", // directions map
+];
+
+export function isBrandedImage(url: string): boolean {
+  return BRANDED_IMAGE_FRAGMENTS.some((f) => url.includes(f));
+}
+
+/** Airbnb photos with branded collage/marketing images removed — for clean
+ *  rotations such as the in-house kiosk slideshow. */
+export function getCleanPhotos(propertyName: string): string[] | null {
+  const photos = getAirbnbPhotos(propertyName);
+  return photos ? photos.filter((u) => !isBrandedImage(u)) : null;
+}
+
 /** Photos with room captions (when the set has them) for gallery/lightbox use. */
 export function getAirbnbPhotoDetails(propertyName: string): AirbnbPhoto[] | null {
   const entry = resolveSet(propertyName);

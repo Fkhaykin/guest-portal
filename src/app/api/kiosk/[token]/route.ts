@@ -3,7 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { nicknamePropertyIds } from "@/lib/pricing/data";
 import { todayInTz } from "@/lib/pricing/engine";
 import { firstNameOf } from "@/lib/guest-messages/templates";
-import { getAirbnbPhotos } from "@/lib/airbnb-photos";
+import { getCleanPhotos } from "@/lib/airbnb-photos";
 import { loadWeatherByDate, fetchForecast, describeCode } from "@/lib/pricing/weather";
 import {
   buildGuestSessionPayload,
@@ -158,7 +158,7 @@ export async function GET(
   }
 
   const photos =
-    getAirbnbPhotos(property.name)?.slice(0, MAX_PHOTOS) ??
+    getCleanPhotos(property.name)?.slice(0, MAX_PHOTOS) ??
     (property.cover_image_url ? [property.cover_image_url] : []);
 
   const weather = await kioskWeather(admin, property.nickname, today);
