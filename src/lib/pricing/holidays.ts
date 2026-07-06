@@ -47,18 +47,18 @@ function lastWeekday(year: number, month0: number, weekday: number): Date {
 // this market (solved from its pushed prices against each house's base/season/
 // day-of-week, median across all houses).
 export const HOLIDAY_DEFS: HolidayDef[] = [
-  { key: "nye", label: "New Year's Eve", defaultPct: 330, enabledByDefault: true, anchor: (y) => utc(y, 11, 31), offsets: [-1, 0] },
+  { key: "nye", label: "New Year's Eve", defaultPct: 390, enabledByDefault: true, anchor: (y) => utc(y, 11, 31), offsets: [-1, 0] },
   { key: "mlk", label: "MLK Day", defaultPct: 40, enabledByDefault: true, anchor: (y) => nthWeekday(y, 0, 1, 3), offsets: [-3, -2, -1] },
-  { key: "valentines", label: "Valentine's Day", defaultPct: 185, enabledByDefault: true, anchor: (y) => utc(y, 1, 14), offsets: [-1, 0] },
+  { key: "valentines", label: "Valentine's Day", defaultPct: 235, enabledByDefault: true, anchor: (y) => utc(y, 1, 14), offsets: [-1, 0] },
   { key: "presidents", label: "Presidents Day", defaultPct: 55, enabledByDefault: true, anchor: (y) => nthWeekday(y, 1, 1, 3), offsets: [-3, -2, -1] },
-  { key: "memorial", label: "Memorial Day", defaultPct: 155, enabledByDefault: true, anchor: (y) => lastWeekday(y, 4, 1), offsets: [-3, -2, -1] },
+  { key: "memorial", label: "Memorial Day", defaultPct: 180, enabledByDefault: true, anchor: (y) => lastWeekday(y, 4, 1), offsets: [-3, -2, -1] },
   { key: "juneteenth", label: "Juneteenth", defaultPct: 40, enabledByDefault: true, anchor: (y) => utc(y, 5, 19), offsets: [-1, 0] },
-  { key: "july4", label: "July 4th", defaultPct: 245, enabledByDefault: true, anchor: (y) => utc(y, 6, 4), offsets: [-1, 0] },
-  { key: "laborday", label: "Labor Day", defaultPct: 150, enabledByDefault: true, anchor: (y) => nthWeekday(y, 8, 1, 1), offsets: [-3, -2, -1] },
+  { key: "july4", label: "July 4th", defaultPct: 270, enabledByDefault: true, anchor: (y) => utc(y, 6, 4), offsets: [-1, 0] },
+  { key: "laborday", label: "Labor Day", defaultPct: 195, enabledByDefault: true, anchor: (y) => nthWeekday(y, 8, 1, 1), offsets: [-3, -2, -1] },
   { key: "indigenous", label: "Columbus/Indigenous Day", defaultPct: 40, enabledByDefault: true, anchor: (y) => nthWeekday(y, 9, 1, 2), offsets: [-3, -2, -1] },
   { key: "halloween", label: "Halloween", defaultPct: 45, enabledByDefault: true, anchor: (y) => utc(y, 9, 31), offsets: [-1, 0] },
-  { key: "thanksgiving", label: "Thanksgiving", defaultPct: 190, enabledByDefault: true, anchor: (y) => nthWeekday(y, 10, 4, 4), offsets: [-1, 0, 1, 2] },
-  { key: "christmas", label: "Christmas", defaultPct: 160, enabledByDefault: true, anchor: (y) => utc(y, 11, 25), offsets: [-2, -1, 0, 1] },
+  { key: "thanksgiving", label: "Thanksgiving", defaultPct: 245, enabledByDefault: true, anchor: (y) => nthWeekday(y, 10, 4, 4), offsets: [-1, 0, 1, 2] },
+  { key: "christmas", label: "Christmas", defaultPct: 205, enabledByDefault: true, anchor: (y) => utc(y, 11, 25), offsets: [-2, -1, 0, 1] },
 ];
 
 export const DEFAULT_HOLIDAYS: HolidayRule[] = HOLIDAY_DEFS.map((h) => ({
