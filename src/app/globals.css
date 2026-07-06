@@ -240,10 +240,10 @@
 }
 
 /* --- Kiosk mode ------------------------------------------------------------
-   Set on <html> by KioskChromeGate when this browser is an in-house kiosk
-   (localStorage "kiosk-return-url", written by /kiosk/[token]). Portal pages
-   opened from the kiosk lose their regular chrome and get the kiosk top bar
-   instead; the layout's bottom padding for the fixed GuestNav goes with it. */
+   Set on <html> by KioskChromeGate only on the kiosk's own tab (sessionStorage
+   "kiosk-return-url", written by /kiosk/[token]). Portal pages opened from the
+   kiosk lose their regular chrome and get the kiosk top bar instead; the
+   layout's bottom padding for the fixed GuestNav goes with it. */
 html.kiosk-mode [data-kiosk-hide] {
   display: none !important;
 }

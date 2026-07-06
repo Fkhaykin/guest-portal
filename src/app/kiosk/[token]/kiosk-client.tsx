@@ -88,18 +88,34 @@ export function KioskClient({ token }: { token: string }) {
     }
   }, [token]);
 
-  // Kiosk-mode flag: lets IdleReturnGate + KioskChromeGate work on portal
-  // pages. ?exit=1 is the escape hatch for a personal device that opened this
-  // URL; ?preview=1 (admin preview) never sets the flag in the first place.
+  // Kiosk-mode flag lives in sessionStorage so it is scoped to THIS tab and
+  // cleared when it closes — it can never leak kiosk chrome to a normal guest's
+  // browsing (localStorage stuck to any browser that once opened the kiosk URL).
+  // The handoff is a same-tab navigation, so the flag survives to /p/[slug]/*.
+  // ?exit=1 is the escape hatch; ?preview=1 (admin preview) never sets it.
   useEffect(() => {
+    try {
+      // Purge the legacy localStorage flag so previously-stuck browsers recover.
+      localStorage.removeItem(KIOSK_RETURN_KEY);
+    } catch {
+      // ignore
+    }
     const search = new URLSearchParams(window.location.search);
     if (search.get("exit") === "1") {
-      localStorage.removeItem(KIOSK_RETURN_KEY);
+      try {
+        sessionStorage.removeItem(KIOSK_RETURN_KEY);
+      } catch {
+        // ignore
+      }
       setExited(true);
       return;
     }
     if (search.get("preview") === "1") return;
-    localStorage.setItem(KIOSK_RETURN_KEY, `/kiosk/${token}`);
+    try {
+      sessionStorage.setItem(KIOSK_RETURN_KEY, `/kiosk/${token}`);
+    } catch {
+      // ignore
+    }
   }, [token]);
 
   // A tip's Stripe session still needs finalizing (mark paid + notify host)

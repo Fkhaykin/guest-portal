@@ -8,11 +8,13 @@ import { useProperty } from "@/hooks/use-property";
 const KIOSK_RETURN_KEY = "kiosk-return-url";
 
 // Same client-only gating pattern as LiveChatGate: server snapshot renders
-// nothing, the client snapshot reads the kiosk flag after hydration.
+// nothing, the client snapshot reads the kiosk flag after hydration. The flag
+// is in sessionStorage — scoped to the kiosk's own tab — so it can never leak
+// kiosk chrome into a normal guest's browsing.
 const subscribe = () => () => {};
 const getReturnUrlSnapshot = () => {
   try {
-    return localStorage.getItem(KIOSK_RETURN_KEY);
+    return sessionStorage.getItem(KIOSK_RETURN_KEY);
   } catch {
     return null;
   }
@@ -20,10 +22,10 @@ const getReturnUrlSnapshot = () => {
 const getServerSnapshot = () => null;
 
 /** Kiosk frame for portal pages (register, add-ons, …) opened from the
- *  in-house kiosk. Self-gating on the same localStorage flag IdleReturnGate
- *  uses: normal visitors never see it. When active it adds `kiosk-mode` to
- *  <html> — globals.css then hides the regular PropertyHeader/GuestNav — and
- *  renders a dark top bar with a big "Kiosk Home" target instead. */
+ *  in-house kiosk. Self-gating on the sessionStorage flag IdleReturnGate uses:
+ *  normal visitors never see it. When active it adds `kiosk-mode` to <html> —
+ *  globals.css then hides the regular PropertyHeader/GuestNav — and renders a
+ *  dark top bar with a big "Kiosk Home" target instead. */
 export function KioskChromeGate() {
   const property = useProperty();
   const returnUrl = useSyncExternalStore(subscribe, getReturnUrlSnapshot, getServerSnapshot);

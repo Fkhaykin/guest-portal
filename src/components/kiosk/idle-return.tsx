@@ -18,7 +18,8 @@ export function IdleReturnGate() {
 
     let returnUrl: string | null = null;
     try {
-      returnUrl = localStorage.getItem(KIOSK_RETURN_KEY);
+      // sessionStorage: scoped to the kiosk's own tab, never a normal guest's.
+      returnUrl = sessionStorage.getItem(KIOSK_RETURN_KEY);
     } catch {
       return;
     }
