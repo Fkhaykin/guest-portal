@@ -6,6 +6,14 @@ function getApiKey() {
   return key;
 }
 
+export interface MessageAttachment {
+  /** Presigned S3 link from Lodgify. Short-lived (~5 min) — always refetched
+   *  from the live thread on open, so treat as ephemeral, never persisted-for-later. */
+  url: string;
+  /** Original file name, e.g. "image.jpg". Used to infer image vs. other file. */
+  name: string;
+}
+
 export interface LodgifyMessage {
   id: string;
   message: string;
@@ -16,6 +24,9 @@ export interface LodgifyMessage {
   // The channel the message travelled on (Lodgify's "route": Vrbo, Airbnb,
   // Booking.com, …). Only some messages carry it; null when unknown.
   route?: string | null;
+  // Guest-sent (or Owner-sent) files — photos guests attach in the OTA app.
+  // Only present on the v2 thread endpoint, never on the webhook event.
+  attachments?: MessageAttachment[];
 }
 
 /**
@@ -309,7 +320,20 @@ function normalizeMessages(raw: any[], guestName: string): LodgifyMessage[] {
 
 function normalizeMessage(raw: any, index: number, guestName: string): LodgifyMessage {
   const type: string = raw.type ?? "Comment";
-  return {
+  // Lodgify shape: attachments: [{ file_name, content_type, content_length,
+  // file_url }]. content_type comes back empty, so we key off the file name.
+  const attachments: MessageAttachment[] = Array.isArray(raw.attachments)
+    ? raw.attachments
+        .filter((a: any) => a && typeof a.file_url === "string" && a.file_url)
+        .map((a: any) => ({
+          url: a.file_url as string,
+          name:
+            typeof a.file_name === "string" && a.file_name.trim()
+              ? a.file_name.trim()
+              : "attachment",
+        }))
+    : [];
+  const msg: LodgifyMessage = {
     id: String(raw.id ?? index),
     message: (raw.message ?? "").replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]+>/g, ""),
     subject: raw.subject ?? "",
@@ -318,5 +342,7 @@ function normalizeMessage(raw: any, index: number, guestName: string): LodgifyMe
     sender_name: type === "Owner" ? "You" : guestName || "Guest",
     route: typeof raw.route === "string" && raw.route.trim() ? raw.route.trim() : null,
   };
+  if (attachments.length) msg.attachments = attachments;
+  return msg;
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */

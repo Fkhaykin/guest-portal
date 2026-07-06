@@ -230,6 +230,7 @@ async function backfillThread(threadUid: string): Promise<void> {
       message: m.message ?? "",
       creation_time: m.created_at || null,
       guest_name: m.type === "Owner" ? null : m.sender_name,
+      attachments: m.attachments && m.attachments.length ? m.attachments : null,
     }));
   if (!rows.length) return;
 

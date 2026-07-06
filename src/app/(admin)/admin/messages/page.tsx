@@ -60,6 +60,12 @@ function linkifyMessage(text: string) {
   );
 }
 
+// Lodgify sends attachment content_type empty, so infer image-ness from the
+// file name. Guests almost always send photos; Lodgify serves them as jpeg.
+function isImageAttachment(name: string): boolean {
+  return /\.(jpe?g|png|gif|webp|heic|heif|bmp)$/i.test(name);
+}
+
 const HOUSE_LABELS: Record<HouseKey, string> = {
   lakehouse: "Lakehouse",
   chalet: "Chalet",
@@ -783,9 +789,49 @@ export default function AdminMessagesPage() {
                               {msg.sender_name}
                             </p>
                           )}
-                          <p className="text-sm whitespace-pre-wrap wrap-break-word">
-                            {linkifyMessage(msg.message)}
-                          </p>
+                          {msg.message.trim() && (
+                            <p className="text-sm whitespace-pre-wrap wrap-break-word">
+                              {linkifyMessage(msg.message)}
+                            </p>
+                          )}
+                          {msg.attachments && msg.attachments.length > 0 && (
+                            <div
+                              className={cn(
+                                "flex flex-col gap-1.5",
+                                msg.message.trim() && "mt-1.5"
+                              )}
+                            >
+                              {msg.attachments.map((att, i) =>
+                                isImageAttachment(att.name) ? (
+                                  <a
+                                    key={i}
+                                    href={att.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="block"
+                                  >
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img
+                                      src={att.url}
+                                      alt={att.name}
+                                      loading="lazy"
+                                      className="max-h-64 max-w-full rounded-md object-cover"
+                                    />
+                                  </a>
+                                ) : (
+                                  <a
+                                    key={i}
+                                    href={att.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-xs underline underline-offset-2 break-all hover:opacity-80"
+                                  >
+                                    📎 {att.name}
+                                  </a>
+                                )
+                              )}
+                            </div>
+                          )}
                           {msg.created_at && (
                             <p
                               className={cn(

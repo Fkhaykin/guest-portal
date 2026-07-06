@@ -7,6 +7,7 @@ import {
   sendMessage,
   deriveChannel,
   type LodgifyMessage,
+  type MessageAttachment,
 } from "@/lib/lodgify/messages";
 import {
   isRegistrationId,
@@ -27,11 +28,12 @@ type GuestMessageRow = {
   creation_time: string | null;
   guest_name: string | null;
   has_attachments: boolean;
+  attachments?: MessageAttachment[] | null;
 };
 
 function toLodgifyMessage(row: GuestMessageRow): LodgifyMessage {
   const type = row.message_type || "Comment";
-  return {
+  const msg: LodgifyMessage = {
     id: String(row.lodgify_message_id ?? row.id),
     message: row.message,
     subject: row.subject ?? "",
@@ -39,6 +41,10 @@ function toLodgifyMessage(row: GuestMessageRow): LodgifyMessage {
     created_at: row.creation_time ?? "",
     sender_name: type === "Owner" ? "You" : row.guest_name ?? "Guest",
   };
+  if (Array.isArray(row.attachments) && row.attachments.length) {
+    msg.attachments = row.attachments;
+  }
+  return msg;
 }
 
 async function upsertMessages(
@@ -60,6 +66,9 @@ async function upsertMessages(
       message: m.message ?? "",
       creation_time: m.created_at || null,
       guest_name: m.type === "Owner" ? null : m.sender_name,
+      // Refresh the cached presigned links on every pull; null (not omitted) so
+      // the batch upsert has uniform columns and a since-deleted attachment clears.
+      attachments: m.attachments && m.attachments.length ? m.attachments : null,
     }));
   if (!rows.length) return;
   await admin
@@ -120,7 +129,7 @@ export async function GET(
     }
     const { data: rows } = await admin
       .from("guest_message")
-      .select("id, lodgify_message_id, thread_uid, message_type, subject, message, creation_time, guest_name, has_attachments")
+      .select("id, lodgify_message_id, thread_uid, message_type, subject, message, creation_time, guest_name, has_attachments, attachments")
       .eq("thread_uid", threadUid)
       .order("creation_time", { ascending: true });
     // Opening the thread marks it read.
@@ -139,7 +148,7 @@ export async function GET(
     const admin = createAdminClient();
     const { data: rows } = await admin
       .from("guest_message")
-      .select("id, lodgify_message_id, thread_uid, message_type, subject, message, creation_time, guest_name, has_attachments")
+      .select("id, lodgify_message_id, thread_uid, message_type, subject, message, creation_time, guest_name, has_attachments, attachments")
       .eq("thread_uid", bookingId)
       .order("creation_time", { ascending: true });
     await admin
@@ -158,7 +167,7 @@ export async function GET(
     const admin = createAdminClient();
     const { data: rows } = await admin
       .from("guest_message")
-      .select("id, lodgify_message_id, thread_uid, message_type, subject, message, creation_time, guest_name, has_attachments")
+      .select("id, lodgify_message_id, thread_uid, message_type, subject, message, creation_time, guest_name, has_attachments, attachments")
       .eq("registration_id", bookingId)
       .order("creation_time", { ascending: true });
     // Opening the conversation marks every thread for this reservation read.
@@ -255,7 +264,7 @@ export async function GET(
   if (messages.length === 0) {
     const query = admin
       .from("guest_message")
-      .select("id, lodgify_message_id, thread_uid, message_type, subject, message, creation_time, guest_name, has_attachments")
+      .select("id, lodgify_message_id, thread_uid, message_type, subject, message, creation_time, guest_name, has_attachments, attachments")
       .or("channel.is.null,channel.neq.web")
       .order("creation_time", { ascending: true });
     const { data: rows } = threadUid
@@ -272,7 +281,7 @@ export async function GET(
   if (reg?.id) {
     const { data: webRows } = await admin
       .from("guest_message")
-      .select("id, lodgify_message_id, thread_uid, message_type, subject, message, creation_time, guest_name, has_attachments")
+      .select("id, lodgify_message_id, thread_uid, message_type, subject, message, creation_time, guest_name, has_attachments, attachments")
       .eq("registration_id", reg.id)
       .eq("channel", "web")
       .order("creation_time", { ascending: true });
