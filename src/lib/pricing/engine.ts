@@ -15,6 +15,9 @@
 //                    [min, max]; date overrides pierce everything
 //   min-stay       = seasonal default → last-minute drop → gap length → override
 
+import { holidayByDate, DEFAULT_HOLIDAYS, type HolidayRule } from "./holidays";
+export type { HolidayRule } from "./holidays";
+
 export type SeasonRule = { from: string; to: string; pct: number; label?: string }; // "MM-DD" recurring, inclusive, may wrap year-end
 export type EventRule = { from: string; to: string; pct: number; label?: string }; // "YYYY-MM-DD" inclusive
 export type LeadtimeStep = { maxDays: number; pct: number }; // sorted by maxDays asc; first match wins
@@ -37,6 +40,9 @@ export interface PricingRules {
   };
   smoothingPct: number;
   overrides: DateOverride[];
+  /** Recurring US holidays (auto-computed dates per year). Applied like events,
+   *  strongest-premium-wins. */
+  holidays: HolidayRule[];
   /** Booking-velocity premium: when a stay date's comp-set pickup (fraction of
    *  comps that booked it over the last ~7 days) crosses a tier, price up.
    *  Tiers checked highest-first; premium only — cooling is handled by
@@ -61,6 +67,7 @@ export interface RateFactors {
   season_pct: number;
   dow_pct: number;
   event_pct: number;
+  event_label: string | null; // the winning event/holiday name, for the UI
   leadtime_pct: number;
   pace_pct: number;
   gap_pct: number;
@@ -114,12 +121,16 @@ export const DEFAULT_RULES: PricingRules = {
       { days: 60, targetOcc: 0.45 },
       { days: 90, targetOcc: 0.35 },
     ],
-    maxPct: 15,
+    // Kept modest: an aggressive own-occupancy discount fights peak-season
+    // demand (empty calendar ≠ soft market). Market strength is captured by the
+    // velocity/comp-pickup factor instead.
+    maxPct: 8,
   },
   gap: { maxGapNights: 2, pct: -15, setMinStay: true },
   minStay: { base: 2, seasons: [], lastMinute: { withinDays: 7, value: 2 } },
   smoothingPct: 15,
   overrides: [],
+  holidays: DEFAULT_HOLIDAYS,
   velocity: {
     enabled: true,
     tiers: [
@@ -165,12 +176,17 @@ function seasonPct(rules: PricingRules, date: string): number {
   return 0;
 }
 
-function eventPct(rules: PricingRules, date: string): number {
+/** Strongest explicit event for a date (label included). */
+function explicitEvent(rules: PricingRules, date: string): { pct: number; label: string | null } {
   let best = 0;
+  let label: string | null = null;
   for (const ev of rules.events) {
-    if (date >= ev.from && date <= ev.to && Math.abs(ev.pct) > Math.abs(best)) best = ev.pct;
+    if (date >= ev.from && date <= ev.to && Math.abs(ev.pct) > Math.abs(best)) {
+      best = ev.pct;
+      label = ev.label ?? "Event";
+    }
   }
-  return best;
+  return { pct: best, label };
 }
 
 function leadtimePct(rules: PricingRules, daysOut: number): number {
@@ -281,6 +297,8 @@ export function computeRates(cfg: EngineConfig, input: EngineInput): ComputedRat
   const gaps = findGapNights(input, rules.gap.maxGapNights);
   const occBuckets = occupancyByBucket(input, rules.pace.buckets);
   const overrides = new Map(rules.overrides.map((o) => [o.date, o]));
+  // Recurring holidays for every year the horizon touches.
+  const holidays = holidayByDate(rules.holidays, input.today, addDays(input.today, input.horizonDays - 1));
 
   // Pass 1: per-date factors and the raw lead-time+pace dynamic.
   type Working = {
@@ -298,7 +316,12 @@ export function computeRates(cfg: EngineConfig, input: EngineInput): ComputedRat
     const daysOut = i;
     const season = seasonPct(rules, date);
     const dow = rules.dowPct[dayOfWeek(date)] ?? 0;
-    const event = eventPct(rules, date);
+    // Event = strongest of explicit events and recurring holidays.
+    const ev = explicitEvent(rules, date);
+    const hol = holidays.get(date);
+    const eventInfo = hol && Math.abs(hol.pct) > Math.abs(ev.pct) ? { pct: hol.pct, label: hol.label } : ev;
+    const event = eventInfo.pct;
+    const eventLabel = eventInfo.label;
     const lt = leadtimePct(rules, daysOut);
     const pace = pacePct(rules, daysOut, occBuckets);
     const gapLen = gaps.get(date);
@@ -340,6 +363,7 @@ export function computeRates(cfg: EngineConfig, input: EngineInput): ComputedRat
         season_pct: season,
         dow_pct: dow,
         event_pct: event,
+        event_label: event !== 0 ? eventLabel : null,
         leadtime_pct: lt,
         pace_pct: pace,
         gap_pct: gapPart,

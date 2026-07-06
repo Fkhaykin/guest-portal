@@ -21,6 +21,7 @@ import type {
   DateOverride,
   VelocityTier,
 } from "@/lib/pricing/engine";
+import { HOLIDAY_DEFS, DEFAULT_HOLIDAYS } from "@/lib/pricing/holidays";
 
 const DOW_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -301,6 +302,35 @@ function SeasonsEditor({ rules, onChange }: { rules: PricingRules; onChange: (r:
   );
 }
 
+function HolidaysEditor({ rules, onChange }: { rules: PricingRules; onChange: (r: PricingRules) => void }) {
+  // Merge stored overrides onto the full holiday catalog so every holiday shows.
+  const stored = new Map((rules.holidays ?? DEFAULT_HOLIDAYS).map((h) => [h.key, h]));
+  const list = HOLIDAY_DEFS.map((def) => {
+    const s = stored.get(def.key);
+    return { def, pct: s?.pct ?? def.defaultPct, enabled: s?.enabled ?? def.enabledByDefault };
+  });
+  const commit = (next: typeof list) =>
+    onChange({ ...rules, holidays: next.map((x) => ({ key: x.def.key, pct: x.pct, enabled: x.enabled })) });
+  return (
+    <div className="space-y-2">
+      <p className="text-xs text-muted-foreground">
+        Recurring US holidays — dates auto-compute every year (Thanksgiving = 4th Thursday, Labor Day =
+        1st Monday, etc.), so this never goes stale. Premiums are calibrated to what the market charges.
+      </p>
+      {list.map((h, i) => (
+        <div key={h.def.key} className="flex items-center gap-2">
+          <Switch
+            checked={h.enabled}
+            onCheckedChange={(v: boolean) => commit(list.map((x, j) => (j === i ? { ...x, enabled: v } : x)))}
+          />
+          <span className="flex-1 text-sm">{h.def.label}</span>
+          <PctInput value={h.pct} onChange={(v) => commit(list.map((x, j) => (j === i ? { ...x, pct: Math.max(0, v) } : x)))} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function EventsEditor({ rules, onChange }: { rules: PricingRules; onChange: (r: PricingRules) => void }) {
   const events = rules.events ?? [];
   const patch = (e: EventRule[]) => onChange({ ...rules, events: e });
@@ -516,16 +546,31 @@ export const CUSTOMIZATION_ITEMS: CustomizationItem[] = [
     Editor: SeasonsEditor,
   },
   {
-    key: "events",
-    title: "Events & Holidays",
+    key: "holidays",
+    title: "Holidays",
     category: "smart",
-    explainer: "Specific date windows (holidays, local events) layered on top of seasons.",
+    explainer: "Recurring US holidays with auto-computed dates every year. Calibrated to market premiums.",
+    applied: (r) => (r.holidays ?? DEFAULT_HOLIDAYS).some((h) => h.enabled && h.pct !== 0),
+    summary: (r) => {
+      const on = (r.holidays ?? DEFAULT_HOLIDAYS).filter((h) => h.enabled && h.pct !== 0);
+      if (!on.length) return "Off.";
+      const top = [...on].sort((a, b) => b.pct - a.pct).slice(0, 3);
+      const nameOf = (k: string) => HOLIDAY_DEFS.find((d) => d.key === k)?.label ?? k;
+      return `${on.length} holidays on · e.g. ${top.map((h) => `${nameOf(h.key)} +${h.pct}%`).join(", ")}.`;
+    },
+    Editor: HolidaysEditor,
+  },
+  {
+    key: "events",
+    title: "Custom Events",
+    category: "smart",
+    explainer: "One-off date windows (local events) layered on top of seasons and holidays.",
     applied: (r) => (r.events ?? []).length > 0,
     summary: (r) => {
       const e = r.events ?? [];
       return e.length
         ? `${e.length} event window${e.length > 1 ? "s" : ""}: ${e.slice(0, 3).map((x) => `${x.label || x.from} ${x.pct > 0 ? "+" : ""}${x.pct}%`).join(", ")}${e.length > 3 ? "…" : ""}`
-        : "No events.";
+        : "No custom events.";
     },
     Editor: EventsEditor,
   },

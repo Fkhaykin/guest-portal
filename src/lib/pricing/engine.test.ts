@@ -32,6 +32,7 @@ function cfg(rules: Partial<PricingRules> = {}, anchors: Partial<EngineConfig> =
       overrides: [],
       velocity: { enabled: false, tiers: [], maxPct: 15 },
       weather: { enabled: false, maxPct: 8 },
+      holidays: [],
       ...rules,
     },
   };
@@ -234,6 +235,45 @@ describe("velocity (comp-set pickup premium)", () => {
     expect(rateOn(rates, "2026-07-11").price_cents).toBe(50600);
     // neighbors unaffected (velocity is outside the smoothing pass)
     expect(rateOn(rates, "2026-07-10").price_cents).toBe(40000);
+  });
+});
+
+describe("recurring holidays", () => {
+  it("computes holiday dates every year and applies the premium (Labor Day + Thanksgiving)", () => {
+    const c = cfg({
+      holidays: [
+        { key: "laborday", pct: 100, enabled: true },
+        { key: "thanksgiving", pct: 160, enabled: true },
+      ],
+    });
+    // Labor Day 2026 = Mon Sep 7; window covers Fri Sep 4 – Sun Sep 6.
+    const rates = computeRates(c, { today: "2026-09-01", horizonDays: 120, occupiedNights: new Set() });
+    const sep5 = rates.find((r) => r.date === "2026-09-05")!; // Saturday
+    expect(sep5.factors.event_pct).toBe(100);
+    expect(sep5.factors.event_label).toBe("Labor Day");
+    // 40000 base × Sat dow(0 here) × (1 + 100/100) = 80000
+    expect(sep5.price_cents).toBe(80000);
+    // Thanksgiving 2026 = Thu Nov 26; Wed Nov 25 is in the window.
+    const nov25 = rates.find((r) => r.date === "2026-11-25")!;
+    expect(nov25.factors.event_pct).toBe(160);
+    expect(nov25.factors.event_label).toBe("Thanksgiving");
+  });
+
+  it("strongest of explicit event vs holiday wins", () => {
+    const c = cfg({
+      events: [{ from: "2026-12-31", to: "2026-12-31", pct: 50, label: "Custom" }],
+      holidays: [{ key: "nye", pct: 175, enabled: true }],
+    });
+    const rates = computeRates(c, { today: "2026-12-15", horizonDays: 30, occupiedNights: new Set() });
+    const nye = rates.find((r) => r.date === "2026-12-31")!;
+    expect(nye.factors.event_pct).toBe(175); // holiday beats the weaker custom event
+    expect(nye.factors.event_label).toBe("New Year's Eve");
+  });
+
+  it("disabled or zero-pct holidays do nothing", () => {
+    const c = cfg({ holidays: [{ key: "nye", pct: 175, enabled: false }] });
+    const rates = computeRates(c, { today: "2026-12-15", horizonDays: 30, occupiedNights: new Set() });
+    expect(rates.find((r) => r.date === "2026-12-31")!.factors.event_pct).toBe(0);
   });
 });
 

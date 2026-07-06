@@ -50,6 +50,8 @@ function monthLabel(y: number, m: number): string {
 function eventLabelFor(row: SnapshotRow, config: PricingConfig): string | null {
   const f = row.factors;
   if (!f || !f.event_pct) return null;
+  // The engine stores the winning event/holiday name directly.
+  if (f.event_label) return f.event_label;
   const ev = config.rules.events?.find((e) => row.stay_date >= e.from && row.stay_date <= e.to);
   return ev?.label ?? "Event";
 }

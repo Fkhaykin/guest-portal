@@ -59,7 +59,7 @@ export function buildLadder(row: SnapshotRow, config: PricingConfig): LadderRow[
   rows.push({ label: "Market factors", pct: null, runningCents: null, kind: "section" });
   if (f.season_pct) rows.push({ label: "Seasonality", pct: f.season_pct, runningCents: Math.round(seasonalBase), kind: "factor" });
   if (f.dow_pct) rows.push({ label: "Day of week", pct: f.dow_pct, runningCents: Math.round(afterDow), kind: "factor" });
-  if (f.event_pct) rows.push({ label: "Event / holiday", pct: f.event_pct, runningCents: Math.round(structural), kind: "factor" });
+  if (f.event_pct) rows.push({ label: f.event_label ?? "Event / holiday", pct: f.event_pct, runningCents: Math.round(structural), kind: "factor" });
   rows.push({ label: "Uncustomized price", pct: null, runningCents: Math.round(structural), kind: "total" });
 
   // Customizations: the surviving discount + any pace/velocity/weather premium + gap.
