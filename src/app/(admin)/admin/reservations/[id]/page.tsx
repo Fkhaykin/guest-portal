@@ -43,6 +43,8 @@ import {
   Check,
   MapPin,
   MessageSquare,
+  ShieldCheck,
+  ShieldAlert,
 } from "lucide-react";
 import { EditRegistrationDialog } from "@/components/admin/edit-registration-dialog";
 import { ReservationMessages } from "@/components/admin/reservation-messages";
@@ -89,6 +91,9 @@ type FullRegistration = {
   lodgify_infants: number;
   lodgify_num_pets: number;
   hoa_email_disabled: boolean;
+  id_verification_status: string;
+  id_verified_name: string | null;
+  id_name_match: boolean | null;
   created_at: string;
   updated_at: string;
   guest: {
@@ -211,7 +216,7 @@ export default function ReservationDetailPage() {
         stripe_customer_id, stripe_payment_method_id, stripe_deposit_invoice_id,
         stripe_balance_invoice_id, guest_list, pets,
         upsells, tips, lodgify_booking_id, lodgify_adults, lodgify_children, lodgify_infants,
-        lodgify_num_pets, hoa_email_disabled, created_at, updated_at,
+        lodgify_num_pets, hoa_email_disabled, id_verification_status, id_verified_name, id_name_match, created_at, updated_at,
         guest:guest_id(id, full_name, email, phone, mailing_address, lodgify_guest_id),
         property:property_id(id, name, nickname, address, slug, max_guests, lodgify_property_id, listing_urls, owner_name, owner_phone, owner_email, hoa_submission_email, emergency_contact_name, emergency_contact_phone)
       `)
@@ -598,6 +603,36 @@ export default function ReservationDetailPage() {
                 <XCircle className="h-3 w-3" /> Not registered
               </Badge>
             )}
+            {(() => {
+              // ID verification (direct/non-Airbnb guests). Unstarted/OTA → no badge.
+              const s = reg.id_verification_status;
+              if (s === "verified") {
+                return reg.id_name_match === false ? (
+                  <Badge variant="outline" className={`text-sm gap-1 ${toneBadge("warning")}`}>
+                    <ShieldAlert className="h-3 w-3" /> ID name mismatch
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className={`text-sm gap-1 ${toneBadge("success")}`}>
+                    <ShieldCheck className="h-3 w-3" /> ID verified
+                  </Badge>
+                );
+              }
+              if (s === "requires_input") {
+                return (
+                  <Badge variant="outline" className={`text-sm gap-1 ${toneBadge("danger")}`}>
+                    <ShieldAlert className="h-3 w-3" /> ID check failed
+                  </Badge>
+                );
+              }
+              if (s === "processing") {
+                return (
+                  <Badge variant="outline" className="text-sm gap-1 text-muted-foreground">
+                    <ShieldAlert className="h-3 w-3" /> ID check pending
+                  </Badge>
+                );
+              }
+              return null;
+            })()}
             {hasModifications && (
               <button type="button" onClick={openHistory}>
                 <Badge variant="outline" className={`text-sm gap-1 cursor-pointer transition-colors ${toneBadge("warning")}`}>
@@ -607,6 +642,16 @@ export default function ReservationDetailPage() {
             )}
           </div>
         </div>
+        {reg.id_verification_status === "verified" && reg.id_name_match === false && (
+          <div className={`mt-3 flex items-start gap-2 rounded-md px-3 py-2 text-sm ${toneBadge("warning")}`}>
+            <ShieldAlert className="h-4 w-4 shrink-0 mt-0.5" />
+            <span>
+              <strong>ID name mismatch.</strong> The verified government ID belongs to{" "}
+              <strong>{reg.id_verified_name || "an unrecognized name"}</strong>, but this booking is under{" "}
+              <strong>{guest?.full_name ?? "Unknown"}</strong>. Confirm the guest&apos;s identity before check-in.
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Quick Actions */}
