@@ -24,9 +24,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Trash2, Car, ChevronRight, ChevronLeft, Check, User, Mail, Users, PawPrint, Upload, FileCheck, ShoppingCart, Sparkles, X, PenLine, Undo2, Clock, Send, Loader2, Baby, CircleAlert } from "lucide-react";
+import { Plus, Trash2, Car, ChevronRight, ChevronLeft, Check, User, Mail, Users, PawPrint, Upload, FileCheck, ShoppingCart, Sparkles, X, PenLine, Undo2, Clock, Send, Loader2, Baby, CircleAlert, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { Checkbox } from "@/components/ui/checkbox";
+import { loadStripe } from "@stripe/stripe-js";
+
+// Stripe.js singleton for the Identity verification modal (direct bookings).
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? "");
 
 type AgeGroup = "over_21" | "under_21" | "infant";
 
@@ -264,15 +268,13 @@ export default function RegisterPage() {
   const [paidPetCount, setPaidPetCount] = useState(0); // how many extra pets have been paid for
   const [petFeeLoading, setPetFeeLoading] = useState(false);
 
-  // ID upload (front + back)
-  const [idFrontPath, setIdFrontPath] = useState<string | null>(null);
-  const [idFrontName, setIdFrontName] = useState<string | null>(null);
-  const [idBackPath, setIdBackPath] = useState<string | null>(null);
-  const [idBackName, setIdBackName] = useState<string | null>(null);
-  const [uploadingIdSide, setUploadingIdSide] = useState<string | null>(null);
-  const [idUploadError, setIdUploadError] = useState<string | null>(null);
+  // Government-ID verification via Stripe Identity (document + selfie).
+  type IdVerifyStatus = "unstarted" | "processing" | "verified" | "requires_input";
+  const [idVerifyStatus, setIdVerifyStatus] = useState<IdVerifyStatus>("unstarted");
+  const [idVerifyLoading, setIdVerifyLoading] = useState(false);
+  const [idVerifyError, setIdVerifyError] = useState<string | null>(null);
 
-  // Airbnb guests already verified by the platform — skip ID upload
+  // Airbnb guests are already identity-verified by the platform — skip our check
   const isAirbnb = /airbnb/i.test(session?.reservation.booking_source ?? "");
 
   // Signature
@@ -325,6 +327,20 @@ export default function RegisterPage() {
         setPetFeeCents(data.pet_fee_cents ?? 0);
       })
       .catch(() => {});
+
+    // Restore any prior ID-verification result (non-Airbnb only).
+    if (!/airbnb/i.test(s.reservation.booking_source ?? "")) {
+      fetch(`/api/guest/identity?registration_id=${s.reservation.id}`, {
+        headers: { "x-guest-token": getGuestToken() },
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data?.status === "verified") setIdVerifyStatus("verified");
+          else if (data?.status === "requires_input") setIdVerifyStatus("requires_input");
+          // "processing"/"canceled"/"unstarted" → leave the button available
+        })
+        .catch(() => {});
+    }
 
     setLoaded(true);
   }, [router]);
@@ -562,41 +578,83 @@ export default function RegisterPage() {
     }
   }
 
-  async function handleIdUpload(side: "front" | "back", file: File) {
+  async function startIdVerification() {
     if (!session) return;
-    setUploadingIdSide(side);
-    setIdUploadError(null);
-
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("registration_id", session.reservation.id);
-    formData.append("side", side);
+    setIdVerifyLoading(true);
+    setIdVerifyError(null);
 
     try {
-      const res = await fetch("/api/guest/upload-id", {
+      const res = await fetch("/api/guest/identity", {
         method: "POST",
-        headers: { "x-guest-token": getGuestToken() },
-        body: formData,
+        headers: { "Content-Type": "application/json", "x-guest-token": getGuestToken() },
+        body: JSON.stringify({ registration_id: session.reservation.id }),
       });
+      const data = await res.json().catch(() => null);
 
-      if (res.ok) {
-        const data = await res.json();
-        if (side === "front") {
-          setIdFrontPath(data.path);
-          setIdFrontName(file.name);
-        } else {
-          setIdBackPath(data.path);
-          setIdBackName(file.name);
-        }
-      } else {
-        const data = await res.json().catch(() => null);
-        setIdUploadError(data?.error || `Upload failed (${res.status}). Try a smaller photo or a different format.`);
+      if (!res.ok) {
+        setIdVerifyError(data?.error || "Couldn't start verification. Please try again.");
+        return;
       }
+      if (data.status === "verified") {
+        setIdVerifyStatus("verified");
+        return;
+      }
+
+      const stripe = await stripePromise;
+      if (!stripe) {
+        setIdVerifyError("Verification is unavailable right now. Please try again shortly.");
+        return;
+      }
+
+      setIdVerifyStatus("processing");
+      const { error } = await stripe.verifyIdentity(data.client_secret);
+      if (error) {
+        setIdVerifyStatus("requires_input");
+        setIdVerifyError(error.message || "Verification could not be completed. Please try again.");
+        return;
+      }
+
+      // The modal closed after the guest submitted — the result is async, so
+      // poll our status endpoint until Stripe finishes checking the document.
+      await pollIdStatus();
     } catch (err) {
-      setIdUploadError(`Network error: ${err instanceof Error ? err.message : "please try again"}.`);
+      setIdVerifyError(`Network error: ${err instanceof Error ? err.message : "please try again"}.`);
     } finally {
-      setUploadingIdSide(null);
+      setIdVerifyLoading(false);
     }
+  }
+
+  async function pollIdStatus() {
+    if (!session) return;
+    for (let i = 0; i < 24; i++) {
+      await new Promise((r) => setTimeout(r, 2500));
+      try {
+        const res = await fetch(
+          `/api/guest/identity?registration_id=${session.reservation.id}`,
+          { headers: { "x-guest-token": getGuestToken() } }
+        );
+        const data = await res.json().catch(() => null);
+        if (data?.status === "verified") {
+          setIdVerifyStatus("verified");
+          setIdVerifyError(null);
+          return;
+        }
+        if (data?.status === "requires_input") {
+          setIdVerifyStatus("requires_input");
+          setIdVerifyError("We couldn't verify that ID. Please try again with a clear photo of a valid, unexpired government ID.");
+          return;
+        }
+        if (data?.status === "canceled") {
+          // Closed before finishing — let them start over cleanly.
+          setIdVerifyStatus("unstarted");
+          return;
+        }
+      } catch {
+        // transient — keep polling
+      }
+    }
+    // Still processing after ~1min: leave a soft note; the webhook will finalize.
+    setIdVerifyError("Still processing your verification — this can take a minute. You can continue once it shows as verified.");
   }
 
   function addVehicle() {
@@ -819,8 +877,8 @@ export default function RegisterPage() {
       {step === 2 && (
         <form onSubmit={(e) => {
           e.preventDefault();
-          if (!isAirbnb && (!idFrontPath || !idBackPath)) {
-            toast.error("Please upload both sides of your government-issued ID to continue.");
+          if (!isAirbnb && idVerifyStatus !== "verified") {
+            toast.error("Please verify your identity to continue.");
             return;
           }
           setStep(3);
@@ -893,82 +951,40 @@ export default function RegisterPage() {
               <Separator />
               <div className="space-y-3">
                 <Label className="flex items-center gap-2">
-                  <Upload className="h-4 w-4" /> Government-Issued ID
+                  <ShieldCheck className="h-4 w-4" /> Identity Verification
                 </Label>
                 <p className="text-xs text-muted-foreground">
-                  Upload photos of the front and back of your driver&apos;s license, passport, or other government-issued ID.
+                  Direct bookings require a quick ID check — a photo of your government-issued ID plus a selfie. It&apos;s handled securely by Stripe; we never see or store your ID images.
                 </p>
-                <div className="grid grid-cols-2 gap-3">
-                {/* Front of ID */}
-                <div className="space-y-1.5">
-                  <p className="text-sm font-medium">Front of ID</p>
-                  {idFrontPath ? (
-                    <div className="flex items-center gap-2 rounded-lg border bg-muted/50 p-3">
-                      <FileCheck className="h-5 w-5 text-green-600 shrink-0" />
-                      <span className="text-sm truncate flex-1">{idFrontName}</span>
-                      <Button
-                        type="button" variant="ghost" size="sm"
-                        onClick={() => { setIdFrontPath(null); setIdFrontName(null); }}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ) : (
-                    <label className="flex flex-col items-center justify-center gap-1.5 rounded-lg border-2 border-dashed p-4 cursor-pointer hover:bg-muted/50 transition-colors">
-                      <Upload className="h-6 w-6 text-muted-foreground" />
-                      <span className="text-sm text-muted-foreground">
-                        {uploadingIdSide === "front" ? "Uploading..." : "Tap to upload front of ID"}
-                      </span>
-                      <input
-                        type="file" className="hidden"
-                        accept="image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf"
-                        disabled={uploadingIdSide === "front"}
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) handleIdUpload("front", file);
-                          e.target.value = "";
-                        }}
-                      />
-                    </label>
-                  )}
-                </div>
-                {/* Back of ID */}
-                <div className="space-y-1.5">
-                  <p className="text-sm font-medium">Back of ID</p>
-                  {idBackPath ? (
-                    <div className="flex items-center gap-2 rounded-lg border bg-muted/50 p-3">
-                      <FileCheck className="h-5 w-5 text-green-600 shrink-0" />
-                      <span className="text-sm truncate flex-1">{idBackName}</span>
-                      <Button
-                        type="button" variant="ghost" size="sm"
-                        onClick={() => { setIdBackPath(null); setIdBackName(null); }}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ) : (
-                    <label className="flex flex-col items-center justify-center gap-1.5 rounded-lg border-2 border-dashed p-4 cursor-pointer hover:bg-muted/50 transition-colors">
-                      <Upload className="h-6 w-6 text-muted-foreground" />
-                      <span className="text-sm text-muted-foreground">
-                        {uploadingIdSide === "back" ? "Uploading..." : "Tap to upload back of ID"}
-                      </span>
-                      <input
-                        type="file" className="hidden"
-                        accept="image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf"
-                        disabled={uploadingIdSide === "back"}
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) handleIdUpload("back", file);
-                          e.target.value = "";
-                        }}
-                      />
-                    </label>
-                  )}
-                </div>
-                </div>
-                {idUploadError && (
+                {idVerifyStatus === "verified" ? (
+                  <div className="flex items-center gap-2 rounded-lg border border-green-600/30 bg-green-600/10 p-3">
+                    <FileCheck className="h-5 w-5 text-green-600 shrink-0" />
+                    <span className="text-sm font-medium text-green-700 dark:text-green-400">
+                      Identity verified
+                    </span>
+                  </div>
+                ) : idVerifyStatus === "processing" ? (
+                  <div className="flex items-center gap-2 rounded-lg border bg-muted/50 p-3">
+                    <Loader2 className="h-5 w-5 shrink-0 animate-spin text-muted-foreground" />
+                    <span className="text-sm text-muted-foreground">
+                      Verifying your ID… this can take a moment.
+                    </span>
+                  </div>
+                ) : (
+                  <Button
+                    type="button" variant="outline" className="w-full"
+                    disabled={idVerifyLoading} onClick={startIdVerification}
+                  >
+                    {idVerifyLoading ? (
+                      <><Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> Starting…</>
+                    ) : (
+                      <><ShieldCheck className="h-4 w-4 mr-1.5" /> {idVerifyStatus === "requires_input" ? "Try verification again" : "Verify my identity"}</>
+                    )}
+                  </Button>
+                )}
+                {idVerifyError && (
                   <p className="flex items-center gap-1.5 rounded-md bg-destructive/10 px-2.5 py-1.5 text-sm text-destructive">
-                    <CircleAlert className="h-4 w-4 shrink-0" /> {idUploadError}
+                    <CircleAlert className="h-4 w-4 shrink-0" /> {idVerifyError}
                   </p>
                 )}
               </div>
@@ -976,9 +992,9 @@ export default function RegisterPage() {
               )}
             </CardContent>
           </Card>
-          {!isAirbnb && (!idFrontPath || !idBackPath) && !idUploadError && (
+          {!isAirbnb && idVerifyStatus !== "verified" && !idVerifyError && (
             <p className="mx-auto flex w-fit items-center gap-1.5 rounded-md bg-destructive/10 px-2.5 py-1.5 text-sm text-destructive">
-              <CircleAlert className="h-4 w-4 shrink-0" /> Please upload both sides of your ID to continue.
+              <CircleAlert className="h-4 w-4 shrink-0" /> Please verify your identity to continue.
             </p>
           )}
           {navButtons(1)}

@@ -428,6 +428,11 @@ export type Database = {
           stripe_deposit_invoice_id: string | null;
           stripe_balance_invoice_id: string | null;
           hoa_email_disabled: boolean;
+          id_verification_status: string;
+          id_verification_session_id: string | null;
+          id_verified_name: string | null;
+          id_name_match: boolean | null;
+          id_verified_at: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -463,6 +468,11 @@ export type Database = {
           stripe_deposit_invoice_id?: string | null;
           stripe_balance_invoice_id?: string | null;
           hoa_email_disabled?: boolean;
+          id_verification_status?: string;
+          id_verification_session_id?: string | null;
+          id_verified_name?: string | null;
+          id_name_match?: boolean | null;
+          id_verified_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -498,6 +508,11 @@ export type Database = {
           stripe_deposit_invoice_id?: string | null;
           stripe_balance_invoice_id?: string | null;
           hoa_email_disabled?: boolean;
+          id_verification_status?: string;
+          id_verification_session_id?: string | null;
+          id_verified_name?: string | null;
+          id_name_match?: boolean | null;
+          id_verified_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };

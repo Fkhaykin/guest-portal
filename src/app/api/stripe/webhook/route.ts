@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { pushBookingToLodgify } from "@/lib/lodgify/push";
 import { sendDirectBookingConfirmation } from "@/lib/guest-messages/send";
 import { applyExtension } from "@/lib/upsells/extend-stay";
+import { finalizeIdentitySession } from "@/lib/identity/verify";
 import Stripe from "stripe";
 
 export async function POST(request: Request) {
@@ -125,6 +126,18 @@ export async function POST(request: Request) {
     if (isBooking) {
       console.log(`[webhook] Booking checkout expired: registration=${session.metadata?.registration_id}`);
     }
+  }
+
+  // Stripe Identity: reconcile the document/selfie verification onto the
+  // registration. Idempotent — the client status poll may finalize it first.
+  if (
+    event.type === "identity.verification_session.verified" ||
+    event.type === "identity.verification_session.requires_input"
+  ) {
+    const vs = event.data.object as Stripe.Identity.VerificationSession;
+    await finalizeIdentitySession(supabase, vs).catch((err) =>
+      console.error("[webhook] identity finalize failed:", err)
+    );
   }
 
   if (event.type === "payment_intent.payment_failed") {
