@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { validateCleanerSession } from "@/lib/cleaner/auth";
 import { getSessionToken } from "@/lib/cleaner/session";
-import type { CleaningPhotoExif } from "@/types/database";
+import type { CleaningPhotoExif, PetEntry } from "@/types/database";
+import type { ClaimEmailPhoto } from "@/lib/email/send-aircover-claim";
 
 export async function POST(request: Request) {
   const token = await getSessionToken();
@@ -57,7 +58,7 @@ export async function POST(request: Request) {
 
   const { data: reg } = await supabase
     .from("registration")
-    .select("id, property_id, check_in_date, check_out_date, lodgify_booking_id, guest:guest_id(full_name)")
+    .select("id, property_id, check_in_date, check_out_date, lodgify_booking_id, pets, guest:guest_id(full_name, email, phone)")
     .eq("id", registration_id)
     .in("property_id", propertyIds)
     .single();
@@ -159,7 +160,9 @@ export async function POST(request: Request) {
     const { data: createdClaims } = await supabase
       .from("aircover_claim")
       .insert(claimsToCreate)
-      .select("id, claim_type");
+      .select(
+        "id, claim_type, damage_description, damage_photos, pet_description, reported_pet_count, reported_pet_labels, expected_pet_count"
+      );
 
     // Send email notification for each new claim
     if (createdClaims && createdClaims.length > 0) {
@@ -179,12 +182,59 @@ export async function POST(request: Request) {
 
           if (host?.email) {
             const { sendAircoverClaimEmail } = await import("@/lib/email/send-aircover-claim");
-            const guestName = (reg.guest as unknown as { full_name: string })?.full_name ?? "Unknown Guest";
+            const guest = reg.guest as unknown as {
+              full_name: string;
+              email: string | null;
+              phone: string | null;
+            } | null;
+            const guestName = guest?.full_name ?? "Unknown Guest";
             const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://guest.summitlakeside.com";
             const portalBookingUrl = `${appUrl}/p/${property.slug}/register`;
             const airbnbUrl = (property.listing_urls as Record<string, string>)?.airbnb || null;
+            // Admin dashboard lives on the admin subdomain (guest. → admin.).
+            const adminBase = appUrl.replace("://guest.", "://admin.");
+            const adminClaimUrl = `${adminBase}/aircover-claims`;
+            const registeredPets = ((reg.pets as PetEntry[] | null) ?? []).map((p) => ({
+              name: p.name ?? null,
+              kind: p.kind ?? null,
+            }));
 
             for (const claim of createdClaims) {
+              // For damage claims, download photos from the private bucket so
+              // they can be embedded inline and attached to the email.
+              const photos: ClaimEmailPhoto[] = [];
+              if (claim.claim_type === "damage") {
+                const paths: string[] = claim.damage_photos ?? [];
+                await Promise.all(
+                  paths.map(async (path, i) => {
+                    try {
+                      const { data: blob } = await supabase.storage
+                        .from("damage-photos")
+                        .download(path);
+                      if (!blob) return;
+                      const buffer = Buffer.from(await blob.arrayBuffer());
+                      const ext = (path.split(".").pop() || "jpg").toLowerCase();
+                      const contentType =
+                        ext === "png"
+                          ? "image/png"
+                          : ext === "webp"
+                            ? "image/webp"
+                            : ext === "heic"
+                              ? "image/heic"
+                              : "image/jpeg";
+                      photos[i] = {
+                        filename: `damage-${i + 1}.${ext}`,
+                        contentBase64: buffer.toString("base64"),
+                        contentType,
+                        contentId: `damage-${claim.id}-${i}@summitlakeside.com`,
+                      };
+                    } catch (photoErr) {
+                      console.error("Failed to load damage photo for email:", path, photoErr);
+                    }
+                  })
+                );
+              }
+
               await sendAircoverClaimEmail({
                 to: host.email,
                 hostName: host.full_name,
@@ -192,10 +242,21 @@ export async function POST(request: Request) {
                 claimType: claim.claim_type,
                 claimId: claim.id,
                 guestName,
+                guestEmail: guest?.email ?? null,
+                guestPhone: guest?.phone ?? null,
                 checkInDate: reg.check_in_date,
                 checkOutDate: reg.check_out_date,
+                reportedByName: cleaner.name,
                 portalBookingUrl,
                 airbnbUrl,
+                adminClaimUrl,
+                damageDescription: claim.damage_description,
+                photos: photos.filter(Boolean),
+                petDescription: claim.pet_description,
+                reportedPetCount: claim.reported_pet_count,
+                reportedPetLabels: claim.reported_pet_labels ?? [],
+                expectedPetCount: claim.expected_pet_count,
+                registeredPets,
               }).catch((err) => {
                 console.error("Failed to send aircover claim email:", err);
               });
