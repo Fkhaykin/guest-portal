@@ -17,7 +17,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ArrowDown, ArrowUp, ArrowUpDown, CalendarRange, ChevronDown, List, Plus, RefreshCw, Search, X, CalendarX } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, CalendarRange, ChevronDown, List, Plus, RefreshCw, Search, X, CalendarX, ShieldCheck, ShieldAlert } from "lucide-react";
 import { toneBadge, statusTone } from "@/lib/status-styles";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
@@ -44,6 +44,8 @@ type Registration = {
   status: "active" | "completed" | "cancelled";
   booking_source: string | null;
   signature_url: string | null;
+  id_verification_status: string;
+  id_name_match: boolean | null;
   total_amount_cents: number;
   guest_list: GuestListEntry[] | null;
   pets: PetEntry[] | null;
@@ -53,6 +55,32 @@ type Registration = {
   guest: { full_name: string; email: string | null; phone: string | null } | null;
   property: { name: string; nickname: string | null; cover_image_url: string | null } | null;
 };
+
+/**
+ * Compact ID-verification indicator for list rows. Shows a chip only for
+ * actionable states (name mismatch, failed check) and a subtle check for a
+ * clean pass; renders nothing for OTA / unverified / in-progress rows.
+ */
+function IdFlag({ status, nameMatch }: { status: string; nameMatch: boolean | null }) {
+  if (status === "verified" && nameMatch === false) {
+    return (
+      <span title="ID name does not match the booking" className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-medium ${toneBadge("warning")}`}>
+        <ShieldAlert className="h-3 w-3" /> ID mismatch
+      </span>
+    );
+  }
+  if (status === "requires_input") {
+    return (
+      <span title="ID verification failed" className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-medium ${toneBadge("danger")}`}>
+        <ShieldAlert className="h-3 w-3" /> ID failed
+      </span>
+    );
+  }
+  if (status === "verified") {
+    return <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-success" aria-label="ID verified" />;
+  }
+  return null;
+}
 
 export default function AdminReservationsPage() {
   const supabase = createClient();
@@ -88,7 +116,7 @@ export default function AdminReservationsPage() {
     setLoading(true);
     const { data } = await supabase
       .from("registration")
-      .select("id, property_id, check_in_date, check_out_date, num_guests, lodgify_adults, lodgify_children, lodgify_infants, lodgify_num_pets, status, booking_source, signature_url, total_amount_cents, guest_list, pets, created_at, updated_at, booked_at, guest:guest_id(full_name, email, phone), property:property_id(name, nickname, cover_image_url)")
+      .select("id, property_id, check_in_date, check_out_date, num_guests, lodgify_adults, lodgify_children, lodgify_infants, lodgify_num_pets, status, booking_source, signature_url, id_verification_status, id_name_match, total_amount_cents, guest_list, pets, created_at, updated_at, booked_at, guest:guest_id(full_name, email, phone), property:property_id(name, nickname, cover_image_url)")
       .order("check_in_date", { ascending: false });
     if (data) setRegistrations(data as unknown as Registration[]);
     setLoading(false);
@@ -520,7 +548,10 @@ export default function AdminReservationsPage() {
                     >
                       <TableCell>
                         <div>
-                          <p className="font-medium">{guest?.full_name ?? "Unknown"}</p>
+                          <div className="flex items-center gap-1.5">
+                            <p className="font-medium">{guest?.full_name ?? "Unknown"}</p>
+                            <IdFlag status={reg.id_verification_status} nameMatch={reg.id_name_match} />
+                          </div>
                           <p className="text-xs text-muted-foreground">
                             {guest?.email || guest?.phone}
                           </p>
@@ -622,7 +653,10 @@ export default function AdminReservationsPage() {
                   {/* Guest + status */}
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <p className="font-semibold truncate">{guest?.full_name ?? "Unknown"}</p>
+                      <div className="flex items-center gap-1.5">
+                        <p className="font-semibold truncate">{guest?.full_name ?? "Unknown"}</p>
+                        <IdFlag status={reg.id_verification_status} nameMatch={reg.id_name_match} />
+                      </div>
                       {(guest?.email || guest?.phone) && (
                         <p className="text-xs text-muted-foreground truncate">{guest?.email || guest?.phone}</p>
                       )}
