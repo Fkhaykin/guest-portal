@@ -19,6 +19,7 @@ type BookingRow = {
   signature_url: string | null;
   upsells: UpsellEntry[] | null;
   review_request_disabled: boolean;
+  review_request_forced: boolean;
   review_request_skipped_at: string | null;
   guest: { full_name: string; email: string | null; phone: string | null };
   property: { name: string; slug: string; nickname: string | null; host_id: string };
@@ -27,7 +28,7 @@ type BookingRow = {
 export type BatchResult = { sent: number; skipped: number; errors: number };
 
 const BOOKING_SELECT =
-  "id, lodgify_booking_id, booking_source, check_in_date, check_out_date, signature_url, upsells, review_request_disabled, review_request_skipped_at, guest:guest_id(full_name, email, phone), property:property_id(name, slug, nickname, host_id)";
+  "id, lodgify_booking_id, booking_source, check_in_date, check_out_date, signature_url, upsells, review_request_disabled, review_request_forced, review_request_skipped_at, guest:guest_id(full_name, email, phone), property:property_id(name, slug, nickname, host_id)";
 
 export function offsetDate(days: number): string {
   const d = new Date();
@@ -186,6 +187,11 @@ export async function runMorningSends() {
         if (row.review_request_disabled) {
           console.log(`[guest-msg-cron] Skipping review request for ${row.id}: disabled by admin`);
           return false;
+        }
+        // Admin manually forced the request on, overriding the sentiment gate.
+        if (row.review_request_forced) {
+          console.log(`[guest-msg-cron] Forcing review request for ${row.id}: manual admin override`);
+          return true;
         }
         const gate = await shouldRequestReview(row.lodgify_booking_id, row.id);
         if (!gate.send) {

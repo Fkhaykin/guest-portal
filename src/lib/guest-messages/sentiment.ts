@@ -105,7 +105,7 @@ export async function refreshReviewSentiment(opts: {
 
   let query = supabase
     .from("registration")
-    .select("id, lodgify_booking_id, status, check_out_date, review_request_disabled")
+    .select("id, lodgify_booking_id, status, check_out_date, review_request_disabled, review_request_forced")
     .limit(1);
   if (opts.registrationId) query = query.eq("id", opts.registrationId);
   else if (opts.lodgifyBookingId) query = query.eq("lodgify_booking_id", opts.lodgifyBookingId);
@@ -113,7 +113,8 @@ export async function refreshReviewSentiment(opts: {
 
   const { data: regs } = await query;
   const reg = regs?.[0];
-  if (!reg || reg.status === "cancelled" || reg.review_request_disabled) return;
+  // A manual force-on/force-off is a sticky decision the AI must not overturn.
+  if (!reg || reg.status === "cancelled" || reg.review_request_disabled || reg.review_request_forced) return;
 
   // Once the morning-after-checkout cron has made the final send/skip call, a
   // late message must not rewrite (or clear) that historical record.

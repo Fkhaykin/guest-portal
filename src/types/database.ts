@@ -429,6 +429,7 @@ export type Database = {
           stripe_balance_invoice_id: string | null;
           hoa_email_disabled: boolean;
           review_request_disabled: boolean;
+          review_request_forced: boolean;
           review_request_skipped_at: string | null;
           review_request_skip_reason: string | null;
           review_sentiment_checked_at: string | null;
@@ -473,6 +474,7 @@ export type Database = {
           stripe_balance_invoice_id?: string | null;
           hoa_email_disabled?: boolean;
           review_request_disabled?: boolean;
+          review_request_forced?: boolean;
           review_request_skipped_at?: string | null;
           review_request_skip_reason?: string | null;
           review_sentiment_checked_at?: string | null;
@@ -517,6 +519,7 @@ export type Database = {
           stripe_balance_invoice_id?: string | null;
           hoa_email_disabled?: boolean;
           review_request_disabled?: boolean;
+          review_request_forced?: boolean;
           review_request_skipped_at?: string | null;
           review_request_skip_reason?: string | null;
           review_sentiment_checked_at?: string | null;

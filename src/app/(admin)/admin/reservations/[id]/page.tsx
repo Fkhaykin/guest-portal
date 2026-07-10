@@ -96,6 +96,7 @@ type FullRegistration = {
   lodgify_num_pets: number;
   hoa_email_disabled: boolean;
   review_request_disabled: boolean;
+  review_request_forced: boolean;
   review_request_skipped_at: string | null;
   review_request_skip_reason: string | null;
   id_verification_status: string;
@@ -225,7 +226,7 @@ export default function ReservationDetailPage() {
         stripe_customer_id, stripe_payment_method_id, stripe_deposit_invoice_id,
         stripe_balance_invoice_id, guest_list, pets,
         upsells, tips, lodgify_booking_id, lodgify_adults, lodgify_children, lodgify_infants,
-        lodgify_num_pets, hoa_email_disabled, review_request_disabled, review_request_skipped_at, review_request_skip_reason,
+        lodgify_num_pets, hoa_email_disabled, review_request_disabled, review_request_forced, review_request_skipped_at, review_request_skip_reason,
         id_verification_status, id_verified_name, id_name_match, created_at, updated_at,
         guest:guest_id(id, full_name, email, phone, mailing_address, lodgify_guest_id),
         property:property_id(id, name, nickname, address, slug, max_guests, lodgify_property_id, listing_urls, owner_name, owner_phone, owner_email, hoa_submission_email, emergency_contact_name, emergency_contact_phone)
@@ -418,21 +419,42 @@ export default function ReservationDetailPage() {
     }
   }
 
-  async function toggleReviewRequest(disabled: boolean) {
+  // Both toggle directions are sticky manual overrides: ON force-sends (and
+  // clears any auto-skip flag), OFF force-mutes. The AI won't overturn either.
+  async function toggleReviewRequest(nextOn: boolean) {
     if (!reg) return;
     setReviewToggling(true);
+    const snapshot = {
+      review_request_disabled: reg.review_request_disabled,
+      review_request_forced: reg.review_request_forced,
+      review_request_skipped_at: reg.review_request_skipped_at,
+      review_request_skip_reason: reg.review_request_skip_reason,
+    };
     // Optimistic update
-    setReg((prev) => (prev ? { ...prev, review_request_disabled: disabled } : prev));
+    setReg((prev) =>
+      prev
+        ? {
+            ...prev,
+            review_request_disabled: !nextOn,
+            review_request_forced: nextOn,
+            ...(nextOn ? { review_request_skipped_at: null, review_request_skip_reason: null } : {}),
+          }
+        : prev
+    );
     try {
       const res = await fetch("/api/admin/registration", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ registration_id: id, review_request_disabled: disabled }),
+        body: JSON.stringify({
+          registration_id: id,
+          review_request_disabled: !nextOn,
+          review_request_forced: nextOn,
+        }),
       });
       if (!res.ok) throw new Error("Failed");
     } catch {
       // Revert on failure
-      setReg((prev) => (prev ? { ...prev, review_request_disabled: !disabled } : prev));
+      setReg((prev) => (prev ? { ...prev, ...snapshot } : prev));
     } finally {
       setReviewToggling(false);
     }
@@ -1042,10 +1064,14 @@ export default function ReservationDetailPage() {
                     </p>
                     <p className="text-xs text-muted-foreground">
                       {reg.review_request_disabled
-                        ? "Off — this guest won't be asked to leave a review after check-out. Use when you know the stay went badly."
+                        ? "Off — you've turned this off, so this guest won't be asked for a review. Overrides the automatic sentiment check."
+                        : reg.review_request_forced
+                        ? "On — you've manually turned this on. It will send even if the automatic check flags a concern."
+                        : reg.review_request_skipped_at
+                        ? "Off — the automatic check flagged a concern (below), so no review request will be sent. It self-corrects if the guest's messages turn positive; switch it on to force-send anyway."
                         : "On — the morning after check-out, the guest gets an automated message asking for a review (skipped automatically if the conversation shows problems)."}
                     </p>
-                    {reg.review_request_skipped_at ? (
+                    {!reg.review_request_disabled && !reg.review_request_forced && reg.review_request_skipped_at ? (
                       <div className={`mt-1.5 flex items-start gap-1.5 rounded-md px-2.5 py-1.5 text-xs ${toneBadge("warning")}`}>
                         <TriangleAlert className="h-3.5 w-3.5 shrink-0 mt-0.5" />
                         {displayStatus === "past" ? (
@@ -1077,9 +1103,9 @@ export default function ReservationDetailPage() {
                     ) : null}
                   </div>
                   <Switch
-                    checked={!reg.review_request_disabled}
+                    checked={!reg.review_request_disabled && (reg.review_request_forced || !reg.review_request_skipped_at)}
                     disabled={reviewToggling}
-                    onCheckedChange={(checked) => toggleReviewRequest(!checked)}
+                    onCheckedChange={(checked) => toggleReviewRequest(checked)}
                     aria-label="Toggle post-checkout review request"
                   />
                 </div>

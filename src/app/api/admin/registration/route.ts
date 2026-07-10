@@ -53,6 +53,7 @@ export async function PATCH(request: NextRequest) {
     registration_id: string;
     hoa_email_disabled?: boolean;
     review_request_disabled?: boolean;
+    review_request_forced?: boolean;
   };
   try {
     body = await request.json();
@@ -60,7 +61,13 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const update: { hoa_email_disabled?: boolean; review_request_disabled?: boolean } = {};
+  const update: {
+    hoa_email_disabled?: boolean;
+    review_request_disabled?: boolean;
+    review_request_forced?: boolean;
+    review_request_skipped_at?: string | null;
+    review_request_skip_reason?: string | null;
+  } = {};
   const summaries: string[] = [];
   if (typeof body.hoa_email_disabled === "boolean") {
     update.hoa_email_disabled = body.hoa_email_disabled;
@@ -70,12 +77,22 @@ export async function PATCH(request: NextRequest) {
         : "Automatic HOA registration submission turned on for this reservation"
     );
   }
-  if (typeof body.review_request_disabled === "boolean") {
-    update.review_request_disabled = body.review_request_disabled;
+  // The review-request toggle sends both flags: on = force-on, off = force-off.
+  // Both are sticky manual overrides; forcing on also clears any auto-skip flag
+  // so the card reflects the send and the cron won't re-skip.
+  if (typeof body.review_request_disabled === "boolean" || typeof body.review_request_forced === "boolean") {
+    if (typeof body.review_request_disabled === "boolean") update.review_request_disabled = body.review_request_disabled;
+    if (typeof body.review_request_forced === "boolean") update.review_request_forced = body.review_request_forced;
+    if (body.review_request_forced === true) {
+      update.review_request_skipped_at = null;
+      update.review_request_skip_reason = null;
+    }
     summaries.push(
-      body.review_request_disabled
+      body.review_request_forced === true
+        ? "Post-checkout review request manually turned on for this reservation (overriding automatic skip)"
+        : body.review_request_disabled === true
         ? "Post-checkout review request turned off for this reservation"
-        : "Post-checkout review request turned on for this reservation"
+        : "Post-checkout review request set to automatic for this reservation"
     );
   }
 
