@@ -354,6 +354,9 @@ export async function syncBooking(booking: LodgifyBooking, options?: { skipNotif
           : {}),
         ...(booking.date_created ? { booked_at: booking.date_created } : {}),
         ...(booking.thread_uid ? { lodgify_thread_uid: booking.thread_uid } : {}),
+        // Itemized price snapshot — only carried by v2 detail fetches; omit
+        // when null so v1 batch syncs don't wipe a previously-stored breakdown.
+        ...(booking.price_breakdown ? { lodgify_price_breakdown: booking.price_breakdown } : {}),
         // OTA confirmation code (Airbnb/VRBO) lets guests look up by the code
         // printed on their channel booking. Only set when present so a channel
         // that omits it never nulls out a previously-cached value.

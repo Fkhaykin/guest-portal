@@ -87,6 +87,27 @@ export interface LodgifyGuest {
   phone: string | null;
 }
 
+// Itemized guest-price snapshot from the v2 booking detail. All money fields
+// are integer cents. Only the v2 detail endpoint carries this — v1 list
+// bookings have price_breakdown: null, and the sync never overwrites a stored
+// breakdown with null. host_fee/payout come from Airbnb's external_booking
+// blob and are null for other channels.
+export interface LodgifyPriceBreakdown {
+  currency: string;
+  total: number;             // gross guest total (stay + fees + taxes)
+  stay: number | null;
+  fees: number | null;
+  taxes: number | null;
+  vat: number | null;
+  addons: number | null;
+  promotions: number | null;
+  amount_paid: number | null;
+  amount_due: number | null;
+  host_fee: number | null;   // OTA service fee withheld from the host
+  payout: number | null;     // expected host payout after the OTA fee
+  items: Array<{ type: string; amount: number; description: string }>;
+}
+
 export interface LodgifyBooking {
   id: number;
   property_id: number;
@@ -111,6 +132,7 @@ export interface LodgifyBooking {
   // OTA confirmation code (Airbnb/VRBO/etc.), parsed out of source_text. Null for
   // direct/manual bookings. Present on both v1 list and v2 detail responses.
   ota_confirmation_code: string | null;
+  price_breakdown: LodgifyPriceBreakdown | null; // v2 detail only
 }
 
 // v1 response shape
@@ -252,6 +274,7 @@ export async function getBookings(params?: {
       date_created: b.created_at ?? b.date_created ?? null,
       thread_uid: null,
       ota_confirmation_code: parseOtaConfirmationCode(b.source_text),
+      price_breakdown: null,
     };
   });
 
@@ -412,7 +435,27 @@ export async function getBookingById(bookingId: number): Promise<LodgifyBooking>
     notes?: string | null;
     total_amount?: number | null;
     amount?: number | null;
-    subtotals?: { stay?: number | null };
+    currency_code?: string | null;
+    subtotals?: {
+      stay?: number | null;
+      promotions?: number | null;
+      fees?: number | null;
+      taxes?: number | null;
+      vat?: number | null;
+      addons?: number | null;
+    };
+    amount_paid?: number | null;
+    amount_due?: number | null;
+    quote?: {
+      room_type_items?: Array<{
+        prices?: Array<{ type?: string; amount?: number; description?: string }>;
+      }>;
+      addon_items?: Array<{ type?: string; amount?: number; description?: string }>;
+      other_items?: Array<{ type?: string; amount?: number; description?: string }>;
+    };
+    // JSON-encoded STRING of channel metadata (Airbnb only) — carries the
+    // host fee ("Listing Host Fee") and expected payout ("Expected Amount").
+    external_booking?: string | null;
     created_at?: string | null;
     thread_uid?: string | null;
     source_text?: string | null;
@@ -425,6 +468,61 @@ export async function getBookingById(bookingId: number): Promise<LodgifyBooking>
   // Prefer subtotals.stay (rental amount excl. taxes/platform fees) over total_amount
   const stay = raw.subtotals?.stay;
   const resolvedAmount = (stay && stay > 0) ? stay : (raw.total_amount ?? raw.amount ?? null);
+
+  const toCents = (v: number | null | undefined): number | null =>
+    typeof v === "number" && Number.isFinite(v) ? Math.round(v * 100) : null;
+
+  // Itemized quote lines (nightly total, each fee, each tax). Merge duplicate
+  // lines by type+description — Airbnb reports the same tax name once per
+  // jurisdiction rate, which is noise at display time.
+  const itemMap = new Map<string, { type: string; amount: number; description: string }>();
+  const rawItems = [
+    ...(raw.quote?.room_type_items ?? []).flatMap((rt) => rt.prices ?? []),
+    ...(raw.quote?.addon_items ?? []),
+    ...(raw.quote?.other_items ?? []),
+  ];
+  for (const it of rawItems) {
+    const cents = toCents(it.amount);
+    if (cents == null || !it.type) continue;
+    const key = `${it.type}|${it.description ?? ""}`;
+    const existing = itemMap.get(key);
+    if (existing) existing.amount += cents;
+    else itemMap.set(key, { type: it.type, amount: cents, description: it.description ?? "" });
+  }
+
+  // Airbnb-only: service fee + expected payout from the external_booking blob.
+  let hostFee: number | null = null;
+  let payout: number | null = null;
+  if (raw.external_booking) {
+    try {
+      const ext = JSON.parse(raw.external_booking) as Record<string, unknown>;
+      hostFee = toCents(typeof ext["Listing Host Fee"] === "number" ? (ext["Listing Host Fee"] as number) : null);
+      payout = toCents(typeof ext["Expected Amount"] === "number" ? (ext["Expected Amount"] as number) : null);
+      if (hostFee === 0) hostFee = null;
+      if (payout === 0) payout = null;
+    } catch {
+      // Malformed blob — breakdown still useful without payout figures
+    }
+  }
+
+  const grossTotal = toCents(raw.total_amount ?? raw.amount);
+  const price_breakdown: LodgifyPriceBreakdown | null = grossTotal
+    ? {
+        currency: raw.currency_code || "USD",
+        total: grossTotal,
+        stay: toCents(raw.subtotals?.stay),
+        fees: toCents(raw.subtotals?.fees),
+        taxes: toCents(raw.subtotals?.taxes),
+        vat: toCents(raw.subtotals?.vat),
+        addons: toCents(raw.subtotals?.addons),
+        promotions: toCents(raw.subtotals?.promotions),
+        amount_paid: toCents(raw.amount_paid),
+        amount_due: toCents(raw.amount_due),
+        host_fee: hostFee,
+        payout,
+        items: [...itemMap.values()],
+      }
+    : null;
 
   const roomSum = (key: "adults" | "children" | "infants" | "pets") =>
     raw.rooms?.reduce((sum, r) => sum + (r.guest_breakdown?.[key] || 0), 0) ?? 0;
@@ -453,6 +551,7 @@ export async function getBookingById(bookingId: number): Promise<LodgifyBooking>
     date_created: raw.created_at ?? null,
     thread_uid: raw.thread_uid ?? null,
     ota_confirmation_code: parseOtaConfirmationCode(raw.source_text),
+    price_breakdown,
   };
 }
 

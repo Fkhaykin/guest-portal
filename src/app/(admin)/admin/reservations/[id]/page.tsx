@@ -52,6 +52,7 @@ import { ReservationMessages } from "@/components/admin/reservation-messages";
 import { toneBadge, statusTone, type Tone } from "@/lib/status-styles";
 import { effectiveStayTimes } from "@/lib/upsells/timing";
 import type { GuestListEntry, PetEntry, UpsellEntry, CleaningPhoto, CleaningPhotoExif, CleaningChecklistItem, InvoiceLineItem, InvoiceStatus } from "@/types/database";
+import type { LodgifyPriceBreakdown } from "@/lib/lodgify/client";
 import { ReceiptText } from "lucide-react";
 
 type FullRegistration = {
@@ -72,6 +73,7 @@ type FullRegistration = {
   discount_cents: number;
   discount_label: string | null;
   nightly_rates_snapshot: Array<{ date: string; cents: number }> | null;
+  lodgify_price_breakdown: LodgifyPriceBreakdown | null;
   payment_plan: "full" | "split" | "automatic";
   deposit_paid_at: string | null;
   balance_paid_at: string | null;
@@ -214,7 +216,7 @@ export default function ReservationDetailPage() {
         id, property_id, guest_id, check_in_date, check_out_date, num_guests, notes,
         status, booking_source, signature_url, total_amount_cents, cleaning_fee_cents,
         tax_amount_cents, pet_fee_total_cents, discount_cents, discount_label,
-        nightly_rates_snapshot, payment_plan, deposit_paid_at, balance_paid_at,
+        nightly_rates_snapshot, lodgify_price_breakdown, payment_plan, deposit_paid_at, balance_paid_at,
         balance_charge_attempts, balance_last_attempt_at, balance_last_failure_reason,
         stripe_customer_id, stripe_payment_method_id, stripe_deposit_invoice_id,
         stripe_balance_invoice_id, guest_list, pets,
@@ -487,6 +489,22 @@ export default function ReservationDetailPage() {
   const nightsSubtotalCents = nightlyRates.reduce((s, n) => s + (n?.cents ?? 0), 0);
   const hasBreakdown =
     nightlyRates.length > 0 || cleaningCents > 0 || taxCents > 0 || petFeeCents > 0 || discountCents > 0;
+
+  // Channel (Lodgify/OTA) bookings carry an itemized snapshot from the Lodgify
+  // quote instead of the structured direct-booking columns. Lodgify only
+  // exposes the accommodation subtotal (not per-night paid rates), so the
+  // nightly line shows an average. Fee/tax line items fall back to the
+  // subtotal buckets when the quote carried no itemization.
+  const lodgifyBd = reg.lodgify_price_breakdown;
+  const bdItems = lodgifyBd?.items ?? [];
+  const bdFees = bdItems.filter((i) => i.type === "Fee");
+  const bdTaxes = bdItems.filter((i) => i.type === "Tax");
+  const bdPromos = bdItems.filter((i) => i.type === "Promotion");
+  const bdStayCents = lodgifyBd?.stay ?? bdItems.find((i) => i.type === "RoomRate")?.amount ?? null;
+  const sourceName = (reg.booking_source ?? "")
+    .replace(/\s*integration\s*/i, "")
+    .replace(/\s*api\s*/i, "")
+    .trim();
 
   const isManagedPayment = reg.booking_source === "admin";
   const isSplit = reg.payment_plan === "split";
@@ -780,6 +798,52 @@ export default function ReservationDetailPage() {
                       <span>Total</span>
                       <span>{fmtUSD(totalCents)}</span>
                     </div>
+                  </div>
+                ) : lodgifyBd ? (
+                  <div className="space-y-1">
+                    {bdStayCents != null && (
+                      <Row
+                        label={`Accommodation (${fmtUSD(Math.round(bdStayCents / nights))} avg × ${nights} night${nights !== 1 ? "s" : ""})`}
+                        value={fmtUSD(bdStayCents)}
+                      />
+                    )}
+                    {bdFees.length > 0
+                      ? bdFees.map((f, i) => (
+                          <Row key={`fee-${i}`} label={f.description || "Fee"} value={fmtUSD(f.amount)} />
+                        ))
+                      : (lodgifyBd.fees ?? 0) > 0 && <Row label="Fees" value={fmtUSD(lodgifyBd.fees!)} />}
+                    {(lodgifyBd.addons ?? 0) > 0 && <Row label="Add-ons" value={fmtUSD(lodgifyBd.addons!)} />}
+                    {bdTaxes.length > 0
+                      ? bdTaxes.map((t, i) => (
+                          <Row key={`tax-${i}`} label={t.description || "Tax"} value={fmtUSD(t.amount)} />
+                        ))
+                      : (lodgifyBd.taxes ?? 0) > 0 && <Row label="Taxes" value={fmtUSD(lodgifyBd.taxes!)} />}
+                    {(lodgifyBd.vat ?? 0) > 0 && <Row label="VAT" value={fmtUSD(lodgifyBd.vat!)} />}
+                    {bdPromos.length > 0
+                      ? bdPromos.map((p, i) => (
+                          <Row key={`promo-${i}`} label={p.description || "Promotion"} value={`− ${fmtUSD(Math.abs(p.amount))}`} />
+                        ))
+                      : (lodgifyBd.promotions ?? 0) !== 0 && (
+                          <Row label="Promotions" value={`− ${fmtUSD(Math.abs(lodgifyBd.promotions!))}`} />
+                        )}
+                    <Separator className="my-1" />
+                    <div className="flex justify-between font-semibold">
+                      <span>Guest total</span>
+                      <span>{fmtUSD(lodgifyBd.total)}</span>
+                    </div>
+                    {(lodgifyBd.host_fee != null || lodgifyBd.payout != null) && (
+                      <>
+                        {lodgifyBd.host_fee != null && (
+                          <Row label={`${sourceName || "Channel"} host fee`} value={`− ${fmtUSD(lodgifyBd.host_fee)}`} />
+                        )}
+                        {lodgifyBd.payout != null && (
+                          <div className="flex justify-between font-medium">
+                            <span>Expected payout</span>
+                            <span>{fmtUSD(lodgifyBd.payout)}</span>
+                          </div>
+                        )}
+                      </>
+                    )}
                   </div>
                 ) : (
                   <div className="flex justify-between font-semibold">
