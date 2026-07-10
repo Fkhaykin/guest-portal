@@ -1039,15 +1039,40 @@ export default function AdminMessagesPage() {
                       </>
                     )}
                     {!composerExpanded && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-10 w-10 shrink-0"
-                        onClick={() => setComposerExpanded(true)}
-                        aria-label="Full screen"
-                      >
-                        <Maximize2 className="h-4 w-4" />
-                      </Button>
+                      <>
+                        {/* Manual fallback for the auto-draft: if the on-load
+                            suggestion failed (network hiccup, guest didn't
+                            speak last, etc.), the host can pull/regenerate a
+                            draft on demand without going full-screen. */}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-10 w-10 shrink-0"
+                          onClick={generateDraft}
+                          disabled={draftLoading || !selectedBookingId}
+                          aria-label="Draft AI response"
+                          title={
+                            newMessage && newMessage === autoDraftRef.current
+                              ? "Regenerate AI response"
+                              : "Draft AI response"
+                          }
+                        >
+                          {draftLoading ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Sparkles className="h-4 w-4 text-primary" />
+                          )}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-10 w-10 shrink-0"
+                          onClick={() => setComposerExpanded(true)}
+                          aria-label="Full screen"
+                        >
+                          <Maximize2 className="h-4 w-4" />
+                        </Button>
+                      </>
                     )}
                     <QuickReplyPicker
                       propertyName={selectedConversation?.property_name ?? null}
