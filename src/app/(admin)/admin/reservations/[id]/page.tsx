@@ -45,6 +45,7 @@ import {
   MessageSquare,
   ShieldCheck,
   ShieldAlert,
+  Star,
 } from "lucide-react";
 import { EditRegistrationDialog } from "@/components/admin/edit-registration-dialog";
 import { ReservationMessages } from "@/components/admin/reservation-messages";
@@ -91,6 +92,7 @@ type FullRegistration = {
   lodgify_infants: number;
   lodgify_num_pets: number;
   hoa_email_disabled: boolean;
+  review_request_disabled: boolean;
   id_verification_status: string;
   id_verified_name: string | null;
   id_name_match: boolean | null;
@@ -198,6 +200,7 @@ export default function ReservationDetailPage() {
   const [emailing, setEmailing] = useState(false);
   const [emailResult, setEmailResult] = useState<"success" | "error" | null>(null);
   const [hoaToggling, setHoaToggling] = useState(false);
+  const [reviewToggling, setReviewToggling] = useState(false);
   const [expandedDrivers, setExpandedDrivers] = useState<Set<number>>(new Set());
   const [hasModifications, setHasModifications] = useState(false);
 
@@ -216,7 +219,7 @@ export default function ReservationDetailPage() {
         stripe_customer_id, stripe_payment_method_id, stripe_deposit_invoice_id,
         stripe_balance_invoice_id, guest_list, pets,
         upsells, tips, lodgify_booking_id, lodgify_adults, lodgify_children, lodgify_infants,
-        lodgify_num_pets, hoa_email_disabled, id_verification_status, id_verified_name, id_name_match, created_at, updated_at,
+        lodgify_num_pets, hoa_email_disabled, review_request_disabled, id_verification_status, id_verified_name, id_name_match, created_at, updated_at,
         guest:guest_id(id, full_name, email, phone, mailing_address, lodgify_guest_id),
         property:property_id(id, name, nickname, address, slug, max_guests, lodgify_property_id, listing_urls, owner_name, owner_phone, owner_email, hoa_submission_email, emergency_contact_name, emergency_contact_phone)
       `)
@@ -396,6 +399,26 @@ export default function ReservationDetailPage() {
       setReg((prev) => (prev ? { ...prev, hoa_email_disabled: !disabled } : prev));
     } finally {
       setHoaToggling(false);
+    }
+  }
+
+  async function toggleReviewRequest(disabled: boolean) {
+    if (!reg) return;
+    setReviewToggling(true);
+    // Optimistic update
+    setReg((prev) => (prev ? { ...prev, review_request_disabled: disabled } : prev));
+    try {
+      const res = await fetch("/api/admin/registration", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ registration_id: id, review_request_disabled: disabled }),
+      });
+      if (!res.ok) throw new Error("Failed");
+    } catch {
+      // Revert on failure
+      setReg((prev) => (prev ? { ...prev, review_request_disabled: !disabled } : prev));
+    } finally {
+      setReviewToggling(false);
     }
   }
 
@@ -928,6 +951,30 @@ export default function ReservationDetailPage() {
                 {reg.lodgify_booking_id && <Row label="Lodgify ID" value={String(reg.lodgify_booking_id)} />}
                 <Row label="Created" value={new Date(reg.created_at).toLocaleDateString()} />
                 <Row label="Updated" value={new Date(reg.updated_at).toLocaleDateString()} />
+
+                {/* Review-request kill switch — the morning-after-checkout review
+                    ask is sentiment-gated, but the host may know the stay went
+                    badly through channels the gate can't see (calls, in person). */}
+                <Separator className="my-3" />
+                <div className="flex items-start justify-between gap-3 rounded-md border px-3 py-2.5">
+                  <div className="space-y-0.5">
+                    <p className="text-sm font-medium flex items-center gap-1.5">
+                      <Star className="h-3.5 w-3.5 text-muted-foreground" />
+                      Review request
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {reg.review_request_disabled
+                        ? "Off — this guest won't be asked to leave a review after check-out. Use when you know the stay went badly."
+                        : "On — the morning after check-out, the guest gets an automated message asking for a review (skipped automatically if the conversation shows problems)."}
+                    </p>
+                  </div>
+                  <Switch
+                    checked={!reg.review_request_disabled}
+                    disabled={reviewToggling}
+                    onCheckedChange={(checked) => toggleReviewRequest(!checked)}
+                    aria-label="Toggle post-checkout review request"
+                  />
+                </div>
               </CardContent>
             </Card>
 

@@ -18,6 +18,7 @@ type BookingRow = {
   check_out_date: string;
   signature_url: string | null;
   upsells: UpsellEntry[] | null;
+  review_request_disabled: boolean;
   guest: { full_name: string; email: string | null; phone: string | null };
   property: { name: string; slug: string; nickname: string | null; host_id: string };
 };
@@ -25,7 +26,7 @@ type BookingRow = {
 export type BatchResult = { sent: number; skipped: number; errors: number };
 
 const BOOKING_SELECT =
-  "id, lodgify_booking_id, booking_source, check_in_date, check_out_date, signature_url, upsells, guest:guest_id(full_name, email, phone), property:property_id(name, slug, nickname, host_id)";
+  "id, lodgify_booking_id, booking_source, check_in_date, check_out_date, signature_url, upsells, review_request_disabled, guest:guest_id(full_name, email, phone), property:property_id(name, slug, nickname, host_id)";
 
 export function offsetDate(days: number): string {
   const d = new Date();
@@ -179,6 +180,12 @@ export async function runMorningSends() {
     () => fetchBookings("check_out_date", offsetDate(-1), ["active", "completed"]),
     {
       filter: async (row) => {
+        // Admin kill switch from the reservation detail page — checked before
+        // the sentiment gate so a muted booking never burns an LLM call.
+        if (row.review_request_disabled) {
+          console.log(`[guest-msg-cron] Skipping review request for ${row.id}: disabled by admin`);
+          return false;
+        }
         const gate = await shouldRequestReview(row.lodgify_booking_id);
         if (!gate.send) {
           console.log(`[guest-msg-cron] Skipping review request for ${row.id}: ${gate.reason}`);

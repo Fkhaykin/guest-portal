@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({ registration: reg, vehicles: vehicles ?? [] });
 }
 
-// PATCH — toggle the per-reservation HOA-email off switch (admin)
+// PATCH — flip a per-reservation admin toggle (HOA auto-email, review request)
 export async function PATCH(request: NextRequest) {
   const supabase = await createClient();
   const {
@@ -49,16 +49,39 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  let body: { registration_id: string; hoa_email_disabled: boolean };
+  let body: {
+    registration_id: string;
+    hoa_email_disabled?: boolean;
+    review_request_disabled?: boolean;
+  };
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  if (!body.registration_id || typeof body.hoa_email_disabled !== "boolean") {
+  const update: { hoa_email_disabled?: boolean; review_request_disabled?: boolean } = {};
+  const summaries: string[] = [];
+  if (typeof body.hoa_email_disabled === "boolean") {
+    update.hoa_email_disabled = body.hoa_email_disabled;
+    summaries.push(
+      body.hoa_email_disabled
+        ? "Automatic HOA registration submission turned off for this reservation"
+        : "Automatic HOA registration submission turned on for this reservation"
+    );
+  }
+  if (typeof body.review_request_disabled === "boolean") {
+    update.review_request_disabled = body.review_request_disabled;
+    summaries.push(
+      body.review_request_disabled
+        ? "Post-checkout review request turned off for this reservation"
+        : "Post-checkout review request turned on for this reservation"
+    );
+  }
+
+  if (!body.registration_id || summaries.length === 0) {
     return NextResponse.json(
-      { error: "registration_id and hoa_email_disabled are required" },
+      { error: "registration_id and at least one toggle field are required" },
       { status: 400 }
     );
   }
@@ -66,21 +89,21 @@ export async function PATCH(request: NextRequest) {
   const admin = createAdminClient();
   const { error } = await admin
     .from("registration")
-    .update({ hoa_email_disabled: body.hoa_email_disabled })
+    .update(update)
     .eq("id", body.registration_id);
 
   if (error) {
     return NextResponse.json({ error: "Failed to update registration" }, { status: 500 });
   }
 
-  await admin.from("registration_update_log").insert({
-    registration_id: body.registration_id,
-    changed_by: "admin",
-    change_type: "admin_edit",
-    summary: body.hoa_email_disabled
-      ? "Automatic HOA registration submission turned off for this reservation"
-      : "Automatic HOA registration submission turned on for this reservation",
-  });
+  await admin.from("registration_update_log").insert(
+    summaries.map((summary) => ({
+      registration_id: body.registration_id,
+      changed_by: "admin",
+      change_type: "admin_edit",
+      summary,
+    }))
+  );
 
   return NextResponse.json({ ok: true });
 }
