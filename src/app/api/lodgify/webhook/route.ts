@@ -4,6 +4,7 @@ import { syncBookingById } from "@/lib/lodgify/sync";
 import { fetchBookingDetail, fetchThreadMessages, deriveChannel } from "@/lib/lodgify/messages";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { notifyHostOfGuestMessage } from "@/lib/push/notify-host";
+import { scheduleSentimentRefresh } from "@/lib/guest-messages/sentiment";
 
 function verifySignature(rawBody: string, signature: string, secrets: string[]): boolean {
   // Lodgify sends signatures as "sha256=<UPPERCASE hex>". createHmac emits
@@ -211,6 +212,12 @@ async function persistGuestMessage(event: GuestMessageEvent): Promise<{ outcome:
   await backfillThread(threadUid).catch((err) => {
     console.error(`[lodgify-webhook] Thread backfill failed for ${threadUid}:`, err);
   });
+
+  // Re-evaluate review-request sentiment now that the guest said something new
+  // (runs after the webhook ack; throttled internally against retry bursts).
+  if (isNewMessage && bookingIdHint) {
+    scheduleSentimentRefresh({ lodgifyBookingId: bookingIdHint });
+  }
 
   return { outcome: "message_synced" };
 }

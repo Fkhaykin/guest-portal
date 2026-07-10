@@ -1,6 +1,7 @@
 import { randomBytes } from "crypto";
 import { Resend } from "resend";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { scheduleSentimentRefresh } from "@/lib/guest-messages/sentiment";
 
 // Website live chat (channel = "web"). Anonymous visitors start a conversation
 // from the marketing site before they have any booking. Threads live in the
@@ -123,6 +124,13 @@ export async function recordWebMessage(params: {
     },
     { onConflict: "thread_uid" }
   );
+
+  // New inbound guest message on a booking-linked thread → re-evaluate the
+  // review-request sentiment flag. Unlinked visitor chats have no booking, so
+  // there's no review request to gate.
+  if (params.type === "Renter" && params.registrationId) {
+    scheduleSentimentRefresh({ registrationId: params.registrationId });
+  }
 }
 
 /**

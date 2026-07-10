@@ -1,6 +1,7 @@
 import { Resend } from "resend";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { stripUrlsForSms } from "@/lib/sms/sanitize";
+import { scheduleSentimentRefresh } from "@/lib/guest-messages/sentiment";
 
 // Direct (non-Lodgify) bookings get a synthetic thread keyed by registration
 // id. Outbound messages go to the guest's email and/or phone; replies come
@@ -142,6 +143,11 @@ export async function recordDirectMessage(params: {
     },
     { onConflict: "thread_uid" }
   );
+
+  // New inbound guest message → re-evaluate the review-request sentiment flag.
+  if (params.type === "Renter") {
+    scheduleSentimentRefresh({ registrationId: params.registrationId });
+  }
 }
 
 /**

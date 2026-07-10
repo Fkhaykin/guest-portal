@@ -431,6 +431,7 @@ export type Database = {
           review_request_disabled: boolean;
           review_request_skipped_at: string | null;
           review_request_skip_reason: string | null;
+          review_sentiment_checked_at: string | null;
           id_verification_status: string;
           id_verification_session_id: string | null;
           id_verified_name: string | null;
@@ -474,6 +475,7 @@ export type Database = {
           review_request_disabled?: boolean;
           review_request_skipped_at?: string | null;
           review_request_skip_reason?: string | null;
+          review_sentiment_checked_at?: string | null;
           id_verification_status?: string;
           id_verification_session_id?: string | null;
           id_verified_name?: string | null;
@@ -517,6 +519,7 @@ export type Database = {
           review_request_disabled?: boolean;
           review_request_skipped_at?: string | null;
           review_request_skip_reason?: string | null;
+          review_sentiment_checked_at?: string | null;
           id_verification_status?: string;
           id_verification_session_id?: string | null;
           id_verified_name?: string | null;

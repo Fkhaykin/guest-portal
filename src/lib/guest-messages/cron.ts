@@ -19,6 +19,7 @@ type BookingRow = {
   signature_url: string | null;
   upsells: UpsellEntry[] | null;
   review_request_disabled: boolean;
+  review_request_skipped_at: string | null;
   guest: { full_name: string; email: string | null; phone: string | null };
   property: { name: string; slug: string; nickname: string | null; host_id: string };
 };
@@ -26,7 +27,7 @@ type BookingRow = {
 export type BatchResult = { sent: number; skipped: number; errors: number };
 
 const BOOKING_SELECT =
-  "id, lodgify_booking_id, booking_source, check_in_date, check_out_date, signature_url, upsells, review_request_disabled, guest:guest_id(full_name, email, phone), property:property_id(name, slug, nickname, host_id)";
+  "id, lodgify_booking_id, booking_source, check_in_date, check_out_date, signature_url, upsells, review_request_disabled, review_request_skipped_at, guest:guest_id(full_name, email, phone), property:property_id(name, slug, nickname, host_id)";
 
 export function offsetDate(days: number): string {
   const d = new Date();
@@ -186,18 +187,26 @@ export async function runMorningSends() {
           console.log(`[guest-msg-cron] Skipping review request for ${row.id}: disabled by admin`);
           return false;
         }
-        const gate = await shouldRequestReview(row.lodgify_booking_id);
+        const gate = await shouldRequestReview(row.lodgify_booking_id, row.id);
         if (!gate.send) {
           console.log(`[guest-msg-cron] Skipping review request for ${row.id}: ${gate.reason}`);
           // Persist the auto-skip so the reservation detail page can show the
           // admin that the system detected problems and withheld the review
-          // ask. The gate runs once per booking, so this record is final.
+          // ask. This is the final call for the booking.
           await createAdminClient()
             .from("registration")
             .update({
               review_request_skipped_at: new Date().toISOString(),
               review_request_skip_reason: gate.reason,
             })
+            .eq("id", row.id);
+        } else if (row.review_request_skipped_at) {
+          // Mid-stay evaluations flagged a planned skip, but the final gate
+          // says the conversation is fine — clear the flag so the page shows
+          // the sent message instead of a stale warning.
+          await createAdminClient()
+            .from("registration")
+            .update({ review_request_skipped_at: null, review_request_skip_reason: null })
             .eq("id", row.id);
         }
         return gate.send;

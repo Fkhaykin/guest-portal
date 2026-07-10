@@ -1048,12 +1048,22 @@ export default function ReservationDetailPage() {
                     {reg.review_request_skipped_at ? (
                       <div className={`mt-1.5 flex items-start gap-1.5 rounded-md px-2.5 py-1.5 text-xs ${toneBadge("warning")}`}>
                         <TriangleAlert className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-                        <span>
-                          <strong>Auto-skipped.</strong> On{" "}
-                          {new Date(reg.review_request_skipped_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
-                          , the system reviewed this guest&apos;s messages, detected signs of problems
-                          {reg.review_request_skip_reason ? ` (${reg.review_request_skip_reason})` : ""}, and did not send the review request.
-                        </span>
+                        {displayStatus === "past" ? (
+                          <span>
+                            <strong>Auto-skipped.</strong> On{" "}
+                            {new Date(reg.review_request_skipped_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                            , the system reviewed this guest&apos;s messages, detected signs of problems
+                            {reg.review_request_skip_reason ? ` (${reg.review_request_skip_reason})` : ""}, and did not send the review request.
+                          </span>
+                        ) : (
+                          <span>
+                            <strong>Flagged — set to skip.</strong> As of{" "}
+                            {new Date(reg.review_request_skipped_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                            , the conversation suggests this guest is unhappy
+                            {reg.review_request_skip_reason ? ` (${reg.review_request_skip_reason})` : ""}, so the review request won&apos;t be sent.
+                            The system re-checks with each new guest message and clears this if things turn around.
+                          </span>
+                        )}
                       </div>
                     ) : reviewMsgLog && !reviewMsgLog.error ? (
                       <p className="text-xs text-success flex items-center gap-1 pt-0.5">
