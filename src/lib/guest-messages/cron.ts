@@ -189,6 +189,16 @@ export async function runMorningSends() {
         const gate = await shouldRequestReview(row.lodgify_booking_id);
         if (!gate.send) {
           console.log(`[guest-msg-cron] Skipping review request for ${row.id}: ${gate.reason}`);
+          // Persist the auto-skip so the reservation detail page can show the
+          // admin that the system detected problems and withheld the review
+          // ask. The gate runs once per booking, so this record is final.
+          await createAdminClient()
+            .from("registration")
+            .update({
+              review_request_skipped_at: new Date().toISOString(),
+              review_request_skip_reason: gate.reason,
+            })
+            .eq("id", row.id);
         }
         return gate.send;
       },

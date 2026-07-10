@@ -46,6 +46,7 @@ import {
   ShieldCheck,
   ShieldAlert,
   Star,
+  TriangleAlert,
 } from "lucide-react";
 import { EditRegistrationDialog } from "@/components/admin/edit-registration-dialog";
 import { ReservationMessages } from "@/components/admin/reservation-messages";
@@ -95,6 +96,8 @@ type FullRegistration = {
   lodgify_num_pets: number;
   hoa_email_disabled: boolean;
   review_request_disabled: boolean;
+  review_request_skipped_at: string | null;
+  review_request_skip_reason: string | null;
   id_verification_status: string;
   id_verified_name: string | null;
   id_name_match: boolean | null;
@@ -203,6 +206,7 @@ export default function ReservationDetailPage() {
   const [emailResult, setEmailResult] = useState<"success" | "error" | null>(null);
   const [hoaToggling, setHoaToggling] = useState(false);
   const [reviewToggling, setReviewToggling] = useState(false);
+  const [reviewMsgLog, setReviewMsgLog] = useState<{ sent_at: string; error: string | null } | null>(null);
   const [expandedDrivers, setExpandedDrivers] = useState<Set<number>>(new Set());
   const [hasModifications, setHasModifications] = useState(false);
 
@@ -221,7 +225,8 @@ export default function ReservationDetailPage() {
         stripe_customer_id, stripe_payment_method_id, stripe_deposit_invoice_id,
         stripe_balance_invoice_id, guest_list, pets,
         upsells, tips, lodgify_booking_id, lodgify_adults, lodgify_children, lodgify_infants,
-        lodgify_num_pets, hoa_email_disabled, review_request_disabled, id_verification_status, id_verified_name, id_name_match, created_at, updated_at,
+        lodgify_num_pets, hoa_email_disabled, review_request_disabled, review_request_skipped_at, review_request_skip_reason,
+        id_verification_status, id_verified_name, id_name_match, created_at, updated_at,
         guest:guest_id(id, full_name, email, phone, mailing_address, lodgify_guest_id),
         property:property_id(id, name, nickname, address, slug, max_guests, lodgify_property_id, listing_urls, owner_name, owner_phone, owner_email, hoa_submission_email, emergency_contact_name, emergency_contact_phone)
       `)
@@ -316,6 +321,15 @@ export default function ReservationDetailPage() {
         }
       }
       setCharges(foundCharges);
+
+      // Whether the automated post-checkout review request actually went out
+      const { data: reviewLog } = await supabase
+        .from("guest_automated_message_log")
+        .select("sent_at, error")
+        .eq("registration_id", id)
+        .eq("message_type", "post_checkout")
+        .maybeSingle();
+      setReviewMsgLog(reviewLog);
 
       const { count: modCount } = await supabase
         .from("registration_update_log")
@@ -1031,6 +1045,26 @@ export default function ReservationDetailPage() {
                         ? "Off — this guest won't be asked to leave a review after check-out. Use when you know the stay went badly."
                         : "On — the morning after check-out, the guest gets an automated message asking for a review (skipped automatically if the conversation shows problems)."}
                     </p>
+                    {reg.review_request_skipped_at ? (
+                      <div className={`mt-1.5 flex items-start gap-1.5 rounded-md px-2.5 py-1.5 text-xs ${toneBadge("warning")}`}>
+                        <TriangleAlert className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                        <span>
+                          <strong>Auto-skipped.</strong> On{" "}
+                          {new Date(reg.review_request_skipped_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                          , the system reviewed this guest&apos;s messages, detected signs of problems
+                          {reg.review_request_skip_reason ? ` (${reg.review_request_skip_reason})` : ""}, and did not send the review request.
+                        </span>
+                      </div>
+                    ) : reviewMsgLog && !reviewMsgLog.error ? (
+                      <p className="text-xs text-success flex items-center gap-1 pt-0.5">
+                        <CheckCircle2 className="h-3 w-3" /> Review request sent{" "}
+                        {new Date(reviewMsgLog.sent_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                      </p>
+                    ) : reviewMsgLog?.error ? (
+                      <p className="text-xs text-destructive flex items-center gap-1 pt-0.5">
+                        <XCircle className="h-3 w-3" /> Review request failed to send
+                      </p>
+                    ) : null}
                   </div>
                   <Switch
                     checked={!reg.review_request_disabled}
