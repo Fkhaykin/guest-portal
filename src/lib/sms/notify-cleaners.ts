@@ -155,6 +155,7 @@ async function sendToCleaners(
   propertyId: string,
   body: string,
   meta: {
+    registrationId: string;
     eventType: string;
     lodgifyBookingId?: number;
     pushTitle?: string;
@@ -162,6 +163,26 @@ async function sendToCleaners(
   }
 ) {
   const supabase = createAdminClient();
+
+  // Idempotency: Lodgify burst-delivers the same booking webhook several times
+  // within a fraction of a second, and each delivery runs the sync + this
+  // notify concurrently. Claim the (registration_id, event_type) slot so only
+  // the first of a burst actually texts/pushes the cleaner. Fail open — if the
+  // claim errors we still send, since a missed "new booking" is worse for a
+  // cleaner than a rare duplicate.
+  if (meta.registrationId) {
+    const { data: maySend, error: claimErr } = await supabase.rpc("claim_cleaner_notification", {
+      p_registration_id: meta.registrationId,
+      p_event_type: meta.eventType,
+      p_window_seconds: 300,
+    });
+    if (claimErr) {
+      console.error(`[cleaner-notify] Claim failed for ${meta.registrationId}/${meta.eventType}:`, claimErr);
+    } else if (maySend === false) {
+      console.log(`[cleaner-notify] Duplicate ${meta.eventType} for ${meta.registrationId} suppressed`);
+      return;
+    }
+  }
 
   const { data: assignments } = await supabase
     .from("cleaner_property")
@@ -231,6 +252,7 @@ export async function notifyCleanersOfNewBooking(params: NotifyParams) {
   });
 
   await sendToCleaners(params.propertyId, body, {
+    registrationId: params.registrationId,
     eventType: "cleaner_new_booking",
     lodgifyBookingId: undefined,
     pushTitle: `New booking — ${config.propertyName}`,
@@ -251,6 +273,7 @@ export async function notifyCleanersOfCancellation(params: NotifyParams) {
   });
 
   await sendToCleaners(params.propertyId, body, {
+    registrationId: params.registrationId,
     eventType: "cleaner_cancellation",
     pushTitle: `Booking cancelled — ${config.propertyName}`,
     pushUrl: cleanerPortalUrl(params.registrationId),
@@ -273,6 +296,7 @@ export async function notifyCleanersOfCheckout(params: {
   });
 
   await sendToCleaners(params.propertyId, body, {
+    registrationId: params.registrationId,
     eventType: "cleaner_checkout",
     pushTitle: `Guest checked out — ${config.propertyName}`,
     pushUrl: cleanerPortalUrl(params.registrationId),
@@ -299,6 +323,7 @@ export async function notifyCleanersOfPetAdded(params: {
   });
 
   await sendToCleaners(params.propertyId, body, {
+    registrationId: params.registrationId,
     eventType: "cleaner_pet_added",
     pushTitle: `Pet added — ${config.propertyName}`,
     pushUrl: cleanerPortalUrl(params.registrationId),
@@ -325,6 +350,7 @@ export async function notifyCleanersOfEarlyCheckin(params: {
   });
 
   await sendToCleaners(params.propertyId, body, {
+    registrationId: params.registrationId,
     eventType: "cleaner_early_checkin",
     pushTitle: `Early check-in — ${config.propertyName}`,
     pushUrl: cleanerPortalUrl(params.registrationId),
@@ -351,6 +377,7 @@ export async function notifyCleanersOfLateCheckout(params: {
   });
 
   await sendToCleaners(params.propertyId, body, {
+    registrationId: params.registrationId,
     eventType: "cleaner_late_checkout",
     pushTitle: `Late checkout — ${config.propertyName}`,
     pushUrl: cleanerPortalUrl(params.registrationId),
