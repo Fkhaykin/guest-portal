@@ -505,11 +505,19 @@ export async function getBookingById(bookingId: number): Promise<LodgifyBooking>
     }
   }
 
+  // Some Airbnb bookings report total_amount 0.0 while subtotals are fully
+  // populated — reconstruct the gross total from the buckets in that case.
   const grossTotal = toCents(raw.total_amount ?? raw.amount);
-  const price_breakdown: LodgifyPriceBreakdown | null = grossTotal
+  const st = raw.subtotals;
+  const subtotalSum = st
+    ? (toCents(st.stay) ?? 0) + (toCents(st.fees) ?? 0) + (toCents(st.taxes) ?? 0) +
+      (toCents(st.vat) ?? 0) + (toCents(st.addons) ?? 0) + (toCents(st.promotions) ?? 0)
+    : 0;
+  const totalCents = grossTotal || (subtotalSum > 0 ? subtotalSum : null);
+  const price_breakdown: LodgifyPriceBreakdown | null = totalCents
     ? {
         currency: raw.currency_code || "USD",
-        total: grossTotal,
+        total: totalCents,
         stay: toCents(raw.subtotals?.stay),
         fees: toCents(raw.subtotals?.fees),
         taxes: toCents(raw.subtotals?.taxes),
