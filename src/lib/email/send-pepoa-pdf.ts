@@ -10,6 +10,7 @@ export async function sendPEPOAPDF({
   pdfBuffer,
   guestName,
   lotSection,
+  propertyAddress,
   checkInDate,
   ownerPhone,
   ownerEmail,
@@ -23,6 +24,7 @@ export async function sendPEPOAPDF({
   pdfBuffer: Buffer;
   guestName: string;
   lotSection: string;
+  propertyAddress: string;
   checkInDate: string;
   ownerPhone: string;
   ownerEmail: string;
@@ -54,22 +56,34 @@ export async function sendPEPOAPDF({
 
   const changeLine = changeSummary ? `Changes: ${changeSummary}` : "";
 
+  // The HOA's mail system can't search subject lines, so everything they file
+  // by — the subject itself, the property address, and the lot/section — must
+  // also appear in the searchable body.
+  const detailLines = [
+    ...(propertyAddress ? [`Property Address: ${propertyAddress}`] : []),
+    ...(isBML ? [] : [`Lot/Section: ${lotSection}`]),
+    `Registered Guest: ${guestName}`,
+    `Check-in Date: ${checkInDate}`,
+  ];
+
   const bodyLines = isUpdate
     ? [
+        subject,
+        "",
         `An updated tenant registration form has been submitted${isBML ? "" : ` for Lot/Section ${lotSection}`}.`,
         "",
-        `Registered Guest: ${guestName}`,
-        `Check-in Date: ${checkInDate}`,
+        ...detailLines,
         ...(changeLine ? ["", changeLine] : []),
         "",
         "The updated Short-Term Tenant Registration Form and Lease is attached as a PDF.",
         ...contactLines,
       ]
     : [
+        subject,
+        "",
         `A new tenant registration form has been submitted${isBML ? "" : ` for Lot/Section ${lotSection}`}.`,
         "",
-        `Registered Guest: ${guestName}`,
-        `Check-in Date: ${checkInDate}`,
+        ...detailLines,
         "",
         "The completed Short-Term Tenant Registration Form and Lease is attached as a PDF.",
         ...contactLines,

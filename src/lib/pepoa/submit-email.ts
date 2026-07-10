@@ -83,6 +83,7 @@ export async function submitPEPOAEmail({
     pdfBuffer,
     guestName: (data.guest.full_name as string) || "Guest",
     lotSection,
+    propertyAddress: (data.property.address as string) || "",
     checkInDate: data.reg.check_in_date as string,
     ownerPhone: (data.property.owner_phone as string) || "",
     ownerEmail: (data.property.owner_email as string) || (data.host.email as string) || "",

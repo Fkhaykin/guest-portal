@@ -51,7 +51,7 @@ export async function POST(request: Request) {
 
   const { data: property } = await supabase
     .from("property")
-    .select("name, nickname, lot_section, hoa_submission_email, owner_name, owner_phone, owner_email, hoa_type")
+    .select("name, nickname, address, lot_section, hoa_submission_email, owner_name, owner_phone, owner_email, hoa_type")
     .eq("id", reg.property_id)
     .single();
 
@@ -91,6 +91,7 @@ export async function POST(request: Request) {
     sendDeliveryNotification({
       to: hoaEmails,
       lotSection: property?.lot_section || "N/A",
+      propertyAddress: property?.address || "",
       category,
       provider: provider || "Other",
       quantity: num_cars || 1,

@@ -7,6 +7,7 @@ function getResend() {
 export async function sendDeliveryNotification({
   to,
   lotSection,
+  propertyAddress,
   category,
   provider,
   quantity,
@@ -19,6 +20,7 @@ export async function sendDeliveryNotification({
 }: {
   to: string | string[];
   lotSection: string;
+  propertyAddress: string;
   category: "rideshare" | "food_grocery" | "other";
   provider: string;
   quantity: number;
@@ -58,11 +60,17 @@ export async function sendDeliveryNotification({
   if (ownerPhone) contactLines.push(`  Phone: ${ownerPhone}`);
   if (ownerEmail) contactLines.push(`  Email: ${ownerEmail}`);
 
+  // The HOA's mail system can't search subject lines, so the subject is
+  // repeated in the body along with the address and lot/section they file by.
   const bodyLines = [
+    subject,
+    "",
     "Hello,",
     "",
     `We have a ${quantity} ${typeLabel} from ${provider} on ${formattedDate}. Please register and allow them through.`,
     "",
+    ...(propertyAddress ? [`Property Address: ${propertyAddress}`] : []),
+    ...(isBML ? [] : [`Lot/Section: ${lotSection}`]),
     `House Password: ${housePassword}`,
     "",
     "If you have any questions please contact us:",
