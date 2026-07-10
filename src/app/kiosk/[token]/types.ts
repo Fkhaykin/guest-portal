@@ -154,4 +154,5 @@ export type KioskScreen =
   | { kind: "services" }
   | { kind: "promos" }
   | { kind: "explore" }
-  | { kind: "tip" };
+  | { kind: "tip" }
+  | { kind: "phone" };

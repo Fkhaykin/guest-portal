@@ -13,6 +13,7 @@ import {
   PenLine,
   ScrollText,
   ShoppingBag,
+  Smartphone,
   Tag,
   Truck,
   Video,
@@ -190,6 +191,18 @@ export function MainScreen({
               >
                 <span>{todayWeather.emoji}</span>
                 {todayWeather.tempMaxF != null && <span>{Math.round(todayWeather.tempMaxF)}°</span>}
+              </button>
+            )}
+            {/* Phone handoff lives up here with the utilities — only when a
+                guest is checked in, since it needs their booking to sign in. */}
+            {booking && (
+              <button
+                type="button"
+                onClick={() => onNavigate({ kind: "phone" })}
+                aria-label="Continue on your phone"
+                className="flex h-12 w-12 items-center justify-center rounded-full bg-(--k-surf-10) text-(--k-fg) backdrop-blur-md transition-colors hover:bg-(--k-surf-15)"
+              >
+                <Smartphone className="h-5 w-5" />
               </button>
             )}
             <button
