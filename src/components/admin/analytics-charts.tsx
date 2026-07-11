@@ -798,7 +798,7 @@ export function AnalyticsCharts() {
                       trigger="click"
                       cursor={false}
                       allowEscapeViewBox={{ x: true, y: true }}
-                      wrapperStyle={{ zIndex: 10, pointerEvents: "auto" }}
+                      wrapperStyle={{ zIndex: 10, pointerEvents: "auto", transition: "none" }}
                     />
                     {propNames.map((name, i) =>
                       !hiddenSeries.has(name) ? (
@@ -1335,25 +1335,34 @@ function ViewportClamp({ children }: { children: React.ReactNode }) {
       // Remove our own transform so we measure the natural (Recharts-driven) position
       node.style.transform = "";
       const rect = node.getBoundingClientRect();
-      const vw = window.innerWidth;
-      const vh = window.innerHeight;
+      // iOS Safari: window.innerWidth can exceed the visible area when zoomed
+      const vv = window.visualViewport;
+      const vLeft = vv ? vv.offsetLeft : 0;
+      const vTop = vv ? vv.offsetTop : 0;
+      const vRight = vLeft + (vv ? vv.width : window.innerWidth);
+      const vBottom = vTop + (vv ? vv.height : window.innerHeight);
       let dx = 0;
       let dy = 0;
       // Pull the right/bottom edges in first, then guarantee the left/top
       // edges stay visible (the left/top guard wins for oversized boxes).
-      if (rect.right > vw - M) dx = vw - M - rect.right;
-      if (rect.left + dx < M) dx = M - rect.left;
-      if (rect.bottom > vh - M) dy = vh - M - rect.bottom;
-      if (rect.top + dy < M) dy = M - rect.top;
+      if (rect.right > vRight - M) dx = vRight - M - rect.right;
+      if (rect.left + dx < vLeft + M) dx = vLeft + M - rect.left;
+      if (rect.bottom > vBottom - M) dy = vBottom - M - rect.bottom;
+      if (rect.top + dy < vTop + M) dy = vTop + M - rect.top;
       node.style.transform = `translate(${Math.round(dx)}px, ${Math.round(dy)}px)`;
     };
 
     clamp();
-    // Recharts may finish repositioning the wrapper after our first measure,
-    // so re-clamp on the next frame against its final resting position.
-    const raf = requestAnimationFrame(clamp);
+    // Recharts keeps repositioning its wrapper for several frames after the
+    // click (and any leftover transform transition animates it), so keep
+    // re-clamping against the moving position for a short window.
+    let frames = 0;
+    let raf = requestAnimationFrame(function tick() {
+      clamp();
+      if (++frames < 30) raf = requestAnimationFrame(tick);
+    });
     return () => cancelAnimationFrame(raf);
-  }); // eslint-disable-line react-hooks/exhaustive-deps
+  });
 
   return <div ref={ref}>{children}</div>;
 }
