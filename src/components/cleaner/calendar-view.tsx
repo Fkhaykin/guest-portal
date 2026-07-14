@@ -105,38 +105,34 @@ function barClip(isClampedStart: boolean, isClampedEnd: boolean) {
   return `polygon(${topLeft} 0, 100% 0, ${bottomRight} 100%, 0 100%)`;
 }
 
-// Assign vertical lanes so overlapping bars don't collide
-function assignLanes(
-  reservations: CalendarReservation[],
-  getPos: (r: CalendarReservation) => { startIdx: number; endIdx: number; isClampedStart: boolean; isClampedEnd: boolean }
-): number[] {
-  // Sort by start position
-  const indexed = reservations.map((r, i) => ({ r, i, ...getPos(r) }));
-  indexed.sort((a, b) => a.startIdx - b.startIdx || a.endIdx - b.endIdx);
-
-  const lanes: number[] = new Array(reservations.length).fill(0);
-  // Track end position of each lane
-  const laneEnds: number[] = [];
-
-  for (const item of indexed) {
-    // Find first lane where this bar doesn't overlap
-    let assigned = -1;
-    for (let l = 0; l < laneEnds.length; l++) {
-      if (laneEnds[l] <= item.startIdx) {
-        assigned = l;
-        break;
-      }
-    }
+// Pack bars into vertical lanes so overlapping reservations stack instead of
+// hiding behind each other. A same-day turnover (one guest's check-out day is
+// the next guest's check-in day) shares a lane, because the half-day geometry
+// makes the two bars meet at the column midpoint rather than overlap.
+function assignLanes(positions: { startIdx: number; endIdx: number }[]): number[] {
+  const order = positions
+    .map((p, i) => ({ i, ...p }))
+    .sort((a, b) => a.startIdx - b.startIdx || a.endIdx - b.endIdx);
+  const lanes = new Array(positions.length).fill(0);
+  const laneEnds: number[] = []; // check-out index of the last bar placed in each lane
+  for (const item of order) {
+    let assigned = laneEnds.findIndex((end) => end <= item.startIdx);
     if (assigned === -1) {
       assigned = laneEnds.length;
-      laneEnds.push(0);
+      laneEnds.push(item.endIdx);
+    } else {
+      laneEnds[assigned] = item.endIdx;
     }
     lanes[item.i] = assigned;
-    laneEnds[assigned] = item.endIdx + 1;
   }
-
   return lanes;
 }
+
+// Lane geometry (px): bar height, gap between stacked lanes, and row padding.
+const BAR_H = 24; // matches h-6
+const LANE_GAP = 4;
+const ROW_TOP_PAD = 2;
+const ROW_BOT_PAD = 6;
 
 export type PropertyGroup = {
   key: string;
@@ -556,9 +552,10 @@ export function CalendarView({
         {/* Property rows */}
         <div className="space-y-1 bg-gray-50 dark:bg-gray-900/30 rounded-lg p-2">
           {properties.map(([groupKey, { coverImage, label, reservations: propRes }]) => {
-              // Single lane — all bars on one row
-              const ROW_H = 28;
-              const totalH = ROW_H + 4;
+              const positions = propRes.map(getBarPosition);
+              const lanes = assignLanes(positions);
+              const numLanes = lanes.length ? Math.max(...lanes) + 1 : 1;
+              const totalH = ROW_TOP_PAD + numLanes * BAR_H + (numLanes - 1) * LANE_GAP + ROW_BOT_PAD;
 
               return (
                 <div key={groupKey} className="flex items-start border-b border-muted/10 last:border-b-0 py-1">
@@ -594,8 +591,8 @@ export function CalendarView({
                     </div>
 
                     {/* Bars */}
-                    {propRes.map((r) => {
-                      const { startIdx, endIdx, isClampedStart, isClampedEnd } = getBarPosition(r);
+                    {propRes.map((r, idx) => {
+                      const { startIdx, endIdx, isClampedStart, isClampedEnd } = positions[idx];
 
                       const colPct = 100 / VISIBLE_DAYS;
                       // Half-day overlap: bar starts mid-box on check-in day, ends mid-box on check-out day
@@ -604,6 +601,8 @@ export function CalendarView({
                       const widthPct = 100 - leftPct - rightPct;
 
                       if (widthPct <= 0) return null;
+
+                      const top = ROW_TOP_PAD + lanes[idx] * (BAR_H + LANE_GAP);
 
                       return (
                         <button
@@ -617,7 +616,7 @@ export function CalendarView({
                           style={{
                             left: `${leftPct}%`,
                             width: `${widthPct}%`,
-                            top: 2,
+                            top,
                             minWidth: "24px",
                             clipPath: barClip(isClampedStart, isClampedEnd),
                           }}

@@ -93,6 +93,35 @@ function barClip(isClampedStart: boolean, isClampedEnd: boolean) {
   return `polygon(${topLeft} 0, 100% 0, ${bottomRight} 100%, 0 100%)`;
 }
 
+// Pack bars into vertical lanes so overlapping reservations stack instead of
+// hiding behind each other. A same-day turnover (one guest's check-out day is
+// the next guest's check-in day) shares a lane, because the half-day geometry
+// makes the two bars meet at the column midpoint rather than overlap.
+function assignLanes(positions: { startIdx: number; endIdx: number }[]): number[] {
+  const order = positions
+    .map((p, i) => ({ i, ...p }))
+    .sort((a, b) => a.startIdx - b.startIdx || a.endIdx - b.endIdx);
+  const lanes = new Array(positions.length).fill(0);
+  const laneEnds: number[] = []; // check-out index of the last bar placed in each lane
+  for (const item of order) {
+    let assigned = laneEnds.findIndex((end) => end <= item.startIdx);
+    if (assigned === -1) {
+      assigned = laneEnds.length;
+      laneEnds.push(item.endIdx);
+    } else {
+      laneEnds[assigned] = item.endIdx;
+    }
+    lanes[item.i] = assigned;
+  }
+  return lanes;
+}
+
+// Lane geometry (px): bar height, gap between stacked lanes, and row padding.
+const BAR_H = 24; // matches h-6
+const LANE_GAP = 4;
+const ROW_TOP_PAD = 2;
+const ROW_BOT_PAD = 6;
+
 const STATUS_BAR: Record<AdminCalendarEntry["displayStatus"], string> = {
   future: toneSolid("info"),
   current: toneSolid("success"),
@@ -243,8 +272,10 @@ export function AdminCalendarView({
         {/* Property rows */}
         <div className="space-y-1 bg-gray-50 dark:bg-gray-900/30 rounded-lg p-2">
           {properties.map(([groupKey, { coverImage, label, entries: propEntries }]) => {
-            const ROW_H = 28;
-            const totalH = ROW_H + 4;
+            const positions = propEntries.map(getBarPosition);
+            const lanes = assignLanes(positions);
+            const numLanes = lanes.length ? Math.max(...lanes) + 1 : 1;
+            const totalH = ROW_TOP_PAD + numLanes * BAR_H + (numLanes - 1) * LANE_GAP + ROW_BOT_PAD;
 
             return (
               <div key={groupKey} className="flex items-start border-b border-muted/10 last:border-b-0 py-1">
@@ -277,14 +308,15 @@ export function AdminCalendarView({
                   </div>
 
                   {/* Bars */}
-                  {propEntries.map((e) => {
-                    const { startIdx, endIdx, isClampedStart, isClampedEnd } = getBarPosition(e);
+                  {propEntries.map((e, idx) => {
+                    const { startIdx, endIdx, isClampedStart, isClampedEnd } = positions[idx];
                     // Half-day overlap: bar starts mid-box on check-in day, ends mid-box on check-out day
                     const leftPct = startIdx * colPct + (isClampedStart ? 0 : colPct * 0.5);
                     const rightPct = (VISIBLE_DAYS - 1 - endIdx) * colPct + (isClampedEnd ? 0 : colPct * 0.5);
                     const widthPct = 100 - leftPct - rightPct;
                     if (widthPct <= 0) return null;
 
+                    const top = ROW_TOP_PAD + lanes[idx] * (BAR_H + LANE_GAP);
                     const barClass = STATUS_BAR[e.displayStatus];
                     const label2 = e.guestName
                       ? `${e.guestName.split(" ")[0]} · ${e.numGuests}g${e.totalAmountCents ? ` · $${Math.round(e.totalAmountCents / 100).toLocaleString()}` : ""}`
@@ -295,7 +327,7 @@ export function AdminCalendarView({
                         key={e.id}
                         onClick={() => setSelected(e)}
                         className={`absolute h-6 text-[10px] font-semibold flex items-center px-3 truncate cursor-pointer hover:brightness-110 active:scale-[0.98] transition-all z-10 ${barClass}`}
-                        style={{ left: `${leftPct}%`, width: `${widthPct}%`, top: 2, minWidth: "24px", clipPath: barClip(isClampedStart, isClampedEnd) }}
+                        style={{ left: `${leftPct}%`, width: `${widthPct}%`, top, minWidth: "24px", clipPath: barClip(isClampedStart, isClampedEnd) }}
                       >
                         <span className="truncate">{label2}</span>
                       </button>
