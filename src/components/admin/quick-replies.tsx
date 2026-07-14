@@ -435,10 +435,14 @@ function QuickReplyBrowser({
       });
     }
 
+    // The house section stays pinned under every chip filter — check-in
+    // instructions and house fixes must be findable from any category view
+    // (a host tapping "Check-in / Checkout" expects the house's check-in
+    // instructions to be there).
     return result.filter(
       (s) =>
         s.replies.length > 0 &&
-        (activeSection === "all" || s.key === activeSection)
+        (activeSection === "all" || s.key === activeSection || s.key === "house")
     );
   }, [query, activeSection, customReplies, houseReplies, house, houseLabel, recentIds]);
 
