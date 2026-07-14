@@ -6,6 +6,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { sendGuestAutomatedMessage, sendHouseCheckinInstructions } from "@/lib/guest-messages/send";
 import { sendRegistrationReminder, REMINDER_DAYS, type ReminderDay } from "@/lib/guest-messages/reminders";
 import { shouldRequestReview } from "@/lib/guest-messages/sentiment";
+import { lateCheckoutAvailability, hostPropertyIds } from "@/lib/upsells/availability";
 import { channelForBookingSource } from "@/lib/guest-messages/templates";
 import type { GuestMessageType } from "@/lib/guest-messages/templates";
 import type { UpsellEntry } from "@/types/database";
@@ -70,6 +71,9 @@ async function runBatch(
     const property = Array.isArray(row.property) ? row.property[0] : row.property;
     const guest = Array.isArray(row.guest) ? row.guest[0] : row.guest;
     if (!property || !guest || !row.lodgify_booking_id) { skipped++; continue; }
+    // Owner blocks sync as regular bookings with a "Owner block — ..." guest.
+    // They currently no-op anyway (no email/phone), but never target them.
+    if (/^owner block/i.test(guest.full_name ?? "")) { skipped++; continue; }
 
     try {
       if (options?.filter && !(await options.filter(row))) { skipped++; continue; }
@@ -228,6 +232,8 @@ export async function runMorningSends() {
  * - settling_in: evening of check-in (after the 4pm check-in)
  * - pulse_check: night 2 of stays longer than 2 nights, only when the guest
  *   hasn't sent any message since check-in
+ * - late_checkout_offer: night before check-out, only when the guest hasn't
+ *   bought late check-out and the slot is still freely purchasable
  */
 export async function runEveningSends() {
   const results: Record<string, BatchResult> = {};
@@ -241,6 +247,32 @@ export async function runEveningSends() {
       filter: async (row) => {
         if (nights(row) < 3) return false;
         return !(await guestHasMessagedSince(row.lodgify_booking_id, row.check_in_date));
+      },
+    });
+
+  await safeBatch(results, "late_checkout_offer",
+    () => fetchBookings("check_out_date", offsetDate(1), ["active"]),
+    {
+      filter: async (row) => {
+        // One-night stays get settling_in this same evening — don't stack a
+        // sales pitch on top of the welcome.
+        if (nights(row) < 2) return false;
+        // Any existing late-checkout entry (paid, pending, or requested)
+        // means the guest already acted on it — nothing to offer.
+        if ((row.upsells ?? []).some((u) => u.type === "late_checkout")) return false;
+        // Only offer what the portal will actually sell instantly: the
+        // message promises "booking guarantees the time", so skip when the
+        // turnaround caps make the slot blocked or request-only.
+        const property = Array.isArray(row.property) ? row.property[0] : row.property;
+        if (!property) return false;
+        const supabase = createAdminClient();
+        const propertyIds = await hostPropertyIds(supabase, property.host_id);
+        const avail = await lateCheckoutAvailability(
+          supabase,
+          { propertyIds, excludeRegistrationId: row.id },
+          row.check_out_date
+        );
+        return avail.available && !avail.requestOnly;
       },
     });
 

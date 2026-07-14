@@ -223,6 +223,9 @@ export interface ConversationThread {
   last_message_at: string | null;
   last_message_preview: string | null;
   unread_count: number;
+  /** Registration upsells — lets the composer show paid early check-in /
+   *  late check-out times instead of the standard 4pm/11am. */
+  upsells?: { type: string; status?: string; label?: string; meta?: Record<string, unknown> | null }[] | null;
 }
 
 /**

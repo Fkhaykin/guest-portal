@@ -36,10 +36,7 @@ import {
   HOUSE_LABELS,
 } from "@/lib/guest-messages/quick-replies";
 import { firstNameOf, PORTAL_URL } from "@/lib/guest-messages/templates";
-import {
-  STANDARD_CHECKIN_TIME,
-  STANDARD_CHECKOUT_TIME,
-} from "@/lib/upsells/timing";
+import { stayTimeVars } from "@/lib/upsells/timing";
 import { platformGlyph, PlatformLogo } from "@/components/admin/platform-logo";
 
 // Turn bare URLs in a message into tappable links. Splitting on a capturing
@@ -325,8 +322,8 @@ export default function AdminMessagesPage() {
 
   // Vars cover both the quick-reply placeholders (guest_first_name,
   // max_guests) and the automessage template vars used by the house check-in
-  // instructions. Times are the standard 4pm/11am — a paid early check-in or
-  // late checkout isn't reflected here, so the host edits before sending.
+  // instructions. Times reflect paid early check-in / late check-out upsells,
+  // matching exactly what the automated message would say.
   const quickReplyVars = useMemo(() => {
     const longDate = (d: string | null | undefined) =>
       d
@@ -344,8 +341,7 @@ export default function AdminMessagesPage() {
       property_name: selectedConversation?.property_name ?? "",
       check_in_date: longDate(selectedConversation?.arrival),
       check_out_date: longDate(selectedConversation?.departure),
-      check_in_time: STANDARD_CHECKIN_TIME,
-      check_out_time: STANDARD_CHECKOUT_TIME,
+      ...stayTimeVars(selectedConversation?.upsells),
       portal_link: PORTAL_URL,
     };
   }, [selectedConversation]);

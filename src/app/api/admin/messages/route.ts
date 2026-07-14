@@ -28,6 +28,7 @@ export async function GET() {
        status,
        booking_source,
        booked_at,
+       upsells,
        guest:guest_id ( full_name, email ),
        property:property_id ( name, nickname, lodgify_property_id )`
     );
@@ -104,6 +105,7 @@ export async function GET() {
     status: string | null;
     booking_source: string | null;
     booked_at: string | null;
+    upsells: ConversationThread["upsells"];
     guest: { full_name: string | null; email: string | null } | null;
     property: {
       name: string | null;
@@ -142,6 +144,7 @@ export async function GET() {
         last_message_at: summary?.last_message_at ?? null,
         last_message_preview: summary?.last_message_preview ?? null,
         unread_count: summary?.unread_count ?? 0,
+        upsells: r.upsells ?? null,
       };
     });
 

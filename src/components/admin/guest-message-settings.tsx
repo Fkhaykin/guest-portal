@@ -41,6 +41,12 @@ const EVENT_META: Record<GuestMessageKey, { label: string; description: string; 
     description: "Sent the evening of night 2 for stays longer than 2 nights, only if the guest hasn't sent any message since check-in.",
     channel: "Lodgify message (Airbnb/VRBO) · Email (Direct)",
   },
+  late_checkout_offer: {
+    label: "Late Check-Out Offer",
+    description:
+      "Sent at ~6pm the night before check-out for stays of 2+ nights, only when the guest hasn't bought late check-out and the slot is still freely purchasable (no high-turnover conflict).",
+    channel: "Lodgify message (Airbnb/VRBO) · Email (Direct)",
+  },
   checkout_morning: {
     label: "Check-Out Morning",
     description: "Sent the morning of check-out with check-out instructions.",
@@ -90,6 +96,7 @@ function defaultSettings(): GuestMessageSettingsType {
     day_of_checkin: { enabled: true, subject: TEMPLATES.day_of_checkin.subject, message: TEMPLATES.day_of_checkin.body },
     settling_in: { enabled: true, subject: TEMPLATES.settling_in.subject, message: TEMPLATES.settling_in.body },
     pulse_check: { enabled: true, subject: TEMPLATES.pulse_check.subject, message: TEMPLATES.pulse_check.body },
+    late_checkout_offer: { enabled: true, subject: TEMPLATES.late_checkout_offer.subject, message: TEMPLATES.late_checkout_offer.body },
     checkout_morning: { enabled: true, subject: TEMPLATES.checkout_morning.subject, message: TEMPLATES.checkout_morning.body },
     post_checkout: { enabled: true, subject: TEMPLATES.post_checkout.subject, message: TEMPLATES.post_checkout.body },
     registration_reminder: { enabled: true, subject: TEMPLATES.registration_reminder.subject, message: TEMPLATES.registration_reminder.body },

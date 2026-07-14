@@ -4,6 +4,7 @@ export type GuestMessageType =
   | "day_of_checkin"
   | "settling_in"
   | "pulse_check"
+  | "late_checkout_offer"
   | "checkout_morning"
   | "post_checkout"
   | "registration_reminder"
@@ -129,6 +130,19 @@ Just checking in — how is everything going at {{property_name}} so far?
 If anything isn't perfect or you have any questions, just reply here and we'll take care of it.
 
 Enjoy the rest of your stay!`,
+  },
+  late_checkout_offer: {
+    subject: "Want a slower morning tomorrow?",
+    body: `Hi {{guest_name}},
+
+We hope you're enjoying {{property_name}}! A quick heads-up — check-out tomorrow is at {{check_out_time}}.
+
+If you'd like a slower morning, late check-out is still available for your stay: stay until 12pm (1 extra hour) or 1pm (2 extra hours). You can book it in seconds in your guest portal under Add-Ons:
+{{portal_link}}
+
+The portal shows live pricing for your dates, and booking guarantees the time.
+
+Enjoy your last night!`,
   },
   checkout_morning: {
     subject: "Check-out today at {{check_out_time}}",
@@ -271,6 +285,7 @@ export const TEMPLATE_VARIABLES: Record<GuestMessageType, string[]> = {
   day_of_checkin: ["guest_name", "property_name", "check_in_date", "check_out_date", "check_in_time", "check_out_time", "portal_link", "registration_cta"],
   settling_in: ["guest_name", "property_name", "check_in_date", "check_out_date", "check_in_time", "check_out_time", "portal_link"],
   pulse_check: ["guest_name", "property_name", "check_in_date", "check_out_date", "portal_link"],
+  late_checkout_offer: ["guest_name", "property_name", "check_in_date", "check_out_date", "check_out_time", "portal_link"],
   checkout_morning: ["guest_name", "property_name", "check_in_date", "check_out_date", "check_in_time", "check_out_time", "portal_link"],
   post_checkout: ["guest_name", "property_name", "check_in_date", "check_out_date", "portal_link"],
   registration_reminder: ["guest_name", "property_name", "check_in_date", "check_out_date", "check_in_time", "check_out_time", "portal_link"],
