@@ -3,8 +3,10 @@
 // in the Auto Messages tab (stored under guest_message_settings.house_checkin_instructions).
 import type { HouseKey } from "./quick-replies";
 
-export const HOUSE_KEYS: HouseKey[] = ["lakehouse", "chalet", "manor", "cottage", "mansion"];
+export { HOUSE_KEYS } from "./quick-replies";
 
+// Labels here carry street addresses for the settings UI; the messenger's
+// short labels live in quick-replies.ts (HOUSE_LABELS there).
 export const HOUSE_LABELS: Record<HouseKey, string> = {
   lakehouse: "Lakehouse (484 Lakeside Dr)",
   chalet: "Chalet (475 Lakeside Dr)",

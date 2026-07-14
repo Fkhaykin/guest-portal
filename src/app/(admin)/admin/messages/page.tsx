@@ -28,11 +28,12 @@ import type { LodgifyMessage, ConversationThread } from "@/lib/lodgify/messages"
 import {
   QuickReplySuggestions,
   QuickReplyPicker,
+  useCustomQuickReplies,
 } from "@/components/admin/quick-replies";
 import {
   maxGuestsForProperty,
   houseForProperty,
-  type HouseKey,
+  HOUSE_LABELS,
 } from "@/lib/guest-messages/quick-replies";
 import { platformGlyph, PlatformLogo } from "@/components/admin/platform-logo";
 
@@ -66,14 +67,6 @@ function isImageAttachment(name: string): boolean {
   return /\.(jpe?g|png|gif|webp|heic|heif|bmp)$/i.test(name);
 }
 
-const HOUSE_LABELS: Record<HouseKey, string> = {
-  lakehouse: "Lakehouse",
-  chalet: "Chalet",
-  manor: "Manor",
-  cottage: "Cottage",
-  mansion: "Mansion",
-};
-
 export default function AdminMessagesPage() {
   const searchParams = useSearchParams();
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -106,6 +99,9 @@ export default function AdminMessagesPage() {
   // Full-screen composer: blows the message input up to fill the viewport so
   // long replies are easier to write, then shrinks back to the inline bar.
   const [composerExpanded, setComposerExpanded] = useState(false);
+  // Host-authored quick replies — shared by the suggestion chips and the
+  // reply library drawer (which can create/edit/delete them on the fly).
+  const { customReplies, saveReply, deleteReply } = useCustomQuickReplies();
 
   async function loadConversations() {
     try {
@@ -893,6 +889,7 @@ export default function AdminMessagesPage() {
                     lastGuestMessage={lastGuestMessage}
                     propertyName={selectedConversation?.property_name ?? null}
                     vars={quickReplyVars}
+                    customReplies={customReplies}
                     onInsert={(text) => {
                       autoDraftRef.current = text;
                       autoDraftSourceRef.current = "quick-reply";
@@ -1077,8 +1074,13 @@ export default function AdminMessagesPage() {
                     <QuickReplyPicker
                       propertyName={selectedConversation?.property_name ?? null}
                       vars={quickReplyVars}
+                      customReplies={customReplies}
+                      composerText={newMessage}
+                      saveReply={saveReply}
+                      deleteReply={deleteReply}
                       onInsert={(text) => {
                         autoDraftRef.current = text;
+                        autoDraftSourceRef.current = "quick-reply";
                         setNewMessage(text);
                       }}
                     />

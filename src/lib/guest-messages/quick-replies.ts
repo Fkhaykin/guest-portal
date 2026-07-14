@@ -2,7 +2,17 @@
 // full Airbnb/Lodgify message history (docs/automessages/08-quick-replies.md).
 // Bodies use {{var}} placeholders compatible with interpolate() from templates.ts.
 
-export type HouseKey = "lakehouse" | "chalet" | "manor" | "cottage" | "mansion";
+export const HOUSE_KEYS = ["lakehouse", "chalet", "manor", "cottage", "mansion"] as const;
+
+export type HouseKey = (typeof HOUSE_KEYS)[number];
+
+export const HOUSE_LABELS: Record<HouseKey, string> = {
+  lakehouse: "Lakehouse",
+  chalet: "Chalet",
+  manor: "Manor",
+  cottage: "Cottage",
+  mansion: "Mansion",
+};
 
 export interface QuickReply {
   id: string;
@@ -13,6 +23,50 @@ export interface QuickReply {
   body: string;
   /** When set, only offered for conversations at this house. */
   house?: HouseKey;
+  /** Host-authored reply from the custom_quick_reply table (editable). */
+  custom?: boolean;
+}
+
+/** Category for host-authored replies that don't fit a built-in bucket. */
+export const CUSTOM_CATEGORY = "My Replies";
+
+/** Row shape returned by /api/admin/quick-replies. */
+export interface CustomQuickReplyRow {
+  id: string;
+  title: string;
+  body: string;
+  category: string;
+  house: string | null;
+}
+
+const KEYWORD_STOPWORDS = new Set([
+  "the", "and", "for", "with", "our", "your", "you", "are", "can", "not",
+  "how", "what", "when", "this", "that", "from", "have", "will", "only",
+]);
+
+/**
+ * Custom replies have no hand-tuned keyword list, so match on meaningful
+ * title words — enough for them to surface as suggestion chips.
+ */
+export function deriveKeywords(title: string): string[] {
+  return title
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((w) => w.length >= 3 && !KEYWORD_STOPWORDS.has(w));
+}
+
+export function toQuickReply(row: CustomQuickReplyRow): QuickReply {
+  return {
+    id: row.id,
+    title: row.title,
+    category: row.category || CUSTOM_CATEGORY,
+    keywords: deriveKeywords(row.title),
+    body: row.body,
+    house: (HOUSE_KEYS as readonly string[]).includes(row.house ?? "")
+      ? (row.house as HouseKey)
+      : undefined,
+    custom: true,
+  };
 }
 
 /** Map a Lodgify/Airbnb listing name or internal nickname to its house. */
@@ -27,13 +81,15 @@ export function houseForProperty(propertyName: string | null | undefined): House
   return null;
 }
 
+// Ordered by how often each topic actually comes up in the inbox. House Info
+// is intentionally absent: house-scoped replies are pinned in their own
+// "This house" section by the picker rather than mixed into the categories.
 export const QUICK_REPLY_CATEGORIES = [
-  "House Info",
-  "Pricing & Booking",
   "Check-in / Checkout",
-  "Pets",
+  "Pricing & Booking",
   "Amenities",
   "During the Stay",
+  "Pets",
   "Cancellations & Refunds",
 ] as const;
 
@@ -430,17 +486,19 @@ export interface ScoredReply {
 /**
  * Score quick replies against the guest's last message. Multi-word keyword
  * hits weigh more than single-word hits; replies specific to the
- * conversation's house outrank generic ones. Returns top matches, best first.
+ * conversation's house outrank generic ones. Host-authored replies (`extra`)
+ * compete alongside the built-ins. Returns top matches, best first.
  */
 export function suggestQuickReplies(
   guestMessage: string,
   house: HouseKey | null = null,
+  extra: QuickReply[] = [],
   max = 3
 ): QuickReply[] {
   const text = guestMessage.toLowerCase();
   const scored: ScoredReply[] = [];
 
-  for (const reply of QUICK_REPLIES) {
+  for (const reply of [...extra, ...QUICK_REPLIES]) {
     if (reply.house && reply.house !== house) continue;
     let score = 0;
     for (const kw of reply.keywords) {
