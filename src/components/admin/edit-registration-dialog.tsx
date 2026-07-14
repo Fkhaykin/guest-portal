@@ -43,6 +43,7 @@ type FormData = {
   num_guests: number;
   status: "active" | "completed" | "cancelled";
   notes: string;
+  total_amount: string; // dollars; "" = leave unchanged
   guest_list: GuestListEntry[];
   pets: PetEntry[];
   vehicles: VehicleEntry[];
@@ -66,7 +67,10 @@ export function EditRegistrationDialog({
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [warning, setWarning] = useState<string | null>(null);
   const [form, setForm] = useState<FormData | null>(null);
+  const [lodgifyBookingId, setLodgifyBookingId] = useState<number | null>(null);
+  const [bookingSource, setBookingSource] = useState<string | null>(null);
 
   useEffect(() => {
     if (open && registrationId) {
@@ -78,6 +82,7 @@ export function EditRegistrationDialog({
   async function loadRegistration() {
     setLoading(true);
     setError(null);
+    setWarning(null);
     try {
       const res = await fetch(`/api/admin/registration?id=${registrationId}`);
       if (!res.ok) throw new Error("Failed to load");
@@ -89,6 +94,8 @@ export function EditRegistrationDialog({
         license_plate: string; state_or_region: string | null; year: string | null; driver_name: string | null;
       }>;
 
+      setLodgifyBookingId(reg.lodgify_booking_id ?? null);
+      setBookingSource(reg.booking_source ?? null);
       setForm({
         guest_name: guest?.full_name ?? "",
         guest_email: guest?.email ?? "",
@@ -99,6 +106,10 @@ export function EditRegistrationDialog({
         num_guests: reg.num_guests ?? 1,
         status: reg.status ?? "active",
         notes: reg.notes ?? "",
+        total_amount:
+          typeof reg.total_amount_cents === "number" && reg.total_amount_cents > 0
+            ? (reg.total_amount_cents / 100).toFixed(2)
+            : "",
         guest_list: (reg.guest_list as GuestListEntry[] | null)?.length
           ? (reg.guest_list as GuestListEntry[])
           : [{ ...emptyGuest }],
@@ -128,18 +139,42 @@ export function EditRegistrationDialog({
     if (!form) return;
     setSaving(true);
     setError(null);
+    setWarning(null);
+
+    const totalStr = form.total_amount.trim();
+    let totalCents: number | undefined;
+    if (totalStr !== "") {
+      const dollars = Number(totalStr);
+      if (!Number.isFinite(dollars) || dollars < 0) {
+        setError("Total amount must be a valid number");
+        setSaving(false);
+        return;
+      }
+      totalCents = Math.round(dollars * 100);
+    }
+
     try {
       const res = await fetch("/api/admin/registration", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ registration_id: registrationId, ...form }),
+        body: JSON.stringify({
+          registration_id: registrationId,
+          ...form,
+          total_amount_cents: totalCents,
+        }),
       });
+      const data = await res.json();
       if (!res.ok) {
-        const data = await res.json();
         throw new Error(data.error || "Failed to save");
       }
-      onOpenChange(false);
       onSaved?.();
+      if (data.lodgify_warning) {
+        // Saved, but Lodgify needs manual cleanup — keep the dialog open so
+        // the admin sees the warning before moving on.
+        setWarning(data.lodgify_warning);
+      } else {
+        onOpenChange(false);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to save");
     } finally {
@@ -254,6 +289,13 @@ export function EditRegistrationDialog({
             {/* Booking Dates */}
             <section className="space-y-3">
               <h3 className="text-sm font-semibold">Booking Details</h3>
+              {lodgifyBookingId && (
+                <p className="text-xs text-muted-foreground">
+                  {bookingSource === "admin" || bookingSource === "direct"
+                    ? "Linked to Lodgify — changing the dates moves the Lodgify hold so Airbnb/VRBO see the new dates."
+                    : `This booking came from ${bookingSource || "an OTA"}. Changes are saved here and protected from being overwritten by Lodgify sync, but the channel itself is not updated.`}
+                </p>
+              )}
               <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-1">
                   <Label htmlFor="check_in">Check-in</Label>
@@ -281,6 +323,20 @@ export function EditRegistrationDialog({
                     min={1}
                     value={form.num_guests}
                     onChange={(e) => updateField("num_guests", parseInt(e.target.value) || 1)}
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <Label htmlFor="total_amount">Total ($)</Label>
+                  <Input
+                    id="total_amount"
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    placeholder="Unchanged"
+                    value={form.total_amount}
+                    onChange={(e) => updateField("total_amount", e.target.value)}
                   />
                 </div>
               </div>
@@ -474,14 +530,25 @@ export function EditRegistrationDialog({
 
             {/* Error + Save */}
             {error && <p className="text-sm text-destructive">{error}</p>}
+            {warning && (
+              <p className="text-sm rounded-md px-3 py-2 bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200">
+                Saved. {warning}
+              </p>
+            )}
             <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
-                Cancel
-              </Button>
-              <Button onClick={handleSave} disabled={saving}>
-                {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                Save Changes
-              </Button>
+              {warning ? (
+                <Button onClick={() => onOpenChange(false)}>Close</Button>
+              ) : (
+                <>
+                  <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
+                    Cancel
+                  </Button>
+                  <Button onClick={handleSave} disabled={saving}>
+                    {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                    Save Changes
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         ) : null}

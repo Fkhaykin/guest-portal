@@ -8,7 +8,14 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BookingDatePicker } from "@/components/admin/booking-date-picker";
-import { Loader2, Trash2, AlertTriangle } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { Loader2, Trash2, Pencil, AlertTriangle } from "lucide-react";
 
 type Property = { id: string; name: string; nickname: string | null; lodgify_property_id: number | null };
 
@@ -42,6 +49,12 @@ export default function BlockedDatesPage() {
   const [error, setError] = useState<string | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
   const [refreshToken, setRefreshToken] = useState(0);
+  const [editing, setEditing] = useState<Block | null>(null);
+  const [editStart, setEditStart] = useState("");
+  const [editEnd, setEditEnd] = useState("");
+  const [editReason, setEditReason] = useState("");
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
 
   const property = useMemo(() => properties.find((p) => p.id === propertyId) ?? null, [properties, propertyId]);
 
@@ -88,6 +101,43 @@ export default function BlockedDatesPage() {
       setError(err instanceof Error ? err.message : "Network error");
     } finally {
       setSaving(false);
+    }
+  }
+
+  function openEdit(b: Block) {
+    setEditing(b);
+    setEditStart(b.start_date);
+    setEditEnd(b.end_date);
+    setEditReason(b.reason ?? "");
+    setEditError(null);
+  }
+
+  async function saveEdit() {
+    if (!editing) return;
+    setEditError(null);
+    if (!editStart || !editEnd) return setEditError("Both dates are required");
+    if (editEnd <= editStart) return setEditError("End date must be after start date");
+    setEditSaving(true);
+    setWarning(null);
+    try {
+      const res = await fetch("/api/admin/blocks", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: editing.id, start_date: editStart, end_date: editEnd, reason: editReason }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setEditError(data.error || "Failed to update block"); return; }
+      if (data.ota_released === false && data.prior_lodgify_booking_id) {
+        setWarning(`Block updated, but the old Lodgify hold (booking #${data.prior_lodgify_booking_id}) could not be deleted automatically — remove it in Lodgify so the old dates reopen on Airbnb/VRBO.`);
+      } else if (!data.ota_held) {
+        setWarning("Block updated, but the new dates could not be held on Lodgify — Airbnb/VRBO may still book them. Check the Lodgify connection.");
+      }
+      setEditing(null);
+      setRefreshToken((n) => n + 1);
+    } catch (err) {
+      setEditError(err instanceof Error ? err.message : "Network error");
+    } finally {
+      setEditSaving(false);
     }
   }
 
@@ -187,9 +237,14 @@ export default function BlockedDatesPage() {
                         <span className="text-amber-600 dark:text-amber-400"> · not held on Lodgify</span>
                       )}
                     </div>
-                    <Button type="button" variant="ghost" size="sm" onClick={() => removeBlock(b.id)}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <div className="flex items-center gap-1">
+                      <Button type="button" variant="ghost" size="sm" onClick={() => openEdit(b)}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button type="button" variant="ghost" size="sm" onClick={() => removeBlock(b.id)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -197,6 +252,45 @@ export default function BlockedDatesPage() {
           </CardContent>
         </Card>
       )}
+
+      <Dialog open={!!editing} onOpenChange={(open) => { if (!open) setEditing(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit block</DialogTitle>
+            <DialogDescription>
+              Changing the dates moves the hold on Lodgify so Airbnb/VRBO see the new dates.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="edit-start">First blocked night</Label>
+                <Input id="edit-start" type="date" value={editStart} onChange={(e) => setEditStart(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-end">Reopens on</Label>
+                <Input id="edit-end" type="date" value={editEnd} onChange={(e) => setEditEnd(e.target.value)} />
+              </div>
+            </div>
+            {editStart && editEnd && editEnd > editStart && (
+              <p className="text-sm text-muted-foreground">
+                {fmtDate(editStart)} → {fmtDate(editEnd)} ({nights(editStart, editEnd)} night{nights(editStart, editEnd) === 1 ? "" : "s"})
+              </p>
+            )}
+            <div className="space-y-2">
+              <Label htmlFor="edit-reason">Reason (optional)</Label>
+              <Input id="edit-reason" placeholder="Maintenance, owner stay…" value={editReason} onChange={(e) => setEditReason(e.target.value)} />
+            </div>
+            {editError && <p className="text-sm text-destructive">{editError}</p>}
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setEditing(null)} disabled={editSaving}>Cancel</Button>
+              <Button onClick={saveEdit} disabled={editSaving}>
+                {editSaving ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Saving…</> : "Save changes"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

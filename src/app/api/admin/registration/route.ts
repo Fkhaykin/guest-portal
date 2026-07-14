@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { cancelBooking } from "@/lib/lodgify/client";
+import { pushBookingToLodgify } from "@/lib/lodgify/push";
 
 // GET — fetch full registration data for editing
 export async function GET(request: NextRequest) {
@@ -146,6 +148,8 @@ export async function PUT(request: NextRequest) {
     num_guests: number;
     status: "active" | "completed" | "cancelled";
     notes: string;
+    // Optional manual revenue override (cents); omitted = leave unchanged.
+    total_amount_cents?: number | null;
     guest_list: Array<{ first_name: string; last_name: string; age_group: string }>;
     pets: Array<{ name: string; kind: string; rabies_doc_path: string | null; vaccination_doc_path: string | null }>;
     vehicles: Array<{
@@ -203,14 +207,38 @@ export async function PUT(request: NextRequest) {
   );
   const validPets = (body.pets || []).filter((p) => p.name.trim());
 
+  const newNumGuests = body.num_guests || validGuests.length || 1;
+  const newNotes = body.notes.trim() || null;
+  const newTotalCents =
+    typeof body.total_amount_cents === "number" &&
+    Number.isFinite(body.total_amount_cents) &&
+    body.total_amount_cents >= 0
+      ? Math.round(body.total_amount_cents)
+      : null;
+
+  // Sync-owned fields the admin is changing. On a Lodgify-linked booking these
+  // must be locked against the sync upsert, or the next webhook/full sync
+  // silently reverts the manual edit (see syncBooking's sync_locked_fields).
+  const changedSynced: string[] = [];
+  if (body.check_in_date !== reg.check_in_date) changedSynced.push("check_in_date");
+  if (body.check_out_date !== reg.check_out_date) changedSynced.push("check_out_date");
+  if (newNumGuests !== reg.num_guests) changedSynced.push("num_guests");
+  if (body.status !== reg.status) changedSynced.push("status");
+  if (newNotes !== (reg.notes ?? null)) changedSynced.push("notes");
+  if (newTotalCents !== null && newTotalCents !== reg.total_amount_cents) changedSynced.push("total_amount_cents");
+
+  const mergedLocks = [
+    ...new Set([...(((reg.sync_locked_fields as string[] | null) ?? [])), ...changedSynced]),
+  ];
+
   await admin
     .from("registration")
     .update({
       check_in_date: body.check_in_date,
       check_out_date: body.check_out_date,
-      num_guests: body.num_guests || validGuests.length || 1,
+      num_guests: newNumGuests,
       status: body.status,
-      notes: body.notes.trim() || null,
+      notes: newNotes,
       guest_list: validGuests.map((g) => ({
         first_name: g.first_name.trim(),
         last_name: g.last_name.trim(),
@@ -222,8 +250,58 @@ export async function PUT(request: NextRequest) {
         rabies_doc_path: p.rabies_doc_path,
         vaccination_doc_path: p.vaccination_doc_path,
       })),
+      ...(newTotalCents !== null ? { total_amount_cents: newTotalCents } : {}),
+      ...(reg.lodgify_booking_id && changedSynced.length > 0
+        ? { sync_locked_fields: mergedLocks }
+        : {}),
     })
     .eq("id", body.registration_id);
+
+  // Locally-pushed bookings (admin "New booking" / direct checkout) hold their
+  // dates on Lodgify via a synthetic reservation. Lodgify has no update API, so
+  // a date change moves the hold: delete the old booking, push a fresh one for
+  // the new dates. OTA bookings are never touched — their calendar lives on the
+  // channel; the sync-lock above keeps the local edit from being reverted.
+  let lodgifyWarning: string | null = null;
+  const datesChanged =
+    changedSynced.includes("check_in_date") || changedSynced.includes("check_out_date");
+  const isLocalPush = reg.booking_source === "admin" || reg.booking_source === "direct";
+  if (datesChanged && reg.lodgify_booking_id && isLocalPush) {
+    const oldLodgifyId = reg.lodgify_booking_id as number;
+    const released = await cancelBooking(oldLodgifyId);
+    if (!released) {
+      lodgifyWarning = `The old Lodgify hold (booking #${oldLodgifyId}) could not be deleted — remove it in Lodgify so the old dates reopen on Airbnb/VRBO.`;
+    }
+    await admin
+      .from("registration")
+      .update({ lodgify_booking_id: null, lodgify_sync_status: null })
+      .eq("id", body.registration_id);
+    await pushBookingToLodgify(body.registration_id, admin);
+
+    const { data: after } = await admin
+      .from("registration")
+      .select("lodgify_booking_id, lodgify_sync_status")
+      .eq("id", body.registration_id)
+      .single();
+    if (after?.lodgify_booking_id && after.lodgify_sync_status === "synced") {
+      // Keep message-thread links pointing at the live Lodgify booking.
+      await admin
+        .from("guest_message")
+        .update({ lodgify_booking_id: after.lodgify_booking_id })
+        .eq("lodgify_booking_id", oldLodgifyId);
+      await admin
+        .from("guest_message_thread")
+        .update({ lodgify_booking_id: after.lodgify_booking_id })
+        .eq("lodgify_booking_id", oldLodgifyId);
+    } else {
+      lodgifyWarning = [
+        lodgifyWarning,
+        "The new dates could not be held on Lodgify — Airbnb/VRBO can book them. Check the Lodgify connection.",
+      ]
+        .filter(Boolean)
+        .join(" ");
+    }
+  }
 
   // Update vehicles — delete and re-insert
   await admin.from("vehicle").delete().eq("registration_id", body.registration_id);
@@ -258,6 +336,7 @@ export async function PUT(request: NextRequest) {
       guest_list: reg.guest_list,
       pets: reg.pets,
       notes: reg.notes,
+      total_amount_cents: reg.total_amount_cents,
     } as Record<string, unknown>,
     new_data: {
       guest_name: body.guest_name,
@@ -269,8 +348,9 @@ export async function PUT(request: NextRequest) {
       pets: validPets,
       vehicles: vehicleRows,
       notes: body.notes,
+      total_amount_cents: newTotalCents ?? reg.total_amount_cents,
     } as Record<string, unknown>,
   });
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, lodgify_warning: lodgifyWarning });
 }

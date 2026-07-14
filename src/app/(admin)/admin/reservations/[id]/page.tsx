@@ -17,6 +17,14 @@ import {
   SheetDescription,
 } from "@/components/ui/sheet";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import {
   ArrowLeft,
   Pencil,
   Eye,
@@ -210,6 +218,11 @@ export default function ReservationDetailPage() {
   const [reviewMsgLog, setReviewMsgLog] = useState<{ sent_at: string; error: string | null } | null>(null);
   const [expandedDrivers, setExpandedDrivers] = useState<Set<number>>(new Set());
   const [hasModifications, setHasModifications] = useState(false);
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
+  const [cancelling, setCancelling] = useState(false);
+  const [cancelError, setCancelError] = useState<string | null>(null);
+  const [cancelWarning, setCancelWarning] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -471,6 +484,36 @@ export default function ReservationDetailPage() {
     const url = `${window.location.protocol}//${guestHost}/?reg=${id}&token=${token}`;
     window.open(url, "_blank");
   }, [id]);
+
+  async function confirmCancel() {
+    setCancelling(true);
+    setCancelError(null);
+    setCancelWarning(null);
+    try {
+      const res = await fetch("/api/admin/bookings/cancel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ registration_id: id, reason: cancelReason }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setCancelError(data.error || "Failed to cancel booking"); return; }
+      if (data.lodgify_released === false && data.lodgify_booking_id) {
+        // Cancelled locally, but the Lodgify hold survived — keep the dialog
+        // open so the admin sees the cleanup step before moving on.
+        setCancelWarning(
+          `Booking cancelled here, but the Lodgify booking #${data.lodgify_booking_id} could not be deleted automatically — remove it in Lodgify so the dates reopen on Airbnb/VRBO.`
+        );
+      } else {
+        setCancelOpen(false);
+      }
+      setCancelReason("");
+      await loadData();
+    } catch (err) {
+      setCancelError(err instanceof Error ? err.message : "Network error");
+    } finally {
+      setCancelling(false);
+    }
+  }
 
   // Open the guest-facing payment page. /pay/[id] is a shared (non-prefixed)
   // route, so on the admin subdomain it must be opened on the guest host —
@@ -753,6 +796,16 @@ export default function ReservationDetailPage() {
             </Button>
           </a>
         ))}
+        {reg.status !== "cancelled" && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-destructive border-destructive/40 hover:bg-destructive/10 hover:text-destructive"
+            onClick={() => { setCancelError(null); setCancelWarning(null); setCancelOpen(true); }}
+          >
+            <XCircle className="h-4 w-4 mr-1" /> Cancel booking
+          </Button>
+        )}
       </div>
 
       <Tabs defaultValue="details">
@@ -1606,6 +1659,78 @@ export default function ReservationDetailPage() {
         onOpenChange={setEditOpen}
         onSaved={loadData}
       />
+
+      {/* Cancel Booking Dialog */}
+      <Dialog open={cancelOpen} onOpenChange={setCancelOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Cancel this booking?</DialogTitle>
+            <DialogDescription>
+              {guest?.full_name ?? "Guest"} · {reg.check_in_date} → {reg.check_out_date}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {(() => {
+              const isLocalPush = reg.booking_source === "admin" || reg.booking_source === "direct";
+              if (reg.lodgify_booking_id && isLocalPush) {
+                return (
+                  <p className="text-sm text-muted-foreground">
+                    The booking will be marked cancelled and its Lodgify hold removed, so the
+                    dates reopen on Airbnb/VRBO and the direct booking calendar.
+                  </p>
+                );
+              }
+              if (reg.lodgify_booking_id) {
+                return (
+                  <p className={`text-sm rounded-md px-3 py-2 ${toneBadge("warning")}`}>
+                    This booking came from {reg.booking_source || "an OTA"} — cancelling here only
+                    updates this portal. Cancel it on the channel (or in Lodgify) as well, or the
+                    dates stay blocked and the guest isn&apos;t refunded.
+                  </p>
+                );
+              }
+              return (
+                <p className="text-sm text-muted-foreground">
+                  The booking will be marked cancelled in the portal.
+                </p>
+              );
+            })()}
+            {(reg.deposit_paid_at || reg.balance_paid_at) && (
+              <p className="text-sm text-muted-foreground">
+                Payments are not refunded automatically — issue any refund from Stripe.
+              </p>
+            )}
+            <div className="space-y-1">
+              <label htmlFor="cancel-reason" className="text-sm font-medium">Reason (optional)</label>
+              <Input
+                id="cancel-reason"
+                placeholder="Guest requested, dates moved…"
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+              />
+            </div>
+            {cancelError && <p className="text-sm text-destructive">{cancelError}</p>}
+            {cancelWarning && (
+              <p className={`text-sm rounded-md px-3 py-2 ${toneBadge("warning")}`}>{cancelWarning}</p>
+            )}
+            <div className="flex justify-end gap-2">
+              {cancelWarning ? (
+                <Button variant="outline" onClick={() => setCancelOpen(false)}>Close</Button>
+              ) : (
+                <>
+                  <Button variant="outline" onClick={() => setCancelOpen(false)} disabled={cancelling}>
+                    Keep booking
+                  </Button>
+                  <Button variant="destructive" onClick={confirmCancel} disabled={cancelling}>
+                    {cancelling && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                    Cancel booking
+                  </Button>
+                </>
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Outbox Drawer */}
       <Sheet open={historyOpen} onOpenChange={setHistoryOpen}>

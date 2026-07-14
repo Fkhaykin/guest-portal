@@ -320,52 +320,66 @@ export async function syncBooking(booking: LodgifyBooking, options?: { skipNotif
   // 3. Check if this booking already exists (to distinguish new vs update)
   const { data: existingReg } = await supabase
     .from("registration")
-    .select("id, status, check_in_date, check_out_date, num_guests, lodgify_adults, lodgify_children, lodgify_infants, lodgify_num_pets, notes, total_amount_cents")
+    .select("id, status, check_in_date, check_out_date, num_guests, lodgify_adults, lodgify_children, lodgify_infants, lodgify_num_pets, notes, total_amount_cents, sync_locked_fields")
     .eq("lodgify_booking_id", booking.id)
     .maybeSingle();
 
   const isNewBooking = !existingReg;
   const wasPreviouslyActive = existingReg?.status === "active";
 
+  // Fields the admin has manually overridden (cancellation, date/guest
+  // adjustments). Lodgify must not clobber these — skip them in the upsert,
+  // the change log, and the status used for notifications. Only sync-owned
+  // columns are honored so a bad value can never mask ids or foreign keys.
+  const SYNC_LOCKABLE = new Set([
+    "check_in_date", "check_out_date", "num_guests",
+    "lodgify_adults", "lodgify_children", "lodgify_infants", "lodgify_num_pets",
+    "notes", "status", "total_amount_cents",
+  ]);
+  const lockedFields = new Set(
+    ((existingReg?.sync_locked_fields as string[] | null) ?? []).filter((f) => SYNC_LOCKABLE.has(f))
+  );
+
   // 4. Upsert registration by lodgify_booking_id. thread_uid is only present
   // on v2 detail fetches (webhook path); omit when null so batch syncs don't
   // overwrite a previously-cached value.
+  const upsertPayload: Record<string, unknown> = {
+    lodgify_booking_id: booking.id,
+    property_id: propertyId,
+    guest_id: guestId,
+    check_in_date: booking.arrival || null,
+    check_out_date: booking.departure || null,
+    num_guests: booking.guests || 1,
+    lodgify_adults: booking.adults || 0,
+    lodgify_children: booking.children || 0,
+    lodgify_infants: booking.infants || 0,
+    lodgify_num_pets: booking.pets || 0,
+    notes: booking.notes,
+    status: mapStatus(booking.status),
+    booking_source: booking.source,
+    // Gross (v1 list) amounts only seed brand-new rows; stay-based revenue
+    // from the v2 detail is authoritative and must not be overwritten.
+    ...(booking.total_amount && (isNewBooking || !booking.total_amount_is_gross)
+      ? { total_amount_cents: Math.round(booking.total_amount * 100) }
+      : {}),
+    ...(booking.date_created ? { booked_at: booking.date_created } : {}),
+    ...(booking.thread_uid ? { lodgify_thread_uid: booking.thread_uid } : {}),
+    // Itemized price snapshot — only carried by v2 detail fetches; omit
+    // when null so v1 batch syncs don't wipe a previously-stored breakdown.
+    ...(booking.price_breakdown ? { lodgify_price_breakdown: booking.price_breakdown } : {}),
+    // OTA confirmation code (Airbnb/VRBO) lets guests look up by the code
+    // printed on their channel booking. Only set when present so a channel
+    // that omits it never nulls out a previously-cached value.
+    ...(booking.ota_confirmation_code
+      ? { ota_confirmation_code: booking.ota_confirmation_code }
+      : {}),
+  };
+  // Omitted keys keep their existing DB value on conflict-update.
+  for (const field of lockedFields) delete upsertPayload[field];
+
   const { error: regError } = await supabase
     .from("registration")
-    .upsert(
-      {
-        lodgify_booking_id: booking.id,
-        property_id: propertyId,
-        guest_id: guestId,
-        check_in_date: booking.arrival || null,
-        check_out_date: booking.departure || null,
-        num_guests: booking.guests || 1,
-        lodgify_adults: booking.adults || 0,
-        lodgify_children: booking.children || 0,
-        lodgify_infants: booking.infants || 0,
-        lodgify_num_pets: booking.pets || 0,
-        notes: booking.notes,
-        status: mapStatus(booking.status),
-        booking_source: booking.source,
-        // Gross (v1 list) amounts only seed brand-new rows; stay-based revenue
-        // from the v2 detail is authoritative and must not be overwritten.
-        ...(booking.total_amount && (isNewBooking || !booking.total_amount_is_gross)
-          ? { total_amount_cents: Math.round(booking.total_amount * 100) }
-          : {}),
-        ...(booking.date_created ? { booked_at: booking.date_created } : {}),
-        ...(booking.thread_uid ? { lodgify_thread_uid: booking.thread_uid } : {}),
-        // Itemized price snapshot — only carried by v2 detail fetches; omit
-        // when null so v1 batch syncs don't wipe a previously-stored breakdown.
-        ...(booking.price_breakdown ? { lodgify_price_breakdown: booking.price_breakdown } : {}),
-        // OTA confirmation code (Airbnb/VRBO) lets guests look up by the code
-        // printed on their channel booking. Only set when present so a channel
-        // that omits it never nulls out a previously-cached value.
-        ...(booking.ota_confirmation_code
-          ? { ota_confirmation_code: booking.ota_confirmation_code }
-          : {}),
-      },
-      { onConflict: "lodgify_booking_id" }
-    );
+    .upsert(upsertPayload, { onConflict: "lodgify_booking_id" });
 
   if (regError) {
     console.error(`[lodgify-sync] Failed to upsert registration for booking ${booking.id}:`, regError);
@@ -426,10 +440,14 @@ export async function syncBooking(booking: LodgifyBooking, options?: { skipNotif
     ] as const;
 
     const existing = existingReg as Record<string, unknown>;
-    // Normalize null/"" as equivalent so empty-string vs null doesn't create spurious diffs
+    // Normalize null/"" as equivalent so empty-string vs null doesn't create spurious diffs.
+    // Admin-locked fields are excluded — their local value intentionally differs from
+    // Lodgify and would otherwise log a phantom "change" on every webhook.
     const normalize = (v: unknown) => (v == null || v === "" ? null : v);
     const changedKeys = TRACKED.filter(
-      (key) => JSON.stringify(normalize(existing[key])) !== JSON.stringify(normalize(newSnap[key]))
+      (key) =>
+        !lockedFields.has(key) &&
+        JSON.stringify(normalize(existing[key])) !== JSON.stringify(normalize(newSnap[key]))
     );
 
     if (changedKeys.length > 0) {
@@ -498,8 +516,14 @@ export async function syncBooking(booking: LodgifyBooking, options?: { skipNotif
     }
   }
 
-  // 6. Notify cleaners (fire-and-forget)
-  const newStatus = mapStatus(booking.status);
+  // 6. Notify cleaners (fire-and-forget). A locked status keeps the local value
+  // (e.g. admin-cancelled while Lodgify still says Booked) — without this, every
+  // webhook would look like a fresh cancelled→active transition and re-fire the
+  // new-booking notifications and guest confirmation.
+  const newStatus =
+    lockedFields.has("status") && existingReg
+      ? (existingReg.status as "active" | "completed" | "cancelled")
+      : mapStatus(booking.status);
 
   const paidUpsells = ((savedReg?.upsells as Array<{ status: string; label?: string }> | null) ?? [])
     .filter((u) => u.status === "paid" && u.label)
