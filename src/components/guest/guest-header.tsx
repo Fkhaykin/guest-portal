@@ -9,6 +9,10 @@ import { ThemeToggle } from "@/components/theme-toggle";
 
 const SESSION_KEY = "guest-portal-session";
 
+// Marketing website homepage (bare domain). Absolute so the logo crosses from
+// the guest subdomain — where "/" is rewritten to /checkin — to the main site.
+const WEBSITE_URL = "https://summitlakeside.com";
+
 type SessionData = {
   guestName: string;
   reservation: {
@@ -50,7 +54,7 @@ export function GuestHeader() {
   return (
     <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-40">
       <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
-        <Link href="/" className="hover:opacity-80 transition-opacity">
+        <Link href={WEBSITE_URL} className="hover:opacity-80 transition-opacity">
           <Image
             src="/logo.png"
             alt="Summit Lakeside"
@@ -109,7 +113,7 @@ export function PropertyHeader({
               <ArrowLeft className="h-5 w-5" />
             </Link>
           )}
-          <Link href="/" className="shrink-0 hover:opacity-80 transition-opacity">
+          <Link href={WEBSITE_URL} className="shrink-0 hover:opacity-80 transition-opacity">
             <Image
               src="/logo.png"
               alt="Summit Lakeside"
