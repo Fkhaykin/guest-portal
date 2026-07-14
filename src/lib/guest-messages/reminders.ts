@@ -2,6 +2,7 @@ import { Resend } from "resend";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendMessage } from "@/lib/lodgify/messages";
 import { TEMPLATES, PORTAL_URL, interpolate, firstNameOf, isDirectBookingSource, type TemplateVars } from "./templates";
+import { claimMessageSlot } from "./send";
 import { stayTimeVars } from "@/lib/upsells/timing";
 import { stripUrlsForSms } from "@/lib/sms/sanitize";
 import { sendGuestSms } from "@/lib/sms/send-guest-sms";
@@ -65,6 +66,12 @@ export async function sendRegistrationReminder(params: SendReminderParams): Prom
   const subject = interpolate(eventSettings?.subject ?? defaults.subject, vars);
   const body = interpolate(eventSettings?.message ?? defaults.body, vars);
 
+  // Atomically claim before sending so concurrent runs can't each fire this
+  // reminder (see claimMessageSlot in ./send). Released below if we end up with
+  // nothing to send, so a later run with a usable channel can still claim it.
+  const claimedId = await claimMessageSlot(supabase, params.registrationId, messageTypeKey);
+  if (!claimedId) return "duplicate";
+
   const isAirbnb = !!params.bookingSource && /airbnb/i.test(params.bookingSource);
   const isDirect = isDirectBookingSource(params.bookingSource);
 
@@ -114,14 +121,20 @@ export async function sendRegistrationReminder(params: SendReminderParams): Prom
     if (!smsResult.success) errors.push(`sms: ${smsResult.error ?? "unknown"}`);
   }
 
-  if (channelsAttempted.length === 0) return "skipped";
+  if (channelsAttempted.length === 0) {
+    // Nothing to send (e.g. Airbnb with no phone) — release the claim so a
+    // future run isn't blocked from sending if a channel becomes available.
+    await supabase.from("guest_automated_message_log").delete().eq("id", claimedId);
+    return "skipped";
+  }
 
-  await supabase.from("guest_automated_message_log").insert({
-    registration_id: params.registrationId,
-    message_type: messageTypeKey,
-    channel: channelsAttempted.join(","),
-    error: errors.length > 0 ? errors.join("; ") : null,
-  });
+  await supabase
+    .from("guest_automated_message_log")
+    .update({
+      channel: channelsAttempted.join(","),
+      error: errors.length > 0 ? errors.join("; ") : null,
+    })
+    .eq("id", claimedId);
 
   if (errors.length > 0) {
     console.error(`[reminder] ${messageTypeKey} for ${params.registrationId}: ${errors.join("; ")}`);

@@ -38,6 +38,37 @@ async function getHostSettings(hostId: string): Promise<GuestMessageSettings | n
   return (data?.guest_message_settings as GuestMessageSettings | null) ?? null;
 }
 
+// Atomically claim the (registration_id, message_type) slot before a send.
+// Backed by the guest_automated_message_log_dedup unique index: the upsert with
+// ignoreDuplicates issues INSERT ... ON CONFLICT DO NOTHING, so exactly one of N
+// concurrent callers gets a row back (the winner) and the rest get an empty set.
+// Only the winner proceeds to deliver, which closes the check-then-send race that
+// let concurrent Lodgify webhook actions each send their own copy of a message.
+// The row is inserted with a placeholder channel; the caller updates it with the
+// real channel/error once delivery completes. Returns the claimed row id, or null
+// if the slot was already taken.
+export async function claimMessageSlot(
+  supabase: ReturnType<typeof createAdminClient>,
+  registrationId: string,
+  messageType: string
+): Promise<string | null> {
+  const { data, error } = await supabase
+    .from("guest_automated_message_log")
+    .upsert(
+      { registration_id: registrationId, message_type: messageType, channel: "pending" },
+      { onConflict: "registration_id,message_type", ignoreDuplicates: true }
+    )
+    .select("id");
+
+  if (error) {
+    // Treat an errored claim as "not ours" — skipping a send is safer than the
+    // duplicate we're trying to prevent, and a later run can still claim it.
+    console.error(`[guest-msg] claim failed for ${registrationId}/${messageType}:`, error);
+    return null;
+  }
+  return data && data.length > 0 ? data[0].id : null;
+}
+
 export async function sendGuestAutomatedMessage(params: SendParams): Promise<void> {
   const supabase = createAdminClient();
 
@@ -76,14 +107,19 @@ export async function sendGuestAutomatedMessage(params: SendParams): Promise<voi
   // its SMS gets the short pointer; all other message types text their full body.
   const smsOverride =
     params.messageType === "day_of_checkin" ? conciseCheckinSms(params.propertyName) : undefined;
+
+  // Atomically claim the slot before delivering. If a concurrent run already
+  // claimed it (e.g. a burst of Lodgify webhook actions syncing one booking at
+  // once), bail without sending — this is what prevents duplicate messages.
+  const claimedId = await claimMessageSlot(supabase, params.registrationId, params.messageType);
+  if (!claimedId) return;
+
   const { channel, error } = await deliver(params, subject, body, params.messageType, smsOverride);
 
-  await supabase.from("guest_automated_message_log").insert({
-    registration_id: params.registrationId,
-    message_type: params.messageType,
-    channel,
-    error,
-  });
+  await supabase
+    .from("guest_automated_message_log")
+    .update({ channel, error })
+    .eq("id", claimedId);
 
   if (error) {
     console.error(`[guest-msg] ${params.messageType} failed for registration ${params.registrationId}:`, error);
@@ -192,6 +228,12 @@ export async function sendHouseCheckinInstructions(params: SendParams): Promise<
   const subject = interpolate(eventSettings?.subject ?? HOUSE_CHECKIN_SUBJECT, vars);
   const body = interpolate(eventSettings?.message ?? HOUSE_CHECKIN_TEMPLATES[house], vars);
 
+  // Atomically claim before delivering (see claimMessageSlot). If a concurrent
+  // run already claimed it, treat as handled so the caller still skips
+  // day_of_checkin rather than falling back to a near-duplicate generic message.
+  const claimedId = await claimMessageSlot(supabase, params.registrationId, messageTypeKey);
+  if (!claimedId) return true;
+
   const { channel, error } = await deliver(
     params,
     subject,
@@ -200,12 +242,10 @@ export async function sendHouseCheckinInstructions(params: SendParams): Promise<
     conciseCheckinSms(params.propertyName)
   );
 
-  await supabase.from("guest_automated_message_log").insert({
-    registration_id: params.registrationId,
-    message_type: messageTypeKey,
-    channel,
-    error,
-  });
+  await supabase
+    .from("guest_automated_message_log")
+    .update({ channel, error })
+    .eq("id", claimedId);
 
   if (error) {
     console.error(`[guest-msg] ${messageTypeKey} failed for registration ${params.registrationId}:`, error);

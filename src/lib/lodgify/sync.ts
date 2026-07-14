@@ -298,11 +298,38 @@ export async function syncBooking(booking: LodgifyBooking, options?: { skipNotif
         ...(booking.guest.id ? { lodgify_guest_id: booking.guest.id } : {}),
       })
       .eq("id", guestId);
+  } else if (booking.guest.id) {
+    // Race-safe create: a concurrent sync of the SAME booking may be inserting
+    // this guest at the same moment. Upsert on the unique lodgify_guest_id
+    // (constraint from migration 003) so both runs converge on one row instead
+    // of the loser hitting a duplicate-key error and abandoning the sync.
+    // Note: bookings whose webhook payload carries NO guest id fall through to
+    // the plain insert below and can still fork under concurrency (nulls are
+    // distinct in the unique index) — the message-level dedup in
+    // guest-messages/send.ts is what prevents duplicate guest messages there.
+    const { data: newGuest, error: guestError } = await supabase
+      .from("guest")
+      .upsert(
+        {
+          lodgify_guest_id: booking.guest.id,
+          full_name: booking.guest.name,
+          email: booking.guest.email,
+          phone: booking.guest.phone,
+        },
+        { onConflict: "lodgify_guest_id" }
+      )
+      .select("id")
+      .single();
+
+    if (guestError || !newGuest) {
+      console.error(`[lodgify-sync] Failed to upsert guest for booking ${booking.id}:`, guestError);
+      return { skipped: true, reason: "guest_create_failed" };
+    }
+    guestId = newGuest.id;
   } else {
     const { data: newGuest, error: guestError } = await supabase
       .from("guest")
       .insert({
-        ...(booking.guest.id ? { lodgify_guest_id: booking.guest.id } : {}),
         full_name: booking.guest.name,
         email: booking.guest.email,
         phone: booking.guest.phone,
