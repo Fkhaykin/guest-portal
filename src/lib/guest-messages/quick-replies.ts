@@ -175,6 +175,21 @@ export const QUICK_REPLIES: QuickReply[] = [
 
   // --- Check-in / Checkout ---
   {
+    id: "registration-instructions",
+    title: "Registration link / instructions",
+    category: "Check-in / Checkout",
+    keywords: ["register", "registration", "registration link", "registration form", "check in form", "check-in form", "gate", "sign the lease", "rental agreement", "send me the link", "the link", "how do i check in", "guest form"],
+    body: `Hi {{guest_first_name}}, all guests need to complete a quick registration before arrival — it's required by the community and the gate won't admit anyone who isn't on the form. It only takes a couple of minutes:
+
+————GUEST PORTAL————
+
+https://guest.summitlakeside.com
+
+———^^CLICK ABOVE^^———
+
+Just look up your booking by name and check-in date, then add your guests, vehicles, and signature. Let me know if you have any trouble and I'll help you through it!`,
+  },
+  {
     id: "early-checkin",
     title: "Early check-in (portal add-on)",
     category: "Check-in / Checkout",

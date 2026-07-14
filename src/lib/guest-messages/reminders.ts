@@ -72,42 +72,44 @@ export async function sendRegistrationReminder(params: SendReminderParams): Prom
   const claimedId = await claimMessageSlot(supabase, params.registrationId, messageTypeKey);
   if (!claimedId) return "duplicate";
 
-  const isAirbnb = !!params.bookingSource && /airbnb/i.test(params.bookingSource);
   const isDirect = isDirectBookingSource(params.bookingSource);
 
   const channelsAttempted: string[] = [];
   const errors: string[] = [];
 
-  if (!isAirbnb) {
-    if (isDirect) {
-      if (params.guestEmail) {
-        try {
-          const resend = new Resend(process.env.RESEND_API_KEY);
-          const { error } = await resend.emails.send({
-            from: "Summit Lakeside <contact@summitlakeside.com>",
-            to: params.guestEmail,
-            subject,
-            text: body,
-          });
-          channelsAttempted.push("email");
-          if (error) errors.push(`email: ${error.message}`);
-        } catch (err) {
-          channelsAttempted.push("email");
-          errors.push(`email: ${err instanceof Error ? err.message : "unknown"}`);
-        }
+  if (isDirect) {
+    if (params.guestEmail) {
+      try {
+        const resend = new Resend(process.env.RESEND_API_KEY);
+        const { error } = await resend.emails.send({
+          from: "Summit Lakeside <contact@summitlakeside.com>",
+          to: params.guestEmail,
+          subject,
+          text: body,
+        });
+        channelsAttempted.push("email");
+        if (error) errors.push(`email: ${error.message}`);
+      } catch (err) {
+        channelsAttempted.push("email");
+        errors.push(`email: ${err instanceof Error ? err.message : "unknown"}`);
       }
-    } else if (params.lodgifyBookingId) {
-      const result = await sendMessage(params.lodgifyBookingId, body);
-      channelsAttempted.push("lodgify");
-      if (!result.success) errors.push(`lodgify: ${result.error ?? "unknown"}`);
     }
+  } else if (params.lodgifyBookingId) {
+    // OTA bookings (Airbnb, Vrbo, Booking.com…) get the reminder — with its
+    // live registration link — on the Lodgify thread, the same channel every
+    // other guest message already uses for them. Airbnb guests frequently have
+    // no email on file, so without this the link only ever reached them by SMS,
+    // where it's stripped until Textbelt whitelists links (see below).
+    const result = await sendMessage(params.lodgifyBookingId, body);
+    channelsAttempted.push("lodgify");
+    if (!result.success) errors.push(`lodgify: ${result.error ?? "unknown"}`);
   }
 
   if (params.guestPhone) {
     // SMS can't carry the link until Textbelt whitelists the key (see
-    // sms/sanitize). Point guests at a path that actually exists — replying
-    // reaches the host via the inbound SMS webhook — instead of a "booking
-    // confirmation" link that was stripped or (for Airbnb) never sent.
+    // sms/sanitize), so the text nudges the guest to reply — which reaches the
+    // host via the inbound SMS webhook. The live link itself goes out on the
+    // guest's primary channel above (email for direct, Lodgify thread for OTA).
     const smsBody = stripUrlsForSms(
       body,
       "(reply to this text and we'll send you the registration link)"
