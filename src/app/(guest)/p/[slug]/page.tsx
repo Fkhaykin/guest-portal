@@ -1,8 +1,11 @@
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { notFound } from "next/navigation";
 import { QuickLinks } from "./quick-links";
 import { InstagramFeedSection } from "@/components/guest/instagram-feed";
 import { ReviewsCarousel } from "@/components/guest/reviews-carousel";
+import { GuestPhotoAlbum } from "@/components/guest/guest-photo-album";
+import { getPublishedHousePhotos } from "@/lib/guest-photos";
 
 export default async function PropertyHomePage({
   params,
@@ -20,6 +23,11 @@ export default async function PropertyHomePage({
 
   if (!property) notFound();
 
+  const housePhotos = await getPublishedHousePhotos(createAdminClient(), {
+    propertyId: property.id,
+    nickname: property.nickname,
+  });
+
   return (
     <div className="space-y-8">
       <div className="text-center space-y-2">
@@ -34,6 +42,8 @@ export default async function PropertyHomePage({
       </div>
 
       <QuickLinks slug={slug} />
+
+      {housePhotos.length > 0 && <GuestPhotoAlbum photos={housePhotos} />}
 
       <ReviewsCarousel />
 

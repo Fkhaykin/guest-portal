@@ -17,6 +17,7 @@ import {
   Truck,
   Megaphone,
   LineChart,
+  Images,
   PanelLeftClose,
   PanelLeftOpen,
 } from "lucide-react";
@@ -34,6 +35,7 @@ const navItems = [
   { label: "Campaigns", href: "/admin/campaigns", icon: Megaphone },
   { label: "Pricing Lab", href: "/admin/pricing", icon: LineChart },
   { label: "Potential Claims", href: "/admin/aircover-claims", icon: ShieldAlert },
+  { label: "Guest Photos", href: "/admin/guest-photos", icon: Images },
   { label: "Invoices", href: "/admin/invoices", icon: Receipt },
   { label: "Settings", href: "/admin/settings", icon: Settings },
 ];

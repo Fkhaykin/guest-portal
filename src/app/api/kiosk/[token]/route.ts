@@ -10,6 +10,7 @@ import {
   registrationSessionSelect,
 } from "@/lib/guest-session-payload";
 import { resolveKioskProperty, KIOSK_FALLBACK_COORDS } from "@/lib/kiosk";
+import { countPublishedHousePhotos } from "@/lib/guest-photos";
 
 // Back-to-back turnover: greet the departing guest until this local hour,
 // then switch to the arriving one.
@@ -163,6 +164,9 @@ export async function GET(
 
   const weather = await kioskWeather(admin, property.nickname, today);
 
+  // Drives whether the House Album tile shows — hide it until a photo is live.
+  const housePhotoCount = await countPublishedHousePhotos(admin, propertyIds);
+
   // Which community the house sits in drives the Explore screen + help card.
   const { data: hoaRow } = await admin
     .from("property")
@@ -186,6 +190,7 @@ export async function GET(
       photos,
       weather,
       booking,
+      house_photo_count: housePhotoCount,
     },
     { headers: { "Cache-Control": "no-store" } }
   );

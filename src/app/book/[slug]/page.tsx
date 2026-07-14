@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
 import { getPropertyDetails } from "@/lib/property-details";
 import { REVIEWS } from "@/lib/reviews-data";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { getPublishedHousePhotos } from "@/lib/guest-photos";
 import { PropertyPage } from "./property-page";
 
 function stripHtml(html: string) {
@@ -49,6 +51,18 @@ export default async function BookPropertyPage({
 
   const { property, lodgify } = details;
 
+  // Published guest photos for this house (grouped across nickname siblings).
+  const admin = createAdminClient();
+  const { data: propRow } = await admin
+    .from("property")
+    .select("nickname")
+    .eq("id", property.id)
+    .maybeSingle();
+  const guestPhotos = await getPublishedHousePhotos(admin, {
+    propertyId: property.id,
+    nickname: propRow?.nickname ?? null,
+  });
+
   // Structured data for rich search results
   const propReviews = REVIEWS.filter((r) => r.property === property.name);
   const jsonLd = {
@@ -94,6 +108,7 @@ export default async function BookPropertyPage({
         checkOut={query.check_out}
         guests={query.guests}
         pets={query.pets}
+        guestPhotos={guestPhotos}
       />
     </>
   );

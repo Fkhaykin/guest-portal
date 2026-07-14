@@ -37,6 +37,7 @@ import {
 } from "./gallery";
 import { AvailabilityCalendar, BookingCard, MobileBookingBar, useBooking } from "./booking";
 import { AmenitiesSection } from "./amenities";
+import { GuestPhotoAlbum, type AlbumPhoto } from "@/components/guest/guest-photo-album";
 import { LocalPlacesSection } from "./local-places";
 
 /* ------------------------------------------------------------------ */
@@ -205,12 +206,14 @@ export function PropertyPage({
   checkOut,
   guests,
   pets,
+  guestPhotos = [],
 }: {
   details: PropertyDetails;
   checkIn?: string;
   checkOut?: string;
   guests?: string;
   pets?: string;
+  guestPhotos?: AlbumPhoto[];
 }) {
   const { property, lodgify } = details;
   const [descExpanded, setDescExpanded] = useState(false);
@@ -505,6 +508,15 @@ export function PropertyPage({
             propertyNames={reviewNames}
           />
         </section>
+
+        {/* Guest photo album — social proof from past stays */}
+        {guestPhotos.length > 0 && (
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-12">
+            <Reveal>
+              <GuestPhotoAlbum photos={guestPhotos} />
+            </Reveal>
+          </div>
+        )}
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 pb-12 space-y-12">
           {/* Scenic interlude — a breath of the outdoors between sections */}

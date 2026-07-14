@@ -102,6 +102,10 @@ export type UpsellEntry = {
 export type AircoverClaimType = "damage" | "pet_discrepancy";
 export type AircoverClaimStatus = "open" | "claim_filed" | "claim_approved" | "claim_denied";
 
+// Photo booth moderation: guest keeps a photo → guest_approved; admin approves
+// → published (house album); admin passes → rejected.
+export type GuestPhotoStatus = "guest_approved" | "published" | "rejected";
+
 export type NotificationEvent = {
   enabled: boolean;
   message: string;
@@ -1404,6 +1408,41 @@ export type Database = {
           expected_pet_count?: number | null;
           created_at?: string;
           updated_at?: string;
+        };
+      };
+      guest_photo: {
+        Row: {
+          id: string;
+          registration_id: string | null;
+          property_id: string;
+          file_path: string;
+          taken_by_name: string | null;
+          status: GuestPhotoStatus;
+          created_at: string;
+          updated_at: string;
+          published_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          registration_id?: string | null;
+          property_id: string;
+          file_path: string;
+          taken_by_name?: string | null;
+          status?: GuestPhotoStatus;
+          created_at?: string;
+          updated_at?: string;
+          published_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          registration_id?: string | null;
+          property_id?: string;
+          file_path?: string;
+          taken_by_name?: string | null;
+          status?: GuestPhotoStatus;
+          created_at?: string;
+          updated_at?: string;
+          published_at?: string | null;
         };
       };
     Views: Record<string, never>;

@@ -16,6 +16,9 @@ import { PromosScreen } from "./screens/promos-screen";
 import { ExploreScreen } from "./screens/explore-screen";
 import { TipScreen } from "./screens/tip-screen";
 import { PhoneScreen } from "./screens/phone-screen";
+import { PhotoboothScreen } from "./screens/photobooth-screen";
+import { GuestAlbumScreen } from "./screens/guest-album-screen";
+import { HouseAlbumScreen } from "./screens/house-album-screen";
 import { HelpOverlay } from "./help-overlay";
 
 const SESSION_KEY = "guest-portal-session";
@@ -336,6 +339,27 @@ export function KioskClient({ token }: { token: string }) {
       )}
       {screen.kind === "phone" && (
         <PhoneScreen booking={data.booking} timezone={tz} onBack={goHome} />
+      )}
+      {screen.kind === "photobooth" && (
+        <PhotoboothScreen
+          token={token}
+          booking={data.booking}
+          timezone={tz}
+          onBack={goHome}
+          onViewAlbum={() => setScreen({ kind: "guest-album" })}
+        />
+      )}
+      {screen.kind === "guest-album" && (
+        <GuestAlbumScreen
+          token={token}
+          booking={data.booking}
+          timezone={tz}
+          onBack={goHome}
+          onTakePhoto={() => setScreen({ kind: "photobooth" })}
+        />
+      )}
+      {screen.kind === "house-album" && (
+        <HouseAlbumScreen token={token} timezone={tz} onBack={goHome} />
       )}
 
       {helpOpen && <HelpOverlay data={data} onClose={() => setHelpOpen(false)} />}

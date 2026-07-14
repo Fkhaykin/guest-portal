@@ -3,8 +3,10 @@
 import { useEffect, useState } from "react";
 import {
   CalendarPlus,
+  Camera,
   CloudSun,
   ClipboardList,
+  GalleryVerticalEnd,
   Gift,
   HandCoins,
   HelpCircle,
@@ -45,19 +47,21 @@ type AccentKey =
   | "indigo" | "sky" | "amber" | "orange" | "emerald"
   | "cyan" | "lime" | "rose" | "fuchsia" | "violet" | "teal" | "slate";
 
+// Light mode uses a solid saturated badge with a white icon so the glyph reads
+// from across the room; dark mode keeps the softer tinted-icon treatment.
 const ACCENTS: Record<AccentKey, { tile: string; badge: string }> = {
-  indigo: { tile: "bg-indigo-500/12 ring-indigo-500/25 dark:bg-indigo-400/12 dark:ring-indigo-400/25", badge: "bg-indigo-500/20 text-indigo-700 dark:bg-indigo-400/20 dark:text-indigo-200" },
-  sky: { tile: "bg-sky-500/12 ring-sky-500/25 dark:bg-sky-400/12 dark:ring-sky-400/25", badge: "bg-sky-500/20 text-sky-700 dark:bg-sky-400/20 dark:text-sky-200" },
-  amber: { tile: "bg-amber-500/14 ring-amber-500/30 dark:bg-amber-400/14 dark:ring-amber-400/30", badge: "bg-amber-500/25 text-amber-700 dark:bg-amber-400/25 dark:text-amber-200" },
-  orange: { tile: "bg-orange-500/12 ring-orange-500/25 dark:bg-orange-400/12 dark:ring-orange-400/25", badge: "bg-orange-500/20 text-orange-700 dark:bg-orange-400/20 dark:text-orange-200" },
-  emerald: { tile: "bg-emerald-500/12 ring-emerald-500/25 dark:bg-emerald-400/12 dark:ring-emerald-400/25", badge: "bg-emerald-500/20 text-emerald-700 dark:bg-emerald-400/20 dark:text-emerald-200" },
-  cyan: { tile: "bg-cyan-500/12 ring-cyan-500/25 dark:bg-cyan-400/12 dark:ring-cyan-400/25", badge: "bg-cyan-500/20 text-cyan-700 dark:bg-cyan-400/20 dark:text-cyan-200" },
-  lime: { tile: "bg-lime-500/14 ring-lime-500/30 dark:bg-lime-400/12 dark:ring-lime-400/25", badge: "bg-lime-500/25 text-lime-700 dark:bg-lime-400/20 dark:text-lime-200" },
-  rose: { tile: "bg-rose-500/12 ring-rose-500/25 dark:bg-rose-400/12 dark:ring-rose-400/25", badge: "bg-rose-500/20 text-rose-700 dark:bg-rose-400/20 dark:text-rose-200" },
-  fuchsia: { tile: "bg-fuchsia-500/12 ring-fuchsia-500/25 dark:bg-fuchsia-400/12 dark:ring-fuchsia-400/25", badge: "bg-fuchsia-500/20 text-fuchsia-700 dark:bg-fuchsia-400/20 dark:text-fuchsia-200" },
-  violet: { tile: "bg-violet-500/12 ring-violet-500/25 dark:bg-violet-400/12 dark:ring-violet-400/25", badge: "bg-violet-500/20 text-violet-700 dark:bg-violet-400/20 dark:text-violet-200" },
-  teal: { tile: "bg-teal-500/12 ring-teal-500/25 dark:bg-teal-400/12 dark:ring-teal-400/25", badge: "bg-teal-500/20 text-teal-700 dark:bg-teal-400/20 dark:text-teal-200" },
-  slate: { tile: "bg-slate-400/12 ring-slate-400/25 dark:bg-slate-300/12 dark:ring-slate-300/20", badge: "bg-slate-400/20 text-slate-700 dark:bg-slate-300/20 dark:text-slate-200" },
+  indigo: { tile: "bg-indigo-500/12 ring-indigo-500/25 dark:bg-indigo-400/12 dark:ring-indigo-400/25", badge: "bg-indigo-700 text-white dark:bg-indigo-400/20 dark:text-indigo-200" },
+  sky: { tile: "bg-sky-500/12 ring-sky-500/25 dark:bg-sky-400/12 dark:ring-sky-400/25", badge: "bg-sky-700 text-white dark:bg-sky-400/20 dark:text-sky-200" },
+  amber: { tile: "bg-amber-500/14 ring-amber-500/30 dark:bg-amber-400/14 dark:ring-amber-400/30", badge: "bg-amber-700 text-white dark:bg-amber-400/25 dark:text-amber-200" },
+  orange: { tile: "bg-orange-500/12 ring-orange-500/25 dark:bg-orange-400/12 dark:ring-orange-400/25", badge: "bg-orange-700 text-white dark:bg-orange-400/20 dark:text-orange-200" },
+  emerald: { tile: "bg-emerald-500/12 ring-emerald-500/25 dark:bg-emerald-400/12 dark:ring-emerald-400/25", badge: "bg-emerald-700 text-white dark:bg-emerald-400/20 dark:text-emerald-200" },
+  cyan: { tile: "bg-cyan-500/12 ring-cyan-500/25 dark:bg-cyan-400/12 dark:ring-cyan-400/25", badge: "bg-cyan-700 text-white dark:bg-cyan-400/20 dark:text-cyan-200" },
+  lime: { tile: "bg-lime-500/14 ring-lime-500/30 dark:bg-lime-400/12 dark:ring-lime-400/25", badge: "bg-lime-700 text-white dark:bg-lime-400/20 dark:text-lime-200" },
+  rose: { tile: "bg-rose-500/12 ring-rose-500/25 dark:bg-rose-400/12 dark:ring-rose-400/25", badge: "bg-rose-700 text-white dark:bg-rose-400/20 dark:text-rose-200" },
+  fuchsia: { tile: "bg-fuchsia-500/12 ring-fuchsia-500/25 dark:bg-fuchsia-400/12 dark:ring-fuchsia-400/25", badge: "bg-fuchsia-700 text-white dark:bg-fuchsia-400/20 dark:text-fuchsia-200" },
+  violet: { tile: "bg-violet-500/12 ring-violet-500/25 dark:bg-violet-400/12 dark:ring-violet-400/25", badge: "bg-violet-700 text-white dark:bg-violet-400/20 dark:text-violet-200" },
+  teal: { tile: "bg-teal-500/12 ring-teal-500/25 dark:bg-teal-400/12 dark:ring-teal-400/25", badge: "bg-teal-700 text-white dark:bg-teal-400/20 dark:text-teal-200" },
+  slate: { tile: "bg-slate-400/12 ring-slate-400/25 dark:bg-slate-300/12 dark:ring-slate-300/20", badge: "bg-slate-700 text-white dark:bg-slate-300/20 dark:text-slate-200" },
 };
 
 type Tile = {
@@ -141,9 +145,13 @@ export function MainScreen({
   const browse: Tile[] = [
     ...(booking
       ? [
+          { label: "Photo Booth", description: "Snap a photo — the timer counts you in", screen: { kind: "photobooth" }, icon: Camera, accent: "fuchsia" } as Tile,
           { label: "Add-Ons", description: "Extras & experiences for your stay", href: `/p/${slug}/add-ons`, icon: Gift, accent: "orange" } as Tile,
           { label: "Delivery & Rides", description: "Register deliveries and rideshares", href: `/p/${slug}/delivery`, icon: Truck, accent: "emerald" } as Tile,
         ]
+      : []),
+    ...(data.house_photo_count > 0
+      ? [{ label: "House Album", description: "Photos from guests who stayed here", screen: { kind: "house-album" }, icon: GalleryVerticalEnd, accent: "violet" } as Tile]
       : []),
     { label: "Weather", description: "Hourly forecast & live radar", screen: { kind: "weather" }, icon: CloudSun, accent: "cyan" },
     { label: "Explore", description: "Things to do in the Poconos", screen: { kind: "explore" }, icon: MapPin, accent: "lime" },

@@ -43,6 +43,23 @@ export interface KioskData {
   photos: string[];
   weather: KioskWeatherDay[] | null;
   booking: KioskBooking | null;
+  house_photo_count: number;
+}
+
+// A guest's own photo booth shot (kiosk album view).
+export interface KioskGuestPhoto {
+  id: string;
+  status: "guest_approved" | "published" | "rejected";
+  url: string | null;
+  created_at: string;
+}
+
+// A published house-album photo.
+export interface KioskHousePhoto {
+  id: string;
+  url: string;
+  taken_by_name: string | null;
+  created_at: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -155,4 +172,7 @@ export type KioskScreen =
   | { kind: "promos" }
   | { kind: "explore" }
   | { kind: "tip" }
-  | { kind: "phone" };
+  | { kind: "phone" }
+  | { kind: "photobooth" }
+  | { kind: "guest-album" }
+  | { kind: "house-album" };
