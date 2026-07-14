@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Camera,
   Check,
+  GalleryVerticalEnd,
   Images,
   Loader2,
   Mail,
@@ -29,12 +30,14 @@ export function PhotoboothScreen({
   timezone,
   onBack,
   onViewAlbum,
+  onViewHouseAlbum,
 }: {
   token: string;
   booking: KioskBooking | null;
   timezone: string;
   onBack: () => void;
   onViewAlbum: () => void;
+  onViewHouseAlbum: () => void;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -364,13 +367,22 @@ export function PhotoboothScreen({
             >
               <Camera className="h-8 w-8" /> Take Photo
             </button>
-            <button
-              type="button"
-              onClick={onViewAlbum}
-              className={`flex min-h-14 items-center gap-2 px-6 text-lg font-semibold text-(--k-fg) ${glassButton}`}
-            >
-              <Images className="h-5 w-5" /> My Photos
-            </button>
+            <div className="flex flex-wrap items-center justify-center gap-3">
+              <button
+                type="button"
+                onClick={onViewAlbum}
+                className={`flex min-h-14 items-center gap-2 px-6 text-lg font-semibold text-(--k-fg) ${glassButton}`}
+              >
+                <Images className="h-5 w-5" /> My Photos
+              </button>
+              <button
+                type="button"
+                onClick={onViewHouseAlbum}
+                className={`flex min-h-14 items-center gap-2 px-6 text-lg font-semibold text-(--k-fg) ${glassButton}`}
+              >
+                <GalleryVerticalEnd className="h-5 w-5" /> House Album
+              </button>
+            </div>
           </div>
         )}
 

@@ -347,6 +347,7 @@ export function KioskClient({ token }: { token: string }) {
           timezone={tz}
           onBack={goHome}
           onViewAlbum={() => setScreen({ kind: "guest-album" })}
+          onViewHouseAlbum={() => setScreen({ kind: "house-album", from: "photobooth" })}
         />
       )}
       {screen.kind === "guest-album" && (
@@ -359,7 +360,11 @@ export function KioskClient({ token }: { token: string }) {
         />
       )}
       {screen.kind === "house-album" && (
-        <HouseAlbumScreen token={token} timezone={tz} onBack={goHome} />
+        <HouseAlbumScreen
+          token={token}
+          timezone={tz}
+          onBack={screen.from === "photobooth" ? () => setScreen({ kind: "photobooth" }) : goHome}
+        />
       )}
 
       {helpOpen && <HelpOverlay data={data} onClose={() => setHelpOpen(false)} />}

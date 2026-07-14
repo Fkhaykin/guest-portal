@@ -175,4 +175,4 @@ export type KioskScreen =
   | { kind: "phone" }
   | { kind: "photobooth" }
   | { kind: "guest-album" }
-  | { kind: "house-album" };
+  | { kind: "house-album"; from?: "photobooth" };

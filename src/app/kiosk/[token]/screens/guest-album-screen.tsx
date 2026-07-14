@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Camera, Check, Clock, Loader2, Trash2, X } from "lucide-react";
+import { Camera, Check, Clock, Loader2, ShieldCheck, Trash2, X } from "lucide-react";
 import { KioskScreenShell, KioskEmpty, KioskSpinner, glassButton } from "../ui";
 import type { KioskBooking, KioskGuestPhoto } from "../types";
 
@@ -46,6 +46,16 @@ export function GuestAlbumScreen({
     };
   }, [token, regId, guestToken]);
 
+  const moderationNotice = (
+    <p className="mx-auto flex w-fit max-w-2xl items-start gap-2.5 rounded-2xl bg-(--k-surf-07) px-5 py-3 text-base text-(--k-fg-60) ring-1 ring-(--k-surf-10)">
+      <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0" />
+      <span>
+        Photos are reviewed, moderated, and approved by Summit Lakeside before they appear in our
+        guest album.
+      </span>
+    </p>
+  );
+
   const remove = useCallback(async () => {
     if (!active || !regId || !guestToken) return;
     setDeleting(true);
@@ -82,43 +92,47 @@ export function GuestAlbumScreen({
           >
             <Camera className="h-6 w-6" /> Open Photo Booth
           </button>
+          {moderationNotice}
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-          {photos.map((p) => (
-            <button
-              key={p.id}
-              type="button"
-              onClick={() => setActive(p)}
-              className="group relative aspect-square overflow-hidden rounded-2xl bg-(--k-surf-10) ring-1 ring-(--k-surf-15)"
-            >
-              {p.url && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={p.url}
-                  alt=""
-                  className="h-full w-full object-cover transition-transform group-active:scale-[0.98]"
-                />
-              )}
-              <span
-                className={`absolute left-2 top-2 flex items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold backdrop-blur-md ${
-                  p.status === "published"
-                    ? "bg-emerald-500/25 text-emerald-100"
-                    : "bg-amber-500/25 text-amber-100"
-                }`}
+        <div className="space-y-4">
+          {moderationNotice}
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+            {photos.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => setActive(p)}
+                className="group relative aspect-square overflow-hidden rounded-2xl bg-(--k-surf-10) ring-1 ring-(--k-surf-15)"
               >
-                {p.status === "published" ? (
-                  <>
-                    <Check className="h-3 w-3" /> In house album
-                  </>
-                ) : (
-                  <>
-                    <Clock className="h-3 w-3" /> Pending
-                  </>
+                {p.url && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={p.url}
+                    alt=""
+                    className="h-full w-full object-cover transition-transform group-active:scale-[0.98]"
+                  />
                 )}
-              </span>
-            </button>
-          ))}
+                <span
+                  className={`absolute left-2 top-2 flex items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold backdrop-blur-md ${
+                    p.status === "published"
+                      ? "bg-emerald-500/25 text-emerald-100"
+                      : "bg-amber-500/25 text-amber-100"
+                  }`}
+                >
+                  {p.status === "published" ? (
+                    <>
+                      <Check className="h-3 w-3" /> In house album
+                    </>
+                  ) : (
+                    <>
+                      <Clock className="h-3 w-3" /> Pending
+                    </>
+                  )}
+                </span>
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
