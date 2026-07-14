@@ -35,6 +35,11 @@ import {
   houseForProperty,
   HOUSE_LABELS,
 } from "@/lib/guest-messages/quick-replies";
+import { firstNameOf, PORTAL_URL } from "@/lib/guest-messages/templates";
+import {
+  STANDARD_CHECKIN_TIME,
+  STANDARD_CHECKOUT_TIME,
+} from "@/lib/upsells/timing";
 import { platformGlyph, PlatformLogo } from "@/components/admin/platform-logo";
 
 // Turn bare URLs in a message into tappable links. Splitting on a capturing
@@ -99,9 +104,17 @@ export default function AdminMessagesPage() {
   // Full-screen composer: blows the message input up to fill the viewport so
   // long replies are easier to write, then shrinks back to the inline bar.
   const [composerExpanded, setComposerExpanded] = useState(false);
-  // Host-authored quick replies — shared by the suggestion chips and the
-  // reply library drawer (which can create/edit/delete them on the fly).
-  const { customReplies, saveReply, deleteReply } = useCustomQuickReplies();
+  // Host-authored quick replies + per-house check-in instructions — shared by
+  // the suggestion chips and the reply library drawer (which can
+  // create/edit/delete the custom ones on the fly).
+  const { customReplies, houseCheckinReplies, saveReply, deleteReply } =
+    useCustomQuickReplies();
+  // The suggestion engine scores custom replies and the house check-in
+  // instructions alongside the built-ins ("resend the door code?" → chip).
+  const suggestionReplies = useMemo(
+    () => [...customReplies, ...houseCheckinReplies],
+    [customReplies, houseCheckinReplies]
+  );
 
   async function loadConversations() {
     try {
@@ -310,14 +323,32 @@ export default function AdminMessagesPage() {
     return null;
   }, [messages]);
 
-  const quickReplyVars = useMemo(
-    () => ({
-      guest_first_name:
-        selectedConversation?.guest_name?.trim().split(/\s+/)[0] ?? "there",
+  // Vars cover both the quick-reply placeholders (guest_first_name,
+  // max_guests) and the automessage template vars used by the house check-in
+  // instructions. Times are the standard 4pm/11am — a paid early check-in or
+  // late checkout isn't reflected here, so the host edits before sending.
+  const quickReplyVars = useMemo(() => {
+    const longDate = (d: string | null | undefined) =>
+      d
+        ? new Date(d + "T00:00:00").toLocaleDateString("en-US", {
+            weekday: "long",
+            month: "long",
+            day: "numeric",
+          })
+        : "";
+    const first = firstNameOf(selectedConversation?.guest_name) || "there";
+    return {
+      guest_first_name: first,
+      guest_name: first,
       max_guests: maxGuestsForProperty(selectedConversation?.property_name),
-    }),
-    [selectedConversation]
-  );
+      property_name: selectedConversation?.property_name ?? "",
+      check_in_date: longDate(selectedConversation?.arrival),
+      check_out_date: longDate(selectedConversation?.departure),
+      check_in_time: STANDARD_CHECKIN_TIME,
+      check_out_time: STANDARD_CHECKOUT_TIME,
+      portal_link: PORTAL_URL,
+    };
+  }, [selectedConversation]);
 
   function buildDraftPayload() {
     const conv = selectedConversation;
@@ -889,7 +920,7 @@ export default function AdminMessagesPage() {
                     lastGuestMessage={lastGuestMessage}
                     propertyName={selectedConversation?.property_name ?? null}
                     vars={quickReplyVars}
-                    customReplies={customReplies}
+                    customReplies={suggestionReplies}
                     onInsert={(text) => {
                       autoDraftRef.current = text;
                       autoDraftSourceRef.current = "quick-reply";
@@ -1075,6 +1106,7 @@ export default function AdminMessagesPage() {
                       propertyName={selectedConversation?.property_name ?? null}
                       vars={quickReplyVars}
                       customReplies={customReplies}
+                      houseReplies={houseCheckinReplies}
                       composerText={newMessage}
                       saveReply={saveReply}
                       deleteReply={deleteReply}

@@ -19,20 +19,31 @@ function parseHouse(value: unknown): HouseKey | null {
     : null;
 }
 
-// GET /api/admin/quick-replies — list the host's saved quick replies
+// GET /api/admin/quick-replies — list the host's saved quick replies, plus
+// the per-house check-in instruction overrides (guest_message_settings) so
+// the drawer offers the same text the day-of-check-in automessage sends.
 export async function GET() {
   const user = await requireUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const admin = createAdminClient();
-  const { data, error } = await admin
-    .from("custom_quick_reply")
-    .select(REPLY_COLUMNS)
-    .eq("active", true)
-    .order("created_at", { ascending: false });
+  const [{ data, error }, { data: hostRow }] = await Promise.all([
+    admin
+      .from("custom_quick_reply")
+      .select(REPLY_COLUMNS)
+      .eq("active", true)
+      .order("created_at", { ascending: false }),
+    admin.from("host").select("guest_message_settings").limit(1).maybeSingle(),
+  ]);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ replies: data ?? [] });
+  const settings = hostRow?.guest_message_settings as
+    | { house_checkin_instructions?: Record<string, { message?: string }> }
+    | null;
+  return NextResponse.json({
+    replies: data ?? [],
+    houseCheckinInstructions: settings?.house_checkin_instructions ?? null,
+  });
 }
 
 // POST /api/admin/quick-replies

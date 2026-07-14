@@ -45,6 +45,7 @@ import {
   type QuickReply,
   type HouseKey,
 } from "@/lib/guest-messages/quick-replies";
+import { HOUSE_CHECKIN_TEMPLATES } from "@/lib/guest-messages/house-templates";
 
 const CATEGORY_ICONS: Record<string, LucideIcon> = {
   "Check-in / Checkout": KeyRound,
@@ -69,18 +70,52 @@ export interface SaveReplyInput {
   house: HouseKey | null;
 }
 
+// The day-of-check-in instruction message, offered per house so the host can
+// re-send door codes / WiFi / directions on demand. Body prefers the host's
+// Auto Messages override, falling back to the built-in template.
+const CHECKIN_KEYWORDS = [
+  "check-in instructions", "check in instructions", "checkin instructions",
+  "door code", "lock code", "lockbox", "access code", "wifi", "wi-fi",
+  "password", "get into the house", "resend", "never got the instructions",
+];
+
+function buildHouseCheckinReplies(
+  overrides: Record<string, { message?: string }> | null
+): QuickReply[] {
+  return HOUSE_KEYS.map((house) => ({
+    id: `house-checkin-${house}`,
+    title: "Check-in instructions (full)",
+    category: "House Info",
+    keywords: CHECKIN_KEYWORDS,
+    body: overrides?.[house]?.message || HOUSE_CHECKIN_TEMPLATES[house],
+    house,
+  }));
+}
+
 export function useCustomQuickReplies() {
   const [customReplies, setCustomReplies] = useState<QuickReply[]>([]);
+  const [houseCheckinReplies, setHouseCheckinReplies] = useState<QuickReply[]>(
+    () => buildHouseCheckinReplies(null)
+  );
 
   useEffect(() => {
     let cancelled = false;
     fetch("/api/admin/quick-replies")
       .then((res) => res.json())
-      .then((data: { replies?: CustomQuickReplyRow[] }) => {
-        if (!cancelled && data.replies) {
-          setCustomReplies(data.replies.map(toQuickReply));
+      .then(
+        (data: {
+          replies?: CustomQuickReplyRow[];
+          houseCheckinInstructions?: Record<string, { message?: string }> | null;
+        }) => {
+          if (cancelled) return;
+          if (data.replies) setCustomReplies(data.replies.map(toQuickReply));
+          if (data.houseCheckinInstructions) {
+            setHouseCheckinReplies(
+              buildHouseCheckinReplies(data.houseCheckinInstructions)
+            );
+          }
         }
-      })
+      )
       .catch(() => {
         // built-in replies still work without the custom set
       });
@@ -115,7 +150,7 @@ export function useCustomQuickReplies() {
     });
   }, []);
 
-  return { customReplies, saveReply, deleteReply };
+  return { customReplies, houseCheckinReplies, saveReply, deleteReply };
 }
 
 // Recently used reply ids (built-in and custom alike), newest first.
@@ -216,6 +251,8 @@ export function QuickReplySuggestions({
 
 interface QuickReplyPickerProps
   extends Omit<QuickRepliesProps, "lastGuestMessage"> {
+  /** Per-house check-in instruction replies (read-only, pinned in the house section). */
+  houseReplies: QuickReply[];
   /** Current composer text — offered as the starting body for a new reply. */
   composerText: string;
   saveReply: (input: SaveReplyInput) => Promise<QuickReply>;
@@ -226,6 +263,7 @@ export function QuickReplyPicker({
   propertyName,
   vars,
   customReplies,
+  houseReplies,
   composerText,
   onInsert,
   saveReply,
@@ -248,6 +286,7 @@ export function QuickReplyPicker({
       propertyName={propertyName}
       vars={vars}
       customReplies={customReplies}
+      houseReplies={houseReplies}
       composerText={composerText}
       saveReply={saveReply}
       deleteReply={deleteReply}
@@ -307,6 +346,7 @@ function QuickReplyBrowser({
   propertyName,
   vars,
   customReplies,
+  houseReplies,
   composerText,
   onInsert,
   saveReply,
@@ -336,8 +376,10 @@ function QuickReplyBrowser({
   const sections = useMemo<Section[]>(() => {
     const q = query.trim().toLowerCase();
     // Replies visible in this conversation: everything account-wide plus
-    // anything scoped to this conversation's house.
+    // anything scoped to this conversation's house. House check-in
+    // instructions come first so they pin to the top of the house section.
     const visible = [
+      ...houseReplies,
       ...customReplies,
       ...QUICK_REPLIES,
     ].filter((r) => !r.house || r.house === house);
@@ -398,7 +440,7 @@ function QuickReplyBrowser({
         s.replies.length > 0 &&
         (activeSection === "all" || s.key === activeSection)
     );
-  }, [query, activeSection, customReplies, house, houseLabel, recentIds]);
+  }, [query, activeSection, customReplies, houseReplies, house, houseLabel, recentIds]);
 
   // Chips stay stable while searching so filters don't jump around.
   const chips = useMemo(() => {
