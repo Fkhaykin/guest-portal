@@ -20,6 +20,12 @@ export interface HolidayDef {
   /** Day offsets from the anchor that get the premium (the rental-valuable
    *  nights — e.g. the long weekend, or the party eves). */
   offsets: number[];
+  /** Travel-shoulder offsets (arrival/departure days that PriceLabs elevates
+   *  but below the core, e.g. the Tuesday before Thanksgiving). These receive
+   *  the holiday premium scaled by shoulderScale. Kept separate from `offsets`
+   *  so the core premium calibration isn't dragged by the softer shoulder. */
+  shoulderOffsets?: number[];
+  shoulderScale?: number;
 }
 
 function utc(year: number, month0: number, day: number): Date {
@@ -65,7 +71,7 @@ export const HOLIDAY_DEFS: HolidayDef[] = [
   { key: "laborday", label: "Labor Day", defaultPct: 166, enabledByDefault: true, anchor: (y) => nthWeekday(y, 8, 1, 1), offsets: [-3, -2, -1] },
   { key: "indigenous", label: "Columbus/Indigenous Day", defaultPct: 95, enabledByDefault: true, anchor: (y) => nthWeekday(y, 9, 1, 2), offsets: [-3, -2, -1] },
   { key: "halloween", label: "Halloween", defaultPct: 0, enabledByDefault: false, anchor: (y) => utc(y, 9, 31), offsets: [-1, 0] },
-  { key: "thanksgiving", label: "Thanksgiving", defaultPct: 227, enabledByDefault: true, anchor: (y) => nthWeekday(y, 10, 4, 4), offsets: [-1, 0, 1, 2] },
+  { key: "thanksgiving", label: "Thanksgiving", defaultPct: 227, enabledByDefault: true, anchor: (y) => nthWeekday(y, 10, 4, 4), offsets: [-1, 0, 1, 2], shoulderOffsets: [-2], shoulderScale: 0.3 },
   { key: "christmas", label: "Christmas", defaultPct: 180, enabledByDefault: true, anchor: (y) => utc(y, 11, 25), offsets: [-2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8] },
 ];
 
@@ -95,17 +101,23 @@ export function holidayByDate(
   for (const def of HOLIDAY_DEFS) {
     const rule = byKey.get(def.key);
     if (!rule || !rule.enabled || rule.pct === 0) continue;
+    // Core nights get the full premium; travel-shoulder nights get a scaled
+    // share of it (same label). A night claimed by both keeps the core value.
+    const nights: { off: number; pct: number }[] = [
+      ...def.offsets.map((off) => ({ off, pct: rule.pct })),
+      ...(def.shoulderOffsets ?? []).map((off) => ({ off, pct: rule.pct * (def.shoulderScale ?? 0) })),
+    ];
     for (let year = startYear; year <= endYear; year++) {
       const anchor = def.anchor(year);
-      for (const off of def.offsets) {
+      for (const { off, pct } of nights) {
         const d = new Date(anchor);
         d.setUTCDate(d.getUTCDate() + off);
         const key = iso(d);
         if (key < startISO || key > endISO) continue;
-        // Strongest premium wins if two holidays overlap a night.
+        // Strongest premium wins if two holidays (or core vs shoulder) overlap.
         const existing = out.get(key);
-        if (!existing || Math.abs(rule.pct) > Math.abs(existing.pct)) {
-          out.set(key, { pct: rule.pct, label: def.label });
+        if (!existing || Math.abs(pct) > Math.abs(existing.pct)) {
+          out.set(key, { pct, label: def.label });
         }
       }
     }
