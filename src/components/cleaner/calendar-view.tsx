@@ -93,6 +93,18 @@ function formatDateLong(dateStr: string) {
 
 const VISIBLE_DAYS = 14;
 
+// Slanted bar ends (PMS-calendar style) keep the half-day overlap legible: the
+// top edge reaches the midpoint of the check-out column (directly under the day
+// number), and back-to-back turnovers meet in a diagonal seam instead of two
+// rounded caps dying short of the boundary. Window-clamped ends stay square.
+const BAR_SLANT = 10;
+function barClip(isClampedStart: boolean, isClampedEnd: boolean) {
+  const slant = `min(${BAR_SLANT}px, 25%)`;
+  const topLeft = isClampedStart ? "0" : slant;
+  const bottomRight = isClampedEnd ? "100%" : `calc(100% - ${slant})`;
+  return `polygon(${topLeft} 0, 100% 0, ${bottomRight} 100%, 0 100%)`;
+}
+
 // Assign vertical lanes so overlapping bars don't collide
 function assignLanes(
   reservations: CalendarReservation[],
@@ -597,7 +609,7 @@ export function CalendarView({
                         <button
                           key={r.id}
                           onClick={() => setSelected(r)}
-                          className={`absolute h-6 rounded-full text-[10px] font-semibold flex items-center px-2.5 truncate cursor-pointer hover:brightness-110 active:scale-[0.98] transition-all z-10 shadow-sm ${
+                          className={`absolute h-6 text-[10px] font-semibold flex items-center px-3 truncate cursor-pointer hover:brightness-110 active:scale-[0.98] transition-all z-10 ${
                             !r.guestName
                               ? "bg-gray-200 text-gray-500 dark:bg-gray-700 dark:text-gray-400"
                               : `bg-teal-700 text-white ${r.isCleaned ? "opacity-40" : ""}`
@@ -607,6 +619,7 @@ export function CalendarView({
                             width: `${widthPct}%`,
                             top: 2,
                             minWidth: "24px",
+                            clipPath: barClip(isClampedStart, isClampedEnd),
                           }}
                         >
                           <span className="truncate">

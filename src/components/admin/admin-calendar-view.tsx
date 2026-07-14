@@ -81,6 +81,18 @@ function cleanSource(s: string | null) {
   return s.replace(/\s*integration\s*/i, "").replace(/\s*api\s*/i, "").trim();
 }
 
+// Slanted bar ends (PMS-calendar style) keep the half-day overlap legible: the
+// top edge reaches the midpoint of the check-out column (directly under the day
+// number), and back-to-back turnovers meet in a diagonal seam instead of two
+// rounded caps dying short of the boundary. Window-clamped ends stay square.
+const BAR_SLANT = 10;
+function barClip(isClampedStart: boolean, isClampedEnd: boolean) {
+  const slant = `min(${BAR_SLANT}px, 25%)`;
+  const topLeft = isClampedStart ? "0" : slant;
+  const bottomRight = isClampedEnd ? "100%" : `calc(100% - ${slant})`;
+  return `polygon(${topLeft} 0, 100% 0, ${bottomRight} 100%, 0 100%)`;
+}
+
 const STATUS_BAR: Record<AdminCalendarEntry["displayStatus"], string> = {
   future: toneSolid("info"),
   current: toneSolid("success"),
@@ -282,8 +294,8 @@ export function AdminCalendarView({
                       <button
                         key={e.id}
                         onClick={() => setSelected(e)}
-                        className={`absolute h-6 rounded-full text-[10px] font-semibold flex items-center px-2.5 truncate cursor-pointer hover:brightness-110 active:scale-[0.98] transition-all z-10 shadow-sm ${barClass}`}
-                        style={{ left: `${leftPct}%`, width: `${widthPct}%`, top: 2, minWidth: "24px" }}
+                        className={`absolute h-6 text-[10px] font-semibold flex items-center px-3 truncate cursor-pointer hover:brightness-110 active:scale-[0.98] transition-all z-10 ${barClass}`}
+                        style={{ left: `${leftPct}%`, width: `${widthPct}%`, top: 2, minWidth: "24px", clipPath: barClip(isClampedStart, isClampedEnd) }}
                       >
                         <span className="truncate">{label2}</span>
                       </button>
