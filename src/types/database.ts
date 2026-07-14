@@ -434,6 +434,10 @@ export type Database = {
           review_request_skipped_at: string | null;
           review_request_skip_reason: string | null;
           review_sentiment_checked_at: string | null;
+          early_checkin_override: "allow" | "block" | null;
+          early_checkin_override_hours: number | null;
+          late_checkout_override: "allow" | "block" | null;
+          late_checkout_override_hours: number | null;
           id_verification_status: string;
           id_verification_session_id: string | null;
           id_verified_name: string | null;
@@ -479,6 +483,10 @@ export type Database = {
           review_request_skipped_at?: string | null;
           review_request_skip_reason?: string | null;
           review_sentiment_checked_at?: string | null;
+          early_checkin_override?: "allow" | "block" | null;
+          early_checkin_override_hours?: number | null;
+          late_checkout_override?: "allow" | "block" | null;
+          late_checkout_override_hours?: number | null;
           id_verification_status?: string;
           id_verification_session_id?: string | null;
           id_verified_name?: string | null;
@@ -524,6 +532,10 @@ export type Database = {
           review_request_skipped_at?: string | null;
           review_request_skip_reason?: string | null;
           review_sentiment_checked_at?: string | null;
+          early_checkin_override?: "allow" | "block" | null;
+          early_checkin_override_hours?: number | null;
+          late_checkout_override?: "allow" | "block" | null;
+          late_checkout_override_hours?: number | null;
           id_verification_status?: string;
           id_verification_session_id?: string | null;
           id_verified_name?: string | null;

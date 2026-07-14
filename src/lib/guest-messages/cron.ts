@@ -6,7 +6,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { sendGuestAutomatedMessage, sendHouseCheckinInstructions } from "@/lib/guest-messages/send";
 import { sendRegistrationReminder, REMINDER_DAYS, type ReminderDay } from "@/lib/guest-messages/reminders";
 import { shouldRequestReview } from "@/lib/guest-messages/sentiment";
-import { lateCheckoutAvailability, hostPropertyIds } from "@/lib/upsells/availability";
+import { lateCheckoutAvailability, hostPropertyIds, type TimingOverride } from "@/lib/upsells/availability";
 import { channelForBookingSource } from "@/lib/guest-messages/templates";
 import type { GuestMessageType } from "@/lib/guest-messages/templates";
 import type { UpsellEntry } from "@/types/database";
@@ -22,6 +22,7 @@ type BookingRow = {
   review_request_disabled: boolean;
   review_request_forced: boolean;
   review_request_skipped_at: string | null;
+  late_checkout_override: TimingOverride;
   guest: { full_name: string; email: string | null; phone: string | null };
   property: { name: string; slug: string; nickname: string | null; host_id: string };
 };
@@ -29,7 +30,7 @@ type BookingRow = {
 export type BatchResult = { sent: number; skipped: number; errors: number };
 
 const BOOKING_SELECT =
-  "id, lodgify_booking_id, booking_source, check_in_date, check_out_date, signature_url, upsells, review_request_disabled, review_request_forced, review_request_skipped_at, guest:guest_id(full_name, email, phone), property:property_id(name, slug, nickname, host_id)";
+  "id, lodgify_booking_id, booking_source, check_in_date, check_out_date, signature_url, upsells, review_request_disabled, review_request_forced, review_request_skipped_at, late_checkout_override, guest:guest_id(full_name, email, phone), property:property_id(name, slug, nickname, host_id)";
 
 export function offsetDate(days: number): string {
   const d = new Date();
@@ -269,7 +270,7 @@ export async function runEveningSends() {
         const propertyIds = await hostPropertyIds(supabase, property.host_id);
         const avail = await lateCheckoutAvailability(
           supabase,
-          { propertyIds, excludeRegistrationId: row.id },
+          { propertyIds, excludeRegistrationId: row.id, override: row.late_checkout_override },
           row.check_out_date
         );
         return avail.available && !avail.requestOnly;

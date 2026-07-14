@@ -31,12 +31,21 @@ export async function POST(request: Request) {
     // Get registration details
     const { data: reg, error: regError } = await supabase
       .from("registration")
-      .select("id, check_in_date, check_out_date, num_guests, property_id, guest_id")
+      .select("id, check_in_date, check_out_date, num_guests, property_id, guest_id, early_checkin_override, late_checkout_override")
       .eq("id", registration_id)
       .single();
 
     if (regError || !reg) {
       return NextResponse.json({ error: "Registration not found" }, { status: 404 });
+    }
+
+    // Admin-blocked timing upsells can't be requested either.
+    const override = type === "early_checkin" ? reg.early_checkin_override : reg.late_checkout_override;
+    if (override === "block") {
+      return NextResponse.json(
+        { error: `${type === "early_checkin" ? "Early check-in" : "Late check-out"} is not available for this stay.` },
+        { status: 400 }
+      );
     }
 
     // Get guest name

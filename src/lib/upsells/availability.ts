@@ -10,6 +10,12 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 //   0-1 turnarounds: freely available
 //   2 turnarounds:   max 1 early check-in + 1 late check-out fleet-wide
 //   3+ turnarounds:  request-only (no instant purchase)
+//
+// A per-reservation admin override ('allow' | 'block' on the registration row)
+// trumps all of the above: 'allow' skips the turnaround checks entirely,
+// 'block' makes the upsell unavailable with no request-only fallback.
+
+export type TimingOverride = "allow" | "block" | null;
 
 export type TimingAvailability = {
   available: boolean;
@@ -71,13 +77,32 @@ async function countPaidUpsellOnDate(
 type AvailabilityParams = {
   propertyIds: string[];
   excludeRegistrationId: string;
+  /** Per-reservation admin override — trumps all turnaround rules. */
+  override?: TimingOverride;
 };
+
+function overrideResult(override: TimingOverride | undefined, label: string): TimingAvailability | null {
+  if (override === "allow") {
+    return { available: true, requestOnly: false, reason: null };
+  }
+  if (override === "block") {
+    return {
+      available: false,
+      requestOnly: false,
+      reason: `${label} is not available for this stay.`,
+    };
+  }
+  return null;
+}
 
 export async function earlyCheckinAvailability(
   supabase: SupabaseClient,
-  { propertyIds, excludeRegistrationId }: AvailabilityParams,
+  { propertyIds, excludeRegistrationId, override }: AvailabilityParams,
   checkInDate: string
 ): Promise<TimingAvailability> {
+  const overridden = overrideResult(override, "Early check-in");
+  if (overridden) return overridden;
+
   const turnarounds = await countTurnaroundsOnDate(supabase, propertyIds, checkInDate);
 
   if (turnarounds >= 3) {
@@ -105,9 +130,12 @@ export async function earlyCheckinAvailability(
 
 export async function lateCheckoutAvailability(
   supabase: SupabaseClient,
-  { propertyIds, excludeRegistrationId }: AvailabilityParams,
+  { propertyIds, excludeRegistrationId, override }: AvailabilityParams,
   checkOutDate: string
 ): Promise<TimingAvailability> {
+  const overridden = overrideResult(override, "Late check-out");
+  if (overridden) return overridden;
+
   const turnarounds = await countTurnaroundsOnDate(supabase, propertyIds, checkOutDate);
 
   if (turnarounds >= 3) {

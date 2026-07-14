@@ -2,11 +2,16 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { verifyGuestToken } from "@/lib/guest-token";
 import { stayIncludesHoliday } from "@/lib/holidays";
-import { timingHourlyCents } from "@/lib/upsells/timing";
+import {
+  timingHourlyCents,
+  timingDurationOptions,
+  STANDARD_MAX_TIMING_HOURS,
+} from "@/lib/upsells/timing";
 import {
   earlyCheckinAvailability,
   lateCheckoutAvailability,
   hostPropertyIds,
+  type TimingOverride,
 } from "@/lib/upsells/availability";
 
 const INGREDIENT_COSTS_PER_GUEST: Record<string, number> = {
@@ -55,7 +60,7 @@ export async function POST(request: Request) {
   // Get the registration with property info
   const { data: reg, error: regError } = await supabase
     .from("registration")
-    .select("id, check_in_date, check_out_date, num_guests, property_id, upsells")
+    .select("id, check_in_date, check_out_date, num_guests, property_id, upsells, early_checkin_override, early_checkin_override_hours, late_checkout_override, late_checkout_override_hours")
     .eq("id", registration_id)
     .single();
 
@@ -84,9 +89,27 @@ export async function POST(request: Request) {
     excludeRegistrationId: reg.id,
   };
   const [earlyAvail, lateAvail] = await Promise.all([
-    earlyCheckinAvailability(supabase, availabilityParams, reg.check_in_date),
-    lateCheckoutAvailability(supabase, availabilityParams, reg.check_out_date),
+    earlyCheckinAvailability(
+      supabase,
+      { ...availabilityParams, override: reg.early_checkin_override as TimingOverride },
+      reg.check_in_date
+    ),
+    lateCheckoutAvailability(
+      supabase,
+      { ...availabilityParams, override: reg.late_checkout_override as TimingOverride },
+      reg.check_out_date
+    ),
   ]);
+
+  // An 'allow' override can also widen (or narrow) the purchasable hour tiers.
+  const earlyMaxHours =
+    reg.early_checkin_override === "allow" && reg.early_checkin_override_hours
+      ? reg.early_checkin_override_hours
+      : STANDARD_MAX_TIMING_HOURS;
+  const lateMaxHours =
+    reg.late_checkout_override === "allow" && reg.late_checkout_override_hours
+      ? reg.late_checkout_override_hours
+      : STANDARD_MAX_TIMING_HOURS;
 
   // Build booking dates array for private chef date picker
   const dates: string[] = [];
@@ -106,13 +129,30 @@ export async function POST(request: Request) {
   const hourlyCents = timingHourlyCents(reg.check_in_date, reg.check_out_date);
   const holidayNote = holidayStay ? " Holiday rate applies." : "";
 
+  const earlyOptions = timingDurationOptions("early_checkin", hourlyCents, earlyMaxHours);
+  const lateOptions = timingDurationOptions("late_checkout", hourlyCents, lateMaxHours);
+  const lastEarly = earlyOptions[earlyOptions.length - 1];
+  const lastLate = lateOptions[lateOptions.length - 1];
+  const earlyDescription =
+    earlyOptions.length === 1
+      ? `Standard check-in is 4:00 PM. Arrive 1 hour early (${lastEarly.time_label}).${holidayNote}`
+      : earlyOptions.length === 2
+      ? `Standard check-in is 4:00 PM. Arrive 1 hour (3:00 PM) or 2 hours (2:00 PM) early.${holidayNote}`
+      : `Standard check-in is 4:00 PM. Arrive up to ${lastEarly.hours} hours early (as early as ${lastEarly.time_label}).${holidayNote}`;
+  const lateDescription =
+    lateOptions.length === 1
+      ? `Standard check-out is 11:00 AM. Add 1 hour (until ${lastLate.time_label}).${holidayNote}`
+      : lateOptions.length === 2
+      ? `Standard check-out is 11:00 AM. Add 1 hour (until 12:00 PM) or 2 hours (until 1:00 PM).${holidayNote}`
+      : `Standard check-out is 11:00 AM. Stay up to ${lastLate.hours} extra hours (until ${lastLate.time_label}).${holidayNote}`;
+
   // Build available upsells
   const upsells = [
     {
       type: "early_checkin",
       group: "timing",
       label: "Early Check-In",
-      description: `Standard check-in is 4:00 PM. Arrive 1 hour (3:00 PM) or 2 hours (2:00 PM) early.${holidayNote}`,
+      description: earlyDescription,
       price_cents: hourlyCents,
       image: UPSELL_IMAGES.early_checkin,
       available: earlyAvail.available && !purchased.some((u) => u.type === "early_checkin" && u.status === "paid"),
@@ -120,17 +160,14 @@ export async function POST(request: Request) {
       request_only: earlyAvail.requestOnly,
       meta: {
         holiday_rate: holidayStay,
-        duration_options: [
-          { hours: 1, time_label: "3:00 PM", price_cents: hourlyCents },
-          { hours: 2, time_label: "2:00 PM", price_cents: hourlyCents * 2 },
-        ],
+        duration_options: earlyOptions,
       },
     },
     {
       type: "late_checkout",
       group: "timing",
       label: "Late Check-Out",
-      description: `Standard check-out is 11:00 AM. Add 1 hour (until 12:00 PM) or 2 hours (until 1:00 PM).${holidayNote}`,
+      description: lateDescription,
       price_cents: hourlyCents,
       image: UPSELL_IMAGES.late_checkout,
       available: lateAvail.available && !purchased.some((u) => u.type === "late_checkout" && u.status === "paid"),
@@ -138,10 +175,7 @@ export async function POST(request: Request) {
       request_only: lateAvail.requestOnly,
       meta: {
         holiday_rate: holidayStay,
-        duration_options: [
-          { hours: 1, time_label: "12:00 PM", price_cents: hourlyCents },
-          { hours: 2, time_label: "1:00 PM", price_cents: hourlyCents * 2 },
-        ],
+        duration_options: lateOptions,
       },
     },
     {

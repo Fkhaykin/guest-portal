@@ -25,6 +25,13 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   ArrowLeft,
   Pencil,
   Eye,
@@ -107,6 +114,10 @@ type FullRegistration = {
   review_request_forced: boolean;
   review_request_skipped_at: string | null;
   review_request_skip_reason: string | null;
+  early_checkin_override: "allow" | "block" | null;
+  early_checkin_override_hours: number | null;
+  late_checkout_override: "allow" | "block" | null;
+  late_checkout_override_hours: number | null;
   id_verification_status: string;
   id_verified_name: string | null;
   id_name_match: boolean | null;
@@ -215,6 +226,7 @@ export default function ReservationDetailPage() {
   const [emailResult, setEmailResult] = useState<"success" | "error" | null>(null);
   const [hoaToggling, setHoaToggling] = useState(false);
   const [reviewToggling, setReviewToggling] = useState(false);
+  const [timingToggling, setTimingToggling] = useState(false);
   const [reviewMsgLog, setReviewMsgLog] = useState<{ sent_at: string; error: string | null } | null>(null);
   const [expandedDrivers, setExpandedDrivers] = useState<Set<number>>(new Set());
   const [hasModifications, setHasModifications] = useState(false);
@@ -240,6 +252,7 @@ export default function ReservationDetailPage() {
         stripe_balance_invoice_id, guest_list, pets,
         upsells, tips, lodgify_booking_id, lodgify_adults, lodgify_children, lodgify_infants,
         lodgify_num_pets, hoa_email_disabled, review_request_disabled, review_request_forced, review_request_skipped_at, review_request_skip_reason,
+        early_checkin_override, early_checkin_override_hours, late_checkout_override, late_checkout_override_hours,
         id_verification_status, id_verified_name, id_name_match, created_at, updated_at,
         guest:guest_id(id, full_name, email, phone, mailing_address, lodgify_guest_id),
         property:property_id(id, name, nickname, address, slug, max_guests, lodgify_property_id, listing_urls, owner_name, owner_phone, owner_email, hoa_submission_email, emergency_contact_name, emergency_contact_phone)
@@ -470,6 +483,49 @@ export default function ReservationDetailPage() {
       setReg((prev) => (prev ? { ...prev, ...snapshot } : prev));
     } finally {
       setReviewToggling(false);
+    }
+  }
+
+  // Timing-upsell overrides: 'allow' forces the add-on purchasable (with a
+  // custom hour cap), 'block' hides it entirely, null returns it to the
+  // automatic turnaround rules. Pricing is unchanged — availability only.
+  async function setTimingOverride(
+    side: "early_checkin" | "late_checkout",
+    override: "allow" | "block" | null,
+    hours: number | null
+  ) {
+    if (!reg) return;
+    const snapshot = {
+      early_checkin_override: reg.early_checkin_override,
+      early_checkin_override_hours: reg.early_checkin_override_hours,
+      late_checkout_override: reg.late_checkout_override,
+      late_checkout_override_hours: reg.late_checkout_override_hours,
+    };
+    const patch =
+      side === "early_checkin"
+        ? {
+            early_checkin_override: override,
+            early_checkin_override_hours: override === "allow" ? hours : null,
+          }
+        : {
+            late_checkout_override: override,
+            late_checkout_override_hours: override === "allow" ? hours : null,
+          };
+    setTimingToggling(true);
+    // Optimistic update
+    setReg((prev) => (prev ? { ...prev, ...patch } : prev));
+    try {
+      const res = await fetch("/api/admin/registration", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ registration_id: id, ...patch }),
+      });
+      if (!res.ok) throw new Error("Failed");
+    } catch {
+      // Revert on failure
+      setReg((prev) => (prev ? { ...prev, ...snapshot } : prev));
+    } finally {
+      setTimingToggling(false);
     }
   }
 
@@ -1161,6 +1217,86 @@ export default function ReservationDetailPage() {
                     onCheckedChange={(checked) => toggleReviewRequest(checked)}
                     aria-label="Toggle post-checkout review request"
                   />
+                </div>
+
+                {/* Timing-upsell overrides — force early check-in / late
+                    check-out purchasable (with a custom hour cap) or block
+                    them for this stay, regardless of the fleet-wide
+                    turnaround rules. The guest still pays the hourly rate. */}
+                <div className="mt-3 rounded-md border px-3 py-2.5 space-y-3">
+                  <p className="text-sm font-medium flex items-center gap-1.5">
+                    <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                    Early check-in / late check-out add-ons
+                  </p>
+                  {(
+                    [
+                      {
+                        side: "early_checkin" as const,
+                        label: "Early check-in",
+                        override: reg.early_checkin_override,
+                        hours: reg.early_checkin_override_hours,
+                      },
+                      {
+                        side: "late_checkout" as const,
+                        label: "Late check-out",
+                        override: reg.late_checkout_override,
+                        hours: reg.late_checkout_override_hours,
+                      },
+                    ]
+                  ).map(({ side, label, override, hours }) => (
+                    <div key={side} className="space-y-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-sm">{label}</span>
+                        <div className="flex items-center gap-2">
+                          {override === "allow" && (
+                            <Select
+                              value={String(hours ?? 2)}
+                              onValueChange={(v) => setTimingOverride(side, "allow", Number(v))}
+                              disabled={timingToggling}
+                            >
+                              <SelectTrigger size="sm" aria-label={`${label} max extra hours`}>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {[1, 2, 3, 4, 5, 6].map((h) => (
+                                  <SelectItem key={h} value={String(h)}>
+                                    up to {h} hr{h === 1 ? "" : "s"}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
+                          <Select
+                            value={override ?? "auto"}
+                            onValueChange={(v) =>
+                              setTimingOverride(
+                                side,
+                                v === "auto" ? null : (v as "allow" | "block"),
+                                v === "allow" ? hours ?? 2 : null
+                              )
+                            }
+                            disabled={timingToggling}
+                          >
+                            <SelectTrigger size="sm" aria-label={`${label} availability override`}>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="auto">Automatic</SelectItem>
+                              <SelectItem value="allow">Always offer</SelectItem>
+                              <SelectItem value="block">Never offer</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {override === "allow"
+                          ? `Always purchasable — the guest can buy up to ${hours ?? 2} extra hour${(hours ?? 2) === 1 ? "" : "s"}, ignoring turnaround limits. Normal hourly pricing still applies.`
+                          : override === "block"
+                          ? `Never offered for this stay — the guest can't buy or request ${label.toLowerCase()}.`
+                          : "Automatic — follows the turnaround rules (up to 2 extra hours when the day is free)."}
+                      </p>
+                    </div>
+                  ))}
                 </div>
               </CardContent>
             </Card>

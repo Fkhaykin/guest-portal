@@ -56,6 +56,10 @@ export async function PATCH(request: NextRequest) {
     hoa_email_disabled?: boolean;
     review_request_disabled?: boolean;
     review_request_forced?: boolean;
+    early_checkin_override?: "allow" | "block" | null;
+    early_checkin_override_hours?: number | null;
+    late_checkout_override?: "allow" | "block" | null;
+    late_checkout_override_hours?: number | null;
   };
   try {
     body = await request.json();
@@ -69,6 +73,10 @@ export async function PATCH(request: NextRequest) {
     review_request_forced?: boolean;
     review_request_skipped_at?: string | null;
     review_request_skip_reason?: string | null;
+    early_checkin_override?: "allow" | "block" | null;
+    early_checkin_override_hours?: number | null;
+    late_checkout_override?: "allow" | "block" | null;
+    late_checkout_override_hours?: number | null;
   } = {};
   const summaries: string[] = [];
   if (typeof body.hoa_email_disabled === "boolean") {
@@ -95,6 +103,36 @@ export async function PATCH(request: NextRequest) {
         : body.review_request_disabled === true
         ? "Post-checkout review request turned off for this reservation"
         : "Post-checkout review request set to automatic for this reservation"
+    );
+  }
+  // Timing-upsell overrides: 'allow' forces the add-on purchasable regardless
+  // of turnaround rules (optionally with a custom max hours), 'block' hides it
+  // entirely, null returns it to automatic. Hours only ride along with 'allow'.
+  for (const side of ["early_checkin", "late_checkout"] as const) {
+    const overrideKey = `${side}_override` as const;
+    const hoursKey = `${side}_override_hours` as const;
+    if (!(overrideKey in body)) continue;
+
+    const override = body[overrideKey];
+    if (override !== "allow" && override !== "block" && override !== null) {
+      return NextResponse.json({ error: `Invalid ${overrideKey}` }, { status: 400 });
+    }
+    const rawHours = body[hoursKey];
+    const hours =
+      override === "allow" && typeof rawHours === "number" ? Math.trunc(rawHours) : null;
+    if (hours !== null && (hours < 1 || hours > 12)) {
+      return NextResponse.json({ error: `Invalid ${hoursKey} (1-12)` }, { status: 400 });
+    }
+    update[overrideKey] = override;
+    update[hoursKey] = hours;
+
+    const label = side === "early_checkin" ? "Early check-in" : "Late check-out";
+    summaries.push(
+      override === "allow"
+        ? `${label} manually set to always available for this reservation (up to ${hours ?? 2} extra hour${(hours ?? 2) === 1 ? "" : "s"}, overriding turnaround rules)`
+        : override === "block"
+        ? `${label} manually blocked for this reservation (overriding turnaround rules)`
+        : `${label} availability set back to automatic for this reservation`
     );
   }
 
