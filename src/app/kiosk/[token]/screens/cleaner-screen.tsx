@@ -4,8 +4,6 @@ import { useEffect, useState, type ReactNode } from "react";
 import {
   ArrowRightLeft,
   CalendarRange,
-  ChevronRight,
-  CloudSun,
   Dog,
   Droplets,
   LogIn,
@@ -95,18 +93,14 @@ function Widget({
 const smallChip = "flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5 text-sm text-white/90";
 
 // Vacant-house takeover. While no guest is checked in, the kiosk greets the
-// turnover crew instead of exposing the guest app; the only touch target is
-// the weather. It flips back to the guest experience on its own once a
-// booking becomes current.
-export function CleanerScreen({
-  data,
-  onWeather,
-}: {
-  data: KioskData;
-  onWeather: () => void;
-}) {
+// turnover crew instead of exposing the guest app. The only touch target is
+// the weather pill, which reveals a detailed forecast popover in place (no
+// separate weather page on the cleaner side). It flips back to the guest
+// experience on its own once a booking becomes current.
+export function CleanerScreen({ data }: { data: KioskData }) {
   const now = useNow(1000);
   const [slide, setSlide] = useState(0);
+  const [weatherOpen, setWeatherOpen] = useState(false);
   const photos = data.photos;
 
   useEffect(() => {
@@ -121,7 +115,7 @@ export function CleanerScreen({
 
   const weather = data.weather ?? [];
   const todayW = weather.find((w) => w.date === data.today) ?? weather[0] ?? null;
-  const forecast = weather.filter((w) => w.date !== todayW?.date).slice(0, 4);
+  const forecast = weather.filter((w) => w.date !== todayW?.date).slice(0, 5);
   const next = data.next_booking;
   const upcoming = data.upcoming_bookings ?? [];
   const shown = upcoming.slice(0, 4);
@@ -147,216 +141,216 @@ export function CleanerScreen({
       })}
       <div className="absolute inset-0 bg-zinc-950/80" />
 
-      {/* Top strip: property name + tappable weather */}
-      <div className="absolute inset-x-0 top-0 z-10 flex items-start justify-between gap-6 p-8 lg:p-10">
-        <span className="max-w-[50%] text-sm font-semibold uppercase tracking-[0.35em] text-white/70">
-          {data.property.name}
-        </span>
-        {todayW && (
-          <button
-            type="button"
-            onPointerDown={onWeather}
-            className="flex items-center gap-3 rounded-full bg-white/10 px-5 py-2.5 text-lg font-medium text-white/90 ring-1 ring-white/15 backdrop-blur-md"
-            aria-label="Open the full weather forecast"
-          >
-            <span className="text-2xl">{todayW.emoji}</span>
-            {todayW.tempMaxF != null && (
-              <span className="tabular-nums">{Math.round(todayW.tempMaxF)}°</span>
-            )}
-            <span className="text-white/70">{todayW.label}</span>
-          </button>
-        )}
-      </div>
-
-      {/* Content: greeting + widget grid, scroll-safe on short displays */}
-      <div className="absolute inset-0 flex flex-col items-center justify-center gap-8 overflow-y-auto px-8 py-24 lg:px-12">
-        <div className="text-center">
-          <h1 className="text-4xl font-bold tracking-tight text-white lg:text-5xl">
-            Hi{data.cleaner_name ? ` ${data.cleaner_name}` : " there"}!
-          </h1>
-          <p className="mt-1.5 text-lg text-white/70 lg:text-xl">
-            Thanks for getting the house ready. Here&apos;s what&apos;s coming up.
-          </p>
-        </div>
-
-        <div className="grid w-full max-w-6xl items-start gap-6 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
-          {/* Left column: compact next-arrival + weather */}
-          <div className="flex flex-col gap-6">
-            {/* Widget 1 — next arrival, countdown-forward */}
-            <Widget icon={<UserRound className="h-5 w-5" />} title="Next arrival">
-              {next ? (
-                <>
-                  {countdown ? (
-                    <div className="flex items-baseline gap-2">
-                      {countdown.map((seg) => (
-                        <span
-                          key={seg.unit}
-                          className="text-6xl font-bold leading-none tracking-tight text-white tabular-nums lg:text-7xl"
-                        >
-                          {seg.value}
-                          <span className="text-3xl font-semibold text-white/60 lg:text-4xl">{seg.unit}</span>
-                        </span>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-4xl font-bold leading-none tracking-tight text-white lg:text-5xl">
-                      Arriving now
-                    </p>
-                  )}
-                  <p className="mt-2 text-sm font-semibold uppercase tracking-[0.2em] text-white/50">
-                    till guest arrival
-                  </p>
-
-                  <div className="mt-4 border-t border-white/10 pt-4">
-                    <p className="text-xl font-bold text-white">
-                      {next.first_name ? `${next.first_name}'s party` : "Incoming guests"}
-                    </p>
-                    <p className="mt-0.5 text-sm text-white/60">
-                      {next.check_in_time} · {weekdayShort(next.check_in_date, data.today)}{" "}
-                      {monthDay(next.check_in_date)}
-                    </p>
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {next.num_guests != null && (
-                        <span className={smallChip}>
-                          <Users className="h-4 w-4 text-white/60" />
-                          {next.num_guests}
-                        </span>
-                      )}
-                      <span className={smallChip}>
-                        {nightsBetween(next.check_in_date, next.check_out_date)}n
-                      </span>
-                      <span className={smallChip}>
-                        {next.pets > 0 ? (
-                          <>
-                            <Dog className="h-4 w-4 text-white/60" />
-                            {next.pets}
-                          </>
-                        ) : (
-                          <>
-                            <PawPrint className="h-4 w-4 text-white/60" />
-                            No pets
-                          </>
-                        )}
-                      </span>
-                      {next.has_early_checkin && (
-                        <span className="flex items-center gap-1.5 rounded-full bg-sky-500/20 px-3 py-1.5 text-sm font-medium text-sky-200 ring-1 ring-sky-400/25">
-                          <LogIn className="h-4 w-4" />
-                          Early check-in
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <p className="text-lg text-white/70">No upcoming check-ins scheduled yet.</p>
+      {/* Three non-overlapping bands: header / scrolling content / clock. */}
+      <div className="relative z-10 flex h-full w-full flex-col">
+        {/* Header: property name + current-weather pill (taps open detail) */}
+        <header className="flex shrink-0 items-start justify-between gap-6 p-8 lg:p-10">
+          <span className="max-w-[50%] text-sm font-semibold uppercase tracking-[0.35em] text-white/70">
+            {data.property.name}
+          </span>
+          {todayW && (
+            <button
+              type="button"
+              onPointerDown={() => setWeatherOpen((o) => !o)}
+              className={`flex items-center gap-3 rounded-full px-5 py-2.5 text-lg font-medium text-white/90 ring-1 backdrop-blur-md transition-colors ${
+                weatherOpen ? "bg-white/20 ring-white/25" : "bg-white/10 ring-white/15"
+              }`}
+              aria-label="Show the weather forecast"
+              aria-expanded={weatherOpen}
+            >
+              <span className="text-2xl">{todayW.emoji}</span>
+              {todayW.tempMaxF != null && (
+                <span className="tabular-nums">{Math.round(todayW.tempMaxF)}°</span>
               )}
-            </Widget>
+              <span className="text-white/70">{todayW.label}</span>
+            </button>
+          )}
+        </header>
 
-            {/* Widget 2 — weather, compact but full detail */}
-            <Widget icon={<CloudSun className="h-5 w-5" />} title="Weather">
-              {todayW ? (
-                <>
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <span className="text-4xl leading-none">{todayW.emoji}</span>
-                      <div>
-                        <p className="text-3xl font-bold leading-none tracking-tight text-white tabular-nums">
-                          {todayW.tempMaxF != null ? `${Math.round(todayW.tempMaxF)}°` : "—"}
-                        </p>
-                        <p className="text-sm text-white/70">{todayW.label}</p>
+        {/* Scrolling content — centers when it fits, scrolls when it doesn't */}
+        <main className="min-h-0 flex-1 overflow-y-auto">
+          <div className="mx-auto flex min-h-full max-w-6xl flex-col items-center justify-center gap-8 px-8 py-4 lg:px-12">
+            <div className="text-center">
+              <h1 className="text-4xl font-bold tracking-tight text-white lg:text-5xl">
+                Hi{data.cleaner_name ? ` ${data.cleaner_name}` : " there"}!
+              </h1>
+              <p className="mt-1.5 text-lg text-white/70 lg:text-xl">
+                Thanks for getting the house ready. Here&apos;s what&apos;s coming up.
+              </p>
+            </div>
+
+            <div className="grid w-full items-start gap-6 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
+              {/* Next arrival — countdown-forward */}
+              <Widget icon={<UserRound className="h-5 w-5" />} title="Next arrival">
+                {next ? (
+                  <>
+                    {countdown ? (
+                      <div className="flex items-baseline gap-2">
+                        {countdown.map((seg) => (
+                          <span
+                            key={seg.unit}
+                            className="text-6xl font-bold leading-none tracking-tight text-white tabular-nums lg:text-7xl"
+                          >
+                            {seg.value}
+                            <span className="text-3xl font-semibold text-white/60 lg:text-4xl">{seg.unit}</span>
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-4xl font-bold leading-none tracking-tight text-white lg:text-5xl">
+                        Arriving now
+                      </p>
+                    )}
+                    <p className="mt-2 text-sm font-semibold uppercase tracking-[0.2em] text-white/50">
+                      till guest arrival
+                    </p>
+
+                    <div className="mt-4 border-t border-white/10 pt-4">
+                      <p className="text-xl font-bold text-white">
+                        {next.first_name ? `${next.first_name}'s party` : "Incoming guests"}
+                      </p>
+                      <p className="mt-0.5 text-sm text-white/60">
+                        {next.check_in_time} · {weekdayShort(next.check_in_date, data.today)}{" "}
+                        {monthDay(next.check_in_date)}
+                      </p>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {next.num_guests != null && (
+                          <span className={smallChip}>
+                            <Users className="h-4 w-4 text-white/60" />
+                            {next.num_guests}
+                          </span>
+                        )}
+                        <span className={smallChip}>
+                          {nightsBetween(next.check_in_date, next.check_out_date)}n
+                        </span>
+                        <span className={smallChip}>
+                          {next.pets > 0 ? (
+                            <>
+                              <Dog className="h-4 w-4 text-white/60" />
+                              {next.pets}
+                            </>
+                          ) : (
+                            <>
+                              <PawPrint className="h-4 w-4 text-white/60" />
+                              No pets
+                            </>
+                          )}
+                        </span>
+                        {next.has_early_checkin && (
+                          <span className="flex items-center gap-1.5 rounded-full bg-sky-500/20 px-3 py-1.5 text-sm font-medium text-sky-200 ring-1 ring-sky-400/25">
+                            <LogIn className="h-4 w-4" />
+                            Early check-in
+                          </span>
+                        )}
                       </div>
                     </div>
-                    {todayW.precipProb != null && (
-                      <span className="flex items-center gap-1 text-sm text-white/60">
-                        <Droplets className="h-3.5 w-3.5" />
-                        {Math.round(todayW.precipProb)}%
+                  </>
+                ) : (
+                  <p className="text-lg text-white/70">No upcoming check-ins scheduled yet.</p>
+                )}
+              </Widget>
+
+              {/* Booking calendar with turnover highlights */}
+              <Widget icon={<CalendarRange className="h-5 w-5" />} title="Booking calendar">
+                {upcoming.length > 0 ? (
+                  <ul className="flex flex-col gap-2.5">
+                    {shown.map((b, i) => {
+                      const prev = shown[i - 1];
+                      const nextB = shown[i + 1];
+                      const backToBack =
+                        (!!prev && prev.check_out_date === b.check_in_date) ||
+                        (!!nextB && b.check_out_date === nextB.check_in_date);
+                      return (
+                        <CalendarRow
+                          key={`${b.check_in_date}-${i}`}
+                          booking={b}
+                          highlight={i === 0}
+                          backToBack={backToBack}
+                        />
+                      );
+                    })}
+                    {upcoming.length > shown.length ? (
+                      <li className="pt-1 text-center text-sm text-white/50">
+                        +{upcoming.length - shown.length} more upcoming
+                      </li>
+                    ) : (
+                      <li className="flex items-center gap-2 px-1 pt-1 text-sm text-white/45">
+                        <span className="h-px flex-1 bg-white/10" />
+                        The house is open after {shown.length > 1 ? "these stays" : "this stay"}
+                        <span className="h-px flex-1 bg-white/10" />
+                      </li>
+                    )}
+                  </ul>
+                ) : (
+                  <p className="text-lg text-white/70">No upcoming stays on the calendar.</p>
+                )}
+              </Widget>
+            </div>
+
+            <p className="max-w-lg text-center text-sm text-white/50">
+              This screen switches to the guest welcome automatically at check-in.
+              {data.property.host_phone ? ` Questions? Call ${data.property.host_phone}.` : ""}
+            </p>
+          </div>
+        </main>
+
+        {/* Clock band */}
+        <footer className="pointer-events-none shrink-0 p-8 lg:p-10">
+          <p className="text-4xl font-bold leading-none tracking-tight text-white tabular-nums lg:text-5xl">
+            {time}
+          </p>
+          <p className="mt-2 text-base font-medium text-white/70 lg:text-lg">{date}</p>
+        </footer>
+      </div>
+
+      {/* Weather detail — hovers over the pill on tap; tap anywhere to close */}
+      {weatherOpen && todayW && (
+        <>
+          <button
+            type="button"
+            className="absolute inset-0 z-20 cursor-default"
+            onPointerDown={() => setWeatherOpen(false)}
+            aria-label="Close weather"
+          />
+          <div className="absolute right-8 top-24 z-30 w-80 rounded-3xl bg-white/10 p-6 ring-1 ring-white/20 backdrop-blur-2xl shadow-2xl shadow-black/40 lg:right-10 lg:top-28">
+            <div className="mb-4 flex items-center gap-3">
+              <span className="text-5xl leading-none">{todayW.emoji}</span>
+              <div>
+                <p className="text-4xl font-bold leading-none tracking-tight text-white tabular-nums">
+                  {todayW.tempMaxF != null ? `${Math.round(todayW.tempMaxF)}°` : "—"}
+                </p>
+                <p className="mt-1 text-base text-white/70">{todayW.label}</p>
+              </div>
+            </div>
+            {todayW.precipProb != null && (
+              <p className="flex items-center gap-2 text-sm text-white/60">
+                <Droplets className="h-4 w-4" />
+                {Math.round(todayW.precipProb)}% chance of rain today
+              </p>
+            )}
+            {forecast.length > 0 && (
+              <div className="mt-4 grid grid-cols-5 gap-1 border-t border-white/10 pt-4">
+                {forecast.map((w) => (
+                  <div key={w.date} className="flex flex-col items-center gap-1 text-center">
+                    <span className="text-[0.65rem] font-semibold uppercase tracking-wide text-white/50">
+                      {weekdayShort(w.date, data.today)}
+                    </span>
+                    <span className="text-2xl">{w.emoji}</span>
+                    <span className="text-sm font-semibold text-white tabular-nums">
+                      {w.tempMaxF != null ? `${Math.round(w.tempMaxF)}°` : "—"}
+                    </span>
+                    {w.precipProb != null && w.precipProb >= 15 && (
+                      <span className="text-[0.65rem] text-sky-300/80 tabular-nums">
+                        {Math.round(w.precipProb)}%
                       </span>
                     )}
                   </div>
-                  {forecast.length > 0 && (
-                    <div className="mt-4 grid grid-cols-4 gap-1 border-t border-white/10 pt-3">
-                      {forecast.map((w) => (
-                        <div key={w.date} className="flex flex-col items-center gap-0.5 text-center">
-                          <span className="text-[0.65rem] font-semibold uppercase tracking-wide text-white/50">
-                            {weekdayShort(w.date, data.today)}
-                          </span>
-                          <span className="text-xl">{w.emoji}</span>
-                          <span className="text-sm font-semibold text-white tabular-nums">
-                            {w.tempMaxF != null ? `${Math.round(w.tempMaxF)}°` : "—"}
-                          </span>
-                          {w.precipProb != null && w.precipProb >= 15 && (
-                            <span className="text-[0.65rem] text-sky-300/80 tabular-nums">
-                              {Math.round(w.precipProb)}%
-                            </span>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  <button
-                    type="button"
-                    onPointerDown={onWeather}
-                    className="mt-3 inline-flex items-center gap-1 self-start text-sm font-semibold text-white/60"
-                  >
-                    Full forecast <ChevronRight className="h-3.5 w-3.5" />
-                  </button>
-                </>
-              ) : (
-                <p className="text-sm text-white/70">Forecast unavailable right now.</p>
-              )}
-            </Widget>
-          </div>
-
-          {/* Widget 3 — booking calendar with turnover highlights */}
-          <Widget icon={<CalendarRange className="h-5 w-5" />} title="Booking calendar">
-            {upcoming.length > 0 ? (
-              <ul className="flex flex-col gap-2.5">
-                {shown.map((b, i) => {
-                  const prev = shown[i - 1];
-                  const nextB = shown[i + 1];
-                  const backToBack =
-                    (!!prev && prev.check_out_date === b.check_in_date) ||
-                    (!!nextB && b.check_out_date === nextB.check_in_date);
-                  return (
-                    <CalendarRow
-                      key={`${b.check_in_date}-${i}`}
-                      booking={b}
-                      highlight={i === 0}
-                      backToBack={backToBack}
-                    />
-                  );
-                })}
-                {upcoming.length > shown.length ? (
-                  <li className="pt-1 text-center text-sm text-white/50">
-                    +{upcoming.length - shown.length} more upcoming
-                  </li>
-                ) : (
-                  <li className="flex items-center gap-2 px-1 pt-1 text-sm text-white/45">
-                    <span className="h-px flex-1 bg-white/10" />
-                    The house is open after {shown.length > 1 ? "these stays" : "this stay"}
-                    <span className="h-px flex-1 bg-white/10" />
-                  </li>
-                )}
-              </ul>
-            ) : (
-              <p className="text-lg text-white/70">No upcoming stays on the calendar.</p>
+                ))}
+              </div>
             )}
-          </Widget>
-        </div>
-
-        <p className="max-w-lg text-center text-sm text-white/50">
-          This screen switches to the guest welcome automatically at check-in.
-          {data.property.host_phone ? ` Questions? Call ${data.property.host_phone}.` : ""}
-        </p>
-      </div>
-
-      {/* Bottom-left clock, mirroring the attract screen */}
-      <div className="pointer-events-none absolute bottom-0 left-0 z-10 p-8 lg:p-10">
-        <p className="text-4xl font-bold leading-none tracking-tight text-white tabular-nums lg:text-5xl">
-          {time}
-        </p>
-        <p className="mt-2 text-base font-medium text-white/70 lg:text-lg">{date}</p>
-      </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

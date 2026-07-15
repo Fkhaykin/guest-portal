@@ -369,7 +369,7 @@ export function KioskClient({ token }: { token: string }) {
           wakes into the guest app — only the weather is reachable. */}
       {screen.kind === "attract" &&
         (data.state === "none" ? (
-          <CleanerScreen data={data} onWeather={() => setScreen({ kind: "weather" })} />
+          <CleanerScreen data={data} />
         ) : (
           <AttractScreen
             token={token}
