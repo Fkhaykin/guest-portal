@@ -179,11 +179,13 @@ export function AttractScreen({
               </div>
             )}
           </div>
-          <div className="shrink-0 text-right">
-            <p className="text-2xl font-semibold text-white lg:text-3xl text-balance">
-              {data.booking ? `Welcome, ${data.booking.first_name}` : `Welcome to ${data.property.name}`}
+          <div className="min-w-0 max-w-[55%] text-right">
+            <p className="text-[clamp(2.5rem,6vw,5.5rem)] font-bold leading-[1.05] tracking-tight text-white text-balance">
+              {data.booking
+                ? `Welcome to the Poconos, ${data.booking.first_name}!`
+                : "Welcome to the Poconos!"}
             </p>
-            <span className="mt-5 inline-flex animate-pulse items-center gap-3 rounded-full bg-white/15 px-6 py-3 text-base font-semibold text-white backdrop-blur-md lg:text-lg">
+            <span className="mt-6 inline-flex animate-pulse items-center gap-3 rounded-full bg-white/15 px-6 py-3 text-base font-semibold text-white backdrop-blur-md lg:text-lg">
               Touch the screen to begin
             </span>
           </div>

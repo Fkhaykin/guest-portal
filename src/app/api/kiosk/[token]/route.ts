@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { nicknamePropertyIds } from "@/lib/pricing/data";
 import { todayInTz } from "@/lib/pricing/engine";
 import { firstNameOf } from "@/lib/guest-messages/templates";
+import { getBookingById } from "@/lib/lodgify/client";
 import { getCleanPhotos } from "@/lib/airbnb-photos";
 import { loadWeatherByDate, fetchForecast, describeCode } from "@/lib/pricing/weather";
 import {
@@ -169,12 +170,16 @@ export async function GET(
   }
 
   // Vacant house → the kiosk shows the cleaner welcome screen; give it the
-  // next arrival so the turnover crew knows what they're prepping for.
+  // next arrival so the turnover crew knows what they're prepping for, plus
+  // the assigned cleaner's name for the greeting.
   let nextBooking = null;
+  let cleanerName: string | null = null;
   if (!chosen) {
     const { data: next } = await admin
       .from("registration")
-      .select("check_in_date, check_out_date, num_guests, pets, guest:guest_id(full_name)")
+      .select(
+        "check_in_date, check_out_date, num_guests, pets, lodgify_booking_id, guest:guest_id(full_name)"
+      )
       .in("property_id", propertyIds)
       .eq("status", "active")
       .gte("check_in_date", today)
@@ -182,15 +187,37 @@ export async function GET(
       .limit(1)
       .maybeSingle();
     if (next) {
+      let checkInTime: string | null = null;
+      if (next.lodgify_booking_id) {
+        try {
+          const lodgify = (await getBookingById(next.lodgify_booking_id)) as unknown as Record<
+            string,
+            unknown
+          >;
+          checkInTime = (lodgify.check_in as { time?: string })?.time || null;
+        } catch {
+          // Non-critical — the screen falls back to the standard 4:00 PM
+        }
+      }
       const guest = next.guest as unknown as { full_name: string } | null;
       nextBooking = {
         check_in_date: next.check_in_date,
         check_out_date: next.check_out_date,
+        check_in_time: checkInTime,
         first_name: guest?.full_name ? firstNameOf(guest.full_name) : null,
         num_guests: next.num_guests,
         pets: Array.isArray(next.pets) ? next.pets.length : 0,
       };
     }
+
+    const { data: assignments } = await admin
+      .from("cleaner_property")
+      .select("cleaner:cleaner_id(name, is_active)")
+      .in("property_id", propertyIds);
+    const cleaner = (assignments ?? [])
+      .map((a) => a.cleaner as unknown as { name: string; is_active: boolean } | null)
+      .find((c) => c?.is_active);
+    cleanerName = cleaner?.name ? firstNameOf(cleaner.name) : null;
   }
 
   const photos =
@@ -226,6 +253,7 @@ export async function GET(
       weather,
       booking,
       next_booking: nextBooking,
+      cleaner_name: cleanerName,
       house_photo_count: housePhotoCount,
     },
     { headers: { "Cache-Control": "no-store" } }

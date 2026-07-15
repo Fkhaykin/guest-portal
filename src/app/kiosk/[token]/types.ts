@@ -33,6 +33,7 @@ export interface KioskBooking {
 export interface KioskNextBooking {
   check_in_date: string;
   check_out_date: string;
+  check_in_time: string | null;
   first_name: string | null;
   num_guests: number | null;
   pets: number;
@@ -54,6 +55,9 @@ export interface KioskData {
   weather: KioskWeatherDay[] | null;
   booking: KioskBooking | null;
   next_booking: KioskNextBooking | null;
+  // Assigned cleaner's first name — the vacant-house greeting. Null unless
+  // state is "none".
+  cleaner_name: string | null;
   house_photo_count: number;
 }
 

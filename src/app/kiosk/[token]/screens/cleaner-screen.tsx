@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { CalendarDays, Dog, PawPrint, Sparkles, Users } from "lucide-react";
 import type { KioskData } from "../types";
-import { useNow } from "../ui";
+import { formatTime, useNow } from "../ui";
 
 const SLIDE_MS = 12000;
 
@@ -14,16 +14,12 @@ function nightsBetween(checkIn: string, checkOut: string): number {
   );
 }
 
-function arrivalLabel(dateStr: string, today: string): string {
-  const long = new Date(`${dateStr}T00:00:00`).toLocaleDateString("en-US", {
+function longDate(dateStr: string): string {
+  return new Date(`${dateStr}T00:00:00`).toLocaleDateString("en-US", {
     weekday: "long",
     month: "long",
     day: "numeric",
   });
-  const days = nightsBetween(today, dateStr);
-  if (days === 0) return `today — ${long}`;
-  if (days === 1) return `tomorrow — ${long}`;
-  return `${long} (in ${days} days)`;
 }
 
 // Vacant-house takeover. While no guest is checked in, the kiosk greets the
@@ -100,58 +96,62 @@ export function CleanerScreen({
           <Sparkles className="h-8 w-8 text-amber-300" />
         </span>
         <div>
-          <h1 className="text-4xl font-bold tracking-tight text-white text-balance lg:text-5xl">
-            Thanks for getting the house ready!
+          <h1 className="text-6xl font-bold tracking-tight text-white text-balance lg:text-7xl">
+            Hi{data.cleaner_name ? ` ${data.cleaner_name}` : " there"}!
           </h1>
-          <p className="mt-3 text-xl text-white/60 lg:text-2xl">
-            No guests are checked in right now.
+          <p className="mt-4 max-w-2xl text-2xl leading-snug text-white/85 text-balance lg:text-3xl">
+            {next ? (
+              <>
+                The next check-in at this home will be at{" "}
+                <span className="font-semibold text-white">
+                  {next.check_in_time ? formatTime(next.check_in_time) : "4:00 PM"}
+                </span>{" "}
+                on{" "}
+                <span className="font-semibold text-white">{longDate(next.check_in_date)}</span>.
+              </>
+            ) : (
+              "No upcoming check-ins are scheduled at this home yet."
+            )}
           </p>
         </div>
 
-        <div className="w-full max-w-xl rounded-3xl bg-white/10 p-8 text-left backdrop-blur-md ring-1 ring-white/15">
-          {next ? (
-            <>
-              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-white/50">
-                Next arrival
-              </p>
-              <p className="mt-3 flex items-center gap-3 text-2xl font-semibold text-white lg:text-3xl">
-                <CalendarDays className="h-7 w-7 shrink-0 text-white/60" />
-                {next.first_name ? `${next.first_name} arrives ` : "Guests arrive "}
-                {arrivalLabel(next.check_in_date, data.today)}
-              </p>
-              <div className="mt-5 flex flex-wrap gap-3 text-lg text-white/90">
-                {next.num_guests != null && (
-                  <span className="flex items-center gap-2 rounded-full bg-white/10 px-4 py-2">
-                    <Users className="h-5 w-5 text-white/60" />
-                    {next.num_guests} {next.num_guests === 1 ? "guest" : "guests"}
-                  </span>
-                )}
-                <span className="flex items-center gap-2 rounded-full bg-white/10 px-4 py-2">
-                  <CalendarDays className="h-5 w-5 text-white/60" />
-                  {nightsBetween(next.check_in_date, next.check_out_date)}{" "}
-                  {nightsBetween(next.check_in_date, next.check_out_date) === 1 ? "night" : "nights"}
-                </span>
-                <span className="flex items-center gap-2 rounded-full bg-white/10 px-4 py-2">
-                  {next.pets > 0 ? (
-                    <>
-                      <Dog className="h-5 w-5 text-white/60" />
-                      {next.pets} {next.pets === 1 ? "pet" : "pets"}
-                    </>
-                  ) : (
-                    <>
-                      <PawPrint className="h-5 w-5 text-white/60" />
-                      No pets
-                    </>
-                  )}
-                </span>
-              </div>
-            </>
-          ) : (
-            <p className="text-xl text-white/80">
-              No upcoming arrivals on the calendar yet.
+        {next && (
+          <div className="w-full max-w-xl rounded-3xl bg-white/10 p-8 text-left backdrop-blur-md ring-1 ring-white/15">
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-white/50">
+              Next arrival
             </p>
-          )}
-        </div>
+            <p className="mt-3 flex items-center gap-3 text-2xl font-semibold text-white lg:text-3xl">
+              <CalendarDays className="h-7 w-7 shrink-0 text-white/60" />
+              {next.first_name ? `${next.first_name}'s party` : "Incoming guests"}
+            </p>
+            <div className="mt-5 flex flex-wrap gap-3 text-lg text-white/90">
+              {next.num_guests != null && (
+                <span className="flex items-center gap-2 rounded-full bg-white/10 px-4 py-2">
+                  <Users className="h-5 w-5 text-white/60" />
+                  {next.num_guests} {next.num_guests === 1 ? "guest" : "guests"}
+                </span>
+              )}
+              <span className="flex items-center gap-2 rounded-full bg-white/10 px-4 py-2">
+                <CalendarDays className="h-5 w-5 text-white/60" />
+                {nightsBetween(next.check_in_date, next.check_out_date)}{" "}
+                {nightsBetween(next.check_in_date, next.check_out_date) === 1 ? "night" : "nights"}
+              </span>
+              <span className="flex items-center gap-2 rounded-full bg-white/10 px-4 py-2">
+                {next.pets > 0 ? (
+                  <>
+                    <Dog className="h-5 w-5 text-white/60" />
+                    {next.pets} {next.pets === 1 ? "pet" : "pets"}
+                  </>
+                ) : (
+                  <>
+                    <PawPrint className="h-5 w-5 text-white/60" />
+                    No pets
+                  </>
+                )}
+              </span>
+            </div>
+          </div>
+        )}
 
         <p className="max-w-md text-sm text-white/50">
           This screen switches to the guest welcome automatically on arrival day.
