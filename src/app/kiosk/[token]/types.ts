@@ -33,8 +33,11 @@ export interface KioskBooking {
 export interface KioskNextBooking {
   check_in_date: string;
   check_out_date: string;
-  // Pre-formatted, e.g. "4:00 PM" — honors a paid early check-in.
+  // Pre-formatted, e.g. "4:00 PM" — honors paid early check-in / late checkout.
   check_in_time: string;
+  check_out_time: string;
+  has_early_checkin: boolean;
+  has_late_checkout: boolean;
   first_name: string | null;
   num_guests: number | null;
   pets: number;

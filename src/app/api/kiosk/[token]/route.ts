@@ -24,6 +24,9 @@ interface KioskUpcoming {
   check_in_date: string;
   check_out_date: string;
   check_in_time: string;
+  check_out_time: string;
+  has_early_checkin: boolean;
+  has_late_checkout: boolean;
   first_name: string | null;
   num_guests: number | null;
   pets: number;
@@ -226,11 +229,16 @@ export async function GET(
 
     upcomingBookings = (upcoming ?? []).map((row) => {
       const guest = row.guest as unknown as { full_name: string } | null;
+      // Times pre-formatted ("4:00 PM"), honoring paid early check-in / late
+      // checkout; the flags drive the calendar badges.
+      const t = effectiveStayTimes(row.upsells as Upsells);
       return {
         check_in_date: row.check_in_date,
         check_out_date: row.check_out_date,
-        // Pre-formatted ("4:00 PM"), honoring a paid early check-in.
-        check_in_time: effectiveStayTimes(row.upsells as Upsells).checkInTime,
+        check_in_time: t.checkInTime,
+        check_out_time: t.checkOutTime,
+        has_early_checkin: t.hasEarlyCheckin,
+        has_late_checkout: t.hasLateCheckout,
         first_name: guest?.full_name ? firstNameOf(guest.full_name) : null,
         num_guests: row.num_guests,
         pets: Array.isArray(row.pets) ? row.pets.length : 0,
