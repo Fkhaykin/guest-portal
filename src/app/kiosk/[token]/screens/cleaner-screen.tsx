@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   ArrowRightLeft,
   CalendarRange,
@@ -109,6 +109,29 @@ export function CleanerScreen({ data }: { data: KioskData }) {
     return () => clearInterval(t);
   }, [photos.length]);
 
+  // Scale the content block down to fit the viewport so the kiosk never needs
+  // to scroll, whatever the screen's aspect ratio. Transforms don't affect the
+  // measured (layout) height, so this can't feed back into itself.
+  const fitRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(1);
+  useEffect(() => {
+    const box = fitRef.current;
+    const content = contentRef.current;
+    if (!box || !content) return;
+    const fit = () => {
+      const avail = box.clientHeight;
+      const needed = content.scrollHeight;
+      if (!avail || !needed) return;
+      setScale(needed > avail ? Math.max(0.5, (avail / needed) * 0.98) : 1);
+    };
+    fit();
+    const ro = new ResizeObserver(fit);
+    ro.observe(box);
+    ro.observe(content);
+    return () => ro.disconnect();
+  }, [data]);
+
   const tz = data.property.timezone;
   const time = now.toLocaleTimeString("en-US", { timeZone: tz, hour: "numeric", minute: "2-digit" });
   const date = now.toLocaleDateString("en-US", { timeZone: tz, weekday: "long", month: "long", day: "numeric" });
@@ -167,9 +190,14 @@ export function CleanerScreen({ data }: { data: KioskData }) {
           )}
         </header>
 
-        {/* Scrolling content — centers when it fits, scrolls when it doesn't */}
-        <main className="min-h-0 flex-1 overflow-y-auto">
-          <div className="mx-auto flex min-h-full max-w-6xl flex-col items-center justify-center gap-8 px-8 py-4 lg:px-12">
+        {/* Content auto-scales to fit — the kiosk never scrolls */}
+        <main ref={fitRef} className="relative min-h-0 flex-1 overflow-hidden">
+          <div className="flex h-full items-center justify-center px-8 lg:px-12">
+            <div
+              ref={contentRef}
+              style={{ transform: `scale(${scale})`, transformOrigin: "center center" }}
+              className="flex w-full max-w-6xl flex-col items-center gap-8"
+            >
             <div className="text-center">
               <h1 className="text-4xl font-bold tracking-tight text-white lg:text-5xl">
                 Hi{data.cleaner_name ? ` ${data.cleaner_name}` : " there"}!
@@ -291,6 +319,7 @@ export function CleanerScreen({ data }: { data: KioskData }) {
               This screen switches to the guest welcome automatically at check-in.
               {data.property.host_phone ? ` Questions? Call ${data.property.host_phone}.` : ""}
             </p>
+            </div>
           </div>
         </main>
 
