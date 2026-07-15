@@ -3,7 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { nicknamePropertyIds } from "@/lib/pricing/data";
 import { todayInTz } from "@/lib/pricing/engine";
 import { firstNameOf } from "@/lib/guest-messages/templates";
-import { getBookingById } from "@/lib/lodgify/client";
+import { effectiveStayTimes } from "@/lib/upsells/timing";
 import { getCleanPhotos } from "@/lib/airbnb-photos";
 import { loadWeatherByDate, fetchForecast, describeCode } from "@/lib/pricing/weather";
 import {
@@ -12,13 +12,6 @@ import {
 } from "@/lib/guest-session-payload";
 import { resolveKioskAccess, KIOSK_FALLBACK_COORDS } from "@/lib/kiosk";
 import { countPublishedHousePhotos } from "@/lib/guest-photos";
-
-// Back-to-back turnover: greet the departing guest until this local hour,
-// then switch to the arriving one.
-const TURNOVER_SWITCH_HOUR = 12;
-// Checkout day with nobody arriving: stop greeting the departed guest after
-// this local hour.
-const CHECKOUT_STALE_HOUR = 14;
 
 const MAX_PHOTOS = 12;
 const WEATHER_DAYS = 5;
@@ -39,16 +32,27 @@ interface KioskWeatherDay {
   emoji: string;
 }
 
-function localHourInTz(tz: string): number {
-  return parseInt(
-    new Intl.DateTimeFormat("en-US", {
-      timeZone: tz,
-      hour: "2-digit",
-      hourCycle: "h23",
-    }).format(new Date()),
-    10
-  );
+function localMinutesInTz(tz: string): number {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: tz,
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(new Date());
+  const get = (type: string) => parseInt(parts.find((p) => p.type === type)?.value ?? "0", 10);
+  return get("hour") * 60 + get("minute");
 }
+
+// "4:00 PM" (effectiveStayTimes format) → minutes since local midnight.
+function minutesOfLabel(label: string): number {
+  const m = label.match(/(\d{1,2}):(\d{2})\s*([AP]M)/i);
+  if (!m) return 0;
+  let h = parseInt(m[1], 10) % 12;
+  if (m[3].toUpperCase() === "PM") h += 12;
+  return h * 60 + parseInt(m[2], 10);
+}
+
+const MIDNIGHT = 24 * 60;
 
 function addDays(date: string, days: number): string {
   const d = new Date(`${date}T00:00:00Z`);
@@ -112,13 +116,16 @@ export async function GET(
 
   const tz = property.timezone || "America/New_York";
   let today = todayInTz(tz);
-  let localHour = localHourInTz(tz);
+  let nowMin = localMinutesInTz(tz);
   if (process.env.NODE_ENV === "development") {
     const url = new URL(request.url);
     const dateOverride = url.searchParams.get("date");
-    const hourOverride = url.searchParams.get("hour");
+    const hourOverride = url.searchParams.get("hour"); // "15" or "15:30"
     if (dateOverride && /^\d{4}-\d{2}-\d{2}$/.test(dateOverride)) today = dateOverride;
-    if (hourOverride) localHour = parseInt(hourOverride, 10);
+    if (hourOverride) {
+      const [h, m] = hourOverride.split(":");
+      nowMin = parseInt(h, 10) * 60 + (m ? parseInt(m, 10) : 0);
+    }
   }
 
   // Some houses have two property rows sharing a nickname (active + legacy);
@@ -128,9 +135,11 @@ export async function GET(
     : [property.id];
   if (propertyIds.length === 0) propertyIds = [property.id];
 
+  // `upsells` rides along: paid early check-in / late checkout purchases move
+  // the screen-switch boundaries below.
   const { data: regs } = await admin
     .from("registration")
-    .select(registrationSessionSelect)
+    .select(`${registrationSessionSelect}, upsells`)
     .in("property_id", propertyIds)
     .in("status", ["active", "completed"])
     .lte("check_in_date", today)
@@ -145,23 +154,41 @@ export async function GET(
   const pick = (list: RegRow[]) =>
     list.find((r) => r.property?.id === property.id) ?? list[0];
 
+  type Upsells = Parameters<typeof effectiveStayTimes>[0];
+  const dep = departing.length ? pick(departing) : null;
+  const stay = staying.length ? pick(staying) : null;
+  // The day's real boundaries: the departing guest's screen holds until their
+  // checkout time and the arriving guest's starts at their check-in time —
+  // in between, the house is the cleaner's.
+  const depOutMin = dep ? minutesOfLabel(effectiveStayTimes(dep.upsells as Upsells).checkOutTime) : null;
+  const stayInMin =
+    stay && stay.check_in_date === today
+      ? minutesOfLabel(effectiveStayTimes(stay.upsells as Upsells).checkInTime)
+      : null;
+
   let chosen: RegRow | null = null;
   let state: KioskState = "none";
-  if (staying.length && departing.length) {
-    if (localHour < TURNOVER_SWITCH_HOUR) {
-      chosen = pick(departing);
-      state = "checkout_day";
-    } else {
-      chosen = pick(staying);
-      state = "arrival_day";
-    }
-  } else if (staying.length) {
-    chosen = pick(staying);
-    state = chosen.check_in_date === today ? "arrival_day" : "mid_stay";
-  } else if (departing.length && localHour < CHECKOUT_STALE_HOUR) {
-    chosen = pick(departing);
+  if (dep && depOutMin !== null && nowMin < depOutMin) {
+    chosen = dep;
     state = "checkout_day";
+  } else if (stay) {
+    if (stayInMin !== null && nowMin < stayInMin) {
+      // Turnover window on arrival day — stays "none" so the cleaner screen
+      // shows; the arriving booking surfaces as next_booking below.
+      chosen = null;
+    } else {
+      chosen = stay;
+      state = stay.check_in_date === today ? "arrival_day" : "mid_stay";
+    }
   }
+
+  // When the screen should flip next: the earliest boundary still ahead
+  // today, else midnight (date roll). The client refetches then.
+  const upcoming = [depOutMin, stayInMin].filter(
+    (m): m is number => m !== null && m > nowMin
+  );
+  const nextBoundaryMin = upcoming.length ? Math.min(...upcoming) : MIDNIGHT;
+  const refreshInSeconds = (nextBoundaryMin - nowMin) * 60;
 
   let booking = null;
   if (chosen) {
@@ -177,9 +204,7 @@ export async function GET(
   if (!chosen) {
     const { data: next } = await admin
       .from("registration")
-      .select(
-        "check_in_date, check_out_date, num_guests, pets, lodgify_booking_id, guest:guest_id(full_name)"
-      )
+      .select("check_in_date, check_out_date, num_guests, pets, upsells, guest:guest_id(full_name)")
       .in("property_id", propertyIds)
       .eq("status", "active")
       .gte("check_in_date", today)
@@ -187,23 +212,12 @@ export async function GET(
       .limit(1)
       .maybeSingle();
     if (next) {
-      let checkInTime: string | null = null;
-      if (next.lodgify_booking_id) {
-        try {
-          const lodgify = (await getBookingById(next.lodgify_booking_id)) as unknown as Record<
-            string,
-            unknown
-          >;
-          checkInTime = (lodgify.check_in as { time?: string })?.time || null;
-        } catch {
-          // Non-critical — the screen falls back to the standard 4:00 PM
-        }
-      }
       const guest = next.guest as unknown as { full_name: string } | null;
       nextBooking = {
         check_in_date: next.check_in_date,
         check_out_date: next.check_out_date,
-        check_in_time: checkInTime,
+        // Pre-formatted ("4:00 PM"), honoring a paid early check-in.
+        check_in_time: effectiveStayTimes(next.upsells as Upsells).checkInTime,
         first_name: guest?.full_name ? firstNameOf(guest.full_name) : null,
         num_guests: next.num_guests,
         pets: Array.isArray(next.pets) ? next.pets.length : 0,
@@ -254,6 +268,7 @@ export async function GET(
       booking,
       next_booking: nextBooking,
       cleaner_name: cleanerName,
+      refresh_in_seconds: refreshInSeconds,
       house_photo_count: housePhotoCount,
     },
     { headers: { "Cache-Control": "no-store" } }

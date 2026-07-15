@@ -33,7 +33,8 @@ export interface KioskBooking {
 export interface KioskNextBooking {
   check_in_date: string;
   check_out_date: string;
-  check_in_time: string | null;
+  // Pre-formatted, e.g. "4:00 PM" — honors a paid early check-in.
+  check_in_time: string;
   first_name: string | null;
   num_guests: number | null;
   pets: number;
@@ -58,6 +59,9 @@ export interface KioskData {
   // Assigned cleaner's first name — the vacant-house greeting. Null unless
   // state is "none".
   cleaner_name: string | null;
+  // Seconds until the next screen-flip boundary (a checkout time, a check-in
+  // time, or midnight) — the client refetches then.
+  refresh_in_seconds: number;
   house_photo_count: number;
 }
 

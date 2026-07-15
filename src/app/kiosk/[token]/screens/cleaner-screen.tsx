@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { CalendarDays, Dog, PawPrint, Sparkles, Users } from "lucide-react";
 import type { KioskData } from "../types";
-import { formatTime, useNow } from "../ui";
+import { useNow } from "../ui";
 
 const SLIDE_MS = 12000;
 
@@ -103,9 +103,7 @@ export function CleanerScreen({
             {next ? (
               <>
                 The next check-in at this home will be at{" "}
-                <span className="font-semibold text-white">
-                  {next.check_in_time ? formatTime(next.check_in_time) : "4:00 PM"}
-                </span>{" "}
+                <span className="font-semibold text-white">{next.check_in_time}</span>{" "}
                 on{" "}
                 <span className="font-semibold text-white">{longDate(next.check_in_date)}</span>.
               </>

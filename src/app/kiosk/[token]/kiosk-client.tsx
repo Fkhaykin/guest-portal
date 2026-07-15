@@ -260,6 +260,16 @@ export function KioskClient({ token }: { token: string }) {
     };
   }, [load, exited]);
 
+  // Refetch right when the screen should flip — the payload says how long
+  // until the next checkout/check-in/midnight boundary. The 20s pad lands
+  // safely on the far side of the minute-resolution boundary.
+  useEffect(() => {
+    const secs = data?.refresh_in_seconds;
+    if (!secs || exited) return;
+    const t = setTimeout(load, Math.max(30, secs) * 1000 + 20 * 1000);
+    return () => clearTimeout(t);
+  }, [data, exited, load]);
+
   // Nightly reload at 4 AM local (pairs with the device's scheduled reboot).
   useEffect(() => {
     const now = new Date();
