@@ -10,11 +10,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Check, Copy, Download, ExternalLink, RefreshCw, TabletSmartphone, TriangleAlert } from "lucide-react";
+import { Check, Copy, Download, ExternalLink, KeyRound, RefreshCw, TabletSmartphone, TriangleAlert } from "lucide-react";
 
 interface KioskInfo {
   token: string;
   url: string;
+  start_url: string;
+  pin: string;
   rotated_at: string | null;
   svg: string;
 }
@@ -73,18 +75,18 @@ export default function AdminKioskPage({
 
   async function copyUrl() {
     if (!info) return;
-    await navigator.clipboard.writeText(info.url);
+    await navigator.clipboard.writeText(info.start_url);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }
 
-  async function rotate() {
+  async function rotate(target: "token" | "pin") {
     setRotating(true);
     try {
       const res = await fetch("/api/admin/kiosk", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ property_id: id }),
+        body: JSON.stringify({ property_id: id, target }),
       });
       if (res.ok) setInfo(await res.json());
     } finally {
@@ -113,12 +115,13 @@ export default function AdminKioskPage({
           <CardTitle>Kiosk URL</CardTitle>
           <CardDescription>
             This is the secret address the kiosk browser points at. It identifies the house —
-            treat it like a key.
+            treat it like a key. It carries the device PIN, so the kiosk re-authorizes itself
+            after browser resets (the PIN is scrubbed from the address bar on load).
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <code className="block break-all rounded-lg bg-muted px-4 py-3 text-sm">
-            {info?.url ?? "Loading…"}
+            {info?.start_url ?? "Loading…"}
           </code>
           <div className="flex flex-wrap gap-2">
             <Button onClick={copyUrl} disabled={!info} variant="outline">
@@ -126,9 +129,10 @@ export default function AdminKioskPage({
               {copied ? "Copied" : "Copy URL"}
             </Button>
             {info && (
-              /* preview=1: don't turn the admin's own browser into a kiosk */
+              /* preview=1: don't turn the admin's own browser into a kiosk.
+                 The pin self-authorizes it past the device gate. */
               <a
-                href={`${info.url}?preview=1`}
+                href={`${info.url}?preview=1&pin=${info.pin}`}
                 target="_blank"
                 rel="noreferrer"
                 className={buttonVariants({ variant: "outline" })}
@@ -164,13 +168,41 @@ export default function AdminKioskPage({
                   <Button variant="outline" onClick={() => setConfirmOpen(false)}>
                     Cancel
                   </Button>
-                  <Button variant="destructive" onClick={rotate} disabled={rotating}>
+                  <Button variant="destructive" onClick={() => rotate("token")} disabled={rotating}>
                     {rotating ? "Regenerating…" : "Regenerate"}
                   </Button>
                 </div>
               </DialogContent>
             </Dialog>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <KeyRound className="h-5 w-5 text-primary" />
+            Device PIN
+          </CardTitle>
+          <CardDescription>
+            The first time the kiosk URL opens on a new device it asks for this PIN, so a guest
+            who reads the URL off the screen can&apos;t open it from home and see other
+            reservations. Enter it once per device — or use the URL above, which carries it.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-wrap items-center gap-4">
+          <code className="rounded-lg bg-muted px-5 py-3 text-2xl font-bold tracking-[0.4em]">
+            {info?.pin ?? "······"}
+          </code>
+          <Button variant="outline" onClick={() => rotate("pin")} disabled={!info || rotating}>
+            <RefreshCw className="h-4 w-4" />
+            New PIN
+          </Button>
+          <p className="basis-full text-xs text-muted-foreground">
+            Changing the PIN does not log out devices that are already set up — regenerate the
+            URL for that. Remember to update the kiosk&apos;s configured start URL after either
+            change.
+          </p>
         </CardContent>
       </Card>
 

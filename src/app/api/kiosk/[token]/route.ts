@@ -9,7 +9,7 @@ import {
   buildGuestSessionPayload,
   registrationSessionSelect,
 } from "@/lib/guest-session-payload";
-import { resolveKioskProperty, KIOSK_FALLBACK_COORDS } from "@/lib/kiosk";
+import { resolveKioskAccess, KIOSK_FALLBACK_COORDS } from "@/lib/kiosk";
 import { countPublishedHousePhotos } from "@/lib/guest-photos";
 
 // Back-to-back turnover: greet the departing guest until this local hour,
@@ -94,10 +94,20 @@ export async function GET(
   const admin = createAdminClient();
 
   // Generic 404 — don't reveal whether the token or the route is wrong.
-  const property = await resolveKioskProperty(admin, token);
-  if (!property) {
+  const access = await resolveKioskAccess(
+    admin,
+    token,
+    request.headers.get("x-kiosk-device")
+  );
+  if (!access) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
+  // This payload includes a signed guest token for the current booking, so it
+  // only goes to devices that have done the one-time PIN exchange.
+  if (!access.authorized) {
+    return NextResponse.json({ error: "pin_required" }, { status: 401 });
+  }
+  const property = access.property;
 
   const tz = property.timezone || "America/New_York";
   let today = todayInTz(tz);
@@ -158,6 +168,31 @@ export async function GET(
     booking = { first_name: firstNameOf(payload.guest_name), ...payload };
   }
 
+  // Vacant house → the kiosk shows the cleaner welcome screen; give it the
+  // next arrival so the turnover crew knows what they're prepping for.
+  let nextBooking = null;
+  if (!chosen) {
+    const { data: next } = await admin
+      .from("registration")
+      .select("check_in_date, check_out_date, num_guests, pets, guest:guest_id(full_name)")
+      .in("property_id", propertyIds)
+      .eq("status", "active")
+      .gte("check_in_date", today)
+      .order("check_in_date", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    if (next) {
+      const guest = next.guest as unknown as { full_name: string } | null;
+      nextBooking = {
+        check_in_date: next.check_in_date,
+        check_out_date: next.check_out_date,
+        first_name: guest?.full_name ? firstNameOf(guest.full_name) : null,
+        num_guests: next.num_guests,
+        pets: Array.isArray(next.pets) ? next.pets.length : 0,
+      };
+    }
+  }
+
   const photos =
     getCleanPhotos(property.name)?.slice(0, MAX_PHOTOS) ??
     (property.cover_image_url ? [property.cover_image_url] : []);
@@ -190,6 +225,7 @@ export async function GET(
       photos,
       weather,
       booking,
+      next_booking: nextBooking,
       house_photo_count: housePhotoCount,
     },
     { headers: { "Cache-Control": "no-store" } }

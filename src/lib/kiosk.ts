@@ -32,6 +32,40 @@ export async function resolveKioskProperty(
   return (property as KioskProperty) ?? null;
 }
 
+export interface KioskAccess {
+  property: KioskProperty;
+  authorized: boolean;
+}
+
+/** Resolve a kiosk token AND check the x-kiosk-device header against the
+ *  row's device_key. Routes that expose per-guest data (the main payload
+ *  hands out a signed guest token) must see authorized=true; anything else
+ *  means the browser hasn't done the one-time PIN exchange. */
+export async function resolveKioskAccess(
+  admin: Admin,
+  token: string,
+  deviceKey: string | null
+): Promise<KioskAccess | null> {
+  const { data: kiosk } = await admin
+    .from("kiosk")
+    .select("property_id, device_key")
+    .eq("token", token)
+    .maybeSingle();
+  if (!kiosk) return null;
+
+  const { data: property } = await admin
+    .from("property")
+    .select("id, name, slug, nickname, address, timezone, cover_image_url")
+    .eq("id", kiosk.property_id)
+    .single();
+  if (!property) return null;
+
+  return {
+    property: property as KioskProperty,
+    authorized: !!deviceKey && deviceKey === kiosk.device_key,
+  };
+}
+
 // All houses sit in the same lake community — one fallback coordinate is
 // meteorologically identical when a house has no is_self comp coords.
 export const KIOSK_FALLBACK_COORDS = { lat: 41.032, lng: -75.237 };

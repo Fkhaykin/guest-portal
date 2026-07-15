@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { resolveKioskProperty } from "@/lib/kiosk";
+import { resolveKioskAccess } from "@/lib/kiosk";
 import { normalizePromo, type Promo } from "@/lib/promo/types";
 
 // Browsable portal content for the kiosk's native screens, in one call.
@@ -28,16 +28,26 @@ function promoInScope(p: Promo, propertyId: string): boolean {
 }
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ token: string }> }
 ) {
   const { token } = await params;
   const admin = createAdminClient();
 
-  const property = await resolveKioskProperty(admin, token);
-  if (!property) {
+  // FAQs can carry house-sensitive answers (wifi, lockbox…), so this route
+  // is PIN-gated like the main payload.
+  const access = await resolveKioskAccess(
+    admin,
+    token,
+    request.headers.get("x-kiosk-device")
+  );
+  if (!access) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
+  if (!access.authorized) {
+    return NextResponse.json({ error: "pin_required" }, { status: 401 });
+  }
+  const property = access.property;
 
   const [faqRes, videoRes, serviceRes, promoRes] = await Promise.all([
     admin

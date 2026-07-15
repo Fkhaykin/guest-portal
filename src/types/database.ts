@@ -881,18 +881,24 @@ export type Database = {
         Row: {
           property_id: string;
           token: string;
+          pin: string;
+          device_key: string;
           created_at: string;
           rotated_at: string | null;
         };
         Insert: {
           property_id: string;
           token?: string;
+          pin?: string;
+          device_key?: string;
           created_at?: string;
           rotated_at?: string | null;
         };
         Update: {
           property_id?: string;
           token?: string;
+          pin?: string;
+          device_key?: string;
           created_at?: string;
           rotated_at?: string | null;
         };

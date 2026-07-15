@@ -5,7 +5,9 @@ import { CheckCircle2, XCircle } from "lucide-react";
 import type { KioskContent, KioskData, KioskScreen } from "./types";
 import { KioskThemeContext, type KioskTheme } from "./ui";
 import { AttractScreen } from "./attract-screen";
+import { PinScreen } from "./pin-screen";
 import { MainScreen } from "./main-screen";
+import { CleanerScreen } from "./screens/cleaner-screen";
 import { WeatherScreen } from "./screens/weather-screen";
 import { RulesScreen } from "./screens/rules-screen";
 import { FaqScreen } from "./screens/faq-screen";
@@ -24,6 +26,7 @@ import { HelpOverlay } from "./help-overlay";
 const SESSION_KEY = "guest-portal-session";
 const TOKEN_KEY = "guest-portal-token";
 const KIOSK_RETURN_KEY = "kiosk-return-url";
+const DEVICE_KEY = "kiosk-device-key";
 
 const REFETCH_MS = 15 * 60 * 1000;
 const IDLE_MS = 90 * 1000; // any screen → attract after 90s untouched
@@ -56,6 +59,9 @@ export function KioskClient({ token }: { token: string }) {
   const [notice, setNotice] = useState<"success" | "cancelled" | null>(null);
   const [helpOpen, setHelpOpen] = useState(false);
   const [navigating, setNavigating] = useState(false);
+  // undefined = still resolving (checking the URL pin / localStorage),
+  // null = this device needs the PIN screen, string = authorized device key.
+  const [deviceKey, setDeviceKey] = useState<string | null | undefined>(undefined);
   const idleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const theme = useSyncExternalStore(subscribeTheme, readTheme, () => "dark" as KioskTheme);
@@ -69,13 +75,81 @@ export function KioskClient({ token }: { token: string }) {
     window.dispatchEvent(new Event("kiosk-theme-change"));
   }, []);
 
+  // Persist + activate an authorized device key (PIN screen or URL pin).
+  const authorize = useCallback((key: string) => {
+    try {
+      localStorage.setItem(DEVICE_KEY, key);
+    } catch {
+      // Storage unavailable — the key still works for this page's lifetime
+    }
+    setDeviceKey(key);
+  }, []);
+
+  // The kiosk payload is device-gated (see /api/kiosk/[token]/device). The key
+  // comes from localStorage or, on browsers that wipe storage between sessions
+  // (Edge public-browser kiosk mode), from a ?pin= in the configured start URL.
+  useEffect(() => {
+    let stored: string | null = null;
+    try {
+      stored = localStorage.getItem(DEVICE_KEY);
+    } catch {
+      // ignore
+    }
+    const search = new URLSearchParams(window.location.search);
+    const pin = search.get("pin");
+    if (!pin) {
+      setDeviceKey(stored);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/kiosk/${token}/device`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ pin }),
+        });
+        if (res.ok) {
+          const j = (await res.json()) as { device_key: string };
+          // Scrub the PIN from the address bar so a guest at the screen
+          // can't read it. Done only after success — under a StrictMode
+          // double-mount both runs need to see the param.
+          const qs = new URLSearchParams(window.location.search);
+          qs.delete("pin");
+          const s = qs.toString();
+          window.history.replaceState({}, "", window.location.pathname + (s ? `?${s}` : ""));
+          if (!cancelled) authorize(j.device_key);
+          return;
+        }
+      } catch {
+        // fall through to whatever the device already had
+      }
+      if (!cancelled) setDeviceKey(stored);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [token, authorize]);
+
   const load = useCallback(async () => {
+    if (!deviceKey) return;
+    const headers = { "x-kiosk-device": deviceKey };
     try {
       const search = process.env.NODE_ENV === "development" ? window.location.search : "";
       const [mainRes, contentRes] = await Promise.all([
-        fetch(`/api/kiosk/${token}${search}`, { cache: "no-store" }),
-        fetch(`/api/kiosk/${token}/content`, { cache: "no-store" }),
+        fetch(`/api/kiosk/${token}${search}`, { cache: "no-store", headers }),
+        fetch(`/api/kiosk/${token}/content`, { cache: "no-store", headers }),
       ]);
+      if (mainRes.status === 401) {
+        // Stale key (or the host reset the house's devices) — back to the PIN.
+        try {
+          localStorage.removeItem(DEVICE_KEY);
+        } catch {
+          // ignore
+        }
+        setDeviceKey(null);
+        return;
+      }
       if (!mainRes.ok) throw new Error(String(mainRes.status));
       setData(await mainRes.json());
       if (contentRes.ok) {
@@ -91,7 +165,7 @@ export function KioskClient({ token }: { token: string }) {
       // Keep showing the last good payload; only surface an error with nothing to show
       setFailed(true);
     }
-  }, [token]);
+  }, [token, deviceKey]);
 
   // Kiosk-mode flag lives in sessionStorage so it is scoped to THIS tab and
   // cleared when it closes — it can never leak kiosk chrome to a normal guest's
@@ -256,6 +330,10 @@ export function KioskClient({ token }: { token: string }) {
     );
   }
 
+  if (deviceKey === null) {
+    return <PinScreen token={token} onAuthorized={authorize} />;
+  }
+
   if (!data) {
     return (
       <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-zinc-950 text-zinc-100 font-(family-name:--font-plus-jakarta)">
@@ -277,14 +355,19 @@ export function KioskClient({ token }: { token: string }) {
     <div
       className={`kiosk-canvas ${theme === "dark" ? "dark" : "kiosk-light"} fixed inset-0 z-50 select-none overflow-hidden bg-(--k-bg) text-(--k-fg) font-(family-name:--font-plus-jakarta)`}
     >
-      {screen.kind === "attract" && (
-        <AttractScreen
-          token={token}
-          data={data}
-          onWake={() => setScreen({ kind: "home" })}
-          onWeather={() => setScreen({ kind: "weather" })}
-        />
-      )}
+      {/* Vacant house: the idle screen greets the turnover crew and never
+          wakes into the guest app — only the weather is reachable. */}
+      {screen.kind === "attract" &&
+        (data.state === "none" ? (
+          <CleanerScreen data={data} onWeather={() => setScreen({ kind: "weather" })} />
+        ) : (
+          <AttractScreen
+            token={token}
+            data={data}
+            onWake={() => setScreen({ kind: "home" })}
+            onWeather={() => setScreen({ kind: "weather" })}
+          />
+        ))}
       {screen.kind === "home" && (
         <MainScreen
           data={data}
@@ -295,7 +378,11 @@ export function KioskClient({ token }: { token: string }) {
         />
       )}
       {screen.kind === "weather" && (
-        <WeatherScreen token={token} data={data} onBack={goHome} />
+        <WeatherScreen
+          token={token}
+          data={data}
+          onBack={data.state === "none" ? () => setScreen({ kind: "attract" }) : goHome}
+        />
       )}
       {screen.kind === "rules" && <RulesScreen timezone={tz} onBack={goHome} />}
       {screen.kind === "faq" && (

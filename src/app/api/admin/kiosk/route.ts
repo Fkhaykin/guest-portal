@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { randomUUID } from "crypto";
+import { randomInt, randomUUID } from "crypto";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { generateUrlQRCodePNG, generateUrlQRCodeSVG } from "@/lib/qr/generate";
@@ -38,7 +38,7 @@ export async function GET(request: Request) {
   const admin = createAdminClient();
   let { data: kiosk } = await admin
     .from("kiosk")
-    .select("token, rotated_at")
+    .select("token, pin, rotated_at")
     .eq("property_id", propertyId)
     .maybeSingle();
 
@@ -46,7 +46,7 @@ export async function GET(request: Request) {
     const { data: created, error } = await admin
       .from("kiosk")
       .insert({ property_id: propertyId })
-      .select("token, rotated_at")
+      .select("token, pin, rotated_at")
       .single();
     if (error || !created) {
       return NextResponse.json({ error: error?.message ?? "Insert failed" }, { status: 500 });
@@ -55,9 +55,13 @@ export async function GET(request: Request) {
   }
 
   const kioskUrl = `${APP_URL}/kiosk/${kiosk.token}`;
+  // The configured start URL carries the PIN so browsers that clear storage
+  // between sessions (Edge kiosk mode) re-authorize on every boot; the page
+  // scrubs it from the address bar immediately.
+  const startUrl = `${kioskUrl}?pin=${kiosk.pin}`;
 
   if (url.searchParams.get("format") === "png") {
-    const png = await generateUrlQRCodePNG(kioskUrl);
+    const png = await generateUrlQRCodePNG(startUrl);
     return new NextResponse(new Uint8Array(png), {
       headers: {
         "Content-Type": "image/png",
@@ -69,19 +73,23 @@ export async function GET(request: Request) {
   return NextResponse.json({
     token: kiosk.token,
     url: kioskUrl,
+    start_url: startUrl,
+    pin: kiosk.pin,
     rotated_at: kiosk.rotated_at,
-    svg: await generateUrlQRCodeSVG(kioskUrl),
+    svg: await generateUrlQRCodeSVG(startUrl),
   });
 }
 
-/** Rotate the token — every device using the old URL stops working. */
+/** Rotate credentials. target "token" (default) swaps the URL — every device
+ *  using the old one stops working. target "pin" swaps only the setup PIN;
+ *  devices already authorized keep working (their device_key is unchanged). */
 export async function POST(request: Request) {
   const host = await requireHost();
   if (!host) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  let body: { property_id?: string };
+  let body: { property_id?: string; target?: "token" | "pin" };
   try {
     body = await request.json();
   } catch {
@@ -91,22 +99,30 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "property_id is required" }, { status: 400 });
   }
 
+  const patch =
+    body.target === "pin"
+      ? { pin: randomInt(0, 1_000_000).toString().padStart(6, "0") }
+      : { token: randomUUID(), rotated_at: new Date().toISOString() };
+
   const admin = createAdminClient();
   const { data: kiosk, error } = await admin
     .from("kiosk")
-    .update({ token: randomUUID(), rotated_at: new Date().toISOString() })
+    .update(patch)
     .eq("property_id", body.property_id)
-    .select("token, rotated_at")
+    .select("token, pin, rotated_at")
     .single();
   if (error || !kiosk) {
     return NextResponse.json({ error: error?.message ?? "Rotate failed" }, { status: 500 });
   }
 
   const kioskUrl = `${APP_URL}/kiosk/${kiosk.token}`;
+  const startUrl = `${kioskUrl}?pin=${kiosk.pin}`;
   return NextResponse.json({
     token: kiosk.token,
     url: kioskUrl,
+    start_url: startUrl,
+    pin: kiosk.pin,
     rotated_at: kiosk.rotated_at,
-    svg: await generateUrlQRCodeSVG(kioskUrl),
+    svg: await generateUrlQRCodeSVG(startUrl),
   });
 }

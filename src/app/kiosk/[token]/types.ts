@@ -28,6 +28,16 @@ export interface KioskBooking {
   } & Record<string, unknown>;
 }
 
+// Next arrival, present only while the house is vacant (state === "none") —
+// it feeds the cleaner welcome screen.
+export interface KioskNextBooking {
+  check_in_date: string;
+  check_out_date: string;
+  first_name: string | null;
+  num_guests: number | null;
+  pets: number;
+}
+
 export interface KioskData {
   property: {
     id: string;
@@ -43,6 +53,7 @@ export interface KioskData {
   photos: string[];
   weather: KioskWeatherDay[] | null;
   booking: KioskBooking | null;
+  next_booking: KioskNextBooking | null;
   house_photo_count: number;
 }
 
