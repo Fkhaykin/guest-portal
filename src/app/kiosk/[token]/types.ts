@@ -56,6 +56,9 @@ export interface KioskData {
   weather: KioskWeatherDay[] | null;
   booking: KioskBooking | null;
   next_booking: KioskNextBooking | null;
+  // Short calendar of future stays for the cleaner screen; empty unless state
+  // is "none". First entry mirrors next_booking.
+  upcoming_bookings: KioskNextBooking[];
   // Assigned cleaner's first name — the vacant-house greeting. Null unless
   // state is "none".
   cleaner_name: string | null;
