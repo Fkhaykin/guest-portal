@@ -161,35 +161,37 @@ export function AttractScreen({
         )}
       </div>
 
-      {/* Bottom: clock + date + address (left), greeting + prompt (right) */}
-      <div className="absolute inset-x-0 bottom-0 p-8 lg:p-12">
-        <div className="flex items-end justify-between gap-8">
-          <div className="min-w-0">
-            <p className="text-[clamp(3.5rem,9vw,8rem)] font-bold leading-none tracking-tight text-white tabular-nums">
-              {time}
-            </p>
-            <p className="mt-3 text-xl font-medium text-white/70 lg:text-2xl">{date}</p>
-            {data.property.address && (
-              <div className="mt-5">
-                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-white/50">Your address</p>
-                <p className="mt-1 flex items-center gap-2 text-lg font-semibold text-white/90 lg:text-2xl">
-                  <MapPin className="h-5 w-5 shrink-0 text-white/60 lg:h-6 lg:w-6" />
-                  {formatAddress(data.property.address)}
-                </p>
-              </div>
-            )}
-          </div>
-          <div className="min-w-0 max-w-[55%] text-right">
-            <p className="text-[clamp(2.5rem,6vw,5.5rem)] font-bold leading-[1.05] tracking-tight text-white text-balance">
-              {data.booking
-                ? `Welcome to the Poconos, ${data.booking.first_name}!`
-                : "Welcome to the Poconos!"}
-            </p>
-            <span className="mt-6 inline-flex animate-pulse items-center gap-3 rounded-full bg-white/15 px-6 py-3 text-base font-semibold text-white backdrop-blur-md lg:text-lg">
-              Touch the screen to begin
-            </span>
-          </div>
+      {/* Center hero: the greeting owns the screen, touch prompt beneath it */}
+      <div className="absolute inset-0 flex flex-col items-center justify-center gap-10 px-12 text-center">
+        <p className="max-w-[16ch] text-[clamp(3rem,7.5vw,7rem)] font-bold leading-[1.05] tracking-tight text-white text-balance drop-shadow-[0_4px_24px_rgba(0,0,0,0.45)]">
+          {data.booking
+            ? `Welcome to the Poconos, ${data.booking.first_name}!`
+            : "Welcome to the Poconos!"}
+        </p>
+        <span className="inline-flex animate-pulse items-center gap-3 rounded-full bg-white/15 px-7 py-3.5 text-lg font-semibold text-white backdrop-blur-md lg:text-xl">
+          Touch the screen to begin
+        </span>
+      </div>
+
+      {/* Bottom corners: clock + date (left), address (right) */}
+      <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-8 p-8 lg:p-12">
+        <div className="min-w-0">
+          <p className="whitespace-nowrap text-[clamp(2.25rem,4.5vw,4rem)] font-bold leading-none tracking-tight text-white tabular-nums">
+            {time}
+          </p>
+          <p className="mt-2 text-lg font-medium text-white/70 lg:text-xl">{date}</p>
         </div>
+        {data.property.address && (
+          <div className="min-w-0 text-right">
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-white/50">
+              Your address
+            </p>
+            <p className="mt-1.5 flex items-center justify-end gap-2 text-lg font-semibold text-white/90 lg:text-xl">
+              <MapPin className="h-5 w-5 shrink-0 text-white/60" />
+              {formatAddress(data.property.address)}
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
