@@ -104,6 +104,7 @@ type FullRegistration = {
   pets: PetEntry[] | null;
   upsells: UpsellEntry[] | null;
   lodgify_booking_id: number | null;
+  lodgify_sync_status: string;
   tips: Record<string, unknown> | null;
   lodgify_adults: number;
   lodgify_children: number;
@@ -250,7 +251,7 @@ export default function ReservationDetailPage() {
         balance_charge_attempts, balance_last_attempt_at, balance_last_failure_reason,
         stripe_customer_id, stripe_payment_method_id, stripe_deposit_invoice_id,
         stripe_balance_invoice_id, guest_list, pets,
-        upsells, tips, lodgify_booking_id, lodgify_adults, lodgify_children, lodgify_infants,
+        upsells, tips, lodgify_booking_id, lodgify_sync_status, lodgify_adults, lodgify_children, lodgify_infants,
         lodgify_num_pets, hoa_email_disabled, review_request_disabled, review_request_forced, review_request_skipped_at, review_request_skip_reason,
         early_checkin_override, early_checkin_override_hours, late_checkout_override, late_checkout_override_hours,
         id_verification_status, id_verified_name, id_name_match, created_at, updated_at,
@@ -736,6 +737,28 @@ export default function ReservationDetailPage() {
     ? `https://app.lodgify.com/#/reservation/details/${reg.lodgify_booking_id}`
     : null;
 
+  // Lodgify calendar sync state. A booking that carries a lodgify_booking_id is on
+  // the calendar (either pushed by us, or a channel booking that originated in
+  // Lodgify). A failed push means the dates aren't blocked on Lodgify or the
+  // connected channels — surfaced prominently so it can be fixed. pending_payment
+  // bookings haven't been pushed yet and sync once paid.
+  const lodgifySync: { label: string; tone: Tone; failed: boolean; detail?: string } | null = (() => {
+    if (reg.lodgify_booking_id) return { label: "On Lodgify calendar", tone: "success", failed: false };
+    if (reg.lodgify_sync_status === "failed") {
+      return {
+        label: "Not on Lodgify calendar",
+        tone: "danger",
+        failed: true,
+        detail:
+          "The push to Lodgify failed, so these dates aren't blocked on Lodgify or your connected channels. If this was a deliberate double booking, Lodgify rejects the overlapping dates — add or manage it in Lodgify directly.",
+      };
+    }
+    if (reg.status === "pending_payment") {
+      return { label: "Syncs to Lodgify once paid", tone: "neutral", failed: false };
+    }
+    return null;
+  })();
+
   const displayStatus = (() => {
     if (reg.status === "cancelled") return "cancelled" as const;
     const now = new Date();
@@ -815,6 +838,11 @@ export default function ReservationDetailPage() {
                   <History className="h-3 w-3" /> Modified
                 </Badge>
               </button>
+            )}
+            {lodgifySync?.failed && (
+              <Badge variant="outline" className={`text-sm gap-1 ${toneBadge("danger")}`}>
+                <TriangleAlert className="h-3 w-3" /> Not on Lodgify
+              </Badge>
             )}
           </div>
         </div>
@@ -1158,6 +1186,27 @@ export default function ReservationDetailPage() {
                 <Row label="Nights" value={String(nights)} />
                 <Row label="Source" value={reg.booking_source ? reg.booking_source.replace(/\s*integration\s*/i, "").replace(/\s*api\s*/i, "").trim() : "—"} />
                 {reg.lodgify_booking_id && <Row label="Lodgify ID" value={String(reg.lodgify_booking_id)} />}
+                {lodgifySync && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Lodgify calendar</span>
+                    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${toneBadge(lodgifySync.tone)}`}>
+                      {lodgifySync.failed ? (
+                        <TriangleAlert className="h-3 w-3" />
+                      ) : lodgifySync.tone === "success" ? (
+                        <Check className="h-3 w-3" />
+                      ) : (
+                        <Clock className="h-3 w-3" />
+                      )}
+                      {lodgifySync.label}
+                    </span>
+                  </div>
+                )}
+                {lodgifySync?.detail && (
+                  <div className={`flex items-start gap-2 rounded-md px-3 py-2 text-xs ${toneBadge("danger")}`}>
+                    <TriangleAlert className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                    <span>{lodgifySync.detail}</span>
+                  </div>
+                )}
                 <Row label="Created" value={new Date(reg.created_at).toLocaleDateString()} />
                 <Row label="Updated" value={new Date(reg.updated_at).toLocaleDateString()} />
 
