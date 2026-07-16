@@ -15,7 +15,19 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Building2, Save, Phone, PenLine, Undo2, Link2, Plus, Trash2, X } from "lucide-react";
+import { Building2, Save, Phone, PenLine, Undo2, Link2, Plus, Trash2, X, Receipt } from "lucide-react";
+import { resolveHoaFeeConfig } from "@/lib/hoa/fees";
+
+// Cents <-> dollar-string helpers for the fee inputs.
+function centsToDollars(cents: number | null | undefined): string {
+  if (cents == null) return "";
+  return (cents / 100).toString();
+}
+function dollarsToCents(v: string): number | null {
+  const n = parseFloat(v.trim());
+  if (!Number.isFinite(n) || n < 0) return null;
+  return Math.round(n * 100);
+}
 
 export default function OwnerSettingsPage({
   params,
@@ -34,6 +46,11 @@ export default function OwnerSettingsPage({
 
   // Common fields
   const [hoaType, setHoaType] = useState("pepoa");
+  // HOA registration fee (per-booking COGS). Dollar strings; blank last-minute
+  // fee means a flat fee always (no surcharge).
+  const [hoaRegFee, setHoaRegFee] = useState("");
+  const [hoaLastMinuteFee, setHoaLastMinuteFee] = useState("");
+  const [hoaLastMinuteDays, setHoaLastMinuteDays] = useState("3");
   const [ownerName, setOwnerName] = useState("");
   const [ownerMailingAddress, setOwnerMailingAddress] = useState("");
   const [ownerPhone, setOwnerPhone] = useState("");
@@ -82,7 +99,7 @@ export default function OwnerSettingsPage({
   async function loadProperty() {
     const { data, error: loadErr } = await supabase
       .from("property")
-      .select("name, cover_image_url, owner_name, owner_mailing_address, owner_phone, owner_email, lot_section, hoa_submission_email, hoa_type, emergency_contact_name, emergency_contact_relationship, emergency_contact_phone, emergency_contact_phone_2, rental_agent_enabled, rental_agency_name, rental_agency_contact, owner_signature_url, listing_urls, hoa_after_hours_email, hoa_after_hours_schedule")
+      .select("name, cover_image_url, owner_name, owner_mailing_address, owner_phone, owner_email, lot_section, hoa_submission_email, hoa_type, hoa_registration_fee_cents, hoa_last_minute_fee_cents, hoa_last_minute_days, emergency_contact_name, emergency_contact_relationship, emergency_contact_phone, emergency_contact_phone_2, rental_agent_enabled, rental_agency_name, rental_agency_contact, owner_signature_url, listing_urls, hoa_after_hours_email, hoa_after_hours_schedule")
       .eq("id", id)
       .single();
 
@@ -90,6 +107,16 @@ export default function OwnerSettingsPage({
       setPropertyName(data.name || "");
       setCoverImageUrl(data.cover_image_url || null);
       setHoaType(data.hoa_type || "pepoa");
+      // Prefill fees with the effective values (stored override, or the HOA
+      // default when unset), so the fields always show concrete amounts.
+      const fees = resolveHoaFeeConfig(data.hoa_type, {
+        registrationFeeCents: data.hoa_registration_fee_cents,
+        lastMinuteFeeCents: data.hoa_last_minute_fee_cents,
+        lastMinuteDays: data.hoa_last_minute_days,
+      });
+      setHoaRegFee(centsToDollars(fees.registrationFeeCents));
+      setHoaLastMinuteFee(centsToDollars(fees.lastMinuteFeeCents));
+      setHoaLastMinuteDays(String(fees.lastMinuteDays));
       setOwnerName(data.owner_name || "");
       setOwnerMailingAddress(data.owner_mailing_address || "");
       setOwnerPhone(data.owner_phone || "");
@@ -156,6 +183,11 @@ export default function OwnerSettingsPage({
       owner_email: ownerEmail.trim().toLowerCase() || null,
       lot_section: lotSection.trim() || null,
       hoa_submission_email: hoaEmails.length > 0 ? hoaEmails.join(", ") : null,
+      hoa_registration_fee_cents: dollarsToCents(hoaRegFee),
+      // Blank last-minute fee => flat fee always (no surcharge); the window only
+      // matters when a last-minute fee is set.
+      hoa_last_minute_fee_cents: hoaLastMinuteFee.trim() ? dollarsToCents(hoaLastMinuteFee) : null,
+      hoa_last_minute_days: hoaLastMinuteFee.trim() ? (Number(hoaLastMinuteDays) || null) : null,
       hoa_after_hours_email: afterHoursEmails.length > 0 ? afterHoursEmails.join(", ") : null,
       hoa_after_hours_schedule: afterHoursEmails.length > 0
         ? { enabled: afterHoursEnabled, timezone: afterHoursTimezone, days: afterHoursDays }
@@ -251,6 +283,75 @@ export default function OwnerSettingsPage({
                 </SelectContent>
               </Select>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* HOA Registration Fees */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Receipt className="h-5 w-5" /> Registration Fees
+            </CardTitle>
+            <CardDescription>
+              What the HOA charges to register each booking. Deducted as a cost on the
+              reservation payout breakdown so you see net profit after COGS.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <Label>Registration Fee</Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="1"
+                    className="pl-6"
+                    value={hoaRegFee}
+                    onChange={(e) => setHoaRegFee(e.target.value)}
+                    placeholder="45"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">Base fee, per booking</p>
+              </div>
+              <div className="space-y-1">
+                <Label>Last-Minute Registration Fee</Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="1"
+                    className="pl-6"
+                    value={hoaLastMinuteFee}
+                    onChange={(e) => setHoaLastMinuteFee(e.target.value)}
+                    placeholder="Flat fee — no surcharge"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">Leave blank for a flat fee always</p>
+              </div>
+            </div>
+            {hoaLastMinuteFee.trim() && (
+              <div className="space-y-1 max-w-xs">
+                <Label>Last-Minute Window</Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    min="1"
+                    step="1"
+                    className="w-20"
+                    value={hoaLastMinuteDays}
+                    onChange={(e) => setHoaLastMinuteDays(e.target.value)}
+                    placeholder="3"
+                  />
+                  <span className="text-sm text-muted-foreground">days before check-in</span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Bookings made within this window of check-in are charged the last-minute fee.
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
 

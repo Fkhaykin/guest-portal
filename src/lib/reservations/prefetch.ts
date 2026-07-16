@@ -77,6 +77,7 @@ export type FullRegistration = {
   id_verification_status: string;
   id_verified_name: string | null;
   id_name_match: boolean | null;
+  booked_at: string | null;
   created_at: string;
   updated_at: string;
   guest: {
@@ -96,6 +97,10 @@ export type FullRegistration = {
     max_guests: number;
     cleaning_fee_cents: number;
     pet_fee_cents: number;
+    hoa_type: string;
+    hoa_registration_fee_cents: number | null;
+    hoa_last_minute_fee_cents: number | null;
+    hoa_last_minute_days: number | null;
     lodgify_property_id: number | null;
     listing_urls: Record<string, string>;
     owner_name: string | null;
@@ -168,9 +173,9 @@ const REGISTRATION_SELECT = `
   upsells, tips, lodgify_booking_id, lodgify_sync_status, lodgify_adults, lodgify_children, lodgify_infants,
   lodgify_num_pets, hoa_email_disabled, review_request_disabled, review_request_forced, review_request_skipped_at, review_request_skip_reason,
   early_checkin_override, early_checkin_override_hours, late_checkout_override, late_checkout_override_hours,
-  id_verification_status, id_verified_name, id_name_match, created_at, updated_at,
+  id_verification_status, id_verified_name, id_name_match, booked_at, created_at, updated_at,
   guest:guest_id(id, full_name, email, phone, mailing_address, lodgify_guest_id),
-  property:property_id(id, name, nickname, address, slug, max_guests, cleaning_fee_cents, pet_fee_cents, lodgify_property_id, listing_urls, owner_name, owner_phone, owner_email, hoa_submission_email, emergency_contact_name, emergency_contact_phone)
+  property:property_id(id, name, nickname, address, slug, max_guests, cleaning_fee_cents, pet_fee_cents, hoa_type, hoa_registration_fee_cents, hoa_last_minute_fee_cents, hoa_last_minute_days, lodgify_property_id, listing_urls, owner_name, owner_phone, owner_email, hoa_submission_email, emergency_contact_name, emergency_contact_phone)
 `;
 
 const CLEANING_SELECT =

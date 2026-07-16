@@ -67,6 +67,7 @@ import { EditRegistrationDialog } from "@/components/admin/edit-registration-dia
 import { ReservationMessages } from "@/components/admin/reservation-messages";
 import { toneBadge, statusTone, type Tone } from "@/lib/status-styles";
 import { effectiveStayTimes } from "@/lib/upsells/timing";
+import { computeHoaRegistrationFee } from "@/lib/hoa/fees";
 import type { CleaningPhoto, CleaningPhotoExif } from "@/types/database";
 import {
   getReservationCore,
@@ -441,7 +442,21 @@ export default function ReservationDetailPage() {
   const numPetsForCost = pets.length || reg.lodgify_num_pets || 0;
   const cleanerCostCents = property?.cleaning_fee_cents ?? 0;
   const petCostCents = (property?.pet_fee_cents ?? 0) * numPetsForCost;
-  const totalCostsCents = cleanerCostCents + petCostCents;
+  // HOA registration fee (COGS): what the HOA charges us per booking, escalated
+  // for last-minute bookings. Based on when the booking was actually made
+  // (booked_at from the channel, falling back to our created_at) vs check-in.
+  const hoaFee = computeHoaRegistrationFee({
+    hoaType: property?.hoa_type,
+    overrides: {
+      registrationFeeCents: property?.hoa_registration_fee_cents,
+      lastMinuteFeeCents: property?.hoa_last_minute_fee_cents,
+      lastMinuteDays: property?.hoa_last_minute_days,
+    },
+    bookedAt: reg.booked_at ?? reg.created_at,
+    checkInDate: reg.check_in_date,
+  });
+  const hoaFeeCents = property ? hoaFee.feeCents : 0;
+  const totalCostsCents = cleanerCostCents + petCostCents + hoaFeeCents;
   const hasCosts = totalCostsCents > 0;
   const isDirectBooking =
     hasBreakdown || reg.booking_source === "admin" || reg.booking_source === "direct";
@@ -861,6 +876,19 @@ export default function ReservationDetailPage() {
                             label={`Pet fee${numPetsForCost > 1 ? ` (${numPetsForCost} pets)` : ""}`}
                             value={`− ${fmtUSD(petCostCents)}`}
                           />
+                        )}
+                        {hoaFeeCents > 0 && (
+                          <div className="flex justify-between gap-4">
+                            <span className="text-muted-foreground shrink-0 flex items-center gap-1.5">
+                              HOA registration
+                              {hoaFee.isLastMinute && (
+                                <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${toneBadge("warning")}`}>
+                                  last-minute
+                                </span>
+                              )}
+                            </span>
+                            <span className="text-right">− {fmtUSD(hoaFeeCents)}</span>
+                          </div>
                         )}
                       </>
                     )}

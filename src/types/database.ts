@@ -275,6 +275,9 @@ export type Database = {
           nickname: string | null;
           cleaning_fee_cents: number;
           pet_fee_cents: number;
+          hoa_registration_fee_cents: number | null;
+          hoa_last_minute_fee_cents: number | null;
+          hoa_last_minute_days: number | null;
           listing_urls: Record<string, string>;
           sort_order: number;
           hoa_after_hours_email: string | null;
@@ -316,6 +319,9 @@ export type Database = {
           nickname?: string | null;
           cleaning_fee_cents?: number;
           pet_fee_cents?: number;
+          hoa_registration_fee_cents?: number | null;
+          hoa_last_minute_fee_cents?: number | null;
+          hoa_last_minute_days?: number | null;
           listing_urls?: Record<string, string>;
           sort_order?: number;
           hoa_after_hours_email?: string | null;
@@ -357,6 +363,9 @@ export type Database = {
           nickname?: string | null;
           cleaning_fee_cents?: number;
           pet_fee_cents?: number;
+          hoa_registration_fee_cents?: number | null;
+          hoa_last_minute_fee_cents?: number | null;
+          hoa_last_minute_days?: number | null;
           listing_urls?: Record<string, string>;
           sort_order?: number;
           hoa_after_hours_email?: string | null;
