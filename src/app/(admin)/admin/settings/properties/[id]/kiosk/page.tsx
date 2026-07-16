@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useState, use } from "react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -10,7 +12,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Check, Copy, Download, ExternalLink, KeyRound, RefreshCw, TabletSmartphone, TriangleAlert } from "lucide-react";
+import { Check, Copy, Download, ExternalLink, KeyRound, RefreshCw, TabletSmartphone, TriangleAlert, Wifi } from "lucide-react";
 
 interface KioskInfo {
   token: string;
@@ -18,6 +20,8 @@ interface KioskInfo {
   start_url: string;
   pin: string;
   rotated_at: string | null;
+  wifi_ssid: string;
+  wifi_password: string;
   svg: string;
 }
 
@@ -59,6 +63,10 @@ export default function AdminKioskPage({
   const [copied, setCopied] = useState(false);
   const [rotating, setRotating] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [wifiSsid, setWifiSsid] = useState("");
+  const [wifiPassword, setWifiPassword] = useState("");
+  const [wifiSaving, setWifiSaving] = useState(false);
+  const [wifiSaved, setWifiSaved] = useState(false);
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/admin/kiosk?property_id=${id}`);
@@ -66,8 +74,37 @@ export default function AdminKioskPage({
       setError("Could not load the kiosk token.");
       return;
     }
-    setInfo(await res.json());
+    const data: KioskInfo = await res.json();
+    setInfo(data);
+    setWifiSsid(data.wifi_ssid ?? "");
+    setWifiPassword(data.wifi_password ?? "");
   }, [id]);
+
+  async function saveWifi() {
+    setWifiSaving(true);
+    try {
+      const res = await fetch("/api/admin/kiosk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          property_id: id,
+          target: "wifi",
+          wifi_ssid: wifiSsid,
+          wifi_password: wifiPassword,
+        }),
+      });
+      if (res.ok) {
+        const data: KioskInfo = await res.json();
+        setInfo(data);
+        setWifiSsid(data.wifi_ssid ?? "");
+        setWifiPassword(data.wifi_password ?? "");
+        setWifiSaved(true);
+        setTimeout(() => setWifiSaved(false), 2000);
+      }
+    } finally {
+      setWifiSaving(false);
+    }
+  }
 
   useEffect(() => {
     load();
@@ -203,6 +240,47 @@ export default function AdminKioskPage({
             URL for that. Remember to update the kiosk&apos;s configured start URL after either
             change.
           </p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Wifi className="h-5 w-5 text-primary" />
+            Guest Wi-Fi
+          </CardTitle>
+          <CardDescription>
+            Shown on this house&apos;s kiosk welcome screen as a scannable QR plus the network
+            name and password, so guests can join without typing. Leave both blank to hide it.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="wifi-ssid">Network name</Label>
+              <Input
+                id="wifi-ssid"
+                value={wifiSsid}
+                onChange={(e) => setWifiSsid(e.target.value)}
+                placeholder="e.g. Lakehouse"
+                autoComplete="off"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="wifi-password">Password</Label>
+              <Input
+                id="wifi-password"
+                value={wifiPassword}
+                onChange={(e) => setWifiPassword(e.target.value)}
+                placeholder="e.g. relax449"
+                autoComplete="off"
+              />
+            </div>
+          </div>
+          <Button onClick={saveWifi} disabled={!info || wifiSaving}>
+            {wifiSaved ? <Check className="h-4 w-4" /> : <Wifi className="h-4 w-4" />}
+            {wifiSaving ? "Saving…" : wifiSaved ? "Saved" : "Save Wi-Fi"}
+          </Button>
         </CardContent>
       </Card>
 

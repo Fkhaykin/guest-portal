@@ -38,7 +38,7 @@ export async function GET(request: Request) {
   const admin = createAdminClient();
   let { data: kiosk } = await admin
     .from("kiosk")
-    .select("token, pin, rotated_at")
+    .select("token, pin, rotated_at, wifi_ssid, wifi_password")
     .eq("property_id", propertyId)
     .maybeSingle();
 
@@ -46,7 +46,7 @@ export async function GET(request: Request) {
     const { data: created, error } = await admin
       .from("kiosk")
       .insert({ property_id: propertyId })
-      .select("token, pin, rotated_at")
+      .select("token, pin, rotated_at, wifi_ssid, wifi_password")
       .single();
     if (error || !created) {
       return NextResponse.json({ error: error?.message ?? "Insert failed" }, { status: 500 });
@@ -76,6 +76,8 @@ export async function GET(request: Request) {
     start_url: startUrl,
     pin: kiosk.pin,
     rotated_at: kiosk.rotated_at,
+    wifi_ssid: kiosk.wifi_ssid ?? "",
+    wifi_password: kiosk.wifi_password ?? "",
     svg: await generateUrlQRCodeSVG(startUrl),
   });
 }
@@ -89,7 +91,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  let body: { property_id?: string; target?: "token" | "pin" };
+  let body: {
+    property_id?: string;
+    target?: "token" | "pin" | "wifi";
+    wifi_ssid?: string;
+    wifi_password?: string;
+  };
   try {
     body = await request.json();
   } catch {
@@ -99,20 +106,28 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "property_id is required" }, { status: 400 });
   }
 
+  const admin = createAdminClient();
+
+  // Save the per-house guest Wi-Fi shown on the kiosk welcome screen. Blank
+  // clears it (the card hides when there's no SSID).
   const patch =
-    body.target === "pin"
+    body.target === "wifi"
+      ? {
+          wifi_ssid: (body.wifi_ssid ?? "").trim() || null,
+          wifi_password: (body.wifi_password ?? "").trim() || null,
+        }
+      : body.target === "pin"
       ? { pin: randomInt(0, 1_000_000).toString().padStart(6, "0") }
       : { token: randomUUID(), rotated_at: new Date().toISOString() };
 
-  const admin = createAdminClient();
   const { data: kiosk, error } = await admin
     .from("kiosk")
     .update(patch)
     .eq("property_id", body.property_id)
-    .select("token, pin, rotated_at")
+    .select("token, pin, rotated_at, wifi_ssid, wifi_password")
     .single();
   if (error || !kiosk) {
-    return NextResponse.json({ error: error?.message ?? "Rotate failed" }, { status: 500 });
+    return NextResponse.json({ error: error?.message ?? "Update failed" }, { status: 500 });
   }
 
   const kioskUrl = `${APP_URL}/kiosk/${kiosk.token}`;
@@ -123,6 +138,8 @@ export async function POST(request: Request) {
     start_url: startUrl,
     pin: kiosk.pin,
     rotated_at: kiosk.rotated_at,
+    wifi_ssid: kiosk.wifi_ssid ?? "",
+    wifi_password: kiosk.wifi_password ?? "",
     svg: await generateUrlQRCodeSVG(startUrl),
   });
 }

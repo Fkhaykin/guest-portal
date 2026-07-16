@@ -166,23 +166,25 @@ export function AttractScreen({
               e.stopPropagation();
               onWeather();
             }}
-            className="flex flex-col items-end gap-2"
+            className="flex flex-col items-end gap-1.5"
             aria-label="Open the full weather forecast"
           >
-            <div className="flex items-center gap-4">
-              <span className="text-6xl leading-none lg:text-7xl">{wxEmoji}</span>
-              <span className="text-7xl font-bold leading-none tracking-tight text-white tabular-nums lg:text-8xl">
+            <div className="flex items-center gap-3">
+              <span className="text-5xl leading-none lg:text-6xl">{wxEmoji}</span>
+              <span className="text-6xl font-bold leading-none tracking-tight text-white tabular-nums lg:text-7xl">
                 {Math.round(wxTemp)}°
               </span>
             </div>
-            <div className="text-right">
-              <p className="text-xl font-medium text-white/90 lg:text-2xl">{wxLabel}</p>
-              {wxFeels != null && (
-                <p className="text-base text-white/60 lg:text-lg">Feels like {Math.round(wxFeels)}°</p>
-              )}
-            </div>
+            {wxLabel && (
+              <span className="-mt-1.5 rounded-full bg-white/15 px-3.5 py-1 text-sm font-semibold text-white/90 backdrop-blur-md lg:text-base">
+                {wxLabel}
+                {wxFeels != null && (
+                  <span className="font-medium text-white/60"> · Feels {Math.round(wxFeels)}°</span>
+                )}
+              </span>
+            )}
             {data.weather && data.weather.length > 0 && (
-              <div className="mt-1 flex gap-2">
+              <div className="mt-0.5 flex gap-2">
                 {data.weather.slice(0, 3).map((w) => (
                   <span
                     key={w.date}
@@ -219,29 +221,28 @@ export function AttractScreen({
           </p>
           <p className="mt-2 text-lg font-medium text-white/70 lg:text-xl">{date}</p>
         </div>
-        <div className="flex min-w-0 flex-col items-end gap-4">
+        <div className="flex min-w-0 flex-col items-end gap-3">
           {wifi?.ssid && (
             <div
               onClick={(e) => e.stopPropagation()}
-              className="flex items-center gap-4 rounded-3xl bg-black/35 p-4 ring-1 ring-white/15 backdrop-blur-md"
+              className="flex items-center gap-3 rounded-2xl bg-black/40 p-2.5 ring-1 ring-white/15 backdrop-blur-md"
             >
               {wifiQr && (
-                <div className="shrink-0 rounded-2xl bg-white p-2.5">
+                <div className="shrink-0 rounded-xl bg-white p-1.5">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={wifiQr} alt="Scan to join the Wi-Fi" className="h-24 w-24 lg:h-28 lg:w-28" />
+                  <img src={wifiQr} alt="Scan to join the Wi-Fi" className="h-16 w-16 lg:h-20 lg:w-20" />
                 </div>
               )}
-              <div className="min-w-0 text-left">
-                <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.25em] text-white/60">
-                  <Wifi className="h-4 w-4" /> Guest Wi-Fi
+              <div className="min-w-0 pr-1 text-left">
+                <p className="flex items-center gap-1 text-[0.6rem] font-semibold uppercase tracking-[0.2em] text-white/60">
+                  <Wifi className="h-3 w-3" /> Guest Wi-Fi
                 </p>
-                <p className="mt-1 truncate text-xl font-bold text-white lg:text-2xl">{wifi.ssid}</p>
+                <p className="mt-0.5 truncate text-base font-bold leading-tight text-white lg:text-lg">{wifi.ssid}</p>
                 {wifi.password && (
-                  <p className="text-base text-white/75 lg:text-lg">
+                  <p className="text-sm text-white/75">
                     Password <span className="font-semibold text-white tabular-nums">{wifi.password}</span>
                   </p>
                 )}
-                {wifiQr && <p className="mt-1 text-xs text-white/50">Scan to connect</p>}
               </div>
             </div>
           )}
