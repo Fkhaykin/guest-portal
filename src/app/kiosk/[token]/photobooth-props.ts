@@ -1,12 +1,10 @@
 // Silly photo-booth face props (cowboy hat, mustache, sunglasses, party hat),
-// drawn as self-contained SVGs so nothing loads off-network. Each prop is
-// positioned relative to a detected face's bounding box; the same geometry
-// drives the live preview overlay (<img>) and the saved still (canvas drawImage).
+// drawn as self-contained SVGs so nothing loads off-network. Props are anchored
+// to MediaPipe face keypoints (eyes / nose / mouth) and rotated to head tilt, so
+// they sit ON the features instead of covering the whole face box.
 
 export type PropId = "cowboy" | "party" | "mustache" | "glasses";
 
-// width/height on the root <svg> give the data-URL image an intrinsic size, so
-// canvas drawImage() has a source rect to scale (0-size SVGs draw nothing).
 const SVGS: Record<PropId, { svg: string; aspect: number }> = {
   cowboy: {
     aspect: 130 / 200,
@@ -47,39 +45,98 @@ export const PROP_SRC: Record<PropId, string> = Object.fromEntries(
   Object.entries(SVGS).map(([k, v]) => [k, `data:image/svg+xml,${encodeURIComponent(v.svg.trim())}`])
 ) as Record<PropId, string>;
 
-export interface Box {
+export interface Pt {
+  x: number;
+  y: number;
+}
+
+/** A detected face in source-media pixels: bounding box + the four keypoints
+ *  we use (two eyes, nose tip, mouth center). */
+export interface Face {
   x: number;
   y: number;
   width: number;
   height: number;
+  eyeR: Pt;
+  eyeL: Pt;
+  nose: Pt;
+  mouth: Pt;
 }
 
-/** Where a prop sits relative to a face box (same coordinate units as the box). */
-export function propRect(prop: PropId, b: Box): Box {
-  const cx = b.x + b.width / 2;
+/** A placed prop: center, size, rotation — all in the same units as the face. */
+export interface Placement {
+  cx: number;
+  cy: number;
+  w: number;
+  h: number;
+  angle: number; // radians
+}
+
+function mid(a: Pt, b: Pt): Pt {
+  return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+}
+
+/** Where a prop sits for a given face (source-media coordinate units). */
+export function propPlacement(prop: PropId, f: Face): Placement {
+  const eyeC = mid(f.eyeR, f.eyeL);
+  const dx = f.eyeL.x - f.eyeR.x;
+  const dy = f.eyeL.y - f.eyeR.y;
+  const eyeDist = Math.hypot(dx, dy) || f.width * 0.42;
+  const angle = Math.atan2(dy, dx);
   const asp = SVGS[prop].aspect;
+  // Unit vector pointing "up" out of the top of the head (perpendicular to eyes).
+  const up = { x: Math.sin(angle), y: -Math.cos(angle) };
+
   switch (prop) {
-    case "cowboy": {
-      const width = b.width * 1.7;
-      const height = width * asp;
-      return { x: cx - width / 2, y: b.y - height * 0.66, width, height };
-    }
-    case "party": {
-      const width = b.width * 1.15;
-      const height = width * asp;
-      return { x: cx - width / 2, y: b.y - height * 0.74, width, height };
+    case "glasses": {
+      const w = eyeDist * 2.2;
+      return { cx: eyeC.x, cy: eyeC.y, w, h: w * asp, angle };
     }
     case "mustache": {
-      const width = b.width * 0.62;
-      const height = width * asp;
-      return { x: cx - width / 2, y: b.y + b.height * 0.58, width, height };
+      const w = eyeDist * 1.5;
+      // Just under the nose, above the mouth.
+      const cx = (f.nose.x + f.mouth.x) / 2;
+      const cy = f.nose.y * 0.55 + f.mouth.y * 0.45;
+      return { cx, cy, w, h: w * asp, angle };
     }
-    case "glasses": {
-      const width = b.width * 0.96;
-      const height = width * asp;
-      return { x: cx - width / 2, y: b.y + b.height * 0.28, width, height };
+    case "cowboy": {
+      const w = eyeDist * 3.1;
+      const h = w * asp;
+      // Rest the brim just above the brow: from the eyes, up ~1 eye-distance,
+      // then up by half the hat height.
+      const lift = eyeDist * 1.05 + h * 0.42;
+      return { cx: eyeC.x + up.x * lift, cy: eyeC.y + up.y * lift, w, h, angle };
+    }
+    case "party": {
+      const w = eyeDist * 2.1;
+      const h = w * asp;
+      const lift = eyeDist * 1.15 + h * 0.42;
+      return { cx: eyeC.x + up.x * lift, cy: eyeC.y + up.y * lift, w, h, angle };
     }
   }
+}
+
+/** Map a placement from source-media coords into the object-cover display box,
+ *  honoring the mirrored selfie preview. */
+export function placementToDisplay(
+  p: Placement,
+  stageW: number,
+  stageH: number,
+  mediaW: number,
+  mediaH: number,
+  mirror: boolean
+): Placement {
+  const s = Math.max(stageW / mediaW, stageH / mediaH);
+  const offX = (stageW - mediaW * s) / 2;
+  const offY = (stageH - mediaH * s) / 2;
+  let cx = offX + p.cx * s;
+  const cy = offY + p.cy * s;
+  let angle = p.angle;
+  if (mirror) {
+    cx = stageW - cx;
+    angle = -angle;
+  }
+  return { cx, cy, w: p.w * s, h: p.h * s, angle };
 }
 
 export const PROP_SETS: { key: string; label: string; props: PropId[] }[] = [
@@ -88,24 +145,3 @@ export const PROP_SETS: { key: string; label: string; props: PropId[] }[] = [
   { key: "disguise", label: "🥸 Disguise", props: ["glasses", "mustache"] },
   { key: "party", label: "🎉 Party", props: ["party", "glasses"] },
 ];
-
-/** Map a face box from source-media coords into an object-cover display box,
- *  accounting for the mirrored selfie preview. */
-export function mapToDisplay(
-  b: Box,
-  stageW: number,
-  stageH: number,
-  mediaW: number,
-  mediaH: number,
-  mirror: boolean
-): Box {
-  const s = Math.max(stageW / mediaW, stageH / mediaH);
-  const offX = (stageW - mediaW * s) / 2;
-  const offY = (stageH - mediaH * s) / 2;
-  const width = b.width * s;
-  const height = b.height * s;
-  const y = offY + b.y * s;
-  let x = offX + b.x * s;
-  if (mirror) x = stageW - (x + width);
-  return { x, y, width, height };
-}

@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { KioskScreenShell, KioskEmpty, glassPanel, glassButton } from "../ui";
 import type { KioskBooking } from "../types";
-import { PROP_SETS, PROP_SRC, propRect, mapToDisplay, type Box, type PropId } from "../photobooth-props";
+import { PROP_SETS, PROP_SRC, propPlacement, placementToDisplay, type Face, type PropId } from "../photobooth-props";
 
 type Facing = "user" | "environment";
 type Phase = "live" | "countdown" | "review" | "share";
@@ -33,6 +33,7 @@ const MP_MODEL =
 
 interface MpDetection {
   boundingBox?: { originX: number; originY: number; width: number; height: number };
+  keypoints?: { x: number; y: number }[];
 }
 interface MpDetector {
   detectForVideo(v: HTMLVideoElement, ts: number): { detections: MpDetection[] };
@@ -75,7 +76,7 @@ export function PhotoboothScreen({
   // Face props
   const [propSetKey, setPropSetKey] = useState("none");
   const [detectorReady, setDetectorReady] = useState(false);
-  const [liveFaces, setLiveFaces] = useState<Box[]>([]);
+  const [liveFaces, setLiveFaces] = useState<Face[]>([]);
   const [stageSize, setStageSize] = useState({ w: 0, h: 0 });
   const [mediaSize, setMediaSize] = useState({ w: 0, h: 0 });
   const activeProps = useMemo(() => PROP_SETS.find((s) => s.key === propSetKey)?.props ?? [], [propSetKey]);
@@ -208,11 +209,34 @@ export function PhotoboothScreen({
         last = now;
         try {
           const res = det.detectForVideo(video, now);
+          const vw = video.videoWidth;
+          const vh = video.videoHeight;
           setLiveFaces(
             (res.detections || [])
-              .map((d) => d.boundingBox)
-              .filter((b): b is NonNullable<typeof b> => !!b)
-              .map((b) => ({ x: b.originX, y: b.originY, width: b.width, height: b.height }))
+              .map((d): Face | null => {
+                const b = d.boundingBox;
+                if (!b) return null;
+                const kp = d.keypoints || [];
+                // Keypoints are usually normalized [0,1]; some builds return
+                // pixels. Detect which, and fall back to box ratios if absent.
+                const normalized = !!kp[0] && kp[0].x <= 1.5 && kp[0].y <= 1.5;
+                const pt = (i: number, fx: number, fy: number): { x: number; y: number } => {
+                  const k = kp[i];
+                  if (!k) return { x: fx, y: fy };
+                  return normalized ? { x: k.x * vw, y: k.y * vh } : { x: k.x, y: k.y };
+                };
+                return {
+                  x: b.originX,
+                  y: b.originY,
+                  width: b.width,
+                  height: b.height,
+                  eyeR: pt(0, b.originX + b.width * 0.3, b.originY + b.height * 0.42),
+                  eyeL: pt(1, b.originX + b.width * 0.7, b.originY + b.height * 0.42),
+                  nose: pt(2, b.originX + b.width * 0.5, b.originY + b.height * 0.6),
+                  mouth: pt(3, b.originX + b.width * 0.5, b.originY + b.height * 0.78),
+                };
+              })
+              .filter((f): f is Face => !!f)
           );
         } catch {
           // transient — retry next frame
@@ -254,12 +278,17 @@ export function PhotoboothScreen({
     ctx.setTransform(1, 0, 0, 1, 0, 0); // props are placed in final (mirrored) image space
     if (activeProps.length) {
       for (const face of liveFaces) {
-        const box = mirror ? { x: w - (face.x + face.width), y: face.y, width: face.width, height: face.height } : face;
         for (const p of activeProps) {
           const img = propImgs.current[p];
           if (!img || !img.complete || !img.naturalWidth) continue;
-          const r = propRect(p, box);
-          ctx.drawImage(img, r.x, r.y, r.width, r.height);
+          const pl = propPlacement(p, face);
+          const cx = facing === "user" ? w - pl.cx : pl.cx;
+          const angle = facing === "user" ? -pl.angle : pl.angle;
+          ctx.save();
+          ctx.translate(cx, pl.cy);
+          ctx.rotate(angle);
+          ctx.drawImage(img, -pl.w / 2, -pl.h / 2, pl.w, pl.h);
+          ctx.restore();
         }
       }
     }
@@ -275,7 +304,7 @@ export function PhotoboothScreen({
       "image/jpeg",
       0.9
     );
-  }, [facing, activeProps, liveFaces, mirror]);
+  }, [facing, activeProps, liveFaces]);
 
   const startCountdown = useCallback(() => {
     if (!ready || phase !== "live") return;
@@ -442,22 +471,32 @@ export function PhotoboothScreen({
                 activeProps.length > 0 &&
                 mediaSize.w > 0 &&
                 stageSize.w > 0 &&
-                liveFaces.map((face, fi) => {
-                  const dbox = mapToDisplay(face, stageSize.w, stageSize.h, mediaSize.w, mediaSize.h, mirror);
-                  return activeProps.map((p) => {
-                    const r = propRect(p, dbox);
+                liveFaces.map((face, fi) =>
+                  activeProps.map((p) => {
+                    const pl = placementToDisplay(
+                      propPlacement(p, face),
+                      stageSize.w,
+                      stageSize.h,
+                      mediaSize.w,
+                      mediaSize.h,
+                      mirror
+                    );
                     return (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
                         key={`${fi}-${p}`}
                         src={PROP_SRC[p]}
                         alt=""
-                        className="pointer-events-none absolute select-none"
-                        style={{ left: r.x, top: r.y, width: r.width, height: r.height }}
+                        className="pointer-events-none absolute left-0 top-0 select-none"
+                        style={{
+                          width: pl.w,
+                          height: pl.h,
+                          transform: `translate(${pl.cx - pl.w / 2}px, ${pl.cy - pl.h / 2}px) rotate(${pl.angle}rad)`,
+                        }}
                       />
                     );
-                  });
-                })}
+                  })
+                )}
 
               {(phase === "review" || phase === "share") && captured && (
                 // eslint-disable-next-line @next/next/no-img-element
