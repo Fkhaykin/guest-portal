@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "
 import { CheckCircle2, XCircle } from "lucide-react";
 import type { KioskContent, KioskData, KioskScreen } from "./types";
 import { KioskThemeContext, type KioskTheme } from "./ui";
+import { useUnlockGesture } from "./use-unlock-gesture";
 import { AttractScreen } from "./attract-screen";
 import { PinScreen } from "./pin-screen";
 import { MainScreen } from "./main-screen";
@@ -74,6 +75,16 @@ export function KioskClient({ token }: { token: string }) {
     }
     window.dispatchEvent(new Event("kiosk-theme-change"));
   }, []);
+
+  // Hidden staff gesture — corners clockwise (TL→TR→BR→BL) then center ×4 —
+  // escapes this locked single-house display back to the house selector.
+  // ?pick=1 bypasses the selector's remembered-house auto-redirect (which would
+  // otherwise bounce straight back here); the selector still gates on the PIN.
+  useUnlockGesture(
+    useCallback(() => {
+      window.location.assign("/kiosk?pick=1");
+    }, [])
+  );
 
   // Persist + activate an authorized device key (PIN screen or URL pin).
   const authorize = useCallback((key: string) => {
