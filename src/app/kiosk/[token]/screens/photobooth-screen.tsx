@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Camera,
   Check,
@@ -12,9 +12,11 @@ import {
   SwitchCamera,
   Timer,
   Trash2,
+  Wand2,
 } from "lucide-react";
 import { KioskScreenShell, KioskEmpty, glassPanel, glassButton } from "../ui";
 import type { KioskBooking } from "../types";
+import { PROP_SETS, PROP_SRC, propRect, mapToDisplay, type Box, type PropId } from "../photobooth-props";
 
 type Facing = "user" | "environment";
 type Phase = "live" | "countdown" | "review" | "share";
@@ -23,6 +25,15 @@ type Captured = { blob: Blob; url: string };
 // 0 = instant (no countdown).
 const TIMER_OPTIONS = [0, 3, 10, 20] as const;
 const DEFAULT_TIMER = 3;
+
+// Native FaceDetector (Chromium kiosks). Absent elsewhere → filters just hide.
+interface DetectedFace {
+  boundingBox: { x: number; y: number; width: number; height: number };
+}
+interface FaceDetectorLike {
+  detect(source: CanvasImageSource): Promise<DetectedFace[]>;
+}
+type FaceDetectorCtor = new (opts?: { fastMode?: boolean; maxDetectedFaces?: number }) => FaceDetectorLike;
 
 export function PhotoboothScreen({
   token,
@@ -40,8 +51,11 @@ export function PhotoboothScreen({
   onViewHouseAlbum: () => void;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const detectorRef = useRef<FaceDetectorLike | null>(null);
+  const propImgs = useRef<Partial<Record<PropId, HTMLImageElement>>>({});
 
   const [facing, setFacing] = useState<Facing>("user");
   const [ready, setReady] = useState(false);
@@ -54,6 +68,14 @@ export function PhotoboothScreen({
   const [savedFlash, setSavedFlash] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Silly face filters (cowboy hat, mustache…). Gated on FaceDetector support.
+  const [faceSupported, setFaceSupported] = useState(false);
+  const [propSetKey, setPropSetKey] = useState("none");
+  const [liveFaces, setLiveFaces] = useState<Box[]>([]);
+  const [stageSize, setStageSize] = useState({ w: 0, h: 0 });
+  const [mediaSize, setMediaSize] = useState({ w: 0, h: 0 });
+  const activeProps = useMemo(() => PROP_SETS.find((s) => s.key === propSetKey)?.props ?? [], [propSetKey]);
+
   // Share state (after "Save to my phone")
   const [photoId, setPhotoId] = useState<string | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
@@ -65,6 +87,39 @@ export function PhotoboothScreen({
   const stopStream = useCallback(() => {
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
+  }, []);
+
+  // One-time: detect FaceDetector support, build it, and preload the prop SVGs.
+  useEffect(() => {
+    const Ctor = (window as unknown as { FaceDetector?: FaceDetectorCtor }).FaceDetector;
+    if (Ctor) {
+      try {
+        detectorRef.current = new Ctor({ fastMode: true, maxDetectedFaces: 8 });
+        setFaceSupported(true);
+      } catch {
+        setFaceSupported(false);
+      }
+    }
+    for (const set of PROP_SETS) {
+      for (const p of set.props) {
+        if (!propImgs.current[p]) {
+          const img = new Image();
+          img.src = PROP_SRC[p];
+          propImgs.current[p] = img;
+        }
+      }
+    }
+  }, []);
+
+  // Track the stage's on-screen size so face boxes map into display pixels.
+  useEffect(() => {
+    const el = stageRef.current;
+    if (!el) return;
+    const update = () => setStageSize({ w: el.clientWidth, h: el.clientHeight });
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
   }, []);
 
   // Acquire the camera on mount, on flip (facing), and on manual retry. All
@@ -104,6 +159,34 @@ export function PhotoboothScreen({
     };
   }, [facing, retryNonce, booking, stopStream]);
 
+  // Live face tracking for the preview overlay — best-effort at ~4fps.
+  useEffect(() => {
+    if (phase !== "live" || !ready || !faceSupported || activeProps.length === 0) {
+      setLiveFaces([]);
+      return;
+    }
+    let stop = false;
+    let timer: ReturnType<typeof setTimeout>;
+    const tick = async () => {
+      const video = videoRef.current;
+      const detector = detectorRef.current;
+      if (video && video.videoWidth && detector) {
+        try {
+          const faces = await detector.detect(video);
+          if (!stop) setLiveFaces(faces.map((f) => ({ ...f.boundingBox })));
+        } catch {
+          // transient — try again next tick
+        }
+      }
+      if (!stop) timer = setTimeout(tick, 250);
+    };
+    timer = setTimeout(tick, 300);
+    return () => {
+      stop = true;
+      clearTimeout(timer);
+    };
+  }, [phase, ready, faceSupported, activeProps.length, facing]);
+
   // Clean up the captured object URL when it's replaced or the screen closes.
   useEffect(() => {
     return () => {
@@ -111,7 +194,7 @@ export function PhotoboothScreen({
     };
   }, [captured]);
 
-  const capture = useCallback(() => {
+  const capture = useCallback(async () => {
     const video = videoRef.current;
     if (!video || !video.videoWidth) {
       setPhase("live");
@@ -130,6 +213,25 @@ export function PhotoboothScreen({
       ctx.scale(-1, 1);
     }
     ctx.drawImage(video, 0, 0, w, h);
+    ctx.setTransform(1, 0, 0, 1, 0, 0); // props are placed in final (mirrored) image space
+
+    // Detect faces on the finished still and stamp the props at full resolution.
+    if (activeProps.length && detectorRef.current) {
+      try {
+        const faces = await detectorRef.current.detect(canvas);
+        for (const f of faces) {
+          for (const p of activeProps) {
+            const img = propImgs.current[p];
+            if (!img || !img.complete || !img.naturalWidth) continue;
+            const r = propRect(p, { ...f.boundingBox });
+            ctx.drawImage(img, r.x, r.y, r.width, r.height);
+          }
+        }
+      } catch {
+        // No props stamped — the plain photo is still fine.
+      }
+    }
+
     canvas.toBlob(
       (blob) => {
         if (!blob) {
@@ -142,7 +244,7 @@ export function PhotoboothScreen({
       "image/jpeg",
       0.9
     );
-  }, [facing]);
+  }, [facing, activeProps]);
 
   const startCountdown = useCallback(() => {
     if (!ready || phase !== "live") return;
@@ -251,6 +353,8 @@ export function PhotoboothScreen({
     );
   }
 
+  const mirror = facing === "user";
+
   return (
     <KioskScreenShell
       title="Photo Booth"
@@ -258,18 +362,46 @@ export function PhotoboothScreen({
       timezone={timezone}
       onBack={onBack}
     >
-      <div className="mx-auto flex h-full max-w-4xl flex-col items-center gap-5 pb-8">
-        {/* Stage */}
-        <div className="relative aspect-4/3 w-full overflow-hidden rounded-3xl bg-black ring-1 ring-(--k-surf-15)">
+      <div className="mx-auto flex h-full max-w-5xl flex-col items-center gap-4 pb-4">
+        {/* Stage — fills the available height so the viewfinder is large */}
+        <div
+          ref={stageRef}
+          className="relative w-full min-h-0 flex-1 overflow-hidden rounded-3xl bg-black ring-1 ring-(--k-surf-15)"
+        >
           {/* Live camera */}
           <video
             ref={videoRef}
             playsInline
             muted
-            className={`h-full w-full object-cover ${facing === "user" ? "scale-x-[-1]" : ""} ${
+            onLoadedMetadata={(e) =>
+              setMediaSize({ w: e.currentTarget.videoWidth, h: e.currentTarget.videoHeight })
+            }
+            className={`h-full w-full object-cover ${mirror ? "scale-x-[-1]" : ""} ${
               phase === "review" || phase === "share" ? "hidden" : ""
             }`}
           />
+
+          {/* Live face-prop overlay (preview only; the saved still is stamped separately) */}
+          {phase === "live" &&
+            activeProps.length > 0 &&
+            mediaSize.w > 0 &&
+            stageSize.w > 0 &&
+            liveFaces.map((face, fi) => {
+              const dbox = mapToDisplay(face, stageSize.w, stageSize.h, mediaSize.w, mediaSize.h, mirror);
+              return activeProps.map((p) => {
+                const r = propRect(p, dbox);
+                return (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    key={`${fi}-${p}`}
+                    src={PROP_SRC[p]}
+                    alt=""
+                    className="pointer-events-none absolute select-none"
+                    style={{ left: r.x, top: r.y, width: r.width, height: r.height }}
+                  />
+                );
+              });
+            })}
 
           {/* Captured still */}
           {(phase === "review" || phase === "share") && captured && (
@@ -338,32 +470,56 @@ export function PhotoboothScreen({
 
         {/* Controls */}
         {phase === "live" && (
-          <div className="flex w-full flex-col items-center gap-4">
-            {/* Timer selector */}
-            <div className="flex items-center gap-2 rounded-full bg-(--k-surf-07) p-1.5 ring-1 ring-(--k-surf-10)">
-              <Timer className="ml-2 h-5 w-5 text-(--k-fg-60)" />
-              {TIMER_OPTIONS.map((secs) => (
-                <button
-                  key={secs}
-                  type="button"
-                  onClick={() => setTimer(secs)}
-                  aria-pressed={timer === secs}
-                  className={`min-h-12 min-w-16 rounded-full px-4 text-lg font-bold tabular-nums transition-colors ${
-                    timer === secs
-                      ? "bg-(--k-featured-bg) text-(--k-featured-fg) shadow"
-                      : "text-(--k-fg-70) hover:bg-(--k-surf-10)"
-                  }`}
-                >
-                  {secs === 0 ? "Now" : `${secs}s`}
-                </button>
-              ))}
+          <div className="flex w-full flex-col items-center gap-3">
+            <div className="flex flex-wrap items-center justify-center gap-3">
+              {/* Timer selector */}
+              <div className="flex items-center gap-2 rounded-full bg-(--k-surf-07) p-1.5 ring-1 ring-(--k-surf-10)">
+                <Timer className="ml-2 h-5 w-5 text-(--k-fg-60)" />
+                {TIMER_OPTIONS.map((secs) => (
+                  <button
+                    key={secs}
+                    type="button"
+                    onClick={() => setTimer(secs)}
+                    aria-pressed={timer === secs}
+                    className={`min-h-12 min-w-14 rounded-full px-4 text-lg font-bold tabular-nums transition-colors ${
+                      timer === secs
+                        ? "bg-(--k-featured-bg) text-(--k-featured-fg) shadow"
+                        : "text-(--k-fg-70) hover:bg-(--k-surf-10)"
+                    }`}
+                  >
+                    {secs === 0 ? "Now" : `${secs}s`}
+                  </button>
+                ))}
+              </div>
+
+              {/* Silly filter selector — only if the browser can find faces */}
+              {faceSupported && (
+                <div className="flex items-center gap-2 rounded-full bg-(--k-surf-07) p-1.5 ring-1 ring-(--k-surf-10)">
+                  <Wand2 className="ml-2 h-5 w-5 text-(--k-fg-60)" />
+                  {PROP_SETS.map((set) => (
+                    <button
+                      key={set.key}
+                      type="button"
+                      onClick={() => setPropSetKey(set.key)}
+                      aria-pressed={propSetKey === set.key}
+                      className={`min-h-12 rounded-full px-4 text-base font-bold transition-colors ${
+                        propSetKey === set.key
+                          ? "bg-(--k-featured-bg) text-(--k-featured-fg) shadow"
+                          : "text-(--k-fg-70) hover:bg-(--k-surf-10)"
+                      }`}
+                    >
+                      {set.label}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             <button
               type="button"
               onClick={startCountdown}
               disabled={!ready}
-              className="flex min-h-20 w-full max-w-md items-center justify-center gap-3 rounded-3xl bg-fuchsia-500 text-2xl font-extrabold text-white shadow-xl transition-transform active:scale-[0.97] disabled:opacity-50 lg:text-3xl"
+              className="flex min-h-18 w-full max-w-md items-center justify-center gap-3 rounded-3xl bg-fuchsia-500 text-2xl font-extrabold text-white shadow-xl transition-transform active:scale-[0.97] disabled:opacity-50 lg:text-3xl"
             >
               <Camera className="h-8 w-8" /> Take Photo
             </button>

@@ -475,7 +475,9 @@ export function KioskClient({ token }: { token: string }) {
         />
       )}
 
-      {helpOpen && <HelpOverlay data={data} onClose={() => setHelpOpen(false)} />}
+      {helpOpen && (
+        <HelpOverlay data={data} onClose={() => setHelpOpen(false)} onNavigate={navigate} />
+      )}
 
       {navigating && (
         <div className="absolute inset-0 z-70 flex items-center justify-center bg-(--k-bg)">

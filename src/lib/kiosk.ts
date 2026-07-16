@@ -32,9 +32,15 @@ export async function resolveKioskProperty(
   return (property as KioskProperty) ?? null;
 }
 
+export interface KioskWifi {
+  ssid: string;
+  password: string | null;
+}
+
 export interface KioskAccess {
   property: KioskProperty;
   authorized: boolean;
+  wifi: KioskWifi | null;
 }
 
 /** Resolve a kiosk token AND check the x-kiosk-device header against the
@@ -46,11 +52,26 @@ export async function resolveKioskAccess(
   token: string,
   deviceKey: string | null
 ): Promise<KioskAccess | null> {
-  const { data: kiosk } = await admin
+  // Read the wifi columns (migration 117) but tolerate a DB where they don't
+  // exist yet: a missing-column error would otherwise null out the whole row and
+  // 404 every kiosk. Falls back to the base columns until 117 is applied.
+  const withWifi = await admin
     .from("kiosk")
-    .select("property_id, device_key")
+    .select("property_id, device_key, wifi_ssid, wifi_password")
     .eq("token", token)
     .maybeSingle();
+
+  let kiosk: { property_id: string; device_key: string | null; wifi_ssid?: string | null; wifi_password?: string | null } | null;
+  if (withWifi.error) {
+    const base = await admin
+      .from("kiosk")
+      .select("property_id, device_key")
+      .eq("token", token)
+      .maybeSingle();
+    kiosk = base.data ?? null;
+  } else {
+    kiosk = withWifi.data;
+  }
   if (!kiosk) return null;
 
   const { data: property } = await admin
@@ -63,6 +84,7 @@ export async function resolveKioskAccess(
   return {
     property: property as KioskProperty,
     authorized: !!deviceKey && deviceKey === kiosk.device_key,
+    wifi: kiosk.wifi_ssid ? { ssid: kiosk.wifi_ssid, password: kiosk.wifi_password ?? null } : null,
   };
 }
 

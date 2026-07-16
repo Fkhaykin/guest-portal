@@ -286,6 +286,7 @@ export async function GET(
       today,
       state,
       photos,
+      wifi: access.wifi,
       weather,
       booking,
       next_booking: nextBooking,

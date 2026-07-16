@@ -1,12 +1,22 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { MapPin } from "lucide-react";
+import { MapPin, Wifi } from "lucide-react";
 import type { KioskData, KioskWeatherCurrent } from "./types";
 import { useNow } from "./ui";
 
 const SLIDE_MS = 9000;
 const WX_REFRESH_MS = 10 * 60 * 1000;
+
+// Per the Wi-Fi QR spec, these characters must be backslash-escaped in SSID/pass.
+function escapeWifi(value: string): string {
+  return value.replace(/([\\;,:"])/g, "\\$1");
+}
+function wifiQrPayload(ssid: string, password: string | null): string {
+  return password
+    ? `WIFI:T:WPA;S:${escapeWifi(ssid)};P:${escapeWifi(password)};;`
+    : `WIFI:T:nopass;S:${escapeWifi(ssid)};;`;
+}
 
 function weekdayShort(dateStr: string, today: string): string {
   if (dateStr === today) return "Today";
@@ -42,7 +52,9 @@ export function AttractScreen({
   const now = useNow(1000);
   const [slide, setSlide] = useState(0);
   const [current, setCurrent] = useState<KioskWeatherCurrent | null>(null);
+  const [wifiQr, setWifiQr] = useState<string | null>(null);
   const photos = data.photos.length ? data.photos : [];
+  const wifi = data.wifi;
 
   useEffect(() => {
     if (photos.length < 2) return;
@@ -70,6 +82,32 @@ export function AttractScreen({
       clearInterval(t);
     };
   }, [token]);
+
+  // Guest Wi-Fi QR — scan to join without typing the password.
+  useEffect(() => {
+    if (!wifi?.ssid) {
+      setWifiQr(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const QRCode = (await import("qrcode")).default;
+        const dataUrl = await QRCode.toDataURL(wifiQrPayload(wifi.ssid, wifi.password), {
+          width: 320,
+          margin: 1,
+          errorCorrectionLevel: "M",
+          color: { dark: "#0a0a0a", light: "#ffffff" },
+        });
+        if (!cancelled) setWifiQr(dataUrl);
+      } catch {
+        // No QR — the network name + password are still shown below it.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [wifi?.ssid, wifi?.password]);
 
   const tz = data.property.timezone;
   const time = now.toLocaleTimeString("en-US", { timeZone: tz, hour: "numeric", minute: "2-digit" });
@@ -173,7 +211,7 @@ export function AttractScreen({
         </span>
       </div>
 
-      {/* Bottom corners: clock + date (left), address (right) */}
+      {/* Bottom corners: clock + date (left); Wi-Fi + address (right) */}
       <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-8 p-8 lg:p-12">
         <div className="min-w-0">
           <p className="whitespace-nowrap text-[clamp(2.25rem,4.5vw,4rem)] font-bold leading-none tracking-tight text-white tabular-nums">
@@ -181,17 +219,44 @@ export function AttractScreen({
           </p>
           <p className="mt-2 text-lg font-medium text-white/70 lg:text-xl">{date}</p>
         </div>
-        {data.property.address && (
-          <div className="min-w-0 text-right">
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-white/50">
-              Your address
-            </p>
-            <p className="mt-1.5 flex items-center justify-end gap-2 text-lg font-semibold text-white/90 lg:text-xl">
-              <MapPin className="h-5 w-5 shrink-0 text-white/60" />
-              {formatAddress(data.property.address)}
-            </p>
-          </div>
-        )}
+        <div className="flex min-w-0 flex-col items-end gap-4">
+          {wifi?.ssid && (
+            <div
+              onPointerDown={(e) => e.stopPropagation()}
+              className="flex items-center gap-4 rounded-3xl bg-black/35 p-4 ring-1 ring-white/15 backdrop-blur-md"
+            >
+              {wifiQr && (
+                <div className="shrink-0 rounded-2xl bg-white p-2.5">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={wifiQr} alt="Scan to join the Wi-Fi" className="h-24 w-24 lg:h-28 lg:w-28" />
+                </div>
+              )}
+              <div className="min-w-0 text-left">
+                <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.25em] text-white/60">
+                  <Wifi className="h-4 w-4" /> Guest Wi-Fi
+                </p>
+                <p className="mt-1 truncate text-xl font-bold text-white lg:text-2xl">{wifi.ssid}</p>
+                {wifi.password && (
+                  <p className="text-base text-white/75 lg:text-lg">
+                    Password <span className="font-semibold text-white tabular-nums">{wifi.password}</span>
+                  </p>
+                )}
+                {wifiQr && <p className="mt-1 text-xs text-white/50">Scan to connect</p>}
+              </div>
+            </div>
+          )}
+          {data.property.address && (
+            <div className="min-w-0 text-right">
+              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-white/50">
+                Your address
+              </p>
+              <p className="mt-1.5 flex items-center justify-end gap-2 text-lg font-semibold text-white/90 lg:text-xl">
+                <MapPin className="h-5 w-5 shrink-0 text-white/60" />
+                {formatAddress(data.property.address)}
+              </p>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

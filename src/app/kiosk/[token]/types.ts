@@ -56,6 +56,7 @@ export interface KioskData {
   today: string;
   state: "arrival_day" | "mid_stay" | "checkout_day" | "none";
   photos: string[];
+  wifi: { ssid: string; password: string | null } | null;
   weather: KioskWeatherDay[] | null;
   booking: KioskBooking | null;
   next_booking: KioskNextBooking | null;

@@ -4,19 +4,16 @@ import { useEffect, useState } from "react";
 import {
   CalendarPlus,
   Camera,
-  CloudSun,
   ClipboardList,
   GalleryVerticalEnd,
   Gift,
   HandCoins,
-  HelpCircle,
   LifeBuoy,
   MapPin,
   PenLine,
-  ScrollText,
   ShoppingBag,
   Smartphone,
-  Tag,
+  Sparkles,
   Truck,
   Video,
   type LucideIcon,
@@ -40,35 +37,13 @@ function timeOfDayGreeting(tz: string): string {
   return "Good evening";
 }
 
-// Menu-board tile. Every tile is the same frosted-glass panel with a soft
-// colored accent (tinted surface + ring + icon badge); nothing is a stark
-// solid fill. Static class strings per accent so Tailwind keeps them.
-type AccentKey =
-  | "indigo" | "sky" | "amber" | "orange" | "emerald"
-  | "cyan" | "lime" | "rose" | "fuchsia" | "violet" | "teal" | "slate";
-
-// Light mode uses a solid saturated badge with a white icon so the glyph reads
-// from across the room; dark mode keeps the softer tinted-icon treatment.
-const ACCENTS: Record<AccentKey, { tile: string; badge: string }> = {
-  indigo: { tile: "bg-indigo-500/12 ring-indigo-500/25 dark:bg-indigo-400/12 dark:ring-indigo-400/25", badge: "bg-indigo-700 text-white dark:bg-indigo-400/20 dark:text-indigo-200" },
-  sky: { tile: "bg-sky-500/12 ring-sky-500/25 dark:bg-sky-400/12 dark:ring-sky-400/25", badge: "bg-sky-700 text-white dark:bg-sky-400/20 dark:text-sky-200" },
-  amber: { tile: "bg-amber-500/14 ring-amber-500/30 dark:bg-amber-400/14 dark:ring-amber-400/30", badge: "bg-amber-700 text-white dark:bg-amber-400/25 dark:text-amber-200" },
-  orange: { tile: "bg-orange-500/12 ring-orange-500/25 dark:bg-orange-400/12 dark:ring-orange-400/25", badge: "bg-orange-700 text-white dark:bg-orange-400/20 dark:text-orange-200" },
-  emerald: { tile: "bg-emerald-500/12 ring-emerald-500/25 dark:bg-emerald-400/12 dark:ring-emerald-400/25", badge: "bg-emerald-700 text-white dark:bg-emerald-400/20 dark:text-emerald-200" },
-  cyan: { tile: "bg-cyan-500/12 ring-cyan-500/25 dark:bg-cyan-400/12 dark:ring-cyan-400/25", badge: "bg-cyan-700 text-white dark:bg-cyan-400/20 dark:text-cyan-200" },
-  lime: { tile: "bg-lime-500/14 ring-lime-500/30 dark:bg-lime-400/12 dark:ring-lime-400/25", badge: "bg-lime-700 text-white dark:bg-lime-400/20 dark:text-lime-200" },
-  rose: { tile: "bg-rose-500/12 ring-rose-500/25 dark:bg-rose-400/12 dark:ring-rose-400/25", badge: "bg-rose-700 text-white dark:bg-rose-400/20 dark:text-rose-200" },
-  fuchsia: { tile: "bg-fuchsia-500/12 ring-fuchsia-500/25 dark:bg-fuchsia-400/12 dark:ring-fuchsia-400/25", badge: "bg-fuchsia-700 text-white dark:bg-fuchsia-400/20 dark:text-fuchsia-200" },
-  violet: { tile: "bg-violet-500/12 ring-violet-500/25 dark:bg-violet-400/12 dark:ring-violet-400/25", badge: "bg-violet-700 text-white dark:bg-violet-400/20 dark:text-violet-200" },
-  teal: { tile: "bg-teal-500/12 ring-teal-500/25 dark:bg-teal-400/12 dark:ring-teal-400/25", badge: "bg-teal-700 text-white dark:bg-teal-400/20 dark:text-teal-200" },
-  slate: { tile: "bg-slate-400/12 ring-slate-400/25 dark:bg-slate-300/12 dark:ring-slate-300/20", badge: "bg-slate-700 text-white dark:bg-slate-300/20 dark:text-slate-200" },
-};
-
+// Menu-board tile: a big contextual photo (the house's own listing shots, or a
+// curated image) under a bottom-up scrim, with a frosted icon badge and a bold
+// label. No colored fills — the photography carries the tile.
 type Tile = {
   label: string;
-  description: string;
   icon: LucideIcon;
-  accent: AccentKey;
+  image?: string;
 } & ({ href: string; screen?: never } | { screen: KioskScreen; href?: never });
 
 const ICON = "h-6 w-6 lg:h-7 lg:w-7";
@@ -127,46 +102,43 @@ export function MainScreen({
       subline = "Tap anything below to explore.";
   }
 
-  // Primary actions first (booked guests), then the browse grid. All one size.
-  const primary: Tile[] = booking
-    ? [
-        res!.signature_url
-          ? { label: "Update Registration", description: "Edit guests, pets, or vehicles", href: `/p/${slug}/update`, icon: PenLine, accent: "indigo" }
-          : { label: "Register", description: "Register your guests and vehicles", href: `/p/${slug}/register`, icon: ClipboardList, accent: "indigo" },
-        { label: "Extend Your Stay", description: "Add nights — pick dates on a calendar", href: `/p/${slug}/extend-stay`, icon: CalendarPlus, accent: "sky" },
-        { label: "Tip the Crew", description: "Thank the team that keeps it spotless", screen: { kind: "tip" }, icon: HandCoins, accent: "amber" },
-      ]
-    : [];
-
   // Services & Videos only appear when the house actually has content for them.
   const hasServices = (content?.services?.length ?? 0) > 0;
   const hasVideos = (content?.videos?.length ?? 0) > 0;
+  const hasPromos = (content?.promos?.length ?? 0) > 0;
+
+  // Primary actions first (booked guests), then the browse grid.
+  const primary: Tile[] = booking
+    ? [
+        res!.signature_url
+          ? { label: "Edit Guests, Pets & Vehicles", href: `/p/${slug}/update`, icon: PenLine }
+          : { label: "Register", href: `/p/${slug}/register`, icon: ClipboardList },
+        { label: "Extend Your Stay", href: `/p/${slug}/extend-stay`, icon: CalendarPlus },
+        { label: "Tip the Crew", screen: { kind: "tip" }, icon: HandCoins },
+      ]
+    : [];
 
   const browse: Tile[] = [
     ...(booking
       ? [
-          { label: "Photo Booth", description: "Snap a photo — the timer counts you in", screen: { kind: "photobooth" }, icon: Camera, accent: "fuchsia" } as Tile,
-          { label: "Add-Ons", description: "Extras & experiences for your stay", href: `/p/${slug}/add-ons`, icon: Gift, accent: "orange" } as Tile,
-          { label: "Delivery & Rides", description: "Register deliveries and rideshares", href: `/p/${slug}/delivery`, icon: Truck, accent: "emerald" } as Tile,
+          { label: "Upgrades", href: `/p/${slug}/add-ons`, icon: Sparkles, image: "/upsells/luxury-picnic.jpg" } as Tile,
+          { label: "Delivery & Rides", href: `/p/${slug}/delivery`, icon: Truck } as Tile,
         ]
       : []),
     ...(data.house_photo_count > 0
-      ? [{ label: "House Album", description: "Photos from guests who stayed here", screen: { kind: "house-album" }, icon: GalleryVerticalEnd, accent: "violet" } as Tile]
+      ? [{ label: "House Album", screen: { kind: "house-album" }, icon: GalleryVerticalEnd } as Tile]
       : []),
-    { label: "Weather", description: "Hourly forecast & live radar", screen: { kind: "weather" }, icon: CloudSun, accent: "cyan" },
-    { label: "Explore", description: "Things to do in the Poconos", screen: { kind: "explore" }, icon: MapPin, accent: "lime" },
-    { label: "Promotions", description: "Guest-exclusive deals", screen: { kind: "promos" }, icon: Tag, accent: "rose" },
+    { label: "Explore", screen: { kind: "explore" }, icon: MapPin },
     ...(hasServices
-      ? [{ label: "Services", description: "Browse additional services", screen: { kind: "services" }, icon: ShoppingBag, accent: "fuchsia" } as Tile]
+      ? [{ label: "Services", screen: { kind: "services" }, icon: ShoppingBag } as Tile]
       : []),
     ...(hasVideos
-      ? [{ label: "Videos", description: "How-to guides & welcome tour", screen: { kind: "videos" }, icon: Video, accent: "violet" } as Tile]
+      ? [{ label: "Videos", screen: { kind: "videos" }, icon: Video } as Tile]
       : []),
-    { label: "FAQ", description: "Answers about the house", screen: { kind: "faq" }, icon: HelpCircle, accent: "teal" },
-    { label: "House Rules", description: "The 8 rules & full policies", screen: { kind: "rules" }, icon: ScrollText, accent: "slate" },
   ];
 
   const tiles = [...primary, ...browse];
+  const photos = data.photos;
   const todayWeather = data.weather?.find((w) => w.date === data.today) ?? data.weather?.[0];
 
   return (
@@ -201,8 +173,18 @@ export function MainScreen({
                 {todayWeather.tempMaxF != null && <span>{Math.round(todayWeather.tempMaxF)}°</span>}
               </button>
             )}
-            {/* Phone handoff lives up here with the utilities — only when a
-                guest is checked in, since it needs their booking to sign in. */}
+            {/* Photo booth + phone handoff live up here with the utilities — only
+                when a guest is checked in, since both need their booking. */}
+            {booking && (
+              <button
+                type="button"
+                onClick={() => onNavigate({ kind: "photobooth" })}
+                aria-label="Open the photo booth"
+                className="flex h-12 w-12 items-center justify-center rounded-full bg-(--k-surf-10) text-(--k-fg) backdrop-blur-md transition-colors hover:bg-(--k-surf-15)"
+              >
+                <Camera className="h-5 w-5" />
+              </button>
+            )}
             {booking && (
               <button
                 type="button"
@@ -234,37 +216,67 @@ export function MainScreen({
           <p className="mt-1.5 text-lg font-medium text-(--k-fg-75) lg:mt-2 lg:text-xl">{subline}</p>
         </div>
 
-        {/* Menu board — trailing tiles widen so the last row always fills */}
-        <div className="grid min-h-0 flex-1 auto-rows-fr grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
+        {/* Menu board — fewer, bigger photo tiles; trailing tiles widen to fill the last row */}
+        <div className="grid min-h-0 flex-1 auto-rows-fr grid-cols-2 gap-3 lg:grid-cols-3 lg:gap-4">
           {tiles.map((tile, i) => {
-            const remainder = tiles.length % 4;
+            const remainder = tiles.length % 3;
             const isLast = i === tiles.length - 1;
             let widen = "";
-            if (remainder === 1 && isLast) widen = "lg:col-span-4";
-            else if (remainder === 2 && i >= tiles.length - 2) widen = "lg:col-span-2";
-            else if (remainder === 3 && isLast) widen = "lg:col-span-2";
-            const accent = ACCENTS[tile.accent];
+            if (remainder === 1 && isLast) widen = "lg:col-span-3";
+            else if (remainder === 2 && isLast) widen = "lg:col-span-2";
+            const img = tile.image ?? (photos.length ? photos[i % photos.length] : undefined);
             return (
               <button
                 key={tile.label}
                 type="button"
                 onClick={() => (tile.screen ? onNavigate(tile.screen) : onHandoff(tile.href!))}
-                className={`flex items-center gap-4 rounded-3xl p-5 text-left ring-1 backdrop-blur-md transition-transform active:scale-[0.97] lg:gap-5 lg:p-6 ${widen} ${accent.tile}`}
+                className={`group relative flex items-end overflow-hidden rounded-3xl text-left ring-1 ring-(--k-surf-15) transition-transform active:scale-[0.98] ${widen} ${img ? "bg-black" : "bg-(--k-surf-10)"}`}
               >
-                <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl lg:h-14 lg:w-14 ${accent.badge}`}>
-                  <tile.icon className={ICON} />
-                </span>
-                <span className="min-w-0">
-                  <span className="block text-lg font-extrabold leading-tight text-(--k-fg) lg:text-xl">{tile.label}</span>
-                  <span className="mt-0.5 hidden text-sm font-medium text-(--k-fg-60) lg:block lg:text-base">
-                    {tile.description}
+                {img && (
+                  <>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={img}
+                      alt=""
+                      className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-active:scale-105"
+                    />
+                    <div className="absolute inset-0 bg-linear-to-t from-black/85 via-black/40 to-black/5" />
+                  </>
+                )}
+                <div className="relative flex items-center gap-3 p-5 lg:gap-4 lg:p-6">
+                  <span
+                    className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl backdrop-blur-md lg:h-14 lg:w-14 ${
+                      img ? "bg-white/20 text-white ring-1 ring-white/30" : "bg-(--k-surf-10) text-(--k-fg)"
+                    }`}
+                  >
+                    <tile.icon className={ICON} />
                   </span>
-                </span>
+                  <span
+                    className={`text-xl font-extrabold leading-tight lg:text-2xl ${
+                      img ? "text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.6)]" : "text-(--k-fg)"
+                    }`}
+                  >
+                    {tile.label}
+                  </span>
+                </div>
               </button>
             );
           })}
         </div>
       </div>
+
+      {/* Guest-exclusive deals: a little gift in the corner, not a whole tile. */}
+      {hasPromos && (
+        <button
+          type="button"
+          onClick={() => onNavigate({ kind: "promos" })}
+          aria-label="Guest-exclusive perks"
+          className="absolute bottom-5 right-5 z-20 flex min-h-14 items-center gap-2.5 rounded-full bg-rose-500 px-5 text-base font-bold text-white shadow-xl ring-1 ring-white/20 transition-transform active:scale-[0.96] lg:bottom-8 lg:right-8 lg:text-lg"
+        >
+          <Gift className="h-6 w-6" />
+          Perks
+        </button>
+      )}
     </div>
   );
 }

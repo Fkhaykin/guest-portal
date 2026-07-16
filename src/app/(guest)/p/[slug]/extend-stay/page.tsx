@@ -12,7 +12,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { CalendarPlus, CalendarDays, Loader2, Check, PartyPopper, Info, ArrowRight } from "lucide-react";
+import { CalendarPlus, CalendarDays, Loader2, Check, PartyPopper, Info, ArrowRight, Clock, Send, DoorClosed } from "lucide-react";
+import { timingUpsellTime } from "@/lib/upsells/timing";
 
 type SessionData = {
   guestName: string;
@@ -38,6 +39,19 @@ type OptionsData = {
   currentCheckOutDate: string;
   maxCheckOutDate: string;
   options: ExtendOption[];
+};
+
+type DurationOption = { hours: number; time_label: string; price_cents: number };
+type LateCheckoutOption = {
+  type: string;
+  label: string;
+  description: string;
+  price_cents: number;
+  available: boolean;
+  purchased?: boolean;
+  request_only?: boolean;
+  unavailable_reason?: string | null;
+  meta?: { duration_options?: DurationOption[] };
 };
 
 const SESSION_KEY = "guest-portal-session";
@@ -102,9 +116,63 @@ export default function ExtendStayPage() {
   const [selected, setSelected] = useState<ExtendOption | null>(null);
   const [checkingOut, setCheckingOut] = useState(false);
 
+  // Late checkout (a fallback when no nights are open — you can still buy hours)
+  const [lateOption, setLateOption] = useState<LateCheckoutOption | null>(null);
+  const [lateHours, setLateHours] = useState<number>(1);
+  const [lateBusy, setLateBusy] = useState(false);
+  const [lateRequesting, setLateRequesting] = useState(false);
+  const [lateRequested, setLateRequested] = useState(false);
+  const [lateConfirmedTime, setLateConfirmedTime] = useState<string | null>(null);
+
   // Post-payment states
   const [confirming, setConfirming] = useState(false);
   const [confirmed, setConfirmed] = useState<{ newCheckOutDate: string } | null>(null);
+
+  const fetchLateCheckout = useCallback(async (registrationId: string) => {
+    try {
+      const res = await fetch("/api/guest/upsells", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-guest-token": getGuestToken() },
+        body: JSON.stringify({ registration_id: registrationId }),
+      });
+      if (!res.ok) return;
+      const resData = await res.json().catch(() => ({}));
+      const opt = (resData.upsells || []).find(
+        (o: LateCheckoutOption) => o.type === "late_checkout"
+      ) as LateCheckoutOption | undefined;
+      if (opt) {
+        setLateOption(opt);
+        const first = opt.meta?.duration_options?.[0]?.hours;
+        if (first) setLateHours(first);
+      }
+    } catch {
+      // Non-critical — extending nights still works without the late-checkout add-on.
+    }
+  }, []);
+
+  const confirmLateCheckout = useCallback(async (registrationId: string, sessionId: string) => {
+    setConfirming(true);
+    try {
+      const res = await fetch("/api/guest/upsells/confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-guest-token": getGuestToken() },
+        body: JSON.stringify({ session_id: sessionId, registration_id: registrationId }),
+      });
+      const resData = await res.json().catch(() => ({}));
+      if (res.ok && resData.ok) {
+        const paid = (resData.upsells || []).find(
+          (u: { type: string }) => u.type === "late_checkout"
+        );
+        setLateConfirmedTime((paid && timingUpsellTime(paid)) || "later than usual");
+      } else {
+        setError(resData.error || "We couldn't confirm your late checkout. If you were charged, it will be refunded — please contact us.");
+      }
+    } catch {
+      setError("Network error confirming your late checkout. Please contact us.");
+    } finally {
+      setConfirming(false);
+    }
+  }, []);
 
   const confirmExtension = useCallback(async (registrationId: string, sessionId: string) => {
     setConfirming(true);
@@ -179,16 +247,21 @@ export default function ExtendStayPage() {
 
     const params = new URLSearchParams(window.location.search);
     const success = params.get("extend_success");
+    const upsellSuccess = params.get("upsell_success");
     const sessionId = params.get("session_id");
-    const cancelled = params.get("extend_cancelled");
+    const cancelled = params.get("extend_cancelled") || params.get("upsell_cancelled");
     if (success && sessionId) {
       confirmExtension(s.reservation.id, sessionId);
+      window.history.replaceState({}, "", window.location.pathname);
+    } else if (upsellSuccess && sessionId) {
+      confirmLateCheckout(s.reservation.id, sessionId);
       window.history.replaceState({}, "", window.location.pathname);
     } else {
       if (cancelled) window.history.replaceState({}, "", window.location.pathname);
       fetchOptions(s.reservation.id);
+      fetchLateCheckout(s.reservation.id);
     }
-  }, [confirmExtension, fetchOptions]);
+  }, [confirmExtension, confirmLateCheckout, fetchOptions, fetchLateCheckout]);
 
   async function handleExtend() {
     if (!session || !selected) return;
@@ -215,13 +288,86 @@ export default function ExtendStayPage() {
     }
   }
 
+  async function handleLateCheckout() {
+    if (!session || !lateOption) return;
+    const tiers = lateOption.meta?.duration_options ?? [];
+    const tier = tiers.find((t) => t.hours === lateHours) ?? tiers[0];
+    if (!tier) return;
+    setLateBusy(true);
+    try {
+      const res = await fetch("/api/guest/upsells/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-guest-token": getGuestToken() },
+        body: JSON.stringify({
+          registration_id: session.reservation.id,
+          items: [
+            {
+              type: "late_checkout",
+              label: `Late Check-Out (until ${tier.time_label})`,
+              price_cents: tier.price_cents,
+              meta: { hours: tier.hours },
+            },
+          ],
+          return_path: "extend-stay",
+        }),
+      });
+      const resData = await res.json().catch(() => ({}));
+      if (res.ok && resData.url) {
+        window.location.href = resData.url;
+        return;
+      }
+      setOptionsError(resData.error || "Couldn't start checkout. Please try again.");
+    } catch {
+      setOptionsError("Network error starting checkout. Please try again.");
+    } finally {
+      setLateBusy(false);
+    }
+  }
+
+  async function handleLateRequest() {
+    if (!session) return;
+    setLateRequesting(true);
+    try {
+      const res = await fetch("/api/guest/upsells/request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-guest-token": getGuestToken() },
+        body: JSON.stringify({ registration_id: session.reservation.id, type: "late_checkout" }),
+      });
+      if (res.ok) setLateRequested(true);
+    } catch {
+      // Non-critical
+    } finally {
+      setLateRequesting(false);
+    }
+  }
+
   if (loading || confirming) {
     return (
       <div className="max-w-md mx-auto flex flex-col items-center justify-center gap-3 py-12">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
         <p className="text-sm text-muted-foreground">
-          {confirming ? "Confirming your extension…" : "Loading…"}
+          {confirming ? "Confirming your payment…" : "Loading…"}
         </p>
+      </div>
+    );
+  }
+
+  // Success screen after a confirmed late checkout.
+  if (lateConfirmedTime) {
+    return (
+      <div className="max-w-md mx-auto space-y-6 text-center py-6">
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-green-100 dark:bg-green-950">
+          <Clock className="h-7 w-7 text-green-600" />
+        </div>
+        <div className="space-y-1">
+          <h1 className="text-2xl font-bold tracking-tight">Late checkout confirmed!</h1>
+          <p className="text-muted-foreground text-sm">
+            You can now check out as late as <strong className="text-foreground">{lateConfirmedTime}</strong>. A confirmation is on its way.
+          </p>
+        </div>
+        <Link href="/checkin">
+          <Button className="w-full">Back to My Booking</Button>
+        </Link>
       </div>
     );
   }
@@ -487,6 +633,86 @@ export default function ExtendStayPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Late checkout — a few extra hours on your last day. Especially the
+          fallback when no additional nights are available. */}
+      {lateOption && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <DoorClosed className="h-4 w-4" /> Late Checkout
+            </CardTitle>
+            <CardDescription>
+              {data?.options.length === 0
+                ? "No extra nights are open — but you may still be able to check out later than 11 AM."
+                : "Not up for another full night? Add a few hours on your checkout day instead."}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {lateOption.purchased ? (
+              <div className="flex items-center gap-2 rounded-md border border-green-200 bg-green-50/60 dark:border-green-900 dark:bg-green-950/30 px-3 py-2 text-sm text-green-700 dark:text-green-400">
+                <Check className="h-4 w-4 shrink-0" /> Late checkout is already confirmed for this stay.
+              </div>
+            ) : lateOption.available && (lateOption.meta?.duration_options?.length ?? 0) > 0 ? (
+              <>
+                <div className="flex flex-wrap gap-2">
+                  {lateOption.meta!.duration_options!.map((d) => {
+                    const selected = lateHours === d.hours;
+                    return (
+                      <button
+                        key={d.hours}
+                        type="button"
+                        onClick={() => setLateHours(d.hours)}
+                        className={`flex-1 min-w-32 rounded-lg border px-3 py-2.5 text-left text-sm transition-colors ${
+                          selected ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"
+                        }`}
+                      >
+                        <span className="flex items-center gap-1.5 font-medium">
+                          <Clock className="h-3.5 w-3.5" /> Until {d.time_label}
+                        </span>
+                        <span className="block text-xs text-muted-foreground">
+                          +{d.hours} hour{d.hours !== 1 ? "s" : ""}
+                        </span>
+                        <span className="block font-semibold">{fmt(d.price_cents)}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <Button className="w-full" size="lg" disabled={lateBusy} onClick={handleLateCheckout}>
+                  {lateBusy ? (
+                    <><Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> Redirecting to checkout…</>
+                  ) : (
+                    <>Add Late Checkout <ArrowRight className="h-4 w-4 ml-1.5" /></>
+                  )}
+                </Button>
+              </>
+            ) : lateOption.request_only ? (
+              <div className="space-y-2">
+                {lateOption.unavailable_reason && (
+                  <p className="text-sm text-muted-foreground">{lateOption.unavailable_reason}</p>
+                )}
+                {lateRequested ? (
+                  <div className="flex items-center gap-2 text-sm text-green-700 dark:text-green-400">
+                    <Check className="h-4 w-4" /> Request sent — we&apos;ll be in touch.
+                  </div>
+                ) : (
+                  <Button variant="outline" disabled={lateRequesting} onClick={handleLateRequest}>
+                    {lateRequesting ? (
+                      <><Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> Sending…</>
+                    ) : (
+                      <><Send className="h-4 w-4 mr-1.5" /> Request Late Checkout</>
+                    )}
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                {lateOption.unavailable_reason || "Late checkout isn't available for this stay."}
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
