@@ -877,9 +877,20 @@ export default function ReservationDetailPage() {
                         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                           {isDirectBooking ? "Portal add-ons" : "Portal add-ons · via Stripe"}
                         </p>
-                        {portalUpsells.map((u, i) => (
-                          <Row key={`portal-${i}`} label={u.label} value={fmtUSD(u.price_cents)} />
-                        ))}
+                        {portalUpsells.map((u, i) => {
+                          const schedule = upsellScheduleLines(u.meta);
+                          return (
+                            <div key={`portal-${i}`} className="flex justify-between gap-4">
+                              <div className="min-w-0">
+                                <span className="text-muted-foreground">{u.label}</span>
+                                {schedule.map((line, j) => (
+                                  <div key={j} className="text-xs text-muted-foreground/80">{line}</div>
+                                ))}
+                              </div>
+                              <span className="text-right shrink-0">{fmtUSD(u.price_cents)}</span>
+                            </div>
+                          );
+                        })}
                         <div className="flex justify-between font-medium">
                           <span>{isDirectBooking ? "Collected via Stripe" : "Paid out via Stripe"}</span>
                           <span>{fmtUSD(portalCollectedCents)}</span>
