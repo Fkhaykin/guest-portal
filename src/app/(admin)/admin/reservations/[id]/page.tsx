@@ -457,7 +457,13 @@ export default function ReservationDetailPage() {
     checkInDate: reg.check_in_date,
   });
   const hoaFeeCents = property ? hoaFee.feeCents : 0;
-  const totalCostsCents = cleanerCostCents + petCostCents + hoaFeeCents;
+  // Tips (cleaning/breakfast/delivery crew) are collected via Stripe but passed
+  // straight through to the crew, so they're also a cost — netting to zero. They
+  // still appear under portal add-ons above; here they're deducted back out.
+  const crewTipsCents = portalUpsells
+    .filter((u) => u.type.startsWith("tip_") || u.label.startsWith("Tip"))
+    .reduce((s, u) => s + u.price_cents, 0);
+  const totalCostsCents = cleanerCostCents + petCostCents + hoaFeeCents + crewTipsCents;
   const hasCosts = totalCostsCents > 0;
   const isDirectBooking =
     hasBreakdown || reg.booking_source === "admin" || reg.booking_source === "direct";
@@ -905,6 +911,9 @@ export default function ReservationDetailPage() {
                             </span>
                             <span className="text-right">− {fmtUSD(hoaFeeCents)}</span>
                           </div>
+                        )}
+                        {crewTipsCents > 0 && (
+                          <Row label="Crew tips (pass-through)" value={`− ${fmtUSD(crewTipsCents)}`} />
                         )}
                       </>
                     )}
