@@ -46,6 +46,7 @@ import {
   PawPrint,
   Car,
   CalendarDays,
+  CalendarClock,
   DollarSign,
   Home,
   ClipboardCheck,
@@ -730,17 +731,32 @@ export default function ReservationDetailPage() {
                 </h3>
               </div>
               <div className="grid gap-2 sm:grid-cols-2">
-                {upsells.map((u, i) => (
-                  <div key={i} className="flex items-center justify-between rounded-lg bg-card border border-warning/30 px-3 py-2 text-sm">
-                    <span className="font-medium">{u.label}</span>
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium">${(u.price_cents / 100).toFixed(0)}</span>
-                      <Badge variant={u.status === "paid" ? "default" : "outline"} className="text-xs capitalize">
-                        {u.status}
-                      </Badge>
+                {upsells.map((u, i) => {
+                  const schedule = upsellScheduleLines(u.meta);
+                  return (
+                    <div key={i} className="flex items-start justify-between gap-2 rounded-lg bg-card border border-warning/30 px-3 py-2 text-sm">
+                      <div className="min-w-0">
+                        <span className="font-medium">{u.label}</span>
+                        {schedule.length > 0 && (
+                          <div className="mt-1 space-y-0.5">
+                            {schedule.map((line, j) => (
+                              <div key={j} className="flex items-center gap-1 text-xs text-muted-foreground">
+                                <CalendarClock className="h-3 w-3 shrink-0" />
+                                <span>{line}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="font-medium">${(u.price_cents / 100).toFixed(0)}</span>
+                        <Badge variant={u.status === "paid" ? "default" : "outline"} className="text-xs capitalize">
+                          {u.status}
+                        </Badge>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
@@ -1944,6 +1960,39 @@ function fmtUSD(cents: number): string {
     minimumFractionDigits: Number.isInteger(dollars) ? 0 : 2,
     maximumFractionDigits: 2,
   });
+}
+
+// Format a "YYYY-MM-DD" string to "Sat, Jul 18" without timezone drift.
+function fmtUpsellDate(s: string): string {
+  if (!/^\d{4}-\d{2}-\d{2}/.test(s)) return s;
+  return new Date(s.slice(0, 10) + "T12:00:00").toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  });
+}
+
+// Human-readable scheduling detail (day / time) captured in an upsell's meta bag.
+// Breakfast delivery stores meta.days: [{ date, servings, time }]; chef/picnic store meta.date (+ optional time).
+function upsellScheduleLines(meta: Record<string, unknown> | undefined | null): string[] {
+  if (!meta) return [];
+  const days = meta.days;
+  if (Array.isArray(days) && days.length > 0) {
+    return days.map((d) => {
+      const day = d && typeof d === "object" ? (d as Record<string, unknown>) : {};
+      const parts: string[] = [];
+      if (typeof day.date === "string") parts.push(fmtUpsellDate(day.date));
+      if (typeof day.time === "string" && day.time) parts.push(String(day.time));
+      if (typeof day.servings === "number") parts.push(`${day.servings} serving${day.servings === 1 ? "" : "s"}`);
+      return parts.join(" · ");
+    }).filter(Boolean);
+  }
+  if (typeof meta.date === "string") {
+    const parts = [fmtUpsellDate(meta.date)];
+    if (typeof meta.time === "string" && meta.time) parts.push(String(meta.time));
+    return [parts.join(" · ")];
+  }
+  return [];
 }
 
 // Timeline dot color for a payment event tone.
