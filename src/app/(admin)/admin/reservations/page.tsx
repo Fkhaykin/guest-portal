@@ -2,7 +2,6 @@
 
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 // Button unused after popover trigger refactor
@@ -23,6 +22,8 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import type { GuestListEntry, PetEntry } from "@/types/database";
 import { AdminCalendarView, type AdminCalendarEntry, type AdminPropertyGroup } from "@/components/admin/admin-calendar-view";
+import { prefetchReservation } from "@/lib/reservations/prefetch";
+import { reservationsListNav } from "@/lib/admin/nav/reservations-list";
 
 type Property = {
   id: string;
@@ -83,7 +84,6 @@ function IdFlag({ status, nameMatch }: { status: string; nameMatch: boolean | nu
 }
 
 export default function AdminReservationsPage() {
-  const supabase = createClient();
   const router = useRouter();
   const [properties, setProperties] = useState<Property[]>([]);
   const [registrations, setRegistrations] = useState<Registration[]>([]);
@@ -99,26 +99,18 @@ export default function AdminReservationsPage() {
   const [viewMode, setViewMode] = useState<"list" | "calendar">("list");
 
   useEffect(() => {
-    loadProperties();
-    loadRegistrations();
+    loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function loadProperties() {
-    const { data } = await supabase
-      .from("property")
-      .select("id, name, nickname, cover_image_url")
-      .order("name");
-    if (data) setProperties(data);
-  }
-
-  async function loadRegistrations() {
+  // Both landing datasets come from one cache-backed Promise.all. A sidebar
+  // hover warms reservationsListNav so this resolves instantly on a warm hit.
+  // Post-mutation refreshes (Lodgify sync) pass { force: true } to bypass it.
+  async function loadData(opts?: { force?: boolean }) {
     setLoading(true);
-    const { data } = await supabase
-      .from("registration")
-      .select("id, property_id, check_in_date, check_out_date, num_guests, lodgify_adults, lodgify_children, lodgify_infants, lodgify_num_pets, status, booking_source, signature_url, id_verification_status, id_name_match, total_amount_cents, guest_list, pets, created_at, updated_at, booked_at, guest:guest_id(full_name, email, phone), property:property_id(name, nickname, cover_image_url)")
-      .order("check_in_date", { ascending: false });
-    if (data) setRegistrations(data as unknown as Registration[]);
+    const { properties, registrations } = await reservationsListNav.get([], opts);
+    setProperties(properties);
+    setRegistrations(registrations);
     setLoading(false);
   }
 
@@ -130,7 +122,7 @@ export default function AdminReservationsPage() {
       if (data.newIds?.length > 0) {
         setNewIds(new Set(data.newIds));
       }
-      await loadRegistrations();
+      await loadData({ force: true });
     } catch {
       // silently fail
     } finally {
@@ -545,6 +537,8 @@ export default function AdminReservationsPage() {
                     <TableRow
                       className={`cursor-pointer hover:bg-muted/50 ${newIds.has(reg.id) ? "bg-success/5 border-l-2 border-l-success" : ""}`}
                       onClick={() => router.push(`/admin/reservations/${reg.id}`)}
+                      onMouseEnter={() => prefetchReservation(reg.id)}
+                      onFocus={() => prefetchReservation(reg.id)}
                     >
                       <TableCell>
                         <div>
@@ -649,6 +643,8 @@ export default function AdminReservationsPage() {
                 <div
                   className={`rounded-lg border bg-card p-4 space-y-3 cursor-pointer active:bg-muted/50 ${newIds.has(reg.id) ? "border-l-4 border-l-success" : ""}`}
                   onClick={() => router.push(`/admin/reservations/${reg.id}`)}
+                  onMouseEnter={() => prefetchReservation(reg.id)}
+                  onFocus={() => prefetchReservation(reg.id)}
                 >
                   {/* Guest + status */}
                   <div className="flex items-start justify-between gap-2">

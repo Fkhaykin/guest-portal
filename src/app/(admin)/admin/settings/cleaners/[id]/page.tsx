@@ -43,20 +43,23 @@ export default function AdminCleanerDetailPage({
 
     if (!cleanerData) return;
 
-    // Get all properties for this host
-    const { data: props } = await supabase
-      .from("property")
-      .select("*")
-      .eq("host_id", cleanerData.host_id)
-      .eq("is_active", true)
-      .order("name");
+    // These two are independent of each other (properties for this host +
+    // this cleaner's current assignments), so fetch them at once instead of
+    // in a waterfall. Both stay after the cleaner load since the property
+    // query needs cleanerData.host_id.
+    const [{ data: props }, { data: assignments }] = await Promise.all([
+      supabase
+        .from("property")
+        .select("*")
+        .eq("host_id", cleanerData.host_id)
+        .eq("is_active", true)
+        .order("name"),
+      supabase
+        .from("cleaner_property")
+        .select("property_id")
+        .eq("cleaner_id", id),
+    ]);
     setProperties(props || []);
-
-    // Get current assignments
-    const { data: assignments } = await supabase
-      .from("cleaner_property")
-      .select("property_id")
-      .eq("cleaner_id", id);
     setAssignedIds(new Set((assignments || []).map((a) => a.property_id)));
   }
 

@@ -165,6 +165,22 @@ export default function UpdateRegistrationPage() {
         return;
       }
 
+      // Extend-stay availability only needs the reservation id, so fire it in
+      // parallel with the registration-details load instead of waiting for the
+      // details round-trip (and registrationId) to resolve first. Fire-and-forget:
+      // it only greys out the extend card. Only flip to false on a definitive
+      // empty result — leave it enabled while loading or if the check fails.
+      fetch("/api/guest/extend-stay/options", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-guest-token": getGuestToken() },
+        body: JSON.stringify({ registration_id: session.reservation.id }),
+      })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (data && Array.isArray(data.options)) setCanExtend(data.options.length > 0);
+        })
+        .catch(() => {});
+
       const res = await fetch("/api/guest/registration-details", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-guest-token": getGuestToken() },
@@ -203,23 +219,6 @@ export default function UpdateRegistrationPage() {
 
     loadRegistration();
   }, []);
-
-  // Availability for the extend-stay card: grey it out when nothing is open right
-  // after checkout. Only flip to false on a definitive empty result — leave it
-  // enabled while loading or if the check fails.
-  useEffect(() => {
-    if (!registrationId) return;
-    fetch("/api/guest/extend-stay/options", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-guest-token": getGuestToken() },
-      body: JSON.stringify({ registration_id: registrationId }),
-    })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (data && Array.isArray(data.options)) setCanExtend(data.options.length > 0);
-      })
-      .catch(() => {});
-  }, [registrationId]);
 
   // Handle return from Stripe pet payment
   useEffect(() => {

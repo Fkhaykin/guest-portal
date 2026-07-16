@@ -32,6 +32,7 @@ import { ConfigEditor } from "./config-editor";
 import { CompsPanel } from "./comps-panel";
 import type { PricingConfig, PricingLabData } from "./types";
 import { fmtUsd, fmtDate, timeAgo, daysSince, hoaLabel } from "./types";
+import { pricingNav } from "@/lib/admin/nav/pricing";
 
 export default function PricingLabPage() {
   const [configs, setConfigs] = useState<PricingConfig[]>([]);
@@ -52,10 +53,9 @@ export default function PricingLabPage() {
   const loadConfigs = useCallback(async () => {
     setError(null);
     try {
-      const res = await fetch("/api/admin/pricing-lab");
-      if (!res.ok) throw new Error("Failed to load houses");
-      const json = await res.json();
-      const list: PricingConfig[] = json.configs ?? [];
+      // Read from the shared prefetch cache — a sidebar hover may have already
+      // warmed the identical /api/admin/pricing-lab load before this mount.
+      const list = await pricingNav.get([]);
       setConfigs(list);
       if (list.length) setNickname((n) => n || list[0].nickname);
       if (!list.length) setLoading(false);

@@ -22,8 +22,9 @@ import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import type { PetEntry, AircoverClaimStatus } from "@/types/database";
+import { aircoverNav } from "@/lib/admin/nav/aircover";
 
-type Claim = {
+export type Claim = {
   id: string;
   registration_id: string;
   property_id: string;
@@ -90,9 +91,10 @@ export default function AircoverClaimsPage() {
 
   async function loadClaims() {
     setLoading(true);
-    const res = await fetch("/api/admin/aircover-claims");
-    const data = await res.json();
-    if (data.claims) setClaims(data.claims);
+    // Read from the shared prefetch cache — a sidebar hover may have already
+    // warmed the identical /api/admin/aircover-claims load before this mount.
+    const nextClaims = await aircoverNav.get([]);
+    if (nextClaims) setClaims(nextClaims);
     setLoading(false);
   }
 
@@ -107,6 +109,9 @@ export default function AircoverClaimsPage() {
       setClaims((prev) =>
         prev.map((c) => (c.id === claimId ? { ...c, status: newStatus } : c))
       );
+      // Drop the warm entry so a remount within the TTL can't re-serve the
+      // pre-mutation list.
+      aircoverNav.invalidate();
     }
     setUpdating(null);
   }
@@ -121,6 +126,9 @@ export default function AircoverClaimsPage() {
     });
     if (res.ok) {
       setClaims((prev) => prev.filter((c) => c.id !== claimId));
+      // Drop the warm entry so a remount within the TTL can't re-serve the
+      // just-deleted claim.
+      aircoverNav.invalidate();
     }
     setUpdating(null);
   }

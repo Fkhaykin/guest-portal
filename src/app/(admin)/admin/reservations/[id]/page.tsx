@@ -67,109 +67,19 @@ import { EditRegistrationDialog } from "@/components/admin/edit-registration-dia
 import { ReservationMessages } from "@/components/admin/reservation-messages";
 import { toneBadge, statusTone, type Tone } from "@/lib/status-styles";
 import { effectiveStayTimes } from "@/lib/upsells/timing";
-import type { GuestListEntry, PetEntry, UpsellEntry, CleaningPhoto, CleaningPhotoExif, CleaningChecklistItem, InvoiceLineItem, InvoiceStatus } from "@/types/database";
-import type { LodgifyPriceBreakdown } from "@/lib/lodgify/client";
+import type { CleaningPhoto, CleaningPhotoExif } from "@/types/database";
+import {
+  getReservationCore,
+  getReservationExtras,
+  type FullRegistration,
+  type Vehicle,
+  type CleaningStatus,
+  type IncurredCharge,
+} from "@/lib/reservations/prefetch";
 import { ReceiptText } from "lucide-react";
 
-type FullRegistration = {
-  id: string;
-  property_id: string;
-  guest_id: string;
-  check_in_date: string;
-  check_out_date: string;
-  num_guests: number;
-  notes: string | null;
-  status: "active" | "completed" | "cancelled" | "pending_payment";
-  booking_source: string | null;
-  signature_url: string | null;
-  total_amount_cents: number;
-  cleaning_fee_cents: number;
-  tax_amount_cents: number;
-  pet_fee_total_cents: number;
-  discount_cents: number;
-  discount_label: string | null;
-  nightly_rates_snapshot: Array<{ date: string; cents: number }> | null;
-  lodgify_price_breakdown: LodgifyPriceBreakdown | null;
-  payment_plan: "full" | "split" | "automatic";
-  deposit_paid_at: string | null;
-  balance_paid_at: string | null;
-  balance_charge_attempts: number;
-  balance_last_attempt_at: string | null;
-  balance_last_failure_reason: string | null;
-  stripe_customer_id: string | null;
-  stripe_payment_method_id: string | null;
-  stripe_deposit_invoice_id: string | null;
-  stripe_balance_invoice_id: string | null;
-  guest_list: GuestListEntry[] | null;
-  pets: PetEntry[] | null;
-  upsells: UpsellEntry[] | null;
-  lodgify_booking_id: number | null;
-  lodgify_sync_status: string;
-  tips: Record<string, unknown> | null;
-  lodgify_adults: number;
-  lodgify_children: number;
-  lodgify_infants: number;
-  lodgify_num_pets: number;
-  hoa_email_disabled: boolean;
-  review_request_disabled: boolean;
-  review_request_forced: boolean;
-  review_request_skipped_at: string | null;
-  review_request_skip_reason: string | null;
-  early_checkin_override: "allow" | "block" | null;
-  early_checkin_override_hours: number | null;
-  late_checkout_override: "allow" | "block" | null;
-  late_checkout_override_hours: number | null;
-  id_verification_status: string;
-  id_verified_name: string | null;
-  id_name_match: boolean | null;
-  created_at: string;
-  updated_at: string;
-  guest: {
-    id: string;
-    full_name: string;
-    email: string | null;
-    phone: string | null;
-    mailing_address: string | null;
-    lodgify_guest_id: number | null;
-  } | null;
-  property: {
-    id: string;
-    name: string;
-    nickname: string | null;
-    address: string | null;
-    slug: string;
-    max_guests: number;
-    lodgify_property_id: number | null;
-    listing_urls: Record<string, string>;
-    owner_name: string | null;
-    owner_phone: string | null;
-    owner_email: string | null;
-    hoa_submission_email: string | null;
-    emergency_contact_name: string | null;
-    emergency_contact_phone: string | null;
-  } | null;
-};
 
-type Vehicle = {
-  id: string;
-  year: string | null;
-  make: string | null;
-  model: string | null;
-  color: string | null;
-  license_plate: string;
-  state_or_region: string | null;
-  driver_name: string | null;
-};
 
-type CleaningStatus = {
-  id: string;
-  is_cleaned: boolean;
-  cleaned_at: string | null;
-  photos: CleaningPhoto[];
-  checklist: CleaningChecklistItem[];
-  notes: string | null;
-  cleaner_id: string | null;
-};
 
 type UpdateLog = {
   id: string;
@@ -191,16 +101,6 @@ type EmailLog = {
   created_at: string;
 };
 
-type IncurredCharge = {
-  invoiceId: string;
-  invoiceNumber: string;
-  invoiceStatus: InvoiceStatus;
-  cleanerName: string;
-  description: string;
-  amount: number; // cents
-  expenseDate: string;
-  notes: string | null;
-};
 
 export default function ReservationDetailPage() {
   const params = useParams();
@@ -237,152 +137,33 @@ export default function ReservationDetailPage() {
   const [cancelError, setCancelError] = useState<string | null>(null);
   const [cancelWarning, setCancelWarning] = useState<string | null>(null);
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
+  const loadData = useCallback(
+    async (opts?: { force?: boolean }) => {
+      setLoading(true);
+      // Paint as soon as the CORE row is in — it's everything the header,
+      // guest/property panels, pricing and status need. Both halves are served
+      // instantly from cache when the messages thread / list row prefetched them;
+      // { force: true } bypasses the cache after edits.
+      const core = await getReservationCore(id, opts);
+      setReg(core);
+      setLoading(false);
+      if (!core) return;
 
-    // Fetch registration with joins
-    const { data: regData } = await supabase
-      .from("registration")
-      .select(`
-        id, property_id, guest_id, check_in_date, check_out_date, num_guests, notes,
-        status, booking_source, signature_url, total_amount_cents, cleaning_fee_cents,
-        tax_amount_cents, pet_fee_total_cents, discount_cents, discount_label,
-        nightly_rates_snapshot, lodgify_price_breakdown, payment_plan, deposit_paid_at, balance_paid_at,
-        balance_charge_attempts, balance_last_attempt_at, balance_last_failure_reason,
-        stripe_customer_id, stripe_payment_method_id, stripe_deposit_invoice_id,
-        stripe_balance_invoice_id, guest_list, pets,
-        upsells, tips, lodgify_booking_id, lodgify_sync_status, lodgify_adults, lodgify_children, lodgify_infants,
-        lodgify_num_pets, hoa_email_disabled, review_request_disabled, review_request_forced, review_request_skipped_at, review_request_skip_reason,
-        early_checkin_override, early_checkin_override_hours, late_checkout_override, late_checkout_override_hours,
-        id_verification_status, id_verified_name, id_name_match, created_at, updated_at,
-        guest:guest_id(id, full_name, email, phone, mailing_address, lodgify_guest_id),
-        property:property_id(id, name, nickname, address, slug, max_guests, lodgify_property_id, listing_urls, owner_name, owner_phone, owner_email, hoa_submission_email, emergency_contact_name, emergency_contact_phone)
-      `)
-      .eq("id", id)
-      .single();
-
-    if (regData) {
-      setReg(regData as unknown as FullRegistration);
-
-      // Fetch vehicles
-      const { data: vehicleData } = await supabase
-        .from("vehicle")
-        .select("id, year, make, model, color, license_plate, state_or_region, driver_name")
-        .eq("registration_id", id);
-      setVehicles(vehicleData ?? []);
-
-      // Fetch cleaning status for THIS registration
-      const { data: cleaningData } = await supabase
-        .from("cleaning_status")
-        .select("id, is_cleaned, cleaned_at, photos, checklist, notes, cleaner_id")
-        .eq("registration_id", id)
-        .maybeSingle();
-      setCleaning(cleaningData);
-
-      // Fetch signed URLs for current cleaning photos
-      if (cleaningData?.photos?.length) {
-        const res = await fetch(`/api/admin/cleaning-photos?registration_id=${id}`);
-        if (res.ok) {
-          const data = await res.json();
-          const map: Record<string, CleaningPhoto & { url: string }> = {};
-          for (const photo of data.cleaning?.photos ?? []) {
-            if (photo.url) map[photo.path] = photo;
-          }
-          setCurrentPhotoData(map);
-        }
-      }
-
-      // Fetch previous reservation's cleaning (photos from the turnover before this guest's check-in)
-      const { data: prevRegs } = await supabase
-        .from("registration")
-        .select("id")
-        .eq("property_id", regData.property_id)
-        .lt("check_out_date", (regData as { check_in_date: string }).check_in_date)
-        .order("check_out_date", { ascending: false })
-        .limit(1);
-
-      if (prevRegs && prevRegs.length > 0) {
-        const { data: prevCleaningData } = await supabase
-          .from("cleaning_status")
-          .select("id, is_cleaned, cleaned_at, photos, checklist, notes, cleaner_id")
-          .eq("registration_id", prevRegs[0].id)
-          .maybeSingle();
-        setPrevCleaning(prevCleaningData);
-
-        // Get signed URLs for previous cleaning photos via admin API
-        if (prevCleaningData?.photos?.length) {
-          const res = await fetch(
-            `/api/admin/cleaning-photos?registration_id=${prevRegs[0].id}`
-          );
-          if (res.ok) {
-            const data = await res.json();
-            const map: Record<string, CleaningPhoto & { url: string }> = {};
-            for (const photo of data.cleaning?.photos ?? []) {
-              if (photo.url) map[photo.path] = photo;
-            }
-            setPhotoData(map);
-          }
-        }
-      }
-      // Fetch reimbursement charges linked to this registration
-      const { data: invoicesWithCharges } = await supabase
-        .from("cleaner_invoice")
-        .select("id, invoice_number, status, period_start, line_items, notes, cleaner:cleaner_id(name)");
-
-      const foundCharges: IncurredCharge[] = [];
-      for (const inv of invoicesWithCharges || []) {
-        const items = (inv.line_items || []) as InvoiceLineItem[];
-        for (const item of items) {
-          if (item.registration_id === id && item.type === "reimbursement") {
-            const cleaner = inv.cleaner as unknown as { name: string } | null;
-            foundCharges.push({
-              invoiceId: inv.id,
-              invoiceNumber: inv.invoice_number,
-              invoiceStatus: inv.status as InvoiceStatus,
-              cleanerName: cleaner?.name || "Unknown",
-              description: item.description,
-              amount: item.amount,
-              expenseDate: inv.period_start,
-              notes: inv.notes,
-            });
-          }
-        }
-      }
-      setCharges(foundCharges);
-
-      // Whether the automated post-checkout review request actually went out
-      const { data: reviewLog } = await supabase
-        .from("guest_automated_message_log")
-        .select("sent_at, error")
-        .eq("registration_id", id)
-        .eq("message_type", "post_checkout")
-        .maybeSingle();
-      setReviewMsgLog(reviewLog);
-
-      const { count: modCount } = await supabase
-        .from("registration_update_log")
-        .select("id", { count: "exact", head: true })
-        .eq("registration_id", id)
-        .neq("change_type", "initial_registration");
-      setHasModifications((modCount ?? 0) > 0);
-
-      // Payment emails (invoice / plan-picker) for the direct-booking payment
-      // timeline. Only these types are logged to email_send_log.
-      if (regData.booking_source === "admin") {
-        const { data: pe } = await supabase
-          .from("email_send_log")
-          .select("email_type, sent_to, created_at")
-          .eq("registration_id", id)
-          .in("email_type", ["booking_invoice_deposit", "booking_invoice_full", "booking_plan_picker"])
-          .order("created_at", { ascending: true });
-        setPayEmails(pe ?? []);
-      } else {
-        setPayEmails([]);
-      }
-    }
-
-    setLoading(false);
-  }, [id, supabase]);
+      // Stream the heavier extras (vehicles, cleaning photos, charges, …) in
+      // without blocking the first paint.
+      const extras = await getReservationExtras(id, opts);
+      setVehicles(extras.vehicles);
+      setCleaning(extras.cleaning);
+      setCurrentPhotoData(extras.currentPhotoData);
+      setPrevCleaning(extras.prevCleaning);
+      setPhotoData(extras.photoData);
+      setCharges(extras.charges);
+      setReviewMsgLog(extras.reviewMsgLog);
+      setHasModifications(extras.hasModifications);
+      setPayEmails(extras.payEmails);
+    },
+    [id]
+  );
 
   useEffect(() => {
     loadData();
@@ -564,7 +345,7 @@ export default function ReservationDetailPage() {
         setCancelOpen(false);
       }
       setCancelReason("");
-      await loadData();
+      await loadData({ force: true });
     } catch (err) {
       setCancelError(err instanceof Error ? err.message : "Network error");
     } finally {
@@ -649,6 +430,27 @@ export default function ReservationDetailPage() {
   const depositPaid = !!reg.deposit_paid_at;
   const balancePaid = !!reg.balance_paid_at;
   const balanceFailing = isSplit && !balancePaid && reg.balance_charge_attempts > 0;
+
+  // Add-ons the guest bought through our portal settle in OUR Stripe, separate
+  // from the channel (Airbnb/VRBO) payout. Costs are what we pay the cleaner for
+  // the turnover — the property's cleaner rate + per-pet fee, NOT the guest-facing
+  // fee. A direct booking already collects the whole stay through Stripe, so the
+  // payout-vs-Stripe split doesn't apply and everything shows together.
+  const portalUpsells = upsells; // already filtered to status === "paid"
+  const portalCollectedCents = portalUpsells.reduce((s, u) => s + u.price_cents, 0);
+  const numPetsForCost = pets.length || reg.lodgify_num_pets || 0;
+  const cleanerCostCents = property?.cleaning_fee_cents ?? 0;
+  const petCostCents = (property?.pet_fee_cents ?? 0) * numPetsForCost;
+  const totalCostsCents = cleanerCostCents + petCostCents;
+  const hasCosts = totalCostsCents > 0;
+  const isDirectBooking =
+    hasBreakdown || reg.booking_source === "admin" || reg.booking_source === "direct";
+  // Revenue base for the running total: the channel payout for OTA bookings, or
+  // the full Stripe-collected total for direct bookings. Null for channels that
+  // don't expose a payout (no reliable base to net against — skip the net line).
+  const revenueBaseCents = isDirectBooking ? totalCents : lodgifyBd?.payout ?? null;
+  const netToOwnerCents =
+    revenueBaseCents != null ? revenueBaseCents + portalCollectedCents - totalCostsCents : null;
 
   const planLabel =
     reg.payment_plan === "split"
@@ -1022,6 +824,55 @@ export default function ReservationDetailPage() {
                   <div className="flex justify-between font-semibold">
                     <span>Total</span>
                     <span>{totalCents ? fmtUSD(totalCents) : "—"}</span>
+                  </div>
+                )}
+
+                {/* Portal-collected add-ons + turnover costs. Upsells bought
+                    through our portal settle in our Stripe — for OTA bookings,
+                    separate from the channel payout above; for direct bookings
+                    it's all one Stripe collection. Costs are what we pay the
+                    cleaner (property cleaner rate + per-pet fee). */}
+                {(portalCollectedCents > 0 || hasCosts) && (
+                  <div className="space-y-1">
+                    {portalCollectedCents > 0 && (
+                      <>
+                        <Separator className="my-1" />
+                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                          {isDirectBooking ? "Portal add-ons" : "Portal add-ons · via Stripe"}
+                        </p>
+                        {portalUpsells.map((u, i) => (
+                          <Row key={`portal-${i}`} label={u.label} value={fmtUSD(u.price_cents)} />
+                        ))}
+                        <div className="flex justify-between font-medium">
+                          <span>{isDirectBooking ? "Collected via Stripe" : "Paid out via Stripe"}</span>
+                          <span>{fmtUSD(portalCollectedCents)}</span>
+                        </div>
+                      </>
+                    )}
+                    {hasCosts && (
+                      <>
+                        <Separator className="my-1" />
+                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Costs</p>
+                        {cleanerCostCents > 0 && (
+                          <Row label="Cleaning (cleaner)" value={`− ${fmtUSD(cleanerCostCents)}`} />
+                        )}
+                        {petCostCents > 0 && (
+                          <Row
+                            label={`Pet fee${numPetsForCost > 1 ? ` (${numPetsForCost} pets)` : ""}`}
+                            value={`− ${fmtUSD(petCostCents)}`}
+                          />
+                        )}
+                      </>
+                    )}
+                    {netToOwnerCents != null && (
+                      <>
+                        <Separator className="my-1" />
+                        <div className="flex justify-between font-semibold">
+                          <span>Net to owner</span>
+                          <span>{fmtUSD(netToOwnerCents)}</span>
+                        </div>
+                      </>
+                    )}
                   </div>
                 )}
 
@@ -1842,7 +1693,7 @@ export default function ReservationDetailPage() {
         registrationId={id}
         open={editOpen}
         onOpenChange={setEditOpen}
-        onSaved={loadData}
+        onSaved={() => loadData({ force: true })}
       />
 
       {/* Cancel Booking Dialog */}

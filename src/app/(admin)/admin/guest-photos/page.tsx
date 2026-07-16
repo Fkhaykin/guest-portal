@@ -8,6 +8,7 @@ import { StatCard } from "@/components/ui/stat-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Check, Clock, Images, Loader2, Trash2, X } from "lucide-react";
 import type { GuestPhotoStatus } from "@/types/database";
+import { guestPhotosNav } from "@/lib/admin/nav/guest-photos";
 
 type Photo = {
   id: string;
@@ -32,10 +33,9 @@ export default function GuestPhotosPage() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const res = await fetch("/api/admin/guest-photos");
-      const data = await res.json().catch(() => null);
+      const data = await guestPhotosNav.get([]);
       if (cancelled) return;
-      if (data?.photos) setPhotos(data.photos);
+      setPhotos(data);
       setLoading(false);
     })();
     return () => {
@@ -51,6 +51,9 @@ export default function GuestPhotosPage() {
       body: JSON.stringify({ id, status }),
     });
     if (res.ok) {
+      // The prefetch cache holds the pre-mutation list; drop it so navigating
+      // away and back within the TTL doesn't re-serve the stale moderation state.
+      guestPhotosNav.invalidate();
       if (status === "rejected") {
         setPhotos((prev) => prev.filter((p) => p.id !== id));
       } else {
@@ -74,7 +77,10 @@ export default function GuestPhotosPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id }),
     });
-    if (res.ok) setPhotos((prev) => prev.filter((p) => p.id !== id));
+    if (res.ok) {
+      guestPhotosNav.invalidate();
+      setPhotos((prev) => prev.filter((p) => p.id !== id));
+    }
     setBusy(null);
   }
 

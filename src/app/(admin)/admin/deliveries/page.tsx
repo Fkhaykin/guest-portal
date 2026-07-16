@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
+import { deliveriesNav } from "@/lib/admin/nav/deliveries";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -87,7 +87,6 @@ function formatDate(d: string) {
 }
 
 export default function AdminDeliveriesPage() {
-  const supabase = createClient();
   const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedProp, setSelectedProp] = useState<Property | null>(null);
@@ -109,33 +108,29 @@ export default function AdminDeliveriesPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    load();
-    loadHistory();
+    loadInitial();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function load() {
-    setLoading(true);
-    const { data } = await supabase
-      .from("property")
-      .select("id, name, nickname")
-      .eq("is_active", true)
-      .order("sort_order", { ascending: true });
-    if (data) setProperties(data as Property[]);
+  // Both landing datasets come from one cache-backed Promise.all so a sidebar
+  // hover warms the whole page. Both loading flags flip together after the
+  // single round-trip (acceptable — it's one batch).
+  async function loadInitial() {
+    const { properties, history } = await deliveriesNav.get([]);
+    setProperties(properties);
     setLoading(false);
+    setSentHistory(history);
+    setHistoryLoading(false);
   }
 
-  async function loadHistory() {
+  // Post-submit refresh: force-bypass the prefetch cache. Only historyLoading
+  // is flipped (never `loading`) so the properties grid never blinks — this
+  // preserves the two independent loading flags for the refresh path, matching
+  // the original loadHistory()-only reload.
+  async function refreshHistory() {
     setHistoryLoading(true);
-    const { data, error: err } = await supabase
-      .from("delivery_rideshare")
-      .select(
-        "id, created_at, category, provider, arrival_date, email_subject, email_body, email_recipients, property:property_id(name, nickname)"
-      )
-      .order("created_at", { ascending: false })
-      .limit(50);
-    if (err) console.error("loadHistory error:", err);
-    if (data) setSentHistory(data as unknown as SentDelivery[]);
+    const { history } = await deliveriesNav.get([], { force: true });
+    setSentHistory(history);
     setHistoryLoading(false);
   }
 
@@ -184,7 +179,7 @@ export default function AdminDeliveriesPage() {
         setError(d.error || "Something went wrong");
       } else {
         setSubmitted(true);
-        setTimeout(() => loadHistory(), 2000);
+        setTimeout(() => refreshHistory(), 2000);
       }
     } catch {
       setError("Unable to connect. Please try again.");

@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { prefetchAdminRoute } from "@/lib/admin/nav";
 import {
   Home,
   ClipboardList,
@@ -145,6 +146,11 @@ export function AdminSidebar({
                 key={item.href}
                 href={item.href}
                 onClick={() => setOpen(false)}
+                // Warm the destination's DATA on hover/focus (Next already
+                // prefetches the bundle) so the click lands on a ready page.
+                onMouseEnter={() => prefetchAdminRoute(item.href)}
+                onFocus={() => prefetchAdminRoute(item.href)}
+                onTouchStart={() => prefetchAdminRoute(item.href)}
                 aria-current={isActive ? "page" : undefined}
                 title={collapsed ? item.label : undefined}
                 className={cn(
