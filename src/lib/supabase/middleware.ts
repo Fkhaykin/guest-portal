@@ -12,6 +12,7 @@ import {
 //   guest.summitlakeside.com  → guest portal (no rewrite, root is already guest)
 //   admin.summitlakeside.com  → prepend /admin to path
 //   manager.summitlakeside.com → prepend /cleaner to path
+//   kiosk.summitlakeside.com  → house-selector at root (rewrites / → /kiosk)
 //
 // For local dev, use admin.localhost:3000 / manager.localhost:3000 etc.
 // ---------------------------------------------------------------------------
@@ -20,6 +21,8 @@ const SUBDOMAIN_PREFIX_MAP: Record<string, string> = {
   admin: "/admin",
   manager: "/cleaner",
   // guest needs no rewrite — root page is the guest portal
+  // kiosk needs no prefix — only its root is special-cased (→ /kiosk selector);
+  // /kiosk/[token] pages already live at their real path on every subdomain
 };
 
 function getSubdomain(hostname: string): string | null {
@@ -29,14 +32,14 @@ function getSubdomain(hostname: string): string | null {
   // localhost subdomains: admin.localhost, manager.localhost, guest.localhost
   if (host.endsWith(".localhost")) {
     const sub = host.split(".")[0];
-    return ["admin", "guest", "manager"].includes(sub) ? sub : null;
+    return ["admin", "guest", "manager", "kiosk"].includes(sub) ? sub : null;
   }
 
   // Production / preview: admin.summitlakeside.com, etc.
   const parts = host.split(".");
   if (parts.length >= 3) {
     const sub = parts[0];
-    return ["admin", "guest", "manager"].includes(sub) ? sub : null;
+    return ["admin", "guest", "manager", "kiosk"].includes(sub) ? sub : null;
   }
 
   return null;
@@ -95,11 +98,18 @@ export async function updateSession(request: NextRequest) {
   // Guest subdomain: rewrite only the root to /checkin (other paths stay as-is)
   const isGuestRoot = subdomain === "guest" && pathname === "/";
 
-  // Manager/admin subdomains get their own PWA manifests so each portal
-  // installs as a standalone app rather than a Safari bookmark.
+  // Kiosk subdomain: root serves the house selector (/kiosk); /kiosk/[token]
+  // pages pass through untouched.
+  const isKioskRoot = subdomain === "kiosk" && pathname === "/";
+
+  // Manager/admin/kiosk subdomains get their own PWA manifests so each portal
+  // installs as a standalone app rather than a Safari bookmark. The kiosk
+  // manifest's start_url is "/" (the selector) so an "Add to Home screen"
+  // install boots into the picker and then straight into the remembered house.
   const MANIFEST_MAP: Record<string, string> = {
     manager: "/manifest-manager.json",
     admin: "/manifest-admin.json",
+    kiosk: "/manifest-kiosk.json",
   };
   const manifestOverride =
     pathname === "/manifest.json" && subdomain
@@ -109,15 +119,18 @@ export async function updateSession(request: NextRequest) {
   // Compute the internal path that Next.js will serve
   const needsRewrite =
     isGuestRoot ||
+    isKioskRoot ||
     !!manifestOverride ||
     (!!prefix && !shouldSkipRewrite(pathname) && !pathname.startsWith(prefix));
   const internalPath = manifestOverride
     ? manifestOverride
     : isGuestRoot
       ? "/checkin"
-      : needsRewrite
-        ? `${prefix}${pathname === "/" ? "" : pathname}`
-        : pathname;
+      : isKioskRoot
+        ? "/kiosk"
+        : needsRewrite
+          ? `${prefix}${pathname === "/" ? "" : pathname}`
+          : pathname;
 
   // Helper: create the base response (rewrite or next) preserving the request
   function makeResponse() {

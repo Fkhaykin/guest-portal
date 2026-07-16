@@ -35,6 +35,11 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   title: "Summit Lakeside Rentals — Poconos Lakehouse Vacations",
   description: "Lakefront vacation homes in the Poconos with hot tubs, game rooms, boats, and direct lake access. Book direct and save.",
+  // Emitted as <link rel="manifest" href="/manifest.json"> (middleware swaps in
+  // the subdomain-specific file). Driving it through metadata — rather than a
+  // hard-coded <link> — lets deeper segments (the kiosk route) override it with
+  // their own per-device manifest.
+  manifest: "/manifest.json",
 };
 
 export default function RootLayout({
@@ -49,7 +54,6 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <head>
-        <link rel="manifest" href="/manifest.json" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="Summit Lakeside" />
