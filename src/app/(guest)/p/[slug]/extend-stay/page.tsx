@@ -410,18 +410,23 @@ export default function ExtendStayPage() {
 
   const optMap = new Map((data?.options ?? []).map((o) => [o.date, o]));
 
-  // Which months to render: check-in's month through the last bookable month
-  // (so the calendar always shows the greyed-out tail after the last open date).
+  // Today (local) — the calendar drops any week entirely before this one.
+  const now = new Date();
+  const todayIso = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+
+  // Which months to render: the current month (or check-in's, if the stay hasn't
+  // started yet) through the last bookable month — never a fully-past month.
   const months: { y: number; m: number }[] = [];
   if (data) {
     const ciY = Number(data.checkInDate.slice(0, 4));
     const ciM = Number(data.checkInDate.slice(5, 7)) - 1;
+    const startInFuture = ciY > now.getFullYear() || (ciY === now.getFullYear() && ciM > now.getMonth());
+    let y = startInFuture ? ciY : now.getFullYear();
+    let m = startInFuture ? ciM : now.getMonth();
     const lastRef =
       data.maxCheckOutDate >= data.currentCheckOutDate ? data.maxCheckOutDate : data.currentCheckOutDate;
     const loY = Number(lastRef.slice(0, 4));
     const loM = Number(lastRef.slice(5, 7)) - 1;
-    let y = ciY;
-    let m = ciM;
     while ((y < loY || (y === loY && m <= loM)) && months.length < 4) {
       months.push({ y, m });
       m += 1;
@@ -441,7 +446,7 @@ export default function ExtendStayPage() {
   }
 
   return (
-    <div className="space-y-6 max-w-2xl mx-auto">
+    <div className="space-y-4 max-w-5xl mx-auto">
       <div>
         <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
           <CalendarPlus className="h-7 w-7" /> Extend Your Stay
@@ -451,6 +456,10 @@ export default function ExtendStayPage() {
         </p>
       </div>
 
+      {/* Two columns on wide screens (kiosk 16:9): calendar left, late checkout
+          right, so the late-checkout option is visible without scrolling. */}
+      <div className="grid gap-4 lg:grid-cols-[1fr_340px] lg:items-start">
+        <div className="space-y-4">
       {/* Current stay */}
       <Card>
         <CardHeader className="pb-3">
@@ -520,6 +529,13 @@ export default function ExtendStayPage() {
                     ...Array(lead).fill(null),
                     ...Array.from({ length: total }, (_, i) => i + 1),
                   ];
+                  // Keep only weeks that reach this week or later.
+                  const weeks: (number | null)[][] = [];
+                  for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7));
+                  const visibleCells = weeks
+                    .filter((week) => week.some((day) => day !== null && isoOf(y, m, day) >= todayIso))
+                    .flat();
+                  if (visibleCells.length === 0) return null;
                   return (
                     <div key={`${y}-${m}`}>
                       <p className="text-sm font-medium mb-2">{monthLabel(y, m)}</p>
@@ -529,7 +545,7 @@ export default function ExtendStayPage() {
                             {d}
                           </div>
                         ))}
-                        {cells.map((day, i) => {
+                        {visibleCells.map((day, i) => {
                           if (day === null) return <div key={i} />;
                           const iso = isoOf(y, m, day);
                           const state = cellState(iso);
@@ -633,7 +649,10 @@ export default function ExtendStayPage() {
           )}
         </CardContent>
       </Card>
+        </div>
 
+        {/* Right column */}
+        <div className="space-y-4">
       {/* Late checkout — a few extra hours on your last day. Especially the
           fallback when no additional nights are available. */}
       {lateOption && (
@@ -713,6 +732,8 @@ export default function ExtendStayPage() {
           </CardContent>
         </Card>
       )}
+        </div>
+      </div>
     </div>
   );
 }

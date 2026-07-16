@@ -81,66 +81,71 @@ export function PinScreen({
   }, [press, backspace]);
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-8 bg-zinc-950 px-6 text-zinc-100 font-(family-name:--font-plus-jakarta)">
-      <div className="flex flex-col items-center gap-3 text-center">
-        <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/10">
-          <LockKeyhole className="h-7 w-7 text-white/80" />
-        </span>
-        <h1 className="text-2xl font-bold tracking-tight">Kiosk setup</h1>
-        <p className="max-w-xs text-sm text-zinc-400">
-          This display is for guests inside the house. Enter the setup PIN to
-          activate it on this device.
-        </p>
-      </div>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950 px-8 text-zinc-100 font-(family-name:--font-plus-jakarta)">
+      {/* Landscape two-column layout: intro on the left, keypad on the right,
+          so a 16:9 wall display fills sideways instead of stacking tall. */}
+      <div className="flex w-full max-w-4xl items-center justify-center gap-12 lg:gap-20">
+        <div className="flex max-w-sm flex-col items-start gap-5">
+          <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/10">
+            <LockKeyhole className="h-7 w-7 text-white/80" />
+          </span>
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Kiosk setup</h1>
+            <p className="mt-2 text-base text-zinc-400">
+              This display is for guests inside the house. Enter the setup PIN to activate it on
+              this device.
+            </p>
+          </div>
 
-      {/* PIN dots */}
-      <div className="flex h-6 items-center gap-3" aria-label="PIN entry">
-        {Array.from({ length: PIN_LENGTH }, (_, i) => (
-          <span
-            key={i}
-            className={`h-4 w-4 rounded-full transition-colors ${
-              i < pin.length ? "bg-white" : "bg-white/15"
-            }`}
-          />
-        ))}
-      </div>
+          <div className="flex h-6 items-center gap-3" aria-label="PIN entry">
+            {Array.from({ length: PIN_LENGTH }, (_, i) => (
+              <span
+                key={i}
+                className={`h-4 w-4 rounded-full transition-colors ${
+                  i < pin.length ? "bg-white" : "bg-white/15"
+                }`}
+              />
+            ))}
+          </div>
 
-      <p className={`h-5 text-sm ${error ? "text-red-400" : "text-transparent"}`} role="alert">
-        {error ?? "."}
-      </p>
+          <p className={`h-5 text-sm ${error ? "text-red-400" : "text-transparent"}`} role="alert">
+            {error ?? "."}
+          </p>
 
-      <div className={`grid grid-cols-3 gap-4 ${checking ? "pointer-events-none opacity-50" : ""}`}>
-        {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((d) => (
+          <p className="text-xs text-zinc-500">
+            Hosts: the PIN is on the property&apos;s Kiosk page in the admin panel.
+          </p>
+        </div>
+
+        <div className={`grid grid-cols-3 gap-3 ${checking ? "pointer-events-none opacity-50" : ""}`}>
+          {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((d) => (
+            <button
+              key={d}
+              type="button"
+              onPointerDown={() => press(d)}
+              className="h-20 w-20 rounded-full bg-white/10 text-3xl font-semibold text-white transition-colors active:bg-white/25"
+            >
+              {d}
+            </button>
+          ))}
+          <span />
           <button
-            key={d}
             type="button"
-            onPointerDown={() => press(d)}
+            onPointerDown={() => press("0")}
             className="h-20 w-20 rounded-full bg-white/10 text-3xl font-semibold text-white transition-colors active:bg-white/25"
           >
-            {d}
+            0
           </button>
-        ))}
-        <span />
-        <button
-          type="button"
-          onPointerDown={() => press("0")}
-          className="h-20 w-20 rounded-full bg-white/10 text-3xl font-semibold text-white transition-colors active:bg-white/25"
-        >
-          0
-        </button>
-        <button
-          type="button"
-          onPointerDown={backspace}
-          aria-label="Delete last digit"
-          className="flex h-20 w-20 items-center justify-center rounded-full text-white/70 transition-colors active:bg-white/10"
-        >
-          <Delete className="h-8 w-8" />
-        </button>
+          <button
+            type="button"
+            onPointerDown={backspace}
+            aria-label="Delete last digit"
+            className="flex h-20 w-20 items-center justify-center rounded-full text-white/70 transition-colors active:bg-white/10"
+          >
+            <Delete className="h-8 w-8" />
+          </button>
+        </div>
       </div>
-
-      <p className="max-w-xs text-center text-xs text-zinc-500">
-        Hosts: the PIN is on the property&apos;s Kiosk page in the admin panel.
-      </p>
     </div>
   );
 }

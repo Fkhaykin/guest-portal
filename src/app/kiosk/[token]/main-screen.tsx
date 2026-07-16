@@ -156,12 +156,15 @@ export function MainScreen({
         </>
       )}
 
-      <div className="relative flex h-full flex-col gap-5 p-5 lg:gap-6 lg:p-8">
-        {/* Top bar */}
-        <div className="flex items-center justify-between gap-4">
-          <span className="min-w-0 truncate text-xs font-semibold uppercase tracking-[0.35em] text-(--k-fg-60) lg:text-sm">
-            {data.property.name}
-          </span>
+      <div className="relative flex h-full flex-col gap-3 p-4 lg:gap-4 lg:p-5">
+        {/* Header — the greeting takes the house name's place; utilities right */}
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <h1 className="truncate text-3xl font-extrabold tracking-tight text-(--k-fg) lg:text-4xl">
+              {headline}
+            </h1>
+            <p className="mt-0.5 truncate text-base font-medium text-(--k-fg-75) lg:text-lg">{subline}</p>
+          </div>
           <div className="flex shrink-0 items-center gap-3">
             {todayWeather && (
               <button
@@ -208,16 +211,8 @@ export function MainScreen({
           </div>
         </div>
 
-        {/* Greeting */}
-        <div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-(--k-fg) lg:text-4xl text-balance">
-            {headline}
-          </h1>
-          <p className="mt-1.5 text-lg font-medium text-(--k-fg-75) lg:mt-2 lg:text-xl">{subline}</p>
-        </div>
-
-        {/* Menu board — fewer, bigger photo tiles; trailing tiles widen to fill the last row */}
-        <div className="grid min-h-0 flex-1 auto-rows-fr grid-cols-2 gap-3 lg:grid-cols-3 lg:gap-4">
+        {/* Menu board — bigger photo tiles, tight gaps, square edges; trailing tiles widen to fill the last row */}
+        <div className="grid min-h-0 flex-1 auto-rows-fr grid-cols-2 gap-2 lg:grid-cols-3">
           {tiles.map((tile, i) => {
             const remainder = tiles.length % 3;
             const isLast = i === tiles.length - 1;
@@ -230,7 +225,7 @@ export function MainScreen({
                 key={tile.label}
                 type="button"
                 onClick={() => (tile.screen ? onNavigate(tile.screen) : onHandoff(tile.href!))}
-                className={`group relative flex items-end overflow-hidden rounded-3xl text-left ring-1 ring-(--k-surf-15) transition-transform active:scale-[0.98] ${widen} ${img ? "bg-black" : "bg-(--k-surf-10)"}`}
+                className={`group relative flex items-end overflow-hidden text-left transition-transform active:scale-[0.98] ${widen} ${img ? "bg-black" : "bg-(--k-surf-10)"}`}
               >
                 {img && (
                   <>

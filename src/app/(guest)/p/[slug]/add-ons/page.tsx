@@ -256,7 +256,7 @@ export default function AddOnsPage() {
     return (
       <div className="max-w-md mx-auto flex flex-col items-center justify-center gap-3 py-12">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-        <p className="text-sm text-muted-foreground">Loading add-ons...</p>
+        <p className="text-sm text-muted-foreground">Loading upgrades...</p>
       </div>
     );
   }
@@ -265,7 +265,7 @@ export default function AddOnsPage() {
     return (
       <div className="max-w-md mx-auto space-y-6">
         <div className="text-center space-y-2">
-          <h1 className="text-3xl font-bold tracking-tight">Add-Ons</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Upgrades</h1>
           <p className="text-sm text-destructive">{error}</p>
         </div>
       </div>
@@ -275,7 +275,7 @@ export default function AddOnsPage() {
   return (
     <div className="space-y-6 max-w-2xl mx-auto">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Add-Ons</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Upgrades</h1>
         <p className="text-muted-foreground text-sm">
           Enhance your stay with extras and experiences
         </p>
