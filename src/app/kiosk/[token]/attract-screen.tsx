@@ -122,8 +122,8 @@ export function AttractScreen({
 
   return (
     <div
-      onPointerDown={onWake}
-      className="absolute inset-0 block h-full w-full cursor-pointer text-left"
+      onClick={onWake}
+      className="absolute inset-0 block h-full w-full cursor-pointer touch-manipulation text-left"
       role="button"
       aria-label="Touch to begin"
     >
@@ -162,7 +162,7 @@ export function AttractScreen({
         {wxTemp != null && (
           <button
             type="button"
-            onPointerDown={(e) => {
+            onClick={(e) => {
               e.stopPropagation();
               onWeather();
             }}
@@ -222,7 +222,7 @@ export function AttractScreen({
         <div className="flex min-w-0 flex-col items-end gap-4">
           {wifi?.ssid && (
             <div
-              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => e.stopPropagation()}
               className="flex items-center gap-4 rounded-3xl bg-black/35 p-4 ring-1 ring-white/15 backdrop-blur-md"
             >
               {wifiQr && (

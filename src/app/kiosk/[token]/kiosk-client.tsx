@@ -34,6 +34,9 @@ const IDLE_MS = 90 * 1000; // any screen → attract after 90s untouched
 const VIDEO_IDLE_MS = 30 * 60 * 1000; // don't idle out mid-video
 const NOTICE_MS = 12 * 1000;
 const RELOAD_HOUR = 4; // nightly self-reload picks up deploys, clears leaks
+// After waking from the attract screen, swallow tile taps briefly: a touch's
+// trailing click can otherwise land on whatever tile mounts under the finger.
+const WAKE_GUARD_MS = 500;
 
 // Kiosk light/dark theme, persisted per-device. useSyncExternalStore keeps it
 // out of an effect (no cascading-render lint) and in sync across the tree.
@@ -64,6 +67,7 @@ export function KioskClient({ token }: { token: string }) {
   // null = this device needs the PIN screen, string = authorized device key.
   const [deviceKey, setDeviceKey] = useState<string | null | undefined>(undefined);
   const idleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const wokeAtRef = useRef(0);
 
   const theme = useSyncExternalStore(subscribeTheme, readTheme, () => "dark" as KioskTheme);
   const toggleTheme = useCallback(() => {
@@ -313,6 +317,8 @@ export function KioskClient({ token }: { token: string }) {
   // seed the session + token for the current booking, scrub them when vacant.
   const handoff = useCallback(
     (href: string) => {
+      // Ignore the trailing click of the wake tap (see WAKE_GUARD_MS).
+      if (Date.now() - wokeAtRef.current < WAKE_GUARD_MS) return;
       if (!data) return;
       try {
         if (data.booking) {
@@ -338,8 +344,21 @@ export function KioskClient({ token }: { token: string }) {
     [data]
   );
 
-  const navigate = useCallback((next: KioskScreen) => setScreen(next), []);
+  const navigate = useCallback((next: KioskScreen) => {
+    // Same wake-tap guard as handoff, so a ghost click can't open a sub-screen.
+    if (Date.now() - wokeAtRef.current < WAKE_GUARD_MS) return;
+    setScreen(next);
+  }, []);
   const goHome = useCallback(() => setScreen({ kind: "home" }), []);
+  // Waking stamps the guard clock; the screen swap itself bypasses the guard.
+  const wakeToHome = useCallback(() => {
+    wokeAtRef.current = Date.now();
+    setScreen({ kind: "home" });
+  }, []);
+  const wakeToWeather = useCallback(() => {
+    wokeAtRef.current = Date.now();
+    setScreen({ kind: "weather" });
+  }, []);
 
   if (exited) {
     return (
@@ -385,8 +404,8 @@ export function KioskClient({ token }: { token: string }) {
           <AttractScreen
             token={token}
             data={data}
-            onWake={() => setScreen({ kind: "home" })}
-            onWeather={() => setScreen({ kind: "weather" })}
+            onWake={wakeToHome}
+            onWeather={wakeToWeather}
           />
         ))}
       {screen.kind === "home" && (
