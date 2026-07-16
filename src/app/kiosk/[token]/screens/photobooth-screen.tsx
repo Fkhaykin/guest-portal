@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Camera,
   Check,
@@ -16,26 +16,28 @@ import {
 } from "lucide-react";
 import { KioskScreenShell, KioskEmpty, glassPanel, glassButton } from "../ui";
 import type { KioskBooking } from "../types";
+import { PROP_SETS, PROP_SRC, propRect, mapToDisplay, type Box, type PropId } from "../photobooth-props";
 
 type Facing = "user" | "environment";
 type Phase = "live" | "countdown" | "review" | "share";
 type Captured = { blob: Blob; url: string };
 
-// 0 = instant (no countdown).
 const TIMER_OPTIONS = [0, 3, 10, 20] as const;
 const DEFAULT_TIMER = 3;
 
-// Color/vibe filters via CSS filter strings — applied to the live preview and
-// baked into the saved still. No face detection (the kiosk's browser lacks the
-// FaceDetector API), so these work everywhere.
-const FILTERS = [
-  { key: "none", label: "Original", css: "" },
-  { key: "noir", label: "🎞️ Noir", css: "grayscale(1) contrast(1.15) brightness(1.05)" },
-  { key: "warm", label: "🌅 Warm", css: "sepia(0.55) saturate(1.35) contrast(1.05)" },
-  { key: "vivid", label: "🌈 Vivid", css: "saturate(1.7) contrast(1.1)" },
-  { key: "cool", label: "❄️ Cool", css: "saturate(1.1) hue-rotate(-14deg) brightness(1.06)" },
-  { key: "retro", label: "📼 Retro", css: "sepia(0.35) saturate(1.5) hue-rotate(-8deg) contrast(1.12)" },
-] as const;
+// MediaPipe face detector — loaded from the CDN so the silly props work on any
+// browser (the kiosk's Edge lacks the native FaceDetector API).
+const MP_WASM = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.18/wasm";
+const MP_MODEL =
+  "https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite";
+
+interface MpDetection {
+  boundingBox?: { originX: number; originY: number; width: number; height: number };
+}
+interface MpDetector {
+  detectForVideo(v: HTMLVideoElement, ts: number): { detections: MpDetection[] };
+  close(): void;
+}
 
 export function PhotoboothScreen({
   token,
@@ -53,8 +55,11 @@ export function PhotoboothScreen({
   onViewHouseAlbum: () => void;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const detectorRef = useRef<MpDetector | null>(null);
+  const propImgs = useRef<Partial<Record<PropId, HTMLImageElement>>>({});
 
   const [facing, setFacing] = useState<Facing>("user");
   const [ready, setReady] = useState(false);
@@ -62,29 +67,94 @@ export function PhotoboothScreen({
   const [phase, setPhase] = useState<Phase>("live");
   const [timer, setTimer] = useState<number>(DEFAULT_TIMER);
   const [count, setCount] = useState<number>(DEFAULT_TIMER);
-  const [filterKey, setFilterKey] = useState<string>("none");
   const [captured, setCaptured] = useState<Captured | null>(null);
   const [busy, setBusy] = useState(false);
   const [savedFlash, setSavedFlash] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const filterCss = FILTERS.find((f) => f.key === filterKey)?.css ?? "";
+  // Face props
+  const [propSetKey, setPropSetKey] = useState("none");
+  const [detectorReady, setDetectorReady] = useState(false);
+  const [liveFaces, setLiveFaces] = useState<Box[]>([]);
+  const [stageSize, setStageSize] = useState({ w: 0, h: 0 });
+  const [mediaSize, setMediaSize] = useState({ w: 0, h: 0 });
+  const activeProps = useMemo(() => PROP_SETS.find((s) => s.key === propSetKey)?.props ?? [], [propSetKey]);
 
-  // Share state (after "Save to my phone")
+  // Share state
   const [photoId, setPhotoId] = useState<string | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [email, setEmail] = useState("");
   const [emailState, setEmailState] = useState<"idle" | "sending" | "sent" | "error">("idle");
 
   const [retryNonce, setRetryNonce] = useState(0);
+  const mirror = facing === "user";
+  const composing = phase === "live" || phase === "countdown";
 
   const stopStream = useCallback(() => {
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
   }, []);
 
-  // Acquire the camera on mount, on flip (facing), and on manual retry. All
-  // setState happens after the getUserMedia await, keeping the effect clean.
+  // Preload prop SVGs (for canvas stamping) + build the face detector once.
+  useEffect(() => {
+    for (const set of PROP_SETS) {
+      for (const p of set.props) {
+        if (!propImgs.current[p]) {
+          const img = new Image();
+          img.src = PROP_SRC[p];
+          propImgs.current[p] = img;
+        }
+      }
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const vision = await import("@mediapipe/tasks-vision");
+        const fileset = await vision.FilesetResolver.forVisionTasks(MP_WASM);
+        let detector: MpDetector | null = null;
+        for (const delegate of ["GPU", "CPU"] as const) {
+          try {
+            detector = (await vision.FaceDetector.createFromOptions(fileset, {
+              baseOptions: { modelAssetPath: MP_MODEL, delegate },
+              runningMode: "VIDEO",
+              minDetectionConfidence: 0.4,
+            })) as unknown as MpDetector;
+            break;
+          } catch {
+            // try the next delegate
+          }
+        }
+        if (cancelled) {
+          detector?.close();
+          return;
+        }
+        if (detector) {
+          detectorRef.current = detector;
+          setDetectorReady(true);
+        }
+      } catch {
+        // No detector (offline / blocked) — props just won't track.
+      }
+    })();
+    return () => {
+      cancelled = true;
+      detectorRef.current?.close();
+      detectorRef.current = null;
+    };
+  }, []);
+
+  // Track the viewfinder's on-screen size so face boxes map into display pixels.
+  useEffect(() => {
+    const el = stageRef.current;
+    if (!el) return;
+    const update = () => setStageSize({ w: el.clientWidth, h: el.clientHeight });
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [phase]);
+
+  // Acquire the camera on mount, on flip, and on manual retry.
   useEffect(() => {
     if (!booking) return;
     let cancelled = false;
@@ -120,7 +190,43 @@ export function PhotoboothScreen({
     };
   }, [facing, retryNonce, booking, stopStream]);
 
-  // Clean up the captured object URL when it's replaced or the screen closes.
+  // Live face tracking (~13fps) while composing with an effect selected.
+  useEffect(() => {
+    if (!composing || !ready || !detectorReady || activeProps.length === 0) {
+      setLiveFaces([]);
+      return;
+    }
+    let raf = 0;
+    let last = 0;
+    let stop = false;
+    const loop = () => {
+      if (stop) return;
+      const video = videoRef.current;
+      const det = detectorRef.current;
+      const now = performance.now();
+      if (video && video.videoWidth && det && now - last > 70) {
+        last = now;
+        try {
+          const res = det.detectForVideo(video, now);
+          setLiveFaces(
+            (res.detections || [])
+              .map((d) => d.boundingBox)
+              .filter((b): b is NonNullable<typeof b> => !!b)
+              .map((b) => ({ x: b.originX, y: b.originY, width: b.width, height: b.height }))
+          );
+        } catch {
+          // transient — retry next frame
+        }
+      }
+      raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => {
+      stop = true;
+      cancelAnimationFrame(raf);
+    };
+  }, [composing, ready, detectorReady, activeProps.length, facing]);
+
   useEffect(() => {
     return () => {
       if (captured) URL.revokeObjectURL(captured.url);
@@ -140,15 +246,23 @@ export function PhotoboothScreen({
     canvas.height = h;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    // Mirror the selfie so the saved photo matches the mirrored preview.
     if (facing === "user") {
       ctx.translate(w, 0);
       ctx.scale(-1, 1);
     }
-    // Bake the chosen color filter into the still.
-    if (filterCss) ctx.filter = filterCss;
     ctx.drawImage(video, 0, 0, w, h);
-    ctx.filter = "none";
+    ctx.setTransform(1, 0, 0, 1, 0, 0); // props are placed in final (mirrored) image space
+    if (activeProps.length) {
+      for (const face of liveFaces) {
+        const box = mirror ? { x: w - (face.x + face.width), y: face.y, width: face.width, height: face.height } : face;
+        for (const p of activeProps) {
+          const img = propImgs.current[p];
+          if (!img || !img.complete || !img.naturalWidth) continue;
+          const r = propRect(p, box);
+          ctx.drawImage(img, r.x, r.y, r.width, r.height);
+        }
+      }
+    }
     canvas.toBlob(
       (blob) => {
         if (!blob) {
@@ -161,7 +275,7 @@ export function PhotoboothScreen({
       "image/jpeg",
       0.9
     );
-  }, [facing, filterCss]);
+  }, [facing, activeProps, liveFaces, mirror]);
 
   const startCountdown = useCallback(() => {
     if (!ready || phase !== "live") return;
@@ -195,7 +309,6 @@ export function PhotoboothScreen({
     setPhase("live");
   }, [captured]);
 
-  // Upload once; both "Keep" and "Save to my phone" reuse the result.
   const ensureUploaded = useCallback(async (): Promise<{ id: string; url: string | null } | null> => {
     if (!booking || !captured) return null;
     if (photoId) return { id: photoId, url: null };
@@ -270,7 +383,10 @@ export function PhotoboothScreen({
     );
   }
 
-  const mirror = facing === "user";
+  const sideBtn = (active: boolean) =>
+    `w-full rounded-2xl px-4 py-3 text-lg font-bold transition-colors ${
+      active ? "bg-(--k-featured-bg) text-(--k-featured-fg) shadow" : "bg-(--k-surf-07) text-(--k-fg-80) ring-1 ring-(--k-surf-10) hover:bg-(--k-surf-12)"
+    }`;
 
   return (
     <KioskScreenShell
@@ -279,267 +395,248 @@ export function PhotoboothScreen({
       timezone={timezone}
       onBack={onBack}
     >
-      <div className="flex h-full w-full flex-col items-center gap-3 pb-2">
-        {/* Stage — fills the full width and remaining height so the viewfinder is big */}
-        <div className="relative w-full min-h-0 flex-1 overflow-hidden rounded-3xl bg-black ring-1 ring-(--k-surf-15)">
-          {/* Live camera */}
-          <video
-            ref={videoRef}
-            playsInline
-            muted
-            style={filterCss ? { filter: filterCss } : undefined}
-            className={`h-full w-full object-cover ${mirror ? "scale-x-[-1]" : ""} ${
-              phase === "review" || phase === "share" ? "hidden" : ""
-            }`}
-          />
-
-          {/* Captured still */}
-          {(phase === "review" || phase === "share") && captured && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={captured.url} alt="Your photo" className="h-full w-full object-cover" />
-          )}
-
-          {/* Camera error / permission prompt */}
-          {camError && phase === "live" && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-zinc-950/90 px-8 text-center">
-              <Camera className="h-12 w-12 text-zinc-500" />
-              <p className="max-w-sm text-lg text-zinc-300">
-                The camera isn&apos;t available. Allow camera access for this device, then tap
-                below.
+      <div className="flex h-full w-full items-stretch gap-4">
+        {/* LEFT controls — timer + album shortcuts */}
+        {composing && (
+          <div className="flex w-52 shrink-0 flex-col justify-center gap-4">
+            <div className="space-y-2">
+              <p className="flex items-center gap-2 px-1 text-sm font-bold uppercase tracking-wider text-(--k-fg-55)">
+                <Timer className="h-4 w-4" /> Timer
               </p>
-              <button
-                type="button"
-                onClick={() => {
-                  setCamError(false);
-                  setRetryNonce((n) => n + 1);
-                }}
-                className={`flex min-h-14 items-center gap-2 px-6 text-lg font-bold text-white ${glassButton}`}
-              >
-                <RefreshCw className="h-5 w-5" /> Try again
-              </button>
+              {TIMER_OPTIONS.map((secs) => (
+                <button key={secs} type="button" onClick={() => setTimer(secs)} className={sideBtn(timer === secs)}>
+                  {secs === 0 ? "Now" : `${secs} sec`}
+                </button>
+              ))}
             </div>
-          )}
-
-          {/* Countdown overlay */}
-          {phase === "countdown" && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-              <span
-                key={count}
-                className="text-[9rem] font-black leading-none text-white drop-shadow-2xl tabular-nums"
-              >
-                {count === 0 ? "" : count}
-              </span>
-            </div>
-          )}
-
-          {/* Flip camera (only while composing) */}
-          {phase === "live" && ready && (
-            <button
-              type="button"
-              onClick={() => setFacing((f) => (f === "user" ? "environment" : "user"))}
-              aria-label="Flip camera"
-              className="absolute right-4 top-4 flex h-12 w-12 items-center justify-center rounded-full bg-black/45 text-white backdrop-blur-md"
-            >
-              <SwitchCamera className="h-6 w-6" />
-            </button>
-          )}
-
-          {/* Loading camera */}
-          {!ready && !camError && phase === "live" && (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <Loader2 className="h-10 w-10 animate-spin text-zinc-500" />
-            </div>
-          )}
-        </div>
-
-        {error && (
-          <p className="rounded-2xl bg-rose-500/15 px-5 py-2.5 text-base text-rose-200 ring-1 ring-rose-400/30">
-            {error}
-          </p>
-        )}
-
-        {/* Controls */}
-        {phase === "live" && (
-          <div className="flex w-full flex-col items-center gap-3">
-            <div className="flex flex-wrap items-center justify-center gap-3">
-              {/* Timer selector */}
-              <div className="flex items-center gap-1.5 rounded-full bg-(--k-surf-07) p-1.5 ring-1 ring-(--k-surf-10)">
-                <Timer className="ml-2 h-5 w-5 text-(--k-fg-60)" />
-                {TIMER_OPTIONS.map((secs) => (
-                  <button
-                    key={secs}
-                    type="button"
-                    onClick={() => setTimer(secs)}
-                    aria-pressed={timer === secs}
-                    className={`min-h-11 min-w-14 rounded-full px-3 text-lg font-bold tabular-nums transition-colors ${
-                      timer === secs
-                        ? "bg-(--k-featured-bg) text-(--k-featured-fg) shadow"
-                        : "text-(--k-fg-70) hover:bg-(--k-surf-10)"
-                    }`}
-                  >
-                    {secs === 0 ? "Now" : `${secs}s`}
-                  </button>
-                ))}
-              </div>
-
-              {/* Filter selector — always available (color/vibe, no face detection) */}
-              <div className="flex items-center gap-1.5 rounded-full bg-(--k-surf-07) p-1.5 ring-1 ring-(--k-surf-10)">
-                <Sparkles className="ml-2 h-5 w-5 text-(--k-fg-60)" />
-                {FILTERS.map((f) => (
-                  <button
-                    key={f.key}
-                    type="button"
-                    onClick={() => setFilterKey(f.key)}
-                    aria-pressed={filterKey === f.key}
-                    className={`min-h-11 rounded-full px-3.5 text-base font-bold transition-colors ${
-                      filterKey === f.key
-                        ? "bg-(--k-featured-bg) text-(--k-featured-fg) shadow"
-                        : "text-(--k-fg-70) hover:bg-(--k-surf-10)"
-                    }`}
-                  >
-                    {f.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <button
-              type="button"
-              onClick={startCountdown}
-              disabled={!ready}
-              className="flex min-h-16 w-full max-w-md items-center justify-center gap-3 rounded-3xl bg-fuchsia-500 text-2xl font-extrabold text-white shadow-xl transition-transform active:scale-[0.97] disabled:opacity-50 lg:text-3xl"
-            >
-              <Camera className="h-8 w-8" /> Take Photo
-            </button>
-            <div className="flex flex-wrap items-center justify-center gap-3">
-              <button
-                type="button"
-                onClick={onViewAlbum}
-                className={`flex min-h-12 items-center gap-2 px-6 text-lg font-semibold text-(--k-fg) ${glassButton}`}
-              >
+            <div className="space-y-2">
+              <button type="button" onClick={onViewAlbum} className={`flex items-center justify-center gap-2 ${sideBtn(false)}`}>
                 <Images className="h-5 w-5" /> My Photos
               </button>
-              <button
-                type="button"
-                onClick={onViewHouseAlbum}
-                className={`flex min-h-12 items-center gap-2 px-6 text-lg font-semibold text-(--k-fg) ${glassButton}`}
-              >
+              <button type="button" onClick={onViewHouseAlbum} className={`flex items-center justify-center gap-2 ${sideBtn(false)}`}>
                 <GalleryVerticalEnd className="h-5 w-5" /> House Album
               </button>
             </div>
           </div>
         )}
 
-        {phase === "review" && (
-          <div className="grid w-full max-w-2xl grid-cols-3 gap-3">
-            <button
-              type="button"
-              onClick={retake}
-              disabled={busy}
-              className={`flex min-h-16 flex-col items-center justify-center gap-1 text-lg font-bold text-(--k-fg) disabled:opacity-50 ${glassPanel}`}
+        {/* CENTER — viewfinder (3:2) + the one button in the middle */}
+        <div className="flex min-w-0 flex-1 flex-col items-center justify-center gap-4">
+          <div className="flex min-h-0 w-full flex-1 items-center justify-center">
+            <div
+              ref={stageRef}
+              className="relative aspect-3/2 h-full max-w-full overflow-hidden rounded-3xl bg-black ring-1 ring-(--k-surf-15)"
             >
-              <Trash2 className="h-7 w-7" /> Retake
-            </button>
-            <button
-              type="button"
-              onClick={saveToPhone}
-              disabled={busy}
-              className="flex min-h-16 flex-col items-center justify-center gap-1 rounded-2xl bg-sky-500/90 text-lg font-bold text-white shadow-lg transition-transform active:scale-[0.97] disabled:opacity-50"
-            >
-              {busy ? <Loader2 className="h-7 w-7 animate-spin" /> : <Camera className="h-7 w-7" />}
-              To my phone
-            </button>
-            <button
-              type="button"
-              onClick={keep}
-              disabled={busy}
-              className="flex min-h-16 flex-col items-center justify-center gap-1 rounded-2xl bg-emerald-500 text-lg font-bold text-white shadow-lg transition-transform active:scale-[0.97] disabled:opacity-50"
-            >
-              {busy ? <Loader2 className="h-7 w-7 animate-spin" /> : <Check className="h-7 w-7" />}
-              Keep
-            </button>
-          </div>
-        )}
+              <video
+                ref={videoRef}
+                playsInline
+                muted
+                onLoadedMetadata={(e) => setMediaSize({ w: e.currentTarget.videoWidth, h: e.currentTarget.videoHeight })}
+                className={`h-full w-full object-cover ${mirror ? "scale-x-[-1]" : ""} ${
+                  phase === "review" || phase === "share" ? "hidden" : ""
+                }`}
+              />
 
-        {phase === "share" && (
-          <div className="flex w-full max-w-3xl flex-col items-center gap-4">
-            <p className="text-center text-lg text-(--k-fg-70)">
-              Saved to your album. Scan to download it, or email yourself a copy.
-            </p>
-            <div className="flex w-full flex-col items-center gap-6 lg:flex-row lg:items-start lg:justify-center">
-              {/* QR */}
-              <div className="flex flex-col items-center gap-3">
-                <div className="rounded-3xl bg-white p-4 shadow-xl ring-1 ring-black/5">
+              {/* Live face-prop overlay */}
+              {composing &&
+                activeProps.length > 0 &&
+                mediaSize.w > 0 &&
+                stageSize.w > 0 &&
+                liveFaces.map((face, fi) => {
+                  const dbox = mapToDisplay(face, stageSize.w, stageSize.h, mediaSize.w, mediaSize.h, mirror);
+                  return activeProps.map((p) => {
+                    const r = propRect(p, dbox);
+                    return (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        key={`${fi}-${p}`}
+                        src={PROP_SRC[p]}
+                        alt=""
+                        className="pointer-events-none absolute select-none"
+                        style={{ left: r.x, top: r.y, width: r.width, height: r.height }}
+                      />
+                    );
+                  });
+                })}
+
+              {(phase === "review" || phase === "share") && captured && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={captured.url} alt="Your photo" className="h-full w-full object-cover" />
+              )}
+
+              {camError && phase === "live" && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-zinc-950/90 px-8 text-center">
+                  <Camera className="h-12 w-12 text-zinc-500" />
+                  <p className="max-w-sm text-lg text-zinc-300">
+                    The camera isn&apos;t available. Allow camera access for this device, then tap below.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCamError(false);
+                      setRetryNonce((n) => n + 1);
+                    }}
+                    className={`flex min-h-14 items-center gap-2 px-6 text-lg font-bold text-white ${glassButton}`}
+                  >
+                    <RefreshCw className="h-5 w-5" /> Try again
+                  </button>
+                </div>
+              )}
+
+              {phase === "countdown" && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                  <span key={count} className="text-[9rem] font-black leading-none text-white drop-shadow-2xl tabular-nums">
+                    {count === 0 ? "" : count}
+                  </span>
+                </div>
+              )}
+
+              {composing && ready && (
+                <button
+                  type="button"
+                  onClick={() => setFacing((f) => (f === "user" ? "environment" : "user"))}
+                  aria-label="Flip camera"
+                  className="absolute right-4 top-4 flex h-12 w-12 items-center justify-center rounded-full bg-black/45 text-white backdrop-blur-md"
+                >
+                  <SwitchCamera className="h-6 w-6" />
+                </button>
+              )}
+
+              {!ready && !camError && composing && (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <Loader2 className="h-10 w-10 animate-spin text-zinc-500" />
+                </div>
+              )}
+            </div>
+          </div>
+
+          {error && (
+            <p className="rounded-2xl bg-rose-500/15 px-5 py-2.5 text-base text-rose-200 ring-1 ring-rose-400/30">{error}</p>
+          )}
+
+          {/* The one button in the middle */}
+          {phase === "live" && (
+            <button
+              type="button"
+              onClick={startCountdown}
+              disabled={!ready}
+              className="flex min-h-16 w-full max-w-md items-center justify-center gap-3 rounded-full bg-fuchsia-500 text-2xl font-extrabold text-white shadow-xl transition-transform active:scale-[0.97] disabled:opacity-50 lg:text-3xl"
+            >
+              <Camera className="h-8 w-8" /> Take Photo
+            </button>
+          )}
+
+          {phase === "review" && (
+            <div className="grid w-full max-w-2xl grid-cols-3 gap-3">
+              <button
+                type="button"
+                onClick={retake}
+                disabled={busy}
+                className={`flex min-h-16 flex-col items-center justify-center gap-1 text-lg font-bold text-(--k-fg) disabled:opacity-50 ${glassPanel}`}
+              >
+                <Trash2 className="h-7 w-7" /> Retake
+              </button>
+              <button
+                type="button"
+                onClick={saveToPhone}
+                disabled={busy}
+                className="flex min-h-16 flex-col items-center justify-center gap-1 rounded-2xl bg-sky-500/90 text-lg font-bold text-white shadow-lg transition-transform active:scale-[0.97] disabled:opacity-50"
+              >
+                {busy ? <Loader2 className="h-7 w-7 animate-spin" /> : <Camera className="h-7 w-7" />}
+                To my phone
+              </button>
+              <button
+                type="button"
+                onClick={keep}
+                disabled={busy}
+                className="flex min-h-16 flex-col items-center justify-center gap-1 rounded-2xl bg-emerald-500 text-lg font-bold text-white shadow-lg transition-transform active:scale-[0.97] disabled:opacity-50"
+              >
+                {busy ? <Loader2 className="h-7 w-7 animate-spin" /> : <Check className="h-7 w-7" />}
+                Keep
+              </button>
+            </div>
+          )}
+
+          {phase === "share" && (
+            <div className="flex w-full max-w-4xl flex-col items-center gap-3 lg:flex-row lg:items-center lg:justify-center">
+              <div className="flex items-center gap-4">
+                <div className="rounded-3xl bg-white p-3 shadow-xl ring-1 ring-black/5">
                   {qrDataUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={qrDataUrl} alt="Scan to download your photo" className="h-44 w-44 lg:h-52 lg:w-52" />
+                    <img src={qrDataUrl} alt="Scan to download your photo" className="h-32 w-32 lg:h-40 lg:w-40" />
                   ) : (
-                    <div className="flex h-44 w-44 items-center justify-center lg:h-52 lg:w-52">
+                    <div className="flex h-32 w-32 items-center justify-center lg:h-40 lg:w-40">
                       <Loader2 className="h-8 w-8 animate-spin text-zinc-400" />
                     </div>
                   )}
                 </div>
-                <p className="text-sm font-semibold text-(--k-fg-60)">Scan with your phone camera</p>
-              </div>
-
-              {/* Email */}
-              <div className={`w-full max-w-sm space-y-3 p-5 ${glassPanel}`}>
-                <p className="flex items-center gap-2 text-lg font-bold text-(--k-fg)">
-                  <Mail className="h-5 w-5" /> Email it instead
-                </p>
-                {emailState === "sent" ? (
-                  <p className="flex items-center gap-2 rounded-2xl bg-emerald-500/15 px-4 py-3 text-emerald-200 ring-1 ring-emerald-400/30">
-                    <Check className="h-5 w-5" /> Sent to {email}
+                <div className={`w-64 space-y-2 p-4 ${glassPanel}`}>
+                  <p className="flex items-center gap-2 text-base font-bold text-(--k-fg)">
+                    <Mail className="h-5 w-5" /> Email it
                   </p>
-                ) : (
-                  <>
-                    <input
-                      type="email"
-                      inputMode="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="you@email.com"
-                      className="min-h-14 w-full rounded-2xl bg-(--k-surf-10) px-4 text-lg text-(--k-fg) ring-1 ring-(--k-surf-15) outline-none placeholder:text-(--k-fg-40)"
-                    />
-                    <button
-                      type="button"
-                      onClick={sendEmail}
-                      disabled={emailState === "sending" || !email.trim()}
-                      className="flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-(--k-featured-bg) text-lg font-bold text-(--k-featured-fg) disabled:opacity-50"
-                    >
-                      {emailState === "sending" ? (
-                        <Loader2 className="h-5 w-5 animate-spin" />
-                      ) : (
-                        <Mail className="h-5 w-5" />
-                      )}
-                      Send
-                    </button>
-                    {emailState === "error" && (
-                      <p className="text-sm text-rose-300">Couldn&apos;t send. Check the address and try again.</p>
-                    )}
-                  </>
-                )}
+                  {emailState === "sent" ? (
+                    <p className="flex items-center gap-2 rounded-xl bg-emerald-500/15 px-3 py-2 text-sm text-emerald-200 ring-1 ring-emerald-400/30">
+                      <Check className="h-4 w-4" /> Sent to {email}
+                    </p>
+                  ) : (
+                    <>
+                      <input
+                        type="email"
+                        inputMode="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="you@email.com"
+                        className="min-h-12 w-full rounded-xl bg-(--k-surf-10) px-3 text-base text-(--k-fg) ring-1 ring-(--k-surf-15) outline-none placeholder:text-(--k-fg-40)"
+                      />
+                      <button
+                        type="button"
+                        onClick={sendEmail}
+                        disabled={emailState === "sending" || !email.trim()}
+                        className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-(--k-featured-bg) text-base font-bold text-(--k-featured-fg) disabled:opacity-50"
+                      >
+                        {emailState === "sending" ? <Loader2 className="h-5 w-5 animate-spin" /> : <Mail className="h-5 w-5" />}
+                        Send
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
+              <button
+                type="button"
+                onClick={retake}
+                className="flex min-h-14 items-center justify-center gap-2 rounded-full bg-fuchsia-500 px-8 text-xl font-extrabold text-white shadow-xl transition-transform active:scale-[0.97]"
+              >
+                <Camera className="h-6 w-6" /> Take another
+              </button>
             </div>
+          )}
+        </div>
 
-            <button
-              type="button"
-              onClick={retake}
-              className="flex min-h-14 w-full max-w-md items-center justify-center gap-2 rounded-3xl bg-fuchsia-500 text-xl font-extrabold text-white shadow-xl transition-transform active:scale-[0.97]"
-            >
-              <Camera className="h-6 w-6" /> Take another
-            </button>
-          </div>
-        )}
-
-        {savedFlash && (
-          <div className="pointer-events-none fixed inset-x-0 top-24 z-50 flex justify-center">
-            <div className="flex items-center gap-2 rounded-2xl bg-emerald-500/20 px-6 py-4 text-lg font-semibold text-emerald-100 ring-1 ring-emerald-400/40 backdrop-blur-md">
-              <Check className="h-6 w-6" /> Saved to your album
-            </div>
+        {/* RIGHT controls — silly face effects */}
+        {composing && (
+          <div className="flex w-52 shrink-0 flex-col justify-center gap-2">
+            <p className="flex items-center gap-2 px-1 text-sm font-bold uppercase tracking-wider text-(--k-fg-55)">
+              <Sparkles className="h-4 w-4" /> Effects
+            </p>
+            {PROP_SETS.map((set) => (
+              <button key={set.key} type="button" onClick={() => setPropSetKey(set.key)} className={sideBtn(propSetKey === set.key)}>
+                {set.label}
+              </button>
+            ))}
+            {activeProps.length > 0 && !detectorReady && (
+              <p className="px-1 pt-1 text-xs text-(--k-fg-50)">Loading face tracking…</p>
+            )}
           </div>
         )}
       </div>
+
+      {savedFlash && (
+        <div className="pointer-events-none fixed inset-x-0 top-24 z-50 flex justify-center">
+          <div className="flex items-center gap-2 rounded-2xl bg-emerald-500/20 px-6 py-4 text-lg font-semibold text-emerald-100 ring-1 ring-emerald-400/40 backdrop-blur-md">
+            <Check className="h-6 w-6" /> Saved to your album
+          </div>
+        </div>
+      )}
     </KioskScreenShell>
   );
 }
