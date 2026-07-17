@@ -44,6 +44,8 @@ type Tile = {
   label: string;
   icon: LucideIcon;
   image?: string;
+  // Tailwind object-position for the tile photo (default: object-center).
+  imagePosition?: string;
 } & ({ href: string; screen?: never } | { screen: KioskScreen; href?: never });
 
 const ICON = "h-6 w-6 lg:h-7 lg:w-7";
@@ -111,8 +113,8 @@ export function MainScreen({
   const primary: Tile[] = booking
     ? [
         res!.signature_url
-          ? { label: "Edit Guests, Pets & Vehicles", href: `/p/${slug}/update`, icon: PenLine, image: "/kiosk-edit-registration.jpg" }
-          : { label: "Register", href: `/p/${slug}/register`, icon: ClipboardList, image: "/kiosk-edit-registration.jpg" },
+          ? { label: "Edit Guests, Pets & Vehicles", href: `/p/${slug}/update`, icon: PenLine, image: "/kiosk-edit-registration.jpg", imagePosition: "object-bottom" }
+          : { label: "Register", href: `/p/${slug}/register`, icon: ClipboardList, image: "/kiosk-edit-registration.jpg", imagePosition: "object-bottom" },
         { label: "Extend Your Stay", href: `/p/${slug}/extend-stay`, icon: CalendarPlus },
         { label: "Tip the Crew", screen: { kind: "tip" }, icon: HandCoins, image: "/kiosk-tip-the-crew.jpg" },
       ]
@@ -233,7 +235,7 @@ export function MainScreen({
                     <img
                       src={img}
                       alt=""
-                      className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-active:scale-105"
+                      className={`absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-active:scale-105 ${tile.imagePosition ?? ""}`}
                     />
                     <div className="absolute inset-0 bg-linear-to-t from-black/85 via-black/40 to-black/5" />
                   </>
