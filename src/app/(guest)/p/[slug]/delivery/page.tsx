@@ -208,7 +208,7 @@ export default function DeliveryPage() {
   }
 
   return (
-    <main className="flex-1 flex flex-col items-center p-4 sm:p-6">
+    <main className="flex-1 flex flex-col items-center justify-center p-4 sm:p-6">
       <div className="max-w-lg w-full space-y-6 kiosk-wide">
         {/* Header */}
         <div className="space-y-1">
@@ -355,8 +355,8 @@ export default function DeliveryPage() {
         )}
 
         {step === 2 && category === "other" && (
-          <Card>
-            <CardContent className="p-6 space-y-4">
+          <Card className="kiosk-card">
+            <CardContent className="p-6 space-y-4 kiosk-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="other-provider">Service name</Label>
                 <Input
@@ -376,7 +376,7 @@ export default function DeliveryPage() {
                 />
               </div>
               <Button
-                className="w-full"
+                className="w-full kiosk-col-span"
                 disabled={!provider?.trim()}
                 onClick={() => setStep(3)}
               >
@@ -388,8 +388,8 @@ export default function DeliveryPage() {
 
         {/* Step 3: Details */}
         {step === 3 && category === "rideshare" && (
-          <Card>
-            <CardContent className="p-6 space-y-6">
+          <Card className="kiosk-card">
+            <CardContent className="p-6 space-y-6 kiosk-cols-2">
               {/* Number of cars */}
               <div className="space-y-2">
                 <Label>How many cars?</Label>
@@ -429,7 +429,7 @@ export default function DeliveryPage() {
               </div>
 
               {/* Dropoff toggle */}
-              <div className="space-y-4">
+              <div className="space-y-4 kiosk-col-span">
                 <div className="flex items-center justify-between">
                   <Label>Will they also drop off?</Label>
                   <Button
@@ -484,7 +484,7 @@ export default function DeliveryPage() {
               </div>
 
               <Button
-                className="w-full"
+                className="w-full kiosk-col-span"
                 disabled={!arrivalDate || (hasReturn && !returnDate)}
                 onClick={() => setStep(4)}
               >
@@ -495,8 +495,8 @@ export default function DeliveryPage() {
         )}
 
         {step === 3 && (category === "food_grocery" || category === "other") && (
-          <Card>
-            <CardContent className="p-6 space-y-6">
+          <Card className="kiosk-card">
+            <CardContent className="p-6 space-y-6 kiosk-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="delivery-date">Expected delivery date</Label>
                 <Input
@@ -520,7 +520,7 @@ export default function DeliveryPage() {
                 </div>
               )}
               <Button
-                className="w-full"
+                className="w-full kiosk-col-span"
                 disabled={!arrivalDate}
                 onClick={() => setStep(4)}
               >
@@ -532,7 +532,7 @@ export default function DeliveryPage() {
 
         {/* Step 4: Confirmation */}
         {step === 4 && (
-          <div className="space-y-4">
+          <div className="space-y-4 kiosk-card">
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg">Registration Summary</CardTitle>

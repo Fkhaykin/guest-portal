@@ -547,7 +547,7 @@ export default function UpdateRegistrationPage() {
           </p>
         </div>
 
-        <Card>
+        <Card className="kiosk-card">
           <CardContent className="pt-6 space-y-4 kiosk-cols-2">
             <div className="space-y-1">
               <Label>First Name</Label>
@@ -629,7 +629,7 @@ export default function UpdateRegistrationPage() {
           </p>
         </div>
 
-        <Card>
+        <Card className="kiosk-card">
           <CardContent className="pt-6 space-y-4 kiosk-cols-2">
             <div className="space-y-1">
               <Label>Pet Name *</Label>
@@ -717,7 +717,7 @@ export default function UpdateRegistrationPage() {
           </p>
         </div>
 
-        <Card>
+        <Card className="kiosk-card">
           <CardContent className="pt-6 space-y-4">
             <div className="space-y-1">
               <Label>Driver *</Label>
@@ -942,8 +942,8 @@ export default function UpdateRegistrationPage() {
         )}
 
         {deliveryStep === 2 && deliveryCategory === "other" && (
-          <Card>
-            <CardContent className="p-6 space-y-4">
+          <Card className="kiosk-card">
+            <CardContent className="p-6 space-y-4 kiosk-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="other-provider">Service name</Label>
                 <Input id="other-provider" placeholder="e.g. Amazon, FedEx..." value={deliveryProvider || ""} onChange={(e) => setDeliveryProvider(e.target.value)} />
@@ -961,8 +961,8 @@ export default function UpdateRegistrationPage() {
 
         {/* Step 3: Details */}
         {deliveryStep === 3 && deliveryCategory === "rideshare" && reservation && (
-          <Card>
-            <CardContent className="p-6 space-y-6">
+          <Card className="kiosk-card">
+            <CardContent className="p-6 space-y-6 kiosk-cols-2">
               <div className="space-y-2">
                 <Label>How many cars?</Label>
                 <div className="flex items-center gap-4">
@@ -979,7 +979,7 @@ export default function UpdateRegistrationPage() {
                 <Label htmlFor="pickup-date">Pickup date</Label>
                 <Input id="pickup-date" type="date" value={arrivalDate} min={reservation.check_in_date} max={reservation.check_out_date} onChange={(e) => setArrivalDate(e.target.value)} />
               </div>
-              <div className="space-y-4">
+              <div className="space-y-4 kiosk-col-span">
                 <div className="flex items-center justify-between">
                   <Label>Will they also drop off?</Label>
                   <Button variant={hasReturn ? "default" : "outline"} size="sm" onClick={() => setHasReturn(!hasReturn)}>
@@ -1007,7 +1007,7 @@ export default function UpdateRegistrationPage() {
                   </>
                 )}
               </div>
-              <Button className="w-full" disabled={!arrivalDate || (hasReturn && !returnDate)} onClick={() => setDeliveryStep(4)}>
+              <Button className="w-full kiosk-col-span" disabled={!arrivalDate || (hasReturn && !returnDate)} onClick={() => setDeliveryStep(4)}>
                 Review & Submit
               </Button>
             </CardContent>
@@ -1015,8 +1015,8 @@ export default function UpdateRegistrationPage() {
         )}
 
         {deliveryStep === 3 && (deliveryCategory === "food_grocery" || deliveryCategory === "other") && reservation && (
-          <Card>
-            <CardContent className="p-6 space-y-6">
+          <Card className="kiosk-card">
+            <CardContent className="p-6 space-y-6 kiosk-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="delivery-date">Expected delivery date</Label>
                 <Input id="delivery-date" type="date" value={arrivalDate} min={reservation.check_in_date} max={reservation.check_out_date} onChange={(e) => setArrivalDate(e.target.value)} />
@@ -1027,7 +1027,7 @@ export default function UpdateRegistrationPage() {
                   <Textarea id="food-notes" placeholder="Any special instructions..." value={deliveryNotes} onChange={(e) => setDeliveryNotes(e.target.value)} />
                 </div>
               )}
-              <Button className="w-full" disabled={!arrivalDate} onClick={() => setDeliveryStep(4)}>
+              <Button className="w-full kiosk-col-span" disabled={!arrivalDate} onClick={() => setDeliveryStep(4)}>
                 Review & Submit
               </Button>
             </CardContent>
@@ -1036,7 +1036,7 @@ export default function UpdateRegistrationPage() {
 
         {/* Step 4: Confirmation */}
         {deliveryStep === 4 && (
-          <div className="space-y-4">
+          <div className="space-y-4 kiosk-card">
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg">Registration Summary</CardTitle>

@@ -831,7 +831,7 @@ export default function RegisterPage() {
                 an email address for portal access.
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-4 kiosk-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="fullName">Full Name</Label>
                 <Input
@@ -851,7 +851,7 @@ export default function RegisterPage() {
                   Enter your full legal name as it appears on your ID.
                 </p>
               </div>
-              <Separator />
+              <Separator data-kiosk-hide />
               <div className="space-y-2">
                 <Label htmlFor="email" className="flex items-center gap-1.5">
                   <Mail className="h-3.5 w-3.5" /> Email Address
@@ -890,7 +890,7 @@ export default function RegisterPage() {
                 How can we reach you before and during your stay?
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-4 kiosk-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="phone">Phone Number</Label>
                 <Input
@@ -902,9 +902,9 @@ export default function RegisterPage() {
                   We&apos;ll use this to reach you with check-in details and during your stay.
                 </p>
               </div>
-              <Separator />
-              <p className="text-sm font-medium">Mailing Address</p>
+              <Separator data-kiosk-hide />
               <div className="space-y-3">
+                <p className="text-sm font-medium">Mailing Address</p>
                 <div className="space-y-1">
                   <Label htmlFor="street1" className="text-xs">Street Address</Label>
                   <Input id="street1" value={address.street1}
@@ -948,7 +948,7 @@ export default function RegisterPage() {
               </div>
               {!isAirbnb && (
               <>
-              <Separator />
+              <Separator data-kiosk-hide />
               <div className="space-y-3">
                 <Label className="flex items-center gap-2">
                   <ShieldCheck className="h-4 w-4" /> Identity Verification
@@ -2072,7 +2072,7 @@ export default function RegisterPage() {
 
       {/* Step 7: Special Requests + Terms + Signature + Submit */}
       {step === 7 && (
-        <form onSubmit={handleFinalSubmit} className="space-y-6">
+        <form onSubmit={handleFinalSubmit} className="space-y-6 kiosk-cols-2">
           <Card>
             <CardHeader>
               <CardTitle>Anything Else?</CardTitle>
@@ -2265,7 +2265,7 @@ export default function RegisterPage() {
             </Card>
           )}
 
-          <div className="flex gap-3">
+          <div className="flex gap-3 kiosk-col-span">
             <Button type="button" variant="outline" size="lg" onClick={() => setStep(6)}>
               <ChevronLeft className="h-4 w-4 mr-1" /> Back
             </Button>

@@ -254,13 +254,47 @@ html.kiosk-mode [data-kiosk-pad] {
 html.kiosk-mode {
   font-size: 112.5%;
 }
-/* The wall tablet is landscape — let the reservation pages use its full width
-   (the shared layout caps at max-w-4xl for phones) so grids can go 2-up and the
-   guest scrolls far less. Only in kiosk mode; normal guests are untouched. */
+/* --- Kiosk app shell --------------------------------------------------------
+   On the wall tablet a portal page is an app screen, not a document: the
+   viewport is fixed (no page scroll), the top bar stays put, and the content
+   band fills the rest. Short content centers vertically in the band; a page
+   that opts into `kiosk-fill` stretches to use every pixel instead. The
+   overflow-y on the band is a safety valve only — pages are laid out to fit. */
+html.kiosk-mode,
+html.kiosk-mode body {
+  height: 100%;
+  overflow: hidden;
+}
+html.kiosk-mode [data-kiosk-pad] {
+  height: 100dvh;
+  min-height: 0;
+}
 html.kiosk-mode [data-kiosk-main] {
-  max-width: 88rem;
-  padding-left: 2rem;
-  padding-right: 2rem;
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  max-width: none;
+  padding: 1.5rem 2.5rem;
+}
+/* Safe vertical centering: auto margins collapse to 0 if content overflows,
+   so the top of a too-tall page is always reachable. */
+html.kiosk-mode [data-kiosk-main] > * {
+  margin-top: auto;
+  margin-bottom: auto;
+}
+/* Full-bleed board pages (Upgrades): fill the band instead of centering. */
+html.kiosk-mode .kiosk-fill {
+  flex: 1 1 0;
+  min-height: 0;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  display: flex;
+  flex-direction: column;
+}
+html.kiosk-mode .kiosk-fill > * {
+  margin-top: 0; /* gap governs; neutralize phone space-y margins */
 }
 /* Opt-in kiosk grid: single column for phones, N columns on the wall tablet.
    Pages tag a wrapper with `kiosk-grid kiosk-grid-2` (or -3) — normal guests
@@ -269,6 +303,16 @@ html.kiosk-mode .kiosk-grid {
   display: grid;
   gap: 1rem;
   align-items: stretch; /* equal-height cards in a row */
+}
+html.kiosk-mode .kiosk-grid > * {
+  min-height: 10rem; /* big, confident touch targets on the wall tablet */
+}
+/* Single-card wizard steps: don't stretch a lone form across the whole band. */
+html.kiosk-mode .kiosk-card {
+  max-width: 48rem;
+  margin-left: auto;
+  margin-right: auto;
+  width: 100%;
 }
 html.kiosk-mode .kiosk-grid-2 {
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -279,16 +323,15 @@ html.kiosk-mode .kiosk-grid-3 {
 html.kiosk-mode .kiosk-grid-4 {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
-/* Cart-sidebar split used by Upgrades: content + a sticky rail on the right. */
+/* Cart-sidebar split used by Upgrades: board + full-height rail. Inside the
+   fixed shell it stretches to the band, so both columns own their height. */
 html.kiosk-mode .kiosk-split {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 22rem;
-  gap: 1.5rem;
-  align-items: start;
-}
-html.kiosk-mode .kiosk-sticky {
-  position: sticky;
-  top: 5.5rem;
+  grid-template-columns: minmax(0, 1fr) 24rem;
+  gap: 1.25rem;
+  align-items: stretch;
+  flex: 1 1 0;
+  min-height: 0;
 }
 /* Shown only on the kiosk (inverse of data-kiosk-hide). */
 .kiosk-only {

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { getGuestToken } from "@/lib/guest-session";
+import { useIsKiosk } from "@/hooks/use-kiosk";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -113,6 +114,7 @@ function priceLabel(opt: UpsellOption): string {
 }
 
 export default function UpgradesPage() {
+  const isKiosk = useIsKiosk();
   const [session, setSession] = useState<SessionData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -613,33 +615,124 @@ export default function UpgradesPage() {
   }
 
   return (
-    <div className="mx-auto w-full space-y-4">
-      {/* Header + cart button (the button hides on the kiosk — the rail is always up) */}
+    <div className={isKiosk ? "kiosk-fill gap-4" : "mx-auto w-full space-y-4"}>
+      {/* Header + cart button (phones only — the kiosk rail is always up) */}
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Upgrades</h1>
           <p className="text-muted-foreground text-sm">Tap an upgrade to see details and add it to your cart.</p>
         </div>
-        <Button
-          data-kiosk-hide
-          variant="outline"
-          className="relative shrink-0"
-          onClick={() => setCartOpen(true)}
-        >
-          <ShoppingCart className="h-4 w-4" />
-          Cart
-          {cart.length > 0 && (
-            <span className="ml-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-xs font-semibold text-primary-foreground">
-              {cart.length}
-            </span>
-          )}
-        </Button>
+        {!isKiosk && (
+          <Button variant="outline" className="relative shrink-0" onClick={() => setCartOpen(true)}>
+            <ShoppingCart className="h-4 w-4" />
+            Cart
+            {cart.length > 0 && (
+              <span className="ml-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-xs font-semibold text-primary-foreground">
+                {cart.length}
+              </span>
+            )}
+          </Button>
+        )}
       </div>
 
-      {/* Kiosk: tiles on the left, a persistent cart rail on the right. On phones
-          this is a plain block — tiles full-width, cart via the drawer button. */}
-      <div className="kiosk-split">
-        {/* Tiles — tight, near-square grid to echo the kiosk home board (#5) */}
+      {isKiosk ? (
+        /* Kiosk: a menu-board of photo tiles filling the screen, with a
+           full-height cart rail on the right. Nothing scrolls. */
+        <div className="kiosk-split">
+          <div className="grid min-h-0 auto-rows-fr grid-cols-3 gap-2 xl:grid-cols-4">
+            {upsellOptions.map((opt) => {
+              const cartHas = inCart(opt.type);
+              return (
+                <button
+                  key={opt.type}
+                  type="button"
+                  onClick={() => setOpenType(opt.type)}
+                  className="group relative flex items-end overflow-hidden rounded-md bg-black text-left ring-1 ring-border transition-transform active:scale-[0.98]"
+                >
+                  {opt.image && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={opt.image}
+                      alt=""
+                      className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-active:scale-105"
+                    />
+                  )}
+                  <div className="absolute inset-0 bg-linear-to-t from-black/85 via-black/35 to-black/10" />
+                  <div className="relative w-full p-3.5">
+                    <p className="text-base font-bold leading-tight text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)]">
+                      {opt.label}
+                    </p>
+                    <p className="mt-0.5 text-sm font-semibold text-white/85">{priceLabel(opt)}</p>
+                  </div>
+                  {opt.purchased && (
+                    <span className="absolute right-2.5 top-2.5 rounded-full bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white shadow">
+                      Purchased
+                    </span>
+                  )}
+                  {!opt.purchased && cartHas && (
+                    <span className="absolute right-2.5 top-2.5 rounded-full bg-primary px-2.5 py-1 text-xs font-semibold text-primary-foreground shadow">
+                      In cart
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Cart rail — full height, checkout pinned to the bottom (#4) */}
+          <aside className="flex min-h-0 flex-col rounded-md border bg-card">
+            <div className="flex shrink-0 items-center gap-2 border-b px-4 py-3">
+              <ShoppingCart className="h-5 w-5" />
+              <span className="text-base font-semibold">Your Cart</span>
+              {cart.length > 0 && (
+                <span className="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-xs font-semibold text-primary-foreground">
+                  {cart.length}
+                </span>
+              )}
+            </div>
+            {cart.length === 0 ? (
+              <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
+                <ShoppingCart className="h-10 w-10 text-muted-foreground/40" />
+                <p className="text-sm text-muted-foreground">
+                  Your cart is empty.
+                  <br />
+                  Tap an upgrade to add it.
+                </p>
+              </div>
+            ) : (
+              <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-4">
+                {cart.map((item) => (
+                  <div key={item.type} className="flex items-center justify-between gap-2 text-sm">
+                    <span className="min-w-0">{item.label}</span>
+                    <div className="flex shrink-0 items-center gap-1.5">
+                      <span className="font-medium">{formatCents(item.price_cents)}</span>
+                      <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => removeFromCart(item.type)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            {cart.length > 0 && (
+              <div className="shrink-0 space-y-3 border-t px-4 py-4">
+                <div className="flex items-center justify-between font-semibold">
+                  <span>Total</span>
+                  <span>{formatCents(cartTotal)}</span>
+                </div>
+                <Button className="w-full" size="lg" disabled={checkingOut} onClick={handleCheckout}>
+                  {checkingOut ? (
+                    <><Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> Redirecting…</>
+                  ) : (
+                    <>Checkout {formatCents(cartTotal)} <ArrowRight className="h-4 w-4 ml-1.5" /></>
+                  )}
+                </Button>
+              </div>
+            )}
+          </aside>
+        </div>
+      ) : (
+        /* Phones keep the compact card grid + cart drawer */
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
           {upsellOptions.map((opt) => {
             const cartHas = inCart(opt.type);
@@ -672,54 +765,7 @@ export default function UpgradesPage() {
             );
           })}
         </div>
-
-        {/* Persistent cart rail — kiosk only, always visible on the right (#4) */}
-        <aside className="kiosk-only kiosk-sticky rounded-lg border bg-card">
-          <div className="flex items-center gap-2 border-b px-4 py-3">
-            <ShoppingCart className="h-5 w-5" />
-            <span className="text-base font-semibold">Your Cart</span>
-            {cart.length > 0 && (
-              <span className="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-xs font-semibold text-primary-foreground">
-                {cart.length}
-              </span>
-            )}
-          </div>
-          {cart.length === 0 ? (
-            <p className="px-4 py-8 text-center text-sm text-muted-foreground">
-              Your cart is empty. Tap an upgrade to add it.
-            </p>
-          ) : (
-            <div className="max-h-[46vh] space-y-3 overflow-y-auto px-4 py-4">
-              {cart.map((item) => (
-                <div key={item.type} className="flex items-center justify-between gap-2 text-sm">
-                  <span className="min-w-0">{item.label}</span>
-                  <div className="flex shrink-0 items-center gap-1.5">
-                    <span className="font-medium">{formatCents(item.price_cents)}</span>
-                    <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => removeFromCart(item.type)}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-          {cart.length > 0 && (
-            <div className="space-y-3 border-t px-4 py-4">
-              <div className="flex items-center justify-between font-semibold">
-                <span>Total</span>
-                <span>{formatCents(cartTotal)}</span>
-              </div>
-              <Button className="w-full" size="lg" disabled={checkingOut} onClick={handleCheckout}>
-                {checkingOut ? (
-                  <><Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> Redirecting…</>
-                ) : (
-                  <>Checkout {formatCents(cartTotal)} <ArrowRight className="h-4 w-4 ml-1.5" /></>
-                )}
-              </Button>
-            </div>
-          )}
-        </aside>
-      </div>
+      )}
 
       {/* Detail modal */}
       <Dialog open={!!openType} onOpenChange={(o) => { if (!o) setOpenType(null); }}>

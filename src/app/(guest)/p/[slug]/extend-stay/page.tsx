@@ -446,7 +446,7 @@ export default function ExtendStayPage() {
   }
 
   return (
-    <div className="space-y-4 max-w-5xl mx-auto">
+    <div className="space-y-4 max-w-5xl mx-auto kiosk-wide">
       <div>
         <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
           <CalendarPlus className="h-7 w-7" /> Extend Your Stay
