@@ -462,11 +462,17 @@ export async function applyExtension(
   const newTax = ((reg.tax_amount_cents as number) ?? 0) + extTax;
   const extraNights = nightsBetween(baseline, newCheckOutDate);
 
-  const paidUpsells = upsells.map((u) =>
-    u.stripe_session_id === sessionId && u.type === "extend_stay"
-      ? { ...u, status: "paid", meta: { ...(u.meta ?? {}), extension_lodgify_booking_id: blockingBookingId } }
-      : u
+  // Mark everything bought in this session paid — the extension itself plus any
+  // bundled add-on (a late checkout on the new final day rides the same session).
+  const bundledLate = upsells.find(
+    (u) => u.stripe_session_id === sessionId && u.type === "late_checkout"
   );
+  const paidUpsells = upsells.map((u) => {
+    if (u.stripe_session_id !== sessionId) return u;
+    return u.type === "extend_stay"
+      ? { ...u, status: "paid", meta: { ...(u.meta ?? {}), extension_lodgify_booking_id: blockingBookingId } }
+      : { ...u, status: "paid" };
+  });
 
   await admin
     .from("registration")
@@ -503,7 +509,7 @@ export async function applyExtension(
     propertyId: reg.property_id as string,
     registrationId: reg.id as string,
     guestName: guest?.full_name ?? "Guest",
-    summary: `Extended checkout to ${newCheckOutDate} (+${extraNights} night${extraNights !== 1 ? "s" : ""}, $${((target.price_cents || 0) / 100).toFixed(2)})`,
+    summary: `Extended checkout to ${newCheckOutDate} (+${extraNights} night${extraNights !== 1 ? "s" : ""}, $${((target.price_cents || 0) / 100).toFixed(2)})${bundledLate ? ` + ${bundledLate.label ?? "late checkout"}` : ""}`,
   }).catch(() => {});
 
   return { ok: true, newCheckOutDate };

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { verifyGuestToken } from "@/lib/guest-token";
 import { applyExtension } from "@/lib/upsells/extend-stay";
+import { timingUpsellTime } from "@/lib/upsells/timing";
 
 // Fast-path fulfillment when the guest returns from Stripe. Idempotent and shared
 // with the webhook, so it's safe if both fire (or the guest refreshes).
@@ -34,5 +35,19 @@ export async function POST(request: Request) {
       { status: result.status }
     );
   }
-  return NextResponse.json({ ok: true, new_check_out_date: result.newCheckOutDate });
+  // Surface a late checkout bundled into the same session so the success
+  // screen can confirm both purchases at once.
+  const { data: reg } = await admin
+    .from("registration")
+    .select("upsells")
+    .eq("id", registration_id)
+    .single();
+  const late = ((reg?.upsells as Array<{ type: string; status: string; stripe_session_id?: string; meta?: Record<string, unknown> | null }> | null) ?? []).find(
+    (u) => u.stripe_session_id === session_id && u.type === "late_checkout" && u.status === "paid"
+  );
+  return NextResponse.json({
+    ok: true,
+    new_check_out_date: result.newCheckOutDate,
+    late_checkout_time: late ? timingUpsellTime(late) : null,
+  });
 }
