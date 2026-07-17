@@ -55,7 +55,7 @@ export default async function PropertyLayout({
         <KioskChromeGate />
         <PropertyHeader propertyName={property.name} showBack />
         <GuestNav />
-        <main className="flex-1 max-w-4xl mx-auto w-full px-4 py-6">
+        <main data-kiosk-main className="flex-1 max-w-4xl mx-auto w-full px-4 py-6">
           {children}
         </main>
       </div>

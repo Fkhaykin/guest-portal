@@ -27,7 +27,7 @@ import {
   SheetTitle,
   SheetFooter,
 } from "@/components/ui/sheet";
-import { ShoppingCart, X, Loader2, Check, Send, Trash2, ArrowRight, HandCoins } from "lucide-react";
+import { ShoppingCart, X, Loader2, Check, Send, Trash2, ArrowRight } from "lucide-react";
 import { toneBadge } from "@/lib/status-styles";
 
 type UpsellOption = {
@@ -610,14 +610,19 @@ export default function UpgradesPage() {
   }
 
   return (
-    <div className="mx-auto max-w-6xl space-y-4">
-      {/* Header + cart button */}
+    <div className="mx-auto w-full space-y-4">
+      {/* Header + cart button (the button hides on the kiosk — the rail is always up) */}
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Upgrades</h1>
           <p className="text-muted-foreground text-sm">Tap an upgrade to see details and add it to your cart.</p>
         </div>
-        <Button variant="outline" className="relative shrink-0" onClick={() => setCartOpen(true)}>
+        <Button
+          data-kiosk-hide
+          variant="outline"
+          className="relative shrink-0"
+          onClick={() => setCartOpen(true)}
+        >
           <ShoppingCart className="h-4 w-4" />
           Cart
           {cart.length > 0 && (
@@ -628,51 +633,89 @@ export default function UpgradesPage() {
         </Button>
       </div>
 
-      {/* Tiles */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-        {upsellOptions.map((opt) => {
-          const cartHas = inCart(opt.type);
-          return (
-            <button
-              key={opt.type}
-              type="button"
-              onClick={() => setOpenType(opt.type)}
-              className="group relative flex flex-col overflow-hidden rounded-xl border bg-card text-left transition-shadow hover:shadow-md"
-            >
-              {opt.image && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={opt.image} alt={opt.label} className="aspect-4/3 w-full object-cover" />
-              )}
-              <div className="flex flex-1 flex-col p-3">
-                <p className="text-sm font-medium leading-tight">{opt.label}</p>
-                <p className="mt-1.5 text-sm font-semibold text-muted-foreground">{priceLabel(opt)}</p>
-              </div>
-              {opt.purchased && (
-                <span className="absolute right-2 top-2 rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-semibold text-white shadow">
-                  Purchased
-                </span>
-              )}
-              {!opt.purchased && cartHas && (
-                <span className="absolute right-2 top-2 rounded-full bg-primary px-2 py-0.5 text-[10px] font-semibold text-primary-foreground shadow">
-                  In cart
-                </span>
-              )}
-            </button>
-          );
-        })}
+      {/* Kiosk: tiles on the left, a persistent cart rail on the right. On phones
+          this is a plain block — tiles full-width, cart via the drawer button. */}
+      <div className="kiosk-split">
+        {/* Tiles — tight, near-square grid to echo the kiosk home board (#5) */}
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+          {upsellOptions.map((opt) => {
+            const cartHas = inCart(opt.type);
+            return (
+              <button
+                key={opt.type}
+                type="button"
+                onClick={() => setOpenType(opt.type)}
+                className="group relative flex flex-col overflow-hidden rounded-md border bg-card text-left transition-shadow hover:shadow-md"
+              >
+                {opt.image && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={opt.image} alt={opt.label} className="aspect-4/3 w-full object-cover" />
+                )}
+                <div className="flex flex-1 flex-col p-3">
+                  <p className="text-sm font-medium leading-tight">{opt.label}</p>
+                  <p className="mt-1.5 text-sm font-semibold text-muted-foreground">{priceLabel(opt)}</p>
+                </div>
+                {opt.purchased && (
+                  <span className="absolute right-2 top-2 rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-semibold text-white shadow">
+                    Purchased
+                  </span>
+                )}
+                {!opt.purchased && cartHas && (
+                  <span className="absolute right-2 top-2 rounded-full bg-primary px-2 py-0.5 text-[10px] font-semibold text-primary-foreground shadow">
+                    In cart
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
 
-        {/* Tip the cleaning crew — a tile of its own */}
-        <button
-          type="button"
-          onClick={() => setOpenType("tip_cleaning")}
-          className="group relative flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed bg-card p-4 text-center transition-shadow hover:shadow-md"
-        >
-          <HandCoins className="h-8 w-8 text-primary" />
-          <p className="text-sm font-medium leading-tight">Tip the Cleaning Crew</p>
-          {inCart("tip_cleaning") && (
-            <span className="absolute right-2 top-2 rounded-full bg-primary px-2 py-0.5 text-[10px] font-semibold text-primary-foreground shadow">In cart</span>
+        {/* Persistent cart rail — kiosk only, always visible on the right (#4) */}
+        <aside className="kiosk-only kiosk-sticky rounded-lg border bg-card">
+          <div className="flex items-center gap-2 border-b px-4 py-3">
+            <ShoppingCart className="h-5 w-5" />
+            <span className="text-base font-semibold">Your Cart</span>
+            {cart.length > 0 && (
+              <span className="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-xs font-semibold text-primary-foreground">
+                {cart.length}
+              </span>
+            )}
+          </div>
+          {cart.length === 0 ? (
+            <p className="px-4 py-8 text-center text-sm text-muted-foreground">
+              Your cart is empty. Tap an upgrade to add it.
+            </p>
+          ) : (
+            <div className="max-h-[46vh] space-y-3 overflow-y-auto px-4 py-4">
+              {cart.map((item) => (
+                <div key={item.type} className="flex items-center justify-between gap-2 text-sm">
+                  <span className="min-w-0">{item.label}</span>
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    <span className="font-medium">{formatCents(item.price_cents)}</span>
+                    <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => removeFromCart(item.type)}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
-        </button>
+          {cart.length > 0 && (
+            <div className="space-y-3 border-t px-4 py-4">
+              <div className="flex items-center justify-between font-semibold">
+                <span>Total</span>
+                <span>{formatCents(cartTotal)}</span>
+              </div>
+              <Button className="w-full" size="lg" disabled={checkingOut} onClick={handleCheckout}>
+                {checkingOut ? (
+                  <><Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> Redirecting…</>
+                ) : (
+                  <>Checkout {formatCents(cartTotal)} <ArrowRight className="h-4 w-4 ml-1.5" /></>
+                )}
+              </Button>
+            </div>
+          )}
+        </aside>
       </div>
 
       {/* Detail modal */}

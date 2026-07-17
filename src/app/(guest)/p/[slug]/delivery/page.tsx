@@ -209,7 +209,7 @@ export default function DeliveryPage() {
 
   return (
     <main className="flex-1 flex flex-col items-center p-4 sm:p-6">
-      <div className="max-w-lg w-full space-y-6">
+      <div className="max-w-lg w-full space-y-6 kiosk-wide">
         {/* Header */}
         <div className="space-y-1">
           {step > 1 && (
@@ -242,7 +242,7 @@ export default function DeliveryPage() {
 
         {/* Step 1: Category selection */}
         {step === 1 && (
-          <div className="grid gap-4">
+          <div className="grid gap-4 kiosk-grid kiosk-grid-3">
             {[
               {
                 id: "rideshare" as Category,
@@ -292,7 +292,7 @@ export default function DeliveryPage() {
 
         {/* Step 2: Provider selection */}
         {step === 2 && category === "rideshare" && (
-          <div className="grid gap-4">
+          <div className="grid gap-4 kiosk-grid kiosk-grid-3">
             {RIDESHARE_PROVIDERS.map((p) => (
               <Card
                 key={p.id}
@@ -320,7 +320,7 @@ export default function DeliveryPage() {
         )}
 
         {step === 2 && category === "food_grocery" && (
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-3 kiosk-grid kiosk-grid-4">
             {FOOD_PROVIDERS.map((p) => (
               <Card
                 key={p.id}

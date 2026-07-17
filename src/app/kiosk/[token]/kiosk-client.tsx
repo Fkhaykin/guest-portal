@@ -259,6 +259,17 @@ export function KioskClient({ token }: { token: string }) {
     }
   }, [token]);
 
+  // Returning from a handoff page via "Kiosk Home" carries ?home=1 — open on
+  // the home grid instead of the default screensaver. Scrub it afterward.
+  useEffect(() => {
+    const search = new URLSearchParams(window.location.search);
+    if (search.get("home") !== "1") return;
+    setScreen({ kind: "home" });
+    search.delete("home");
+    const qs = search.toString();
+    window.history.replaceState({}, "", window.location.pathname + (qs ? `?${qs}` : ""));
+  }, []);
+
   // A tip's Stripe session still needs finalizing (mark paid + notify host)
   // via the guest upsells confirm route; captured here, run once data loads.
   const [pendingTipSession, setPendingTipSession] = useState<string | null>(null);

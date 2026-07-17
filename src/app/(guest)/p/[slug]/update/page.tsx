@@ -535,7 +535,7 @@ export default function UpdateRegistrationPage() {
   // --- Add Guest form ---
   if (view === "add-guest") {
     return (
-      <div className="space-y-6 max-w-md mx-auto">
+      <div className="space-y-6 max-w-md mx-auto kiosk-wide-md">
         <Button type="button" variant="ghost" size="sm" onClick={() => setView("menu")}>
           <ChevronLeft className="h-4 w-4 mr-1" /> Back
         </Button>
@@ -548,7 +548,7 @@ export default function UpdateRegistrationPage() {
         </div>
 
         <Card>
-          <CardContent className="pt-6 space-y-4">
+          <CardContent className="pt-6 space-y-4 kiosk-cols-2">
             <div className="space-y-1">
               <Label>First Name</Label>
               <Input value={newGuest.first_name} onChange={(e) => setNewGuest({ ...newGuest, first_name: e.target.value })} placeholder="First" />
@@ -557,7 +557,7 @@ export default function UpdateRegistrationPage() {
               <Label>Last Name</Label>
               <Input value={newGuest.last_name} onChange={(e) => setNewGuest({ ...newGuest, last_name: e.target.value })} placeholder="Last" />
             </div>
-            <div className="space-y-1">
+            <div className="space-y-1 kiosk-col-span">
               <Label>Age Group</Label>
               <div className="flex items-center gap-4 h-9 text-sm">
                 {(["over_21", "under_21", "infant"] as AgeGroup[]).map((val) => (
@@ -615,7 +615,7 @@ export default function UpdateRegistrationPage() {
   // --- Add Pet form ---
   if (view === "add-pet") {
     return (
-      <div className="space-y-6 max-w-md mx-auto">
+      <div className="space-y-6 max-w-md mx-auto kiosk-wide-md">
         <Button type="button" variant="ghost" size="sm" onClick={() => setView("menu")}>
           <ChevronLeft className="h-4 w-4 mr-1" /> Back
         </Button>
@@ -630,7 +630,7 @@ export default function UpdateRegistrationPage() {
         </div>
 
         <Card>
-          <CardContent className="pt-6 space-y-4">
+          <CardContent className="pt-6 space-y-4 kiosk-cols-2">
             <div className="space-y-1">
               <Label>Pet Name *</Label>
               <Input value={newPet.name} onChange={(e) => setNewPet({ ...newPet, name: e.target.value })} placeholder="Buddy" />
@@ -705,7 +705,7 @@ export default function UpdateRegistrationPage() {
   // --- Add Driver form ---
   if (view === "add-driver") {
     return (
-      <div className="space-y-6 max-w-md mx-auto">
+      <div className="space-y-6 max-w-md mx-auto kiosk-wide-md">
         <Button type="button" variant="ghost" size="sm" onClick={() => setView("menu")}>
           <ChevronLeft className="h-4 w-4 mr-1" /> Back
         </Button>
@@ -808,7 +808,7 @@ export default function UpdateRegistrationPage() {
     // Success screen
     if (deliverySubmitted) {
       return (
-        <div className="space-y-6 max-w-md mx-auto">
+        <div className="space-y-6 max-w-md mx-auto kiosk-wide-md">
           <div className="text-center space-y-6 py-8">
             <div className="mx-auto w-16 h-16 rounded-full bg-green-100 flex items-center justify-center">
               <Check className="h-8 w-8 text-green-600" />
@@ -836,7 +836,7 @@ export default function UpdateRegistrationPage() {
     }
 
     return (
-      <div className="space-y-6 max-w-md mx-auto">
+      <div className="space-y-6 max-w-md mx-auto kiosk-wide-md">
         {deliveryStep === 1 ? (
           <Button type="button" variant="ghost" size="sm" onClick={() => { resetDeliveryForm(); setView("menu"); }}>
             <ChevronLeft className="h-4 w-4 mr-1" /> Back
@@ -1083,7 +1083,7 @@ export default function UpdateRegistrationPage() {
 
   // --- Menu screen ---
   return (
-    <div className="space-y-6 max-w-2xl mx-auto">
+    <div className="space-y-6 max-w-2xl mx-auto kiosk-wide-md">
       <div className="text-center space-y-2">
         <h1 className="text-2xl font-bold tracking-tight">Manage Your Stay</h1>
         <p className="text-muted-foreground text-sm">
@@ -1097,7 +1097,7 @@ export default function UpdateRegistrationPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
         <Card className="cursor-pointer hover:bg-accent transition-colors" onClick={() => setView("add-guest")}>
           <CardContent className="flex flex-col items-center text-center gap-3 p-4 sm:p-5">
             <div className="rounded-full bg-primary/10 p-3">

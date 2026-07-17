@@ -254,6 +254,73 @@ html.kiosk-mode [data-kiosk-pad] {
 html.kiosk-mode {
   font-size: 112.5%;
 }
+/* The wall tablet is landscape — let the reservation pages use its full width
+   (the shared layout caps at max-w-4xl for phones) so grids can go 2-up and the
+   guest scrolls far less. Only in kiosk mode; normal guests are untouched. */
+html.kiosk-mode [data-kiosk-main] {
+  max-width: 88rem;
+  padding-left: 2rem;
+  padding-right: 2rem;
+}
+/* Opt-in kiosk grid: single column for phones, N columns on the wall tablet.
+   Pages tag a wrapper with `kiosk-grid kiosk-grid-2` (or -3) — normal guests
+   keep the phone layout; the kiosk lays the same markup out landscape. */
+html.kiosk-mode .kiosk-grid {
+  display: grid;
+  gap: 1rem;
+  align-items: start;
+}
+html.kiosk-mode .kiosk-grid-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+html.kiosk-mode .kiosk-grid-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+html.kiosk-mode .kiosk-grid-4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+/* Cart-sidebar split used by Upgrades: content + a sticky rail on the right. */
+html.kiosk-mode .kiosk-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 22rem;
+  gap: 1.5rem;
+  align-items: start;
+}
+html.kiosk-mode .kiosk-sticky {
+  position: sticky;
+  top: 5.5rem;
+}
+/* Shown only on the kiosk (inverse of data-kiosk-hide). */
+.kiosk-only {
+  display: none;
+}
+html.kiosk-mode .kiosk-only {
+  display: block;
+}
+/* Pages that center their own narrow column (delivery/extend-stay wizards)
+   opt into the landscape width with this — phones keep their max-w-* cap. */
+html.kiosk-mode .kiosk-wide {
+  max-width: 72rem;
+}
+/* Narrow per-step form columns (max-w-md) open up on the wall tablet. */
+html.kiosk-mode .kiosk-wide-md {
+  max-width: 60rem;
+}
+/* Turn a vertical field stack (space-y-*) into two columns on the kiosk. The
+   margin reset neutralizes the space-y top-margins so the grid gap governs. */
+html.kiosk-mode .kiosk-cols-2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem 1.5rem;
+  align-items: start;
+}
+html.kiosk-mode .kiosk-cols-2 > * {
+  margin-top: 0 !important;
+}
+/* Let a field span the full width inside a kiosk-cols-2 grid (textareas, etc). */
+html.kiosk-mode .kiosk-col-span {
+  grid-column: 1 / -1;
+}
 
 /* --- Kiosk theme palette ---------------------------------------------------
    The in-house kiosk (/kiosk/[token]) has its own light/dark switch, separate

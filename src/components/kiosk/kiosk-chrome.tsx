@@ -63,7 +63,9 @@ export function KioskChromeGate() {
     <div className="sticky top-0 z-[60] flex items-center gap-4 border-b border-white/10 bg-zinc-950 px-4 py-3 text-white sm:px-6">
       <button
         type="button"
-        onClick={() => window.location.assign(returnUrl)}
+        // ?home=1 tells the kiosk SPA to open on the home grid, not the
+        // screensaver — an intentional "back" is not a walk-away reset.
+        onClick={() => window.location.assign(`${returnUrl}?home=1`)}
         className="flex min-h-12 items-center gap-2 rounded-xl bg-white/10 px-5 text-base font-semibold ring-1 ring-white/15 transition-colors hover:bg-white/15 active:scale-[0.98]"
       >
         <House className="h-5 w-5" />
