@@ -1,14 +1,22 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState } from "react";
-import { ChevronLeft, Moon, Sun } from "lucide-react";
+import { ChevronLeft, Moon, Sun, SunMoon } from "lucide-react";
 
 // Shared building blocks for kiosk screens. Neutral colors come from the
 // --k-* theme variables (globals.css) so the whole kiosk flips light/dark.
 
 export type KioskTheme = "dark" | "light";
-export const KioskThemeContext = createContext<{ theme: KioskTheme; toggle: () => void }>({
+// `mode` is the persisted preference; `theme` is what's actually shown. In
+// "auto" the theme tracks the house's local time of day (see kiosk-client).
+export type KioskThemeMode = "auto" | "light" | "dark";
+export const KioskThemeContext = createContext<{
+  theme: KioskTheme;
+  mode: KioskThemeMode;
+  toggle: () => void;
+}>({
   theme: "dark",
+  mode: "auto",
   toggle: () => {},
 });
 export function useKioskTheme() {
@@ -45,17 +53,25 @@ export const glassPanel =
 export const glassButton =
   "rounded-2xl bg-(--k-surf-10) ring-1 ring-(--k-surf-15) backdrop-blur-md transition-colors hover:bg-(--k-surf-15) active:scale-[0.98]";
 
-/** Light/dark toggle — Sun in dark mode (tap for light), Moon in light. */
+/** Theme cycle — Auto (follows the house's local time) → Light → Dark → Auto.
+ *  Icon shows the current mode: SunMoon = auto, Sun = light, Moon = dark. */
 export function KioskThemeToggle({ className = "" }: { className?: string }) {
-  const { theme, toggle } = useKioskTheme();
+  const { mode, toggle } = useKioskTheme();
+  const next: KioskThemeMode = mode === "auto" ? "light" : mode === "light" ? "dark" : "auto";
   return (
     <button
       type="button"
       onClick={toggle}
-      aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+      aria-label={`Theme: ${mode}. Tap for ${next} mode.`}
       className={`flex h-12 w-12 items-center justify-center text-(--k-fg) ${glassButton} ${className}`}
     >
-      {theme === "dark" ? <Sun className="h-6 w-6" /> : <Moon className="h-6 w-6" />}
+      {mode === "auto" ? (
+        <SunMoon className="h-6 w-6" />
+      ) : mode === "light" ? (
+        <Sun className="h-6 w-6" />
+      ) : (
+        <Moon className="h-6 w-6" />
+      )}
     </button>
   );
 }

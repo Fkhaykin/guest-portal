@@ -127,28 +127,27 @@ export function AttractScreen({
       role="button"
       aria-label="Touch to begin"
     >
-      <style>{`
-        @keyframes kiosk-drift-a { from { transform: scale(1.05) translate(0, 0); } to { transform: scale(1.14) translate(-1.5%, -1%); } }
-        @keyframes kiosk-drift-b { from { transform: scale(1.05) translate(0, 0); } to { transform: scale(1.14) translate(1.5%, 1%); } }
-      `}</style>
-
-      {/* Slideshow — only the active and previous slides stay mounted */}
+      {/* Slideshow — every photo is a persistent stacked layer so the outgoing
+          and incoming images crossfade smoothly (no pop-in). Opacity fades over
+          1.5s; the transform slowly pans/zooms (Ken Burns) over the slide's life
+          and eases back on the way out, so nothing snaps. */}
       {photos.map((src, i) => {
-        const prev = (slide + photos.length - 1) % photos.length;
-        if (i !== slide && i !== prev) return null;
+        const active = i === slide;
         return (
           <div
             key={src}
-            className="absolute inset-0 transition-opacity duration-2000 ease-in-out"
-            style={{ opacity: i === slide ? 1 : 0 }}
+            className="absolute inset-0"
+            style={{
+              opacity: active ? 1 : 0,
+              transform: active
+                ? `scale(1.12) translate(${i % 2 ? "-1.5%" : "1.5%"}, ${i % 2 ? "-1%" : "1%"})`
+                : "scale(1.04)",
+              transition: "opacity 1500ms ease-in-out, transform 10000ms ease-out",
+              willChange: "opacity, transform",
+            }}
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={src}
-              alt=""
-              className="h-full w-full object-cover"
-              style={{ animation: `${i % 2 ? "kiosk-drift-b" : "kiosk-drift-a"} ${SLIDE_MS + 3000}ms ease-out forwards` }}
-            />
+            <img src={src} alt="" className="h-full w-full object-cover" />
           </div>
         );
       })}

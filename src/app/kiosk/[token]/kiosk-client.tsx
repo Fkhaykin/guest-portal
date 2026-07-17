@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { CheckCircle2, XCircle } from "lucide-react";
 import type { KioskContent, KioskData, KioskScreen } from "./types";
-import { KioskThemeContext, type KioskTheme } from "./ui";
+import { KioskThemeContext, useNow, type KioskTheme, type KioskThemeMode } from "./ui";
 import { useUnlockGesture } from "./use-unlock-gesture";
 import { AttractScreen } from "./attract-screen";
 import { PinScreen } from "./pin-screen";
@@ -28,6 +28,9 @@ const SESSION_KEY = "guest-portal-session";
 const TOKEN_KEY = "guest-portal-token";
 const KIOSK_RETURN_KEY = "kiosk-return-url";
 const DEVICE_KEY = "kiosk-device-key";
+// Last reservation the device reset its theme for — lets each new booking start
+// on "auto" while a within-booking pin (light/dark) sticks. See below.
+const THEME_BOOKING_KEY = "kiosk-theme-booking";
 
 const REFETCH_MS = 15 * 60 * 1000;
 const IDLE_MS = 90 * 1000; // any screen → attract after 90s untouched
@@ -38,19 +41,39 @@ const RELOAD_HOUR = 4; // nightly self-reload picks up deploys, clears leaks
 // trailing click can otherwise land on whatever tile mounts under the finger.
 const WAKE_GUARD_MS = 500;
 
-// Kiosk light/dark theme, persisted per-device. useSyncExternalStore keeps it
+// Kiosk theme mode, persisted per-device. useSyncExternalStore keeps it
 // out of an effect (no cascading-render lint) and in sync across the tree.
+// "auto" (default) tracks the house's local time of day; "light"/"dark" pin it.
 const THEME_KEY = "kiosk-theme";
-function readTheme(): KioskTheme {
+function readMode(): KioskThemeMode {
   try {
-    return localStorage.getItem(THEME_KEY) === "light" ? "light" : "dark";
+    const v = localStorage.getItem(THEME_KEY);
+    return v === "light" || v === "dark" ? v : "auto";
   } catch {
-    return "dark";
+    return "auto";
   }
 }
 function subscribeTheme(cb: () => void) {
   window.addEventListener("kiosk-theme-change", cb);
   return () => window.removeEventListener("kiosk-theme-change", cb);
+}
+
+// Daytime (7am–7pm) at the house is light; night is dark. `now` re-evaluates
+// on a minute ticker so the kiosk flips at the boundary without a reload.
+function resolveAutoTheme(timezone: string | null, now: Date): KioskTheme {
+  let hour: number;
+  try {
+    hour = Number(
+      new Intl.DateTimeFormat("en-US", {
+        timeZone: timezone ?? undefined,
+        hour: "numeric",
+        hourCycle: "h23",
+      }).format(now)
+    );
+  } catch {
+    hour = now.getHours(); // invalid tz string — fall back to device local time
+  }
+  return hour >= 7 && hour < 19 ? "light" : "dark";
 }
 
 export function KioskClient({ token }: { token: string }) {
@@ -69,9 +92,10 @@ export function KioskClient({ token }: { token: string }) {
   const idleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wokeAtRef = useRef(0);
 
-  const theme = useSyncExternalStore(subscribeTheme, readTheme, () => "dark" as KioskTheme);
+  const mode = useSyncExternalStore(subscribeTheme, readMode, () => "auto" as KioskThemeMode);
   const toggleTheme = useCallback(() => {
-    const next: KioskTheme = readTheme() === "dark" ? "light" : "dark";
+    const cur = readMode();
+    const next: KioskThemeMode = cur === "auto" ? "light" : cur === "light" ? "dark" : "auto";
     try {
       localStorage.setItem(THEME_KEY, next);
     } catch {
@@ -79,6 +103,27 @@ export function KioskClient({ token }: { token: string }) {
     }
     window.dispatchEvent(new Event("kiosk-theme-change"));
   }, []);
+  // In auto mode the theme follows the house clock; the minute ticker flips it
+  // at 7am/7pm. Pinned light/dark ignore the clock.
+  const themeTick = useNow(60 * 1000);
+  const theme: KioskTheme =
+    mode === "auto" ? resolveAutoTheme(data?.property.timezone ?? null, themeTick) : mode;
+
+  // Each new booking starts on "auto"; a guest's light/dark pin then sticks for
+  // the rest of their stay. Reset when the reservation on the device changes.
+  const bookingId = data?.booking?.reservation.id ?? null;
+  useEffect(() => {
+    if (!bookingId) return;
+    try {
+      if (localStorage.getItem(THEME_BOOKING_KEY) !== bookingId) {
+        localStorage.setItem(THEME_BOOKING_KEY, bookingId);
+        localStorage.setItem(THEME_KEY, "auto");
+        window.dispatchEvent(new Event("kiosk-theme-change"));
+      }
+    } catch {
+      // storage unavailable — no per-booking reset, mode just stays as-is
+    }
+  }, [bookingId]);
 
   // Hidden staff gesture — corners clockwise (TL→TR→BR→BL) then center ×4 —
   // escapes this locked single-house display back to the house selector.
@@ -391,7 +436,7 @@ export function KioskClient({ token }: { token: string }) {
   return (
     // `dark` (dark mode only) scopes shadcn/promo-accent dark: variants; the
     // .kiosk-canvas/.kiosk-light classes drive the --k-* neutral palette.
-    <KioskThemeContext.Provider value={{ theme, toggle: toggleTheme }}>
+    <KioskThemeContext.Provider value={{ theme, mode, toggle: toggleTheme }}>
     <div
       className={`kiosk-canvas ${theme === "dark" ? "dark" : "kiosk-light"} fixed inset-0 z-50 select-none overflow-hidden bg-(--k-bg) text-(--k-fg) font-(family-name:--font-plus-jakarta)`}
     >
