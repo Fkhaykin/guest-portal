@@ -122,7 +122,7 @@ export function MainScreen({
     ...(booking
       ? [
           { label: "Upgrades", href: `/p/${slug}/add-ons`, icon: Sparkles, image: "/kiosk-upgrades-picnic.jpg" } as Tile,
-          { label: "Delivery & Rides", href: `/p/${slug}/delivery`, icon: Truck } as Tile,
+          { label: "Delivery & Rides", href: `/p/${slug}/delivery`, icon: Truck, image: "/kiosk-delivery.jpg" } as Tile,
         ]
       : []),
     ...(data.house_photo_count > 0
