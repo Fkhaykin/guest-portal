@@ -11,11 +11,22 @@ import {
   PawPrint,
   UserRound,
   Users,
+  Wifi,
 } from "lucide-react";
 import type { KioskData, KioskNextBooking } from "../types";
 import { useNow } from "../ui";
 
 const SLIDE_MS = 12000;
+
+// Per the Wi-Fi QR spec, these characters must be backslash-escaped in SSID/pass.
+function escapeWifi(value: string): string {
+  return value.replace(/([\\;,:"])/g, "\\$1");
+}
+function wifiQrPayload(ssid: string, password: string | null): string {
+  return password
+    ? `WIFI:T:WPA;S:${escapeWifi(ssid)};P:${escapeWifi(password)};;`
+    : `WIFI:T:nopass;S:${escapeWifi(ssid)};;`;
+}
 
 function nightsBetween(checkIn: string, checkOut: string): number {
   return Math.round(
@@ -101,13 +112,41 @@ export function CleanerScreen({ data }: { data: KioskData }) {
   const now = useNow(1000);
   const [slide, setSlide] = useState(0);
   const [weatherOpen, setWeatherOpen] = useState(false);
+  const [wifiQr, setWifiQr] = useState<string | null>(null);
   const photos = data.photos;
+  const wifi = data.wifi;
 
   useEffect(() => {
     if (photos.length < 2) return;
     const t = setInterval(() => setSlide((s) => (s + 1) % photos.length), SLIDE_MS);
     return () => clearInterval(t);
   }, [photos.length]);
+
+  // Wi-Fi QR — so the crew can join without hunting for the password.
+  useEffect(() => {
+    if (!wifi?.ssid) {
+      setWifiQr(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const QRCode = (await import("qrcode")).default;
+        const dataUrl = await QRCode.toDataURL(wifiQrPayload(wifi.ssid, wifi.password), {
+          width: 320,
+          margin: 1,
+          errorCorrectionLevel: "M",
+          color: { dark: "#0a0a0a", light: "#ffffff" },
+        });
+        if (!cancelled) setWifiQr(dataUrl);
+      } catch {
+        // No QR — the network name + password are still shown below it.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [wifi?.ssid, wifi?.password]);
 
   // Scale the content block down to fit the viewport so the kiosk never needs
   // to scroll, whatever the screen's aspect ratio. Transforms don't affect the
@@ -314,6 +353,36 @@ export function CleanerScreen({ data }: { data: KioskData }) {
                 )}
               </Widget>
             </div>
+
+            {wifi?.ssid && (
+              <Widget icon={<Wifi className="h-5 w-5" />} title="House Wi-Fi" className="w-full">
+                <div className="flex items-center gap-6">
+                  {wifiQr && (
+                    <div className="shrink-0 rounded-2xl bg-white p-2.5">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={wifiQr} alt="Scan to join the Wi-Fi" className="h-28 w-28 lg:h-32 lg:w-32" />
+                    </div>
+                  )}
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold uppercase tracking-[0.2em] text-white/50">Network</p>
+                    <p className="mt-1 truncate text-2xl font-bold leading-tight text-white lg:text-3xl">
+                      {wifi.ssid}
+                    </p>
+                    {wifi.password && (
+                      <p className="mt-3 text-base text-white/70">
+                        Password{" "}
+                        <span className="text-xl font-bold text-white tabular-nums lg:text-2xl">
+                          {wifi.password}
+                        </span>
+                      </p>
+                    )}
+                    {wifiQr && (
+                      <p className="mt-2 text-sm text-white/45">Scan the code to join without typing.</p>
+                    )}
+                  </div>
+                </div>
+              </Widget>
+            )}
 
             <p className="max-w-lg text-center text-sm text-white/50">
               This screen switches to the guest welcome automatically at check-in.

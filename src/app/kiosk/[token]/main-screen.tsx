@@ -111,24 +111,24 @@ export function MainScreen({
   const primary: Tile[] = booking
     ? [
         res!.signature_url
-          ? { label: "Edit Guests, Pets & Vehicles", href: `/p/${slug}/update`, icon: PenLine }
-          : { label: "Register", href: `/p/${slug}/register`, icon: ClipboardList },
+          ? { label: "Edit Guests, Pets & Vehicles", href: `/p/${slug}/update`, icon: PenLine, image: "/kiosk-edit-registration.jpg" }
+          : { label: "Register", href: `/p/${slug}/register`, icon: ClipboardList, image: "/kiosk-edit-registration.jpg" },
         { label: "Extend Your Stay", href: `/p/${slug}/extend-stay`, icon: CalendarPlus },
-        { label: "Tip the Crew", screen: { kind: "tip" }, icon: HandCoins },
+        { label: "Tip the Crew", screen: { kind: "tip" }, icon: HandCoins, image: "/kiosk-tip-the-crew.jpg" },
       ]
     : [];
 
   const browse: Tile[] = [
     ...(booking
       ? [
-          { label: "Upgrades", href: `/p/${slug}/add-ons`, icon: Sparkles, image: "/upsells/luxury-picnic.jpg" } as Tile,
+          { label: "Upgrades", href: `/p/${slug}/add-ons`, icon: Sparkles, image: "/kiosk-upgrades-picnic.jpg" } as Tile,
           { label: "Delivery & Rides", href: `/p/${slug}/delivery`, icon: Truck } as Tile,
         ]
       : []),
     ...(data.house_photo_count > 0
       ? [{ label: "House Album", screen: { kind: "house-album" }, icon: GalleryVerticalEnd } as Tile]
       : []),
-    { label: "Explore", screen: { kind: "explore" }, icon: MapPin },
+    { label: "Explore", screen: { kind: "explore" }, icon: MapPin, image: "/kiosk-explore-bushkill.jpg" },
     ...(hasServices
       ? [{ label: "Services", screen: { kind: "services" }, icon: ShoppingBag } as Tile]
       : []),
