@@ -39,6 +39,7 @@ function hideBrokenImage(e: React.SyntheticEvent<HTMLImageElement>) {
 
 function MenuTile({
   gradient,
+  image,
   icon: Icon,
   title,
   subtitle,
@@ -46,32 +47,46 @@ function MenuTile({
   onClick,
 }: {
   gradient: string;
+  image?: string;
   icon: React.ComponentType<{ className?: string }>;
   title: string;
   subtitle: string;
   count: number;
   onClick: () => void;
 }) {
+  // Menu-board tile, matching the kiosk home grid: a big contextual photo under
+  // a bottom-up scrim with a frosted icon badge and a bold label. The category
+  // gradient stays as the base layer, so a missing photo degrades gracefully.
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`group relative flex min-h-44 flex-col justify-between overflow-hidden rounded-3xl bg-linear-to-br ${gradient} p-6 text-left ring-1 ring-white/10 transition-transform active:scale-[0.98]`}
+      className={`group relative flex items-end overflow-hidden bg-linear-to-br ${gradient} p-5 text-left ring-1 ring-white/10 transition-transform active:scale-[0.98] lg:p-6`}
     >
-      <div className="absolute inset-0 bg-black/15 transition-colors group-hover:bg-black/5" />
-      <div className="relative flex items-start justify-between">
-        <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/20 backdrop-blur-sm">
-          <Icon className="h-7 w-7 text-white" />
+      {image && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={image}
+          alt=""
+          loading="lazy"
+          onError={hideBrokenImage}
+          className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-active:scale-105"
+        />
+      )}
+      <div className="absolute inset-0 bg-linear-to-t from-black/85 via-black/40 to-black/10" />
+      <span className="absolute right-3 top-3 rounded-full bg-black/40 px-3 py-1 text-sm font-semibold text-white/90 backdrop-blur-sm">
+        {count}
+      </span>
+      <div className="relative flex min-w-0 items-center gap-3 lg:gap-4">
+        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/20 text-white ring-1 ring-white/30 backdrop-blur-md lg:h-14 lg:w-14">
+          <Icon className="h-6 w-6 lg:h-7 lg:w-7" />
         </span>
-        <span className="rounded-full bg-black/25 px-3 py-1 text-sm font-semibold text-white/90">
-          {count}
-        </span>
-      </div>
-      <div className="relative">
-        <h3 className="text-2xl font-extrabold leading-tight text-white drop-shadow-sm">
-          {title}
-        </h3>
-        <p className="mt-1 line-clamp-2 text-sm font-medium text-white/85">{subtitle}</p>
+        <div className="min-w-0">
+          <h3 className="text-xl font-extrabold leading-tight text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.6)] lg:text-2xl">
+            {title}
+          </h3>
+          <p className="mt-0.5 line-clamp-1 text-sm font-medium text-white/80">{subtitle}</p>
+        </div>
       </div>
     </button>
   );
@@ -100,7 +115,8 @@ function GridCard({
     <button
       type="button"
       onClick={onClick}
-      className={`group flex flex-col overflow-hidden text-left transition-transform active:scale-[0.98] ${glassPanel}`}
+      // Squared-off take on the glass panel to match the menu-board tiles.
+      className="group flex flex-col overflow-hidden bg-(--k-surf-07) text-left ring-1 ring-(--k-surf-10) backdrop-blur-md transition-transform active:scale-[0.98]"
     >
       <div className="relative">
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -282,7 +298,7 @@ export function ExploreScreen({
         )
       ) : openTile ? (
         /* Level 2 — grid of activities / amenities */
-        <div className="grid grid-cols-2 gap-4 pb-6 lg:grid-cols-3 lg:gap-5">
+        <div className="grid grid-cols-2 gap-2 pb-6 lg:grid-cols-3">
           {openTile.kind === "community"
             ? openTile.amenities.map((amenity) => (
                 <GridCard
@@ -306,13 +322,17 @@ export function ExploreScreen({
               ))}
         </div>
       ) : (
-        /* Level 1 — category menu */
-        <div className="grid grid-cols-2 gap-4 pb-6 lg:grid-cols-3 lg:gap-5">
+        /* Level 1 — category menu board: fills the screen, no scrolling.
+           Each tile wears its section's best photo (featured first). */
+        <div className="grid h-full auto-rows-fr grid-cols-2 gap-2 lg:grid-cols-3">
           {tiles.map((tile) =>
             tile.kind === "community" ? (
               <MenuTile
                 key="community"
                 gradient={tile.community.gradient}
+                image={
+                  (tile.amenities.find((a) => a.featured) ?? tile.amenities[0])?.image
+                }
                 icon={Home}
                 title="Your Community"
                 subtitle={tile.community.name}
@@ -323,6 +343,7 @@ export function ExploreScreen({
               <MenuTile
                 key={tile.category.key}
                 gradient={tile.category.gradient}
+                image={tile.category.activities[0]?.image}
                 icon={tile.category.icon}
                 title={tile.category.title}
                 subtitle={tile.category.subtitle}

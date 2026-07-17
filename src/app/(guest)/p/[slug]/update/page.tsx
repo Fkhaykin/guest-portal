@@ -866,21 +866,28 @@ export default function UpdateRegistrationPage() {
 
         {/* Step 1: Category selection */}
         {deliveryStep === 1 && (
-          <div className="grid gap-4">
+          <div className="grid gap-4 kiosk-grid kiosk-grid-3">
             {[
-              { id: "rideshare" as DeliveryCategory, label: "Ride Share", description: "Uber, Lyft, Taxi", icon: Car },
-              { id: "food_grocery" as DeliveryCategory, label: "Food / Grocery Delivery", description: "DoorDash, Walmart, and more", icon: ShoppingBag },
+              { id: "rideshare" as DeliveryCategory, label: "Ride Share", description: "Uber, Lyft, Taxi", logo: "/logos/uber.png", logoBg: "bg-black", icon: Car },
+              { id: "food_grocery" as DeliveryCategory, label: "Food / Grocery", description: "DoorDash, Walmart, and more", logo: "/logos/doordash.png", logoBg: "bg-white p-3", icon: ShoppingBag },
               { id: "other" as DeliveryCategory, label: "Other", description: "Any other delivery or service", icon: Package },
             ].map((item) => (
               <Card
                 key={item.id}
-                className={`cursor-pointer transition-all hover:border-primary ${deliveryCategory === item.id ? "border-primary ring-2 ring-primary/20" : ""}`}
+                className={`h-full cursor-pointer transition-all hover:border-primary ${deliveryCategory === item.id ? "border-primary ring-2 ring-primary/20" : ""}`}
                 onClick={() => { setDeliveryCategory(item.id); setDeliveryProvider(null); setDeliveryStep(2); }}
               >
-                <CardContent className="flex items-center gap-4 p-6">
-                  <div className="rounded-xl bg-primary/10 p-4">
-                    <item.icon className="h-8 w-8 text-primary" />
-                  </div>
+                <CardContent className="flex h-full items-center gap-4 p-6">
+                  {item.logo ? (
+                    <div className={`flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl ${item.logoBg ?? ""}`}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={item.logo} alt={item.label} className="h-full w-full object-contain" />
+                    </div>
+                  ) : (
+                    <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+                      <item.icon className="h-8 w-8 text-primary" />
+                    </div>
+                  )}
                   <div>
                     <p className="font-semibold text-lg">{item.label}</p>
                     <p className="text-sm text-muted-foreground">{item.description}</p>

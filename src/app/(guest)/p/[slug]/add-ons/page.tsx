@@ -213,6 +213,9 @@ export default function UpgradesPage() {
   function addToCart(item: CartItem) {
     if (cart.some((c) => c.type === item.type)) return;
     setCart([...cart, item]);
+    // Adding is the modal's job done — close it so the guest sees the cart
+    // update (kiosk rail / cart button) instead of a stale dialog.
+    setOpenType(null);
   }
 
   function removeFromCart(type: string) {
