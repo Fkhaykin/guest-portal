@@ -96,6 +96,10 @@ export type UpsellEntry = {
   price_cents: number;
   stripe_session_id?: string;
   status: string;
+  // Admin-issued Stripe refunds. Partial refunds accumulate in refunded_cents;
+  // status flips to "refunded" once the full price is returned.
+  refunded_cents?: number;
+  refunded_at?: string;
   meta?: Record<string, unknown>;
 };
 

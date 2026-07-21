@@ -63,13 +63,14 @@ import {
   ShieldAlert,
   Star,
   TriangleAlert,
+  Undo2,
 } from "lucide-react";
 import { EditRegistrationDialog } from "@/components/admin/edit-registration-dialog";
 import { ReservationMessages } from "@/components/admin/reservation-messages";
 import { toneBadge, statusTone, type Tone } from "@/lib/status-styles";
 import { effectiveStayTimes } from "@/lib/upsells/timing";
 import { computeHoaRegistrationFee } from "@/lib/hoa/fees";
-import type { CleaningPhoto, CleaningPhotoExif } from "@/types/database";
+import type { CleaningPhoto, CleaningPhotoExif, UpsellEntry } from "@/types/database";
 import {
   getReservationCore,
   getReservationExtras,
@@ -138,6 +139,14 @@ export default function ReservationDetailPage() {
   const [cancelling, setCancelling] = useState(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
   const [cancelWarning, setCancelWarning] = useState<string | null>(null);
+  // idx is the entry's position in the RAW reg.upsells array — the refund API
+  // targets the JSONB element by index.
+  const [refundTarget, setRefundTarget] = useState<{ idx: number; u: UpsellEntry } | null>(null);
+  const [refundAmount, setRefundAmount] = useState("");
+  const [refundReason, setRefundReason] = useState("");
+  const [refunding, setRefunding] = useState(false);
+  const [refundError, setRefundError] = useState<string | null>(null);
+  const [refundWarning, setRefundWarning] = useState<string | null>(null);
 
   const loadData = useCallback(
     async (opts?: { force?: boolean }) => {
@@ -355,6 +364,58 @@ export default function ReservationDetailPage() {
     }
   }
 
+  function openRefund(idx: number, u: UpsellEntry) {
+    const remaining = u.price_cents - (u.refunded_cents ?? 0);
+    setRefundTarget({ idx, u });
+    setRefundAmount((remaining / 100).toFixed(2));
+    setRefundReason("");
+    setRefundError(null);
+    setRefundWarning(null);
+  }
+
+  async function confirmRefund() {
+    if (!refundTarget) return;
+    const remaining = refundTarget.u.price_cents - (refundTarget.u.refunded_cents ?? 0);
+    const cents = Math.round(parseFloat(refundAmount) * 100);
+    if (!Number.isFinite(cents) || cents < 1 || cents > remaining) {
+      setRefundError(`Enter an amount between $0.01 and ${fmtUSD(remaining)}`);
+      return;
+    }
+    setRefunding(true);
+    setRefundError(null);
+    try {
+      const res = await fetch("/api/admin/registration/refund", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          registration_id: id,
+          upsell_index: refundTarget.idx,
+          stripe_session_id: refundTarget.u.stripe_session_id,
+          upsell_type: refundTarget.u.type,
+          amount_cents: cents,
+          reason: refundReason,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setRefundError(data.error || "Refund failed");
+        return;
+      }
+      if (data.warning) {
+        // Refund went through in Stripe but the local write failed — keep the
+        // dialog open so the admin sees it before moving on.
+        setRefundWarning(data.warning);
+      } else {
+        setRefundTarget(null);
+      }
+      await loadData({ force: true });
+    } catch (err) {
+      setRefundError(err instanceof Error ? err.message : "Network error");
+    } finally {
+      setRefunding(false);
+    }
+  }
+
   // Open the guest-facing payment page. /pay/[id] is a shared (non-prefixed)
   // route, so on the admin subdomain it must be opened on the guest host —
   // otherwise the proxy prepends /admin and 404s.
@@ -439,7 +500,17 @@ export default function ReservationDetailPage() {
   // fee. A direct booking already collects the whole stay through Stripe, so the
   // payout-vs-Stripe split doesn't apply and everything shows together.
   const portalUpsells = upsells; // already filtered to status === "paid"
-  const portalCollectedCents = portalUpsells.reduce((s, u) => s + u.price_cents, 0);
+  // Raw-array indices ride along so the refund API can target the exact JSONB
+  // entry; issued refunds net out of the collected total.
+  const allUpsells = reg.upsells ?? [];
+  const portalRows = allUpsells
+    .map((u, idx) => ({ u, idx }))
+    .filter(({ u }) => u.status === "paid");
+  const refundedUpsells = allUpsells.filter((u) => u.status === "refunded");
+  const portalCollectedCents = portalUpsells.reduce(
+    (s, u) => s + u.price_cents - (u.refunded_cents ?? 0),
+    0
+  );
   const numPetsForCost = pets.length || reg.lodgify_num_pets || 0;
   const cleanerCostCents = property?.cleaning_fee_cents ?? 0;
   const petCostCents = (property?.pet_fee_cents ?? 0) * numPetsForCost;
@@ -462,7 +533,7 @@ export default function ReservationDetailPage() {
   // still appear under portal add-ons above; here they're deducted back out.
   const crewTipsCents = portalUpsells
     .filter((u) => u.type.startsWith("tip_") || u.label.startsWith("Tip"))
-    .reduce((s, u) => s + u.price_cents, 0);
+    .reduce((s, u) => s + u.price_cents - (u.refunded_cents ?? 0), 0);
   const totalCostsCents = cleanerCostCents + petCostCents + hoaFeeCents + crewTipsCents;
   const hasCosts = totalCostsCents > 0;
   const isDirectBooking =
@@ -869,32 +940,65 @@ export default function ReservationDetailPage() {
                     separate from the channel payout above; for direct bookings
                     it's all one Stripe collection. Costs are what we pay the
                     cleaner (property cleaner rate + per-pet fee). */}
-                {(portalCollectedCents > 0 || hasCosts) && (
+                {(portalRows.length > 0 || refundedUpsells.length > 0 || hasCosts) && (
                   <div className="space-y-1">
-                    {portalCollectedCents > 0 && (
+                    {(portalRows.length > 0 || refundedUpsells.length > 0) && (
                       <>
                         <Separator className="my-1" />
                         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                           {isDirectBooking ? "Portal add-ons" : "Portal add-ons · via Stripe"}
                         </p>
-                        {portalUpsells.map((u, i) => {
+                        {portalRows.map(({ u, idx }) => {
                           const schedule = upsellScheduleLines(u.meta);
+                          const refunded = u.refunded_cents ?? 0;
                           return (
-                            <div key={`portal-${i}`} className="flex justify-between gap-4">
+                            <div key={`portal-${idx}`} className="flex justify-between gap-4">
                               <div className="min-w-0">
                                 <span className="text-muted-foreground">{u.label}</span>
                                 {schedule.map((line, j) => (
                                   <div key={j} className="text-xs text-muted-foreground/80">{line}</div>
                                 ))}
+                                {refunded > 0 && (
+                                  <div className="text-xs text-warning">
+                                    {fmtUSD(refunded)} of {fmtUSD(u.price_cents)} refunded
+                                  </div>
+                                )}
                               </div>
-                              <span className="text-right shrink-0">{fmtUSD(u.price_cents)}</span>
+                              <div className="flex items-center gap-1 shrink-0">
+                                <span className="text-right">{fmtUSD(u.price_cents - refunded)}</span>
+                                {u.stripe_session_id && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-6 px-1.5 text-xs text-muted-foreground hover:text-destructive"
+                                    onClick={() => openRefund(idx, u)}
+                                  >
+                                    <Undo2 className="h-3 w-3 mr-0.5" /> Refund
+                                  </Button>
+                                )}
+                              </div>
                             </div>
                           );
                         })}
-                        <div className="flex justify-between font-medium">
-                          <span>{isDirectBooking ? "Collected via Stripe" : "Paid out via Stripe"}</span>
-                          <span>{fmtUSD(portalCollectedCents)}</span>
-                        </div>
+                        {refundedUpsells.map((u, i) => (
+                          <div key={`refunded-${i}`} className="flex justify-between gap-4">
+                            <span className="text-muted-foreground min-w-0">
+                              {u.label}
+                              <span className={`ml-1.5 inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${toneBadge("warning")}`}>
+                                Refunded{u.refunded_at ? ` ${new Date(u.refunded_at).toLocaleDateString()}` : ""}
+                              </span>
+                            </span>
+                            <span className="text-right shrink-0 text-muted-foreground line-through">
+                              {fmtUSD(u.price_cents)}
+                            </span>
+                          </div>
+                        ))}
+                        {portalCollectedCents > 0 && (
+                          <div className="flex justify-between font-medium">
+                            <span>{isDirectBooking ? "Collected via Stripe" : "Paid out via Stripe"}</span>
+                            <span>{fmtUSD(portalCollectedCents)}</span>
+                          </div>
+                        )}
                       </>
                     )}
                     {hasCosts && (
@@ -1829,6 +1933,87 @@ export default function ReservationDetailPage() {
               )}
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Refund add-on dialog */}
+      <Dialog open={!!refundTarget} onOpenChange={(open) => { if (!open && !refunding) setRefundTarget(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Refund this add-on?</DialogTitle>
+            <DialogDescription>
+              {refundTarget ? `${refundTarget.u.label} · ${guest?.full_name ?? "Guest"}` : ""}
+            </DialogDescription>
+          </DialogHeader>
+          {refundTarget && (() => {
+            const prior = refundTarget.u.refunded_cents ?? 0;
+            const remaining = refundTarget.u.price_cents - prior;
+            const parsedCents = Math.round(parseFloat(refundAmount) * 100);
+            return (
+              <div className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  The refund goes back to the guest&apos;s original payment method through Stripe
+                  (typically 5–10 business days).
+                  {prior > 0 && ` ${fmtUSD(prior)} of ${fmtUSD(refundTarget.u.price_cents)} has already been refunded.`}
+                </p>
+                {refundTarget.u.type === "extend_stay" && (
+                  <p className={`text-sm rounded-md px-3 py-2 ${toneBadge("warning")}`}>
+                    Refunding does not undo the stay extension — the check-out date and its
+                    Lodgify hold stay in place. Edit the booking dates separately if the
+                    extra nights should be released.
+                  </p>
+                )}
+                {(refundTarget.u.type === "early_checkin" || refundTarget.u.type === "late_checkout") && (
+                  <p className={`text-sm rounded-md px-3 py-2 ${toneBadge("warning")}`}>
+                    A full refund removes the{" "}
+                    {refundTarget.u.type === "early_checkin" ? "early check-in" : "late check-out"} from
+                    this stay, so times revert to standard. Cleaners are not re-notified automatically.
+                  </p>
+                )}
+                <div className="space-y-1">
+                  <label htmlFor="refund-amount" className="text-sm font-medium">Amount</label>
+                  <Input
+                    id="refund-amount"
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    max={(remaining / 100).toFixed(2)}
+                    value={refundAmount}
+                    onChange={(e) => setRefundAmount(e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground">Up to {fmtUSD(remaining)}</p>
+                </div>
+                <div className="space-y-1">
+                  <label htmlFor="refund-reason" className="text-sm font-medium">Reason (optional)</label>
+                  <Input
+                    id="refund-reason"
+                    placeholder="Guest cancelled late check-out…"
+                    value={refundReason}
+                    onChange={(e) => setRefundReason(e.target.value)}
+                  />
+                </div>
+                {refundError && <p className="text-sm text-destructive">{refundError}</p>}
+                {refundWarning && (
+                  <p className={`text-sm rounded-md px-3 py-2 ${toneBadge("warning")}`}>{refundWarning}</p>
+                )}
+                <div className="flex justify-end gap-2">
+                  {refundWarning ? (
+                    <Button variant="outline" onClick={() => setRefundTarget(null)}>Close</Button>
+                  ) : (
+                    <>
+                      <Button variant="outline" onClick={() => setRefundTarget(null)} disabled={refunding}>
+                        Keep charge
+                      </Button>
+                      <Button variant="destructive" onClick={confirmRefund} disabled={refunding}>
+                        {refunding && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                        Refund{Number.isFinite(parsedCents) && parsedCents > 0 ? ` ${fmtUSD(Math.min(parsedCents, remaining))}` : ""}
+                      </Button>
+                    </>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
         </DialogContent>
       </Dialog>
 
