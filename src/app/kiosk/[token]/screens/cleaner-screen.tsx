@@ -162,7 +162,9 @@ export function CleanerScreen({ data }: { data: KioskData }) {
       const avail = box.clientHeight;
       const needed = content.scrollHeight;
       if (!avail || !needed) return;
-      setScale(needed > avail ? Math.max(0.5, (avail / needed) * 0.98) : 1);
+      // 0.4 floor: below that the crew can't read it anyway — but the floor
+      // must stay under what a 720p band needs, or the greeting gets clipped.
+      setScale(needed > avail ? Math.max(0.4, (avail / needed) * 0.98) : 1);
     };
     fit();
     const ro = new ResizeObserver(fit);
@@ -246,7 +248,15 @@ export function CleanerScreen({ data }: { data: KioskData }) {
               </p>
             </div>
 
-            <div className="grid w-full items-start gap-6 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
+            {/* Landscape-first: Wi-Fi rides as a third column so the stack stays
+                short enough to fit a 16:9 band without heavy downscaling. */}
+            <div
+              className={`grid w-full items-start gap-6 ${
+                wifi?.ssid
+                  ? "lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.35fr)_minmax(0,0.7fr)]"
+                  : "lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]"
+              }`}
+            >
               {/* Next arrival — countdown-forward */}
               <Widget icon={<UserRound className="h-5 w-5" />} title="Next arrival">
                 {next ? (
@@ -352,37 +362,35 @@ export function CleanerScreen({ data }: { data: KioskData }) {
                   <p className="text-lg text-white/70">No upcoming stays on the calendar.</p>
                 )}
               </Widget>
-            </div>
 
-            {wifi?.ssid && (
-              <Widget icon={<Wifi className="h-5 w-5" />} title="House Wi-Fi" className="w-full">
-                <div className="flex items-center gap-6">
-                  {wifiQr && (
-                    <div className="shrink-0 rounded-2xl bg-white p-2.5">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={wifiQr} alt="Scan to join the Wi-Fi" className="h-28 w-28 lg:h-32 lg:w-32" />
-                    </div>
-                  )}
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold uppercase tracking-[0.2em] text-white/50">Network</p>
-                    <p className="mt-1 truncate text-2xl font-bold leading-tight text-white lg:text-3xl">
-                      {wifi.ssid}
-                    </p>
-                    {wifi.password && (
-                      <p className="mt-3 text-base text-white/70">
-                        Password{" "}
-                        <span className="text-xl font-bold text-white tabular-nums lg:text-2xl">
-                          {wifi.password}
-                        </span>
-                      </p>
-                    )}
+              {wifi?.ssid && (
+                <Widget icon={<Wifi className="h-5 w-5" />} title="House Wi-Fi">
+                  <div className="flex flex-col items-center gap-4 text-center">
                     {wifiQr && (
-                      <p className="mt-2 text-sm text-white/45">Scan the code to join without typing.</p>
+                      <div className="rounded-2xl bg-white p-2.5">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={wifiQr} alt="Scan to join the Wi-Fi" className="h-28 w-28 lg:h-36 lg:w-36" />
+                      </div>
                     )}
+                    <div className="min-w-0">
+                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/50">Network</p>
+                      <p className="mt-1 wrap-break-word text-xl font-bold leading-tight text-white">
+                        {wifi.ssid}
+                      </p>
+                      {wifi.password && (
+                        <p className="mt-2 text-sm text-white/70">
+                          Password{" "}
+                          <span className="text-lg font-bold text-white tabular-nums">{wifi.password}</span>
+                        </p>
+                      )}
+                      {wifiQr && (
+                        <p className="mt-1.5 text-xs text-white/45">Scan to join without typing.</p>
+                      )}
+                    </div>
                   </div>
-                </div>
-              </Widget>
-            )}
+                </Widget>
+              )}
+            </div>
 
             <p className="max-w-lg text-center text-sm text-white/50">
               This screen switches to the guest welcome automatically at check-in.
