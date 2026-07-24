@@ -333,11 +333,19 @@ export async function POST(
 
   // Lodgify's send API is reservation-scoped, but these threads are
   // pre-booking enquiries (inbox_uid "E<id>") with no reservation — Lodgify
-  // exposes no way to answer them via API. Point the host at the channel the
-  // enquiry actually arrived on rather than hardcoding one OTA.
+  // exposes no way to answer them via API. Name the channel the enquiry
+  // actually arrived on when the thread knows it.
   if (bookingId.startsWith("thread:")) {
+    const { data: thread } = await createAdminClient()
+      .from("guest_message_thread")
+      .select("channel")
+      .eq("thread_uid", bookingId.slice("thread:".length))
+      .maybeSingle();
+    const inbox = thread?.channel
+      ? `the ${thread.channel} inbox`
+      : "the Airbnb, Vrbo, or Lodgify inbox where it came in";
     return NextResponse.json(
-      { error: "This is a pre-booking enquiry with no reservation yet, so it can't be answered here. Reply from the Airbnb, Vrbo, or Lodgify inbox where it came in." },
+      { error: `This is a pre-booking enquiry with no reservation yet, so it can't be answered here. Reply from ${inbox}.` },
       { status: 400 }
     );
   }

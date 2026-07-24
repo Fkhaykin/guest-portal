@@ -29,14 +29,33 @@ export interface LodgifyMessage {
   attachments?: MessageAttachment[];
 }
 
+// Pre-booking enquiry messages carry route: null, but Lodgify encodes the OTA
+// in each subject line — "vrbo: 3dafa3d0-…, 07/24/2026 14:09:25". Only exact
+// known prefixes map (an ordinary subject like "Re: hello" must never match),
+// spelled the way route strings spell them so both paths yield one vocabulary.
+const SUBJECT_CHANNEL_PREFIXES: Record<string, string> = {
+  vrbo: "Vrbo",
+  homeaway: "Vrbo",
+  airbnb: "Airbnb",
+  bookingcom: "Booking.com",
+  "booking.com": "Booking.com",
+  expedia: "Expedia",
+};
+
 /**
  * Pick the channel for a thread from its messages. Lodgify only stamps "route"
- * on some messages (often the Owner reply), so take the first non-empty one.
+ * on some messages (often the Owner reply), so take the first non-empty one;
+ * enquiry threads never carry route, so fall back to the subject prefix.
  */
 export function deriveChannel(messages: LodgifyMessage[]): string | null {
   for (const m of messages) {
     const r = m.route?.trim();
     if (r) return r;
+  }
+  for (const m of messages) {
+    const prefix = m.subject?.split(":", 1)[0]?.trim().toLowerCase();
+    const mapped = prefix ? SUBJECT_CHANNEL_PREFIXES[prefix] : undefined;
+    if (mapped) return mapped;
   }
   return null;
 }
