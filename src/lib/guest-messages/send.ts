@@ -1,7 +1,8 @@
 import { Resend } from "resend";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendMessage } from "@/lib/lodgify/messages";
-import { TEMPLATES, PORTAL_URL, interpolate, firstNameOf, registrationCta, type GuestMessageType, type GuestMessageChannel, type TemplateVars } from "./templates";
+import { TEMPLATES, PORTAL_URL, interpolate, firstNameOf, registrationCta, registrationInstructions, daysBetween, formatMessageDate, formatStayRange, type GuestMessageType, type GuestMessageChannel, type TemplateVars } from "./templates";
+import { todayInTz } from "@/lib/pricing/engine";
 import { HOUSE_CHECKIN_TEMPLATES, HOUSE_CHECKIN_SUBJECT } from "./house-templates";
 import { houseForProperty } from "./quick-replies";
 import { stayTimeVars } from "@/lib/upsells/timing";
@@ -92,11 +93,18 @@ export async function sendGuestAutomatedMessage(params: SendParams): Promise<voi
   const vars: TemplateVars = {
     guest_name: firstNameOf(params.guestName),
     property_name: params.propertyName,
-    check_in_date: params.checkInDate,
-    check_out_date: params.checkOutDate,
+    check_in_date: formatMessageDate(params.checkInDate),
+    check_out_date: formatMessageDate(params.checkOutDate),
+    // Compact single-line span for templates that show both dates together
+    // (e.g. "July 20 – 24, 2026" in the booking confirmation).
+    stay_dates: formatStayRange(params.checkInDate, params.checkOutDate),
     ...stayTimeVars(params.upsells),
     portal_link: PORTAL_URL,
     registration_cta: registrationCta(params.messageType, params.registered, PORTAL_URL),
+    // Last-minute bookings (booked inside the 5-day registration window) get an
+    // ASAP/rush ask instead of the standard "5 days before check-in" line. Uses
+    // the raw check-in date for the day math, not the formatted display string.
+    registration_instructions: registrationInstructions(daysBetween(todayInTz(), params.checkInDate)),
   };
 
   const defaults = TEMPLATES[params.messageType];
@@ -219,8 +227,8 @@ export async function sendHouseCheckinInstructions(params: SendParams): Promise<
   const vars: TemplateVars = {
     guest_name: firstNameOf(params.guestName),
     property_name: params.propertyName,
-    check_in_date: params.checkInDate,
-    check_out_date: params.checkOutDate,
+    check_in_date: formatMessageDate(params.checkInDate),
+    check_out_date: formatMessageDate(params.checkOutDate),
     ...stayTimeVars(params.upsells),
     portal_link: PORTAL_URL,
   };

@@ -1,7 +1,7 @@
 import { Resend } from "resend";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendMessage } from "@/lib/lodgify/messages";
-import { TEMPLATES, PORTAL_URL, interpolate, firstNameOf, isDirectBookingSource, type TemplateVars } from "./templates";
+import { TEMPLATES, PORTAL_URL, interpolate, firstNameOf, isDirectBookingSource, formatMessageDate, type TemplateVars } from "./templates";
 import { claimMessageSlot } from "./send";
 import { stayTimeVars } from "@/lib/upsells/timing";
 import { stripUrlsForSms } from "@/lib/sms/sanitize";
@@ -56,8 +56,8 @@ export async function sendRegistrationReminder(params: SendReminderParams): Prom
   const vars: TemplateVars = {
     guest_name: firstNameOf(params.guestName),
     property_name: params.propertyName,
-    check_in_date: params.checkInDate,
-    check_out_date: params.checkOutDate,
+    check_in_date: formatMessageDate(params.checkInDate),
+    check_out_date: formatMessageDate(params.checkOutDate),
     ...stayTimeVars(params.upsells),
     portal_link: PORTAL_URL,
   };

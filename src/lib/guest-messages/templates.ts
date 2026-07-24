@@ -81,9 +81,9 @@ export const TEMPLATES: Record<GuestMessageType, { subject: string; body: string
     subject: "Your booking is confirmed",
     body: `Hi {{guest_name}},
 
-Your stay at {{property_name}} is confirmed for {{check_in_date}}–{{check_out_date}}.
+Your stay at {{property_name}} is confirmed for {{stay_dates}}.
 
-Please complete your guest registration (required before check-in):
+{{registration_instructions}}
 {{portal_link}}
 
 We look forward to hosting you!`,
@@ -236,6 +236,94 @@ export function firstNameOf(fullName: string | null | undefined): string {
   return (fullName ?? "").trim().split(/\s+/)[0] ?? "";
 }
 
+// Renders a YYYY-MM-DD (or ISO) date as a friendly, property-local line for a
+// guest message — e.g. "Monday, July 20, 2026". Guests should never see a raw
+// "2026-07-20" in a message. Anchored at noon UTC and formatted in Eastern time
+// so the calendar day never rolls backward when the server runs in UTC. Empty
+// string for a missing date; the raw input is returned unchanged if unparseable
+// so a message can never show "Invalid Date".
+export function formatMessageDate(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const d = new Date(`${iso.slice(0, 10)}T12:00:00Z`);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString("en-US", {
+    timeZone: "America/New_York",
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+// The property-local month/day/year of a noon-UTC-anchored date, as strings.
+function easternYmd(d: Date): { month: string; day: string; year: string } {
+  const map: Record<string, string> = {};
+  for (const p of new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  }).formatToParts(d)) {
+    if (p.type !== "literal") map[p.type] = p.value;
+  }
+  return { month: map.month, day: map.day, year: map.year };
+}
+
+// Renders a check-in→check-out span as a compact, property-local range that
+// prints each shared component once: "July 20 – 24, 2026" (same month),
+// "July 30 – August 3, 2026" (same year), "December 30, 2026 – January 2, 2027"
+// (across a year boundary). Falls back to a single formatMessageDate when either
+// end is missing or unparseable.
+export function formatStayRange(
+  checkIn: string | null | undefined,
+  checkOut: string | null | undefined
+): string {
+  if (!checkIn || !checkOut) return formatMessageDate(checkIn ?? checkOut);
+  const start = new Date(`${checkIn.slice(0, 10)}T12:00:00Z`);
+  const end = new Date(`${checkOut.slice(0, 10)}T12:00:00Z`);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    return formatMessageDate(checkIn);
+  }
+  const s = easternYmd(start);
+  const e = easternYmd(end);
+  if (s.year !== e.year) {
+    return `${s.month} ${s.day}, ${s.year} – ${e.month} ${e.day}, ${e.year}`;
+  }
+  if (s.month !== e.month) {
+    return `${s.month} ${s.day} – ${e.month} ${e.day}, ${e.year}`;
+  }
+  return `${s.month} ${s.day} – ${e.day}, ${e.year}`;
+}
+
+// Whole calendar days from `fromIso` to `toIso` (both YYYY-MM-DD, midnight UTC).
+// Negative if `toIso` is in the past; null if either date is unparseable. Pass
+// a property-local "today" (see todayInTz) as `fromIso` so the count reflects
+// the guest's timezone rather than the server's.
+export function daysBetween(fromIso: string, toIso: string | null | undefined): number | null {
+  if (!toIso) return null;
+  const from = Date.parse(`${fromIso.slice(0, 10)}T00:00:00Z`);
+  const to = Date.parse(`${toIso.slice(0, 10)}T00:00:00Z`);
+  if (Number.isNaN(from) || Number.isNaN(to)) return null;
+  return Math.round((to - from) / 86_400_000);
+}
+
+// Guests are asked to register at least this many days before check-in. Booking
+// inside that window means the 5-day ask is already impossible, so the
+// confirmation switches to a rush-processing ASAP ask instead.
+export const REGISTRATION_LEAD_DAYS = 5;
+
+// The registration instruction line for the booking confirmation, chosen by how
+// far out the guest booked. A last-minute booking (fewer than REGISTRATION_LEAD_DAYS
+// days to check-in) is told to register ASAP because it has to be rush-processed;
+// everyone else gets the standard "at least 5 days before check-in" ask. An
+// unknown day count (unparseable date) falls back to the standard ask.
+export function registrationInstructions(daysUntilCheckIn: number | null): string {
+  if (daysUntilCheckIn !== null && daysUntilCheckIn < REGISTRATION_LEAD_DAYS) {
+    return "Please complete your guest registration as soon as possible — this is a last-minute booking, so your registration needs to be rush-processed before you can enter the community:";
+  }
+  return `Please complete your guest registration at least ${REGISTRATION_LEAD_DAYS} days before check-in (required to enter the community):`;
+}
+
 // The registration prompt is driven by actual status (we know whether they've
 // signed), not hedged "if you haven't already registered" wording: registered
 // guests get nothing; unregistered guests get a direct ask with the link. The
@@ -280,7 +368,7 @@ export function renderTemplate(
 // Variables exposed in the admin editor for each template, used to populate
 // the "available variables" badges. Keep in sync with the *Vars interfaces.
 export const TEMPLATE_VARIABLES: Record<GuestMessageType, string[]> = {
-  booking_confirmation: ["guest_name", "property_name", "check_in_date", "check_out_date", "check_in_time", "check_out_time", "portal_link"],
+  booking_confirmation: ["guest_name", "property_name", "stay_dates", "check_in_date", "check_out_date", "check_in_time", "check_out_time", "portal_link", "registration_instructions"],
   pre_arrival: ["guest_name", "property_name", "check_in_date", "check_out_date", "check_in_time", "check_out_time", "portal_link", "registration_cta"],
   day_of_checkin: ["guest_name", "property_name", "check_in_date", "check_out_date", "check_in_time", "check_out_time", "portal_link", "registration_cta"],
   settling_in: ["guest_name", "property_name", "check_in_date", "check_out_date", "check_in_time", "check_out_time", "portal_link"],
