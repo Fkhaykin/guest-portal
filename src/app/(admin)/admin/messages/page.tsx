@@ -35,7 +35,9 @@ import {
   houseForProperty,
   HOUSE_LABELS,
 } from "@/lib/guest-messages/quick-replies";
-import { firstNameOf, PORTAL_URL } from "@/lib/guest-messages/templates";
+import { firstNameOf, formatMessageDate, formatStayRange, PORTAL_URL } from "@/lib/guest-messages/templates";
+import { prefetchReservation } from "@/lib/reservations/prefetch";
+import { messagesNav } from "@/lib/admin/nav/messages";
 import { stayTimeVars } from "@/lib/upsells/timing";
 import { platformGlyph, PlatformLogo } from "@/components/admin/platform-logo";
 
@@ -115,13 +117,8 @@ export default function AdminMessagesPage() {
 
   async function loadConversations() {
     try {
-      const res = await fetch("/api/admin/messages");
-      const data = await res.json();
-      if (res.ok && data.conversations) {
-        setConversations(data.conversations);
-      }
-    } catch {
-      // silent
+      const data = await messagesNav.get([]);
+      setConversations(data);
     } finally {
       setLoadingConversations(false);
     }
@@ -226,6 +223,25 @@ export default function AdminMessagesPage() {
       });
 
       if (res.ok) {
+        // Effectiveness telemetry: an AI draft just went out. draftAtSend holds
+        // the exact AI text (non-null only when the composer held an AI draft);
+        // the endpoint diffs it against what was sent to classify accepted vs
+        // edited. Recorded only after a confirmed send so failed sends don't count.
+        if (draftAtSend) {
+          fetch("/api/admin/messages/outcome", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              bookingId: selectedBookingId,
+              house: conversationHouse,
+              draft: draftAtSend,
+              sent: sentText,
+            }),
+          }).catch(() => {
+            // telemetry is best-effort
+          });
+        }
+
         // Optimistically append (oldest first, newest at bottom)
         setMessages((prev) => [
           ...prev,
@@ -299,6 +315,14 @@ export default function AdminMessagesPage() {
     (c) => c.booking_id === selectedBookingId
   );
 
+  // Warm the reservation-detail cache the moment a thread is open, so tapping
+  // the guest name in the header lands on an already-loaded page instead of
+  // kicking off the fetch on click. Deduped by a short TTL in the loader, so
+  // re-opening the same thread won't refetch.
+  useEffect(() => {
+    prefetchReservation(selectedConversation?.registration_id ?? null);
+  }, [selectedConversation?.registration_id]);
+
   // House for the open thread — gates the "Add house rule" button and labels it.
   const conversationHouse = houseForProperty(
     selectedConversation?.property_name
@@ -325,22 +349,17 @@ export default function AdminMessagesPage() {
   // instructions. Times reflect paid early check-in / late check-out upsells,
   // matching exactly what the automated message would say.
   const quickReplyVars = useMemo(() => {
-    const longDate = (d: string | null | undefined) =>
-      d
-        ? new Date(d + "T00:00:00").toLocaleDateString("en-US", {
-            weekday: "long",
-            month: "long",
-            day: "numeric",
-          })
-        : "";
     const first = firstNameOf(selectedConversation?.guest_name) || "there";
     return {
       guest_first_name: first,
       guest_name: first,
       max_guests: maxGuestsForProperty(selectedConversation?.property_name),
       property_name: selectedConversation?.property_name ?? "",
-      check_in_date: longDate(selectedConversation?.arrival),
-      check_out_date: longDate(selectedConversation?.departure),
+      // Same formatter the automated send path uses, so the preview matches
+      // exactly what the guest receives (see formatMessageDate).
+      check_in_date: formatMessageDate(selectedConversation?.arrival),
+      check_out_date: formatMessageDate(selectedConversation?.departure),
+      stay_dates: formatStayRange(selectedConversation?.arrival, selectedConversation?.departure),
       ...stayTimeVars(selectedConversation?.upsells),
       portal_link: PORTAL_URL,
     };
@@ -686,6 +705,12 @@ export default function AdminMessagesPage() {
                           href={`/admin/reservations/${selectedConversation.registration_id}`}
                           className="font-semibold text-sm truncate hover:underline"
                           title="View reservation details"
+                          onMouseEnter={() =>
+                            prefetchReservation(selectedConversation.registration_id)
+                          }
+                          onFocus={() =>
+                            prefetchReservation(selectedConversation.registration_id)
+                          }
                         >
                           {selectedConversation.guest_name || "Unknown Guest"}
                         </Link>
@@ -946,6 +971,22 @@ export default function AdminMessagesPage() {
                       <button
                         className="underline hover:text-foreground"
                         onClick={() => {
+                          // Effectiveness telemetry: the host rejected this AI
+                          // draft without sending. Only AI drafts are tracked.
+                          if (autoDraftSourceRef.current === "ai" && autoDraftRef.current) {
+                            fetch("/api/admin/messages/outcome", {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({
+                                bookingId: selectedBookingId,
+                                house: conversationHouse,
+                                draft: autoDraftRef.current,
+                                discarded: true,
+                              }),
+                            }).catch(() => {
+                              // telemetry is best-effort
+                            });
+                          }
                           setNewMessage("");
                           autoDraftRef.current = null;
                           autoDraftSourceRef.current = null;
