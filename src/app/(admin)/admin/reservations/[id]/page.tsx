@@ -496,9 +496,10 @@ export default function ReservationDetailPage() {
 
   // Add-ons the guest bought through our portal settle in OUR Stripe, separate
   // from the channel (Airbnb/VRBO) payout. Costs are what we pay the cleaner for
-  // the turnover — the property's cleaner rate + per-pet fee, NOT the guest-facing
-  // fee. A direct booking already collects the whole stay through Stripe, so the
-  // payout-vs-Stripe split doesn't apply and everything shows together.
+  // the turnover — the property's cleaner rate + a flat pet fee (charged once per
+  // turnover, NOT per pet), NOT the guest-facing fee. A direct booking already
+  // collects the whole stay through Stripe, so the payout-vs-Stripe split doesn't
+  // apply and everything shows together.
   const portalUpsells = upsells; // already filtered to status === "paid"
   // Raw-array indices ride along so the refund API can target the exact JSONB
   // entry; issued refunds net out of the collected total.
@@ -513,7 +514,9 @@ export default function ReservationDetailPage() {
   );
   const numPetsForCost = pets.length || reg.lodgify_num_pets || 0;
   const cleanerCostCents = property?.cleaning_fee_cents ?? 0;
-  const petCostCents = (property?.pet_fee_cents ?? 0) * numPetsForCost;
+  // Flat: one pet fee per turnover regardless of pet count (we pay the cleaner
+  // a single pet fee, matching the single flat fee we charge the guest).
+  const petCostCents = numPetsForCost > 0 ? property?.pet_fee_cents ?? 0 : 0;
   // HOA registration fee (COGS): what the HOA charges us per booking, escalated
   // for last-minute bookings. Based on when the booking was actually made
   // (booked_at from the channel, falling back to our created_at) vs check-in.
@@ -1009,10 +1012,7 @@ export default function ReservationDetailPage() {
                           <Row label="Cleaning (cleaner)" value={`− ${fmtUSD(cleanerCostCents)}`} />
                         )}
                         {petCostCents > 0 && (
-                          <Row
-                            label={`Pet fee${numPetsForCost > 1 ? ` (${numPetsForCost} pets)` : ""}`}
-                            value={`− ${fmtUSD(petCostCents)}`}
-                          />
+                          <Row label="Pet fee" value={`− ${fmtUSD(petCostCents)}`} />
                         )}
                         {hoaFeeCents > 0 && (
                           <div className="flex justify-between gap-4">

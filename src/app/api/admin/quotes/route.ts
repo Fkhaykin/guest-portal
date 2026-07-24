@@ -78,7 +78,9 @@ export async function POST(request: Request) {
 
   const roomRateCents = nightlyRates.reduce((sum, r) => sum + r.price_cents, 0);
   const cleaningFeeCents = property.guest_cleaning_fee_cents || 0;
-  const petFeeTotalCents = pets * (property.guest_pet_fee_cents || 0);
+  // Flat: one pet fee per stay regardless of pet count (matches quote-math /
+  // checkout — the guest is charged a single pet fee, not per pet).
+  const petFeeTotalCents = pets > 0 ? property.guest_pet_fee_cents || 0 : 0;
   const taxTotalCents = Math.round(roomRateCents * (PA_STATE_TAX_RATE + MONROE_COUNTY_TAX_RATE));
   const upsellTotalCents = (upsells || []).reduce((sum, u) => sum + u.price_cents, 0);
 

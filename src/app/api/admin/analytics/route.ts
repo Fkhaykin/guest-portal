@@ -106,7 +106,9 @@ export async function GET() {
         createdAt: r.created_at,
         guestName: (r.guest as unknown as { full_name: string } | null)?.full_name ?? "Unknown",
         cleaningFeeCents: fees.cleaningFeeCents,
-        petFeeCents: numPets > 0 ? fees.petFeeCents * numPets : 0,
+        // Flat: one pet fee per turnover regardless of pet count (we pay the
+        // cleaner a single pet fee, matching the single fee charged to the guest).
+        petFeeCents: numPets > 0 ? fees.petFeeCents : 0,
         numPets,
         upsells: upsells
           .filter((u) => u.status === "completed" || u.status === "paid")

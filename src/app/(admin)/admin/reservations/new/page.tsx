@@ -530,7 +530,7 @@ export default function NewReservationPage() {
                 <div className="border-t divide-y text-sm">
                   <Row label={`Room subtotal (${effectiveBreakdown.nights} night${effectiveBreakdown.nights === 1 ? "" : "s"})`} value={fmt(effectiveBreakdown.roomRateCents)} />
                   {effectiveBreakdown.cleaningFeeCents > 0 && <Row label="Cleaning fee" value={fmt(effectiveBreakdown.cleaningFeeCents)} />}
-                  {effectiveBreakdown.petFeeTotalCents > 0 && <Row label={`Pet fee × ${parseInt(numPets, 10) || 0}`} value={fmt(effectiveBreakdown.petFeeTotalCents)} />}
+                  {effectiveBreakdown.petFeeTotalCents > 0 && <Row label="Pet fee" value={fmt(effectiveBreakdown.petFeeTotalCents)} />}
                   {effectiveBreakdown.stateTaxCents > 0 && <Row label="PA state hotel tax (6%)" value={fmt(effectiveBreakdown.stateTaxCents)} />}
                   {effectiveBreakdown.countyTaxCents > 0 && <Row label="Monroe County tax (3%)" value={fmt(effectiveBreakdown.countyTaxCents)} />}
                 </div>
