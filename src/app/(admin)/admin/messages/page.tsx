@@ -958,18 +958,20 @@ export default function AdminMessagesPage() {
                 {!draftLoading && newMessage && newMessage === autoDraftRef.current && (
                   <div className="pb-2 space-y-2">
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <Sparkles className="h-3 w-3 text-primary" />
-                      Suggested reply — review, edit, or hit send
+                      <Sparkles className="h-3 w-3 shrink-0 text-primary" />
+                      <span className="flex-1 min-w-0">
+                        Suggested reply — review, edit, or hit send
+                      </span>
                       {autoDraftSourceRef.current === "ai" && (
                         <button
-                          className="underline hover:text-foreground"
+                          className="shrink-0 underline hover:text-foreground"
                           onClick={() => setFixOpen((v) => !v)}
                         >
                           Add rule…
                         </button>
                       )}
                       <button
-                        className="underline hover:text-foreground"
+                        className="shrink-0 underline hover:text-foreground"
                         onClick={() => {
                           // Effectiveness telemetry: the host rejected this AI
                           // draft without sending. Only AI drafts are tracked.
@@ -1051,8 +1053,8 @@ export default function AdminMessagesPage() {
                 )}
                 <div
                   className={cn(
-                    "flex gap-2",
-                    composerExpanded && "flex-1 flex-col"
+                    "flex flex-col gap-2",
+                    composerExpanded && "flex-1"
                   )}
                 >
                   <Textarea
@@ -1067,20 +1069,17 @@ export default function AdminMessagesPage() {
                     }}
                     rows={1}
                     className={cn(
-                      "resize-none",
+                      "resize-none w-full",
                       composerExpanded
                         ? "min-h-0 max-h-none flex-1"
-                        : "min-h-10 max-h-30"
+                        : "min-h-10 max-h-32"
                     )}
                   />
-                  {/* Inline beside the box when collapsed; a bottom toolbar when
-                      expanded. `contents` lets the buttons sit in the parent row
-                      directly so the collapsed layout is unchanged. */}
-                  <div
-                    className={cn(
-                      composerExpanded ? "flex items-center gap-2" : "contents"
-                    )}
-                  >
+                  {/* Toolbar sits under the textarea in both modes so the
+                      message field always spans the full composer width —
+                      the buttons no longer squeeze it into a sliver on
+                      narrow screens. */}
+                  <div className="flex items-center gap-1">
                     {composerExpanded && (
                       <>
                         <Button
@@ -1153,6 +1152,9 @@ export default function AdminMessagesPage() {
                         setNewMessage(text);
                       }}
                     />
+                    {/* Send anchors to the right edge; in expanded mode the
+                        spacer above the reply library already handles this. */}
+                    {!composerExpanded && <div className="flex-1" />}
                     <Button
                       onClick={handleSend}
                       disabled={!newMessage.trim() || sending}
