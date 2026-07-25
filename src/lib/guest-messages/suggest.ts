@@ -98,6 +98,64 @@ export function isDraftConfigured(): boolean {
   return !!process.env.ANTHROPIC_API_KEY;
 }
 
+/** Whole calendar days from `from` to `to` (both YYYY-MM-DD). Compared as plain
+ * dates via UTC midnight so DST never shifts the count. */
+function calendarDayDiff(from: string, to: string): number {
+  const a = Date.UTC(+from.slice(0, 4), +from.slice(5, 7) - 1, +from.slice(8, 10));
+  const b = Date.UTC(+to.slice(0, 4), +to.slice(5, 7) - 1, +to.slice(8, 10));
+  return Math.round((b - a) / 86_400_000);
+}
+
+/**
+ * Human-readable temporal context in Eastern Time (the homes' local time), so the
+ * model can ground timing questions without doing date math itself (it runs at low
+ * effort). Without this it conflates the two add-on windows — e.g. answering a late
+ * checkout ask on the guest's CHECK-IN day as if checkout were imminent, or offering
+ * the "might be ready, we'll let you in free" early-check-in courtesy for a day that
+ * isn't today.
+ */
+function buildTimingContext(arrival: string | null, departure: string | null): string {
+  const tz = "America/New_York";
+  const now = new Date();
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: tz,
+    weekday: "long",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  }).formatToParts(now);
+  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
+  // ET calendar date as YYYY-MM-DD (en-CA yields ISO order).
+  const today = new Intl.DateTimeFormat("en-CA", {
+    timeZone: tz,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(now);
+
+  const plural = (n: number) => (n === 1 ? "" : "s");
+  const lines = [
+    `- Right now it is ${get("weekday")}, ${get("month")} ${get("day")}, ${get("hour")}:${get("minute")} ${get("dayPeriod")} ET (today's date: ${today}).`,
+  ];
+
+  if (arrival) {
+    const d = calendarDayDiff(today, arrival);
+    if (d > 0) lines.push(`- Check-in is in ${d} day${plural(d)} (arrival ${arrival}, check-in 4pm ET).`);
+    else if (d === 0) lines.push(`- TODAY is their check-in day (check-in 4pm ET) — early check-in is what applies today, NOT late checkout.`);
+    else lines.push(`- They checked in ${-d} day${plural(-d)} ago (arrival ${arrival}).`);
+  }
+  if (departure) {
+    const d = calendarDayDiff(today, departure);
+    if (d > 0) lines.push(`- Checkout is in ${d} day${plural(d)} (departure ${departure}, checkout 11am ET) — late checkout concerns THAT departure day, not today.`);
+    else if (d === 0) lines.push(`- TODAY is their checkout day (checkout 11am ET).`);
+    else lines.push(`- Their stay ended ${-d} day${plural(-d)} ago (departure ${departure}).`);
+  }
+
+  return lines.join("\n");
+}
+
 export async function generateDraftReply(
   ctx: DraftContext,
   guidance?: DraftGuidance,
@@ -158,11 +216,17 @@ Review the ENTIRE conversation above, paying close attention to the host's most 
 Write a brief, natural follow-up message from the host that moves things forward. Do NOT repeat or re-answer anything already covered. If nothing substantive is open, write a short, warm check-in (e.g. confirming they're all set and you're around if they need anything) rather than inventing a task — keep it light, never naggy.`
     : `Write the host's next reply to the guest.`;
 
+  const timing = buildTimingContext(ctx.arrival, ctx.departure);
+
   const userPrompt = `Booking context:
 - Guest: ${ctx.guestName ?? "Unknown"}
 - Property: ${ctx.propertyName ?? "Unknown"}
-- Stay: ${ctx.arrival ?? "?"} to ${ctx.departure ?? "?"} (today is ${new Date().toISOString().slice(0, 10)})
+- Stay: ${ctx.arrival ?? "?"} to ${ctx.departure ?? "?"}
 - Booking status: ${ctx.status ?? "unknown"}${addOnsLine}
+
+WHERE THIS STAY IS RIGHT NOW (Eastern Time — the homes' local time; use this for any timing question):
+${timing}
+Early check-in only concerns the arrival day; late checkout only concerns the departure day. Ground any add-on or timing answer in the dates above — don't tell a guest to "wait until the day of" or that the home "might be ready early" for a day that isn't today, and don't treat late checkout as if it were happening today when checkout is still days out.
 
 Conversation so far (oldest first):
 
