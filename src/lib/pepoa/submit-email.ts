@@ -47,8 +47,6 @@ export async function submitPEPOAEmail({
   // passes force=true to override.
   if (!force && data.reg.hoa_email_disabled) return;
 
-  const pdfBuffer = await generateRegistrationPDF(data);
-
   const hoaEmailRaw = data.property.hoa_submission_email as string | null;
   if (!hoaEmailRaw) return;
 
@@ -77,23 +75,64 @@ export async function submitPEPOAEmail({
     ? `[UPDATE] Short-Term Tenant Registration${lotPart} — Check-in ${data.reg.check_in_date as string}`
     : `Short-Term Tenant Registration${lotPart} — Check-in ${data.reg.check_in_date as string}`;
 
-  await sendPEPOAPDF({
-    to: hoaEmail,
-    cc: afterHoursCc,
-    pdfBuffer,
-    guestName: (data.guest.full_name as string) || "Guest",
-    lotSection,
-    propertyAddress: (data.property.address as string) || "",
-    checkInDate: data.reg.check_in_date as string,
-    ownerPhone: (data.property.owner_phone as string) || "",
-    ownerEmail: (data.property.owner_email as string) || (data.host.email as string) || "",
-    registrationId,
-    hoaType,
-    isUpdate,
-    changeSummary,
-  });
-
   const adminDb = createAdminClient();
+
+  // Idempotency: several paths call this (register flow, vehicle edits, Lodgify
+  // date-change webhook bursts) and a guest double-submit or Vercel retry can
+  // re-run any of them, so the HOA can receive duplicates. Atomically claim a
+  // send slot. Initial sends are claimed effectively permanently (huge window);
+  // update sends key on the change summary with a short window so a genuinely
+  // different change later still goes out. Manual admin sends (force) bypass it.
+  if (!force) {
+    const eventKey = isUpdate ? `update:${(changeSummary || "").slice(0, 180)}` : "new";
+    const windowSeconds = isUpdate ? 300 : 315_360_000; // 10y ≈ permanent for initial
+    const { data: maySend, error: claimErr } = await adminDb.rpc("claim_hoa_email", {
+      p_registration_id: registrationId,
+      p_event_key: eventKey,
+      p_window_seconds: windowSeconds,
+    });
+    if (claimErr) {
+      // Fail open — a missed HOA registration is worse than a rare duplicate.
+      console.error(`[pepoa-email] Claim failed for ${registrationId}/${eventKey}:`, claimErr);
+    } else if (maySend === false) {
+      console.log(`[pepoa-email] Duplicate ${eventKey} for ${registrationId} suppressed`);
+      return;
+    }
+  }
+
+  // Keep the Summitlakeside team on the thread so replies from the HOA can be
+  // answered. Override via HOA_SUBMISSION_CC.
+  const teamCc = (process.env.HOA_SUBMISSION_CC || "contact@summitlakeside.com").trim();
+
+  const pdfBuffer = await generateRegistrationPDF(data);
+
+  try {
+    await sendPEPOAPDF({
+      to: hoaEmail,
+      cc: [teamCc, ...afterHoursCc],
+      pdfBuffer,
+      guestName: (data.guest.full_name as string) || "Guest",
+      lotSection,
+      propertyAddress: (data.property.address as string) || "",
+      checkInDate: data.reg.check_in_date as string,
+      ownerPhone: (data.property.owner_phone as string) || "",
+      ownerEmail: (data.property.owner_email as string) || (data.host.email as string) || "",
+      registrationId,
+      hoaType,
+      isUpdate,
+      changeSummary,
+    });
+  } catch (err) {
+    // The claim was taken above but nothing went out — release it so a retry or
+    // a later trigger isn't permanently suppressed.
+    if (!force) {
+      const eventKey = isUpdate ? `update:${(changeSummary || "").slice(0, 180)}` : "new";
+      await adminDb.from("hoa_email_claim").delete()
+        .eq("registration_id", registrationId).eq("event_key", eventKey);
+    }
+    throw err;
+  }
+
   await adminDb.from("email_send_log").insert({
     registration_id: registrationId,
     sent_to: [...hoaEmail, ...afterHoursCc],

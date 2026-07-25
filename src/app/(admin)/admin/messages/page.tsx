@@ -959,9 +959,7 @@ export default function AdminMessagesPage() {
                   <div className="pb-2 space-y-2">
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <Sparkles className="h-3 w-3 shrink-0 text-primary" />
-                      <span className="flex-1 min-w-0">
-                        Suggested reply — review, edit, or hit send
-                      </span>
+                      <span className="flex-1 min-w-0">AI Generated</span>
                       {autoDraftSourceRef.current === "ai" && (
                         <button
                           className="shrink-0 underline hover:text-foreground"

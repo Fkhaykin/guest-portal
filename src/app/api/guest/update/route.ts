@@ -222,9 +222,13 @@ export async function POST(request: Request) {
   const capturedGuestName = guest?.full_name ?? "Guest";
 
   after(async () => {
-    await submitPEPOAEmail({ registrationId: registration_id, isUpdate: true, changeSummary: capturedSummary }).catch((err) => {
-      console.error("Failed to send PEPOA update email:", err);
-    });
+    // The HOA only needs re-notifying when vehicle/driver details change (gate
+    // access, parking). Pet and guest-list edits don't warrant a fresh HOA email.
+    if (section === "vehicles") {
+      await submitPEPOAEmail({ registrationId: registration_id, isUpdate: true, changeSummary: capturedSummary }).catch((err) => {
+        console.error("Failed to send PEPOA update email:", err);
+      });
+    }
 
     await notifyHostOfRegistration({
       propertyId: capturedPropertyId,
