@@ -101,7 +101,12 @@ export function isDraftConfigured(): boolean {
 export async function generateDraftReply(
   ctx: DraftContext,
   guidance?: DraftGuidance,
-  feedback?: DraftFeedback
+  feedback?: DraftFeedback,
+  opts?: {
+    /** The host spoke last (no unanswered guest message): draft a follow-up
+     * that continues the thread instead of replying to a guest message. */
+    followUp?: boolean;
+  }
 ): Promise<string | null> {
   if (!isDraftConfigured()) return null;
 
@@ -147,6 +152,12 @@ Write a corrected reply that addresses the feedback. Apply the feedback fully �
     ? `\n- Add-ons already purchased and PAID for this booking: ${ctx.purchasedAddOns.join(", ")}. Honor these — quote the adjusted check-in/checkout time from the add-on, and never re-sell something they already bought.`
     : "";
 
+  const closingInstruction = opts?.followUp
+    ? `The guest has NOT sent a new message — the host spoke last, so there is no guest message to reply to.
+Review the ENTIRE conversation above, paying close attention to the host's most recent messages. Work out what has already been handled and what is still open: a question the host asked the guest that's still unanswered, something the host said they'd check or follow up on, information still needed before the stay, or the natural next step given where things stand.
+Write a brief, natural follow-up message from the host that moves things forward. Do NOT repeat or re-answer anything already covered. If nothing substantive is open, write a short, warm check-in (e.g. confirming they're all set and you're around if they need anything) rather than inventing a task — keep it light, never naggy.`
+    : `Write the host's next reply to the guest.`;
+
   const userPrompt = `Booking context:
 - Guest: ${ctx.guestName ?? "Unknown"}
 - Property: ${ctx.propertyName ?? "Unknown"}
@@ -158,7 +169,7 @@ Conversation so far (oldest first):
 ${transcript}
 ${feedbackSection}
 
-Write the host's next reply to the guest.`;
+${closingInstruction}`;
 
   const system: Anthropic.TextBlockParam[] = [
     {

@@ -57,11 +57,11 @@ export async function POST(
     return NextResponse.json({ error: "messages required" }, { status: 400 });
   }
 
+  // When the guest spoke last there's a message to answer (reply mode). When the
+  // host spoke last, don't error — draft a follow-up that continues the thread.
   const lastGuest = lastUnansweredGuestMessage(body.messages);
-  if (!lastGuest) {
-    return NextResponse.json({ draft: null, configured: true });
-  }
-  const hash = hashGuestMessage(lastGuest);
+  const followUp = !lastGuest;
+  const hash = lastGuest ? hashGuestMessage(lastGuest) : null;
 
   const admin = createAdminClient();
   const hasFeedback = !!body.feedback?.note?.trim();
@@ -69,8 +69,9 @@ export async function POST(
   // guidance loaded for generation (global rules + this house's rules).
   const house = houseForProperty(body.propertyName);
 
-  // Cache hit only for plain requests — feedback always regenerates
-  if (!hasFeedback && Number.isFinite(bookingId)) {
+  // Cache hit only for plain reply requests — feedback and follow-ups (drafted
+  // on demand, keyed on nothing stable) always regenerate.
+  if (!hasFeedback && !followUp && Number.isFinite(bookingId)) {
     const { data: cached } = await admin
       .from("message_draft")
       .select("draft, last_guest_message_hash")
@@ -87,7 +88,7 @@ export async function POST(
     await admin.from("draft_feedback").insert({
       lodgify_booking_id: Number.isFinite(bookingId) ? bookingId : null,
       source: "explicit",
-      guest_message: lastGuest.slice(0, 2000),
+      guest_message: (lastGuest ?? "(follow-up — host spoke last)").slice(0, 2000),
       bad_draft: body.feedback.badDraft?.slice(0, 4000) ?? null,
       note: body.feedback.note.trim().slice(0, 2000),
       // "house" scopes the rule to this home; "global" (default) leaves it null.
@@ -111,8 +112,10 @@ export async function POST(
 
   try {
     const guidance = await loadGuidance(admin, house);
-    const draft = await generateDraftReply(body, guidance, hasFeedback ? body.feedback : undefined);
-    if (draft && Number.isFinite(bookingId)) {
+    const draft = await generateDraftReply(body, guidance, hasFeedback ? body.feedback : undefined, { followUp });
+    // Only reply-mode drafts are cached (keyed on the guest's last message);
+    // follow-ups have no stable key, so they're never stored.
+    if (draft && !followUp && Number.isFinite(bookingId)) {
       await admin.from("message_draft").upsert(
         {
           lodgify_booking_id: bookingId,
