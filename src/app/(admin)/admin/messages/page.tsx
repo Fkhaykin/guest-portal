@@ -1059,12 +1059,9 @@ export default function AdminMessagesPage() {
                     placeholder="Type a message..."
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && !e.shiftKey) {
-                        e.preventDefault();
-                        handleSend();
-                      }
-                    }}
+                    // Enter never sends — it just inserts a newline. Sending
+                    // requires a deliberate click/tap on the Send button, so a
+                    // stray double-Enter can't fire off a half-written reply.
                     rows={1}
                     className={cn(
                       "resize-none w-full",
