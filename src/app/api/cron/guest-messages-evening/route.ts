@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { runEveningSends } from "@/lib/guest-messages/cron";
+import { reconcileBookingAlerts } from "@/lib/notifications/reconcile-booking-alerts";
 
 export const maxDuration = 300;
 
@@ -18,5 +19,11 @@ export async function GET(request: Request) {
   }
 
   const { results } = await runEveningSends();
-  return NextResponse.json({ ok: true, results });
+  // Floor for the burst-freeze backstop: re-send any new-booking alert from the
+  // last day that never confirmed delivery (the webhook path heals sooner).
+  const reconcile = await reconcileBookingAlerts({ withinHours: 24 }).catch((err) => {
+    console.error("[cron:guest-messages-evening] alert reconcile failed:", err);
+    return null;
+  });
+  return NextResponse.json({ ok: true, results, reconcile });
 }

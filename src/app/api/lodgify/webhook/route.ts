@@ -4,6 +4,7 @@ import { syncBookingById } from "@/lib/lodgify/sync";
 import { fetchBookingDetail, fetchThreadMessages, deriveChannel } from "@/lib/lodgify/messages";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { notifyHostOfGuestMessage } from "@/lib/push/notify-host";
+import { reconcileBookingAlerts } from "@/lib/notifications/reconcile-booking-alerts";
 import { scheduleSentimentRefresh } from "@/lib/guest-messages/sentiment";
 
 function verifySignature(rawBody: string, signature: string, secrets: string[]): boolean {
@@ -372,6 +373,12 @@ export async function POST(request: Request) {
       } else {
         log.outcome = "sync_ok";
       }
+      // Backstop: heal any recent booking whose inline alert was killed by a
+      // burst freeze. Cheap (a couple of queries + usually no sends), and the
+      // notify claim keeps this from re-alerting the booking we just processed.
+      await reconcileBookingAlerts({ withinHours: 6 }).catch((err) =>
+        console.error("[lodgify-webhook] alert reconcile failed:", err)
+      );
       log.duration_ms = Date.now() - startedAt;
       await writeLog(log);
       return NextResponse.json({ ok: true, ...result });

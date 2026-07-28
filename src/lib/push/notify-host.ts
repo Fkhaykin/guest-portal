@@ -1,5 +1,10 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendPushToHost, type PushPayload } from "@/lib/push/send-push";
+import {
+  claimBookingAlert,
+  confirmBookingAlert,
+  releaseBookingAlert,
+} from "@/lib/notifications/booking-alert-claim";
 
 function adminUrl(path: string): string {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "";
@@ -104,11 +109,29 @@ export async function notifyHostOfNewBooking(params: {
   const property = await getProperty(params.propertyId);
   if (!property) return;
 
-  await sendPushToHost(property.hostId, {
-    title: `New booking — ${property.name}`,
-    body: `${params.guestName} · ${formatDate(params.checkIn)} – ${formatDate(params.checkOut)} · ${params.numGuests} guest${params.numGuests !== 1 ? "s" : ""}`,
-    url: reservationUrl(params.registrationId),
-  });
+  const regId = params.registrationId ?? "";
+  // Burst-safe: Lodgify delivers the same booking webhook 2-3x within ~200ms and
+  // each runs this concurrently — the claim lets exactly one actually send.
+  if (!(await claimBookingAlert(regId, "host"))) return;
+
+  try {
+    const res = await sendPushToHost(property.hostId, {
+      title: `New booking — ${property.name}`,
+      body: `${params.guestName} · ${formatDate(params.checkIn)} – ${formatDate(params.checkOut)} · ${params.numGuests} guest${params.numGuests !== 1 ? "s" : ""}`,
+      url: reservationUrl(params.registrationId),
+    });
+    // Live devices that all failed = the send was killed (e.g. instance frozen
+    // mid-request): free the slot so the backstop re-sends. Zero devices means
+    // nothing to deliver to — mark sent so we don't retry forever.
+    if (res.total > 0 && res.sent === 0) {
+      await releaseBookingAlert(regId, "host");
+      return;
+    }
+    await confirmBookingAlert(regId, "host");
+  } catch (err) {
+    await releaseBookingAlert(regId, "host");
+    throw err;
+  }
 }
 
 export async function notifyHostOfCancellation(params: {

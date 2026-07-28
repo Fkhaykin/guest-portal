@@ -1,15 +1,21 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendPushToCleaner } from "@/lib/push/send-push";
 import { stripUrlsForSms } from "@/lib/sms/sanitize";
+import {
+  claimBookingAlert,
+  confirmBookingAlert,
+  releaseBookingAlert,
+} from "@/lib/notifications/booking-alert-claim";
 import type { NotificationSettings, NotificationEventKey } from "@/types/database";
 
 const TEXTBELT_KEY = process.env.TEXTBELT_API_KEY?.trim();
 
+/** Returns true when the message was accepted by Textbelt. */
 export async function sendSms(
   to: string,
   message: string,
   meta: { recipientName?: string; eventType: string; propertyId?: string; lodgifyBookingId?: number }
-) {
+): Promise<boolean> {
   const supabase = createAdminClient();
   message = stripUrlsForSms(message);
 
@@ -25,7 +31,7 @@ export async function sendSms(
       success: false,
       error: "TEXTBELT_API_KEY not configured",
     });
-    return;
+    return false;
   }
 
   const res = await fetch("https://textbelt.com/text", {
@@ -48,6 +54,8 @@ export async function sendSms(
     error: data.error ?? null,
     quota_remaining: typeof data.quotaRemaining === "number" ? data.quotaRemaining : null,
   });
+
+  return data.success === true;
 }
 
 type NotifyParams = {
@@ -160,17 +168,27 @@ async function sendToCleaners(
     lodgifyBookingId?: number;
     pushTitle?: string;
     pushUrl?: string;
+    /** New-booking alerts use the delivery-tracked claim (booking_notification)
+     *  that RELEASES on a failed send so the backstop can retry, instead of the
+     *  fire-once windowed claim (cleaner_notification_log) other events use. */
+    reliable?: boolean;
   }
 ) {
   const supabase = createAdminClient();
+  // booking_notification keys the cleaner side by the bare event ("new_booking"),
+  // parallel to the host row — the channel column already separates the two.
+  const alertEvent = meta.eventType.replace(/^cleaner_/, "");
 
   // Idempotency: Lodgify burst-delivers the same booking webhook several times
   // within a fraction of a second, and each delivery runs the sync + this
-  // notify concurrently. Claim the (registration_id, event_type) slot so only
-  // the first of a burst actually texts/pushes the cleaner. Fail open — if the
-  // claim errors we still send, since a missed "new booking" is worse for a
-  // cleaner than a rare duplicate.
-  if (meta.registrationId) {
+  // notify concurrently. Claim the slot so only the first of a burst actually
+  // texts/pushes. Fail open — a missed "new booking" is worse than a rare dup.
+  if (meta.reliable) {
+    if (meta.registrationId && !(await claimBookingAlert(meta.registrationId, "cleaner", alertEvent))) {
+      console.log(`[cleaner-notify] Duplicate ${meta.eventType} for ${meta.registrationId} suppressed`);
+      return;
+    }
+  } else if (meta.registrationId) {
     const { data: maySend, error: claimErr } = await supabase.rpc("claim_cleaner_notification", {
       p_registration_id: meta.registrationId,
       p_event_type: meta.eventType,
@@ -184,45 +202,71 @@ async function sendToCleaners(
     }
   }
 
-  const { data: assignments } = await supabase
-    .from("cleaner_property")
-    .select("cleaner_id")
-    .eq("property_id", propertyId);
+  try {
+    const { data: assignments } = await supabase
+      .from("cleaner_property")
+      .select("cleaner_id")
+      .eq("property_id", propertyId);
 
-  if (!assignments?.length) return;
+    // Nobody to notify → nothing to retry; settle the claim so the backstop
+    // doesn't keep re-checking this booking forever.
+    if (!assignments?.length) {
+      if (meta.reliable) await confirmBookingAlert(meta.registrationId, "cleaner", alertEvent);
+      return;
+    }
 
-  const { data: cleaners } = await supabase
-    .from("cleaner")
-    .select("id, name, phone")
-    .in("id", assignments.map((a) => a.cleaner_id))
-    .eq("is_active", true);
+    const { data: cleaners } = await supabase
+      .from("cleaner")
+      .select("id, name, phone")
+      .in("id", assignments.map((a) => a.cleaner_id))
+      .eq("is_active", true);
 
-  if (!cleaners?.length) return;
+    if (!cleaners?.length) {
+      if (meta.reliable) await confirmBookingAlert(meta.registrationId, "cleaner", alertEvent);
+      return;
+    }
 
-  await Promise.all(
-    cleaners.flatMap((cleaner) => {
-      const sends: Promise<void>[] = [
-        sendPushToCleaner(cleaner.id, {
-          title: meta.pushTitle ?? "Summit Cleaning",
-          body,
-          url: meta.pushUrl,
-        }).catch((err) => {
-          console.error("[push] Notification failed:", err);
-        }),
-      ];
-      if (cleaner.phone) {
-        sends.push(
-          sendSms(cleaner.phone, body, {
-            recipientName: cleaner.name ?? undefined,
-            eventType: meta.eventType,
-            propertyId,
-            lodgifyBookingId: meta.lodgifyBookingId,
+    const results = await Promise.all(
+      cleaners.flatMap((cleaner) => {
+        const sends: Promise<boolean>[] = [
+          sendPushToCleaner(cleaner.id, {
+            title: meta.pushTitle ?? "Summit Cleaning",
+            body,
+            url: meta.pushUrl,
           })
-        );
-      }
-      return sends;
-    })
-  );
+            .then((r) => r.sent > 0)
+            .catch((err) => {
+              console.error("[push] Notification failed:", err);
+              return false;
+            }),
+        ];
+        if (cleaner.phone) {
+          sends.push(
+            sendSms(cleaner.phone, body, {
+              recipientName: cleaner.name ?? undefined,
+              eventType: meta.eventType,
+              propertyId,
+              lodgifyBookingId: meta.lodgifyBookingId,
+            }).catch((err) => {
+              console.error("[sms] Notification failed:", err);
+              return false;
+            })
+          );
+        }
+        return sends;
+      })
+    );
+
+    // Confirm only if something actually went out; otherwise release so a later
+    // burst delivery or the backstop re-sends instead of it looking delivered.
+    if (meta.reliable) {
+      if (results.some(Boolean)) await confirmBookingAlert(meta.registrationId, "cleaner", alertEvent);
+      else await releaseBookingAlert(meta.registrationId, "cleaner", alertEvent);
+    }
+  } catch (err) {
+    if (meta.reliable) await releaseBookingAlert(meta.registrationId, "cleaner", alertEvent);
+    throw err;
+  }
 }
 
 export async function notifyCleanersOfNewBooking(params: NotifyParams) {
@@ -257,6 +301,7 @@ export async function notifyCleanersOfNewBooking(params: NotifyParams) {
     lodgifyBookingId: undefined,
     pushTitle: `New booking — ${config.propertyName}`,
     pushUrl: link,
+    reliable: true,
   });
 }
 
@@ -425,7 +470,7 @@ export async function notifyCleanerOfInvoicePaid(params: {
     period_end: formatDate(params.periodEnd),
   });
 
-  const sends: Promise<void>[] = [
+  const sends: Promise<unknown>[] = [
     sendPushToCleaner(cleaner.id, {
       title: `Invoice ${params.invoiceNumber} paid`,
       body,
