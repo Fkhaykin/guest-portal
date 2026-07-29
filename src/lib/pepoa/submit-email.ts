@@ -47,6 +47,21 @@ export async function submitPEPOAEmail({
   // passes force=true to override.
   if (!force && data.reg.hoa_email_disabled) return;
 
+  // Don't email the HOA a blank form. Lodgify-imported bookings auto-create a
+  // registration shell the guest may never complete, so a later date-change (or
+  // any other auto-trigger) would otherwise send an [UPDATE] with an empty
+  // tenant/guest and vehicle table. A registration the guest actually completed
+  // carries a signature and/or a filled guest list. Manual sends (force) bypass.
+  const guestList = (data.reg.guest_list as unknown[] | null) ?? [];
+  const hasContent =
+    !!data.reg.signature_url || guestList.length > 0 || data.vehicles.length > 0;
+  if (!force && !hasContent) {
+    console.log(
+      `[pepoa-email] Skipping ${isUpdate ? "update" : "initial"} send for ${registrationId} — guest has not completed the registration (form would be blank)`
+    );
+    return;
+  }
+
   const hoaEmailRaw = data.property.hoa_submission_email as string | null;
   if (!hoaEmailRaw) return;
 
