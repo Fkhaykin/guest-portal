@@ -21,6 +21,7 @@ import {
   Settings,
   Maximize2,
   Minimize2,
+  AlertTriangle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toneBadge, type Tone } from "@/lib/status-styles";
@@ -69,6 +70,27 @@ function linkifyMessage(text: string) {
 // file name. Guests almost always send photos; Lodgify serves them as jpeg.
 function isImageAttachment(name: string): boolean {
   return /\.(jpe?g|png|gif|webp|heic|heif|bmp)$/i.test(name);
+}
+
+/**
+ * Map Lodgify's per-message status to a delivery state for our own (Owner)
+ * messages. "Delivered" once it relays to the OTA; "Submitted" is queued and
+ * normal for a few minutes after sending, but a stuck one (still Submitted after
+ * a few minutes) never reached the guest. "Unknown"/unrecognized → no claim, so
+ * we stay silent rather than mislabel a message we can't vouch for.
+ */
+function deliveryState(
+  status: string | null | undefined,
+  createdAt: string
+): "delivered" | "sending" | "undelivered" | null {
+  const s = (status ?? "").toLowerCase();
+  if (s === "delivered" || s === "read" || s === "sent") return "delivered";
+  if (s === "failed" || s === "error" || s === "rejected") return "undelivered";
+  if (s === "submitted" || s === "pending" || s === "sending") {
+    const ageMin = (Date.now() - new Date(createdAt).getTime()) / 60000;
+    return Number.isFinite(ageMin) && ageMin > 3 ? "undelivered" : "sending";
+  }
+  return null;
 }
 
 export default function AdminMessagesPage() {
@@ -797,7 +819,14 @@ export default function AdminMessagesPage() {
                     </p>
                   </div>
                 ) : (
-                  messages.map((msg) => {
+                  (() => {
+                    // "Delivered" shows only under the most recent Owner message
+                    // (iMessage-style); a stuck/failed send is flagged wherever
+                    // it sits so it never hides in the middle of a thread.
+                    const lastOwnerId = [...messages]
+                      .reverse()
+                      .find((m) => m.type === "Owner" || m.type === "owner")?.id;
+                    return messages.map((msg) => {
                     const isOwner =
                       msg.type === "Owner" || msg.type === "owner";
                     const isComment =
@@ -904,10 +933,41 @@ export default function AdminMessagesPage() {
                               )}
                             </p>
                           )}
+                          {isOwner &&
+                            (() => {
+                              const d = deliveryState(
+                                msg.message_status,
+                                msg.created_at
+                              );
+                              if (d === "undelivered") {
+                                return (
+                                  <p className="text-[10px] mt-1 font-medium text-amber-200 flex items-center gap-1">
+                                    <AlertTriangle className="h-3 w-3 shrink-0" />
+                                    Not delivered — reply from the guest&apos;s app
+                                  </p>
+                                );
+                              }
+                              if (d === "sending") {
+                                return (
+                                  <p className="text-[10px] mt-1 text-primary-foreground/60">
+                                    Sending…
+                                  </p>
+                                );
+                              }
+                              if (d === "delivered" && msg.id === lastOwnerId) {
+                                return (
+                                  <p className="text-[10px] mt-1 text-primary-foreground/60">
+                                    Delivered
+                                  </p>
+                                );
+                              }
+                              return null;
+                            })()}
                         </div>
                       </div>
                     );
-                  })
+                    });
+                  })()
                 )}
                 <div ref={messagesEndRef} />
               </div>

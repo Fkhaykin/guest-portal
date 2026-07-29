@@ -24,6 +24,10 @@ export interface LodgifyMessage {
   // The channel the message travelled on (Lodgify's "route": Vrbo, Airbnb,
   // Booking.com, …). Only some messages carry it; null when unknown.
   route?: string | null;
+  // Lodgify's delivery status for the message: "Delivered" once relayed to the
+  // OTA, "Submitted" while queued (stuck if it never advances), "Unknown" for
+  // older messages Lodgify no longer tracks. Only meaningful on Owner messages.
+  message_status?: string | null;
   // Guest-sent (or Owner-sent) files — photos guests attach in the OTA app.
   // Only present on the v2 thread endpoint, never on the webhook event.
   attachments?: MessageAttachment[];
@@ -363,6 +367,10 @@ function normalizeMessage(raw: any, index: number, guestName: string): LodgifyMe
     created_at: toUtcIso(raw.date_created ?? raw.created_at),
     sender_name: type === "Owner" ? "You" : guestName || "Guest",
     route: typeof raw.route === "string" && raw.route.trim() ? raw.route.trim() : null,
+    message_status:
+      typeof raw.message_status === "string" && raw.message_status.trim()
+        ? raw.message_status.trim()
+        : null,
   };
   if (attachments.length) msg.attachments = attachments;
   return msg;

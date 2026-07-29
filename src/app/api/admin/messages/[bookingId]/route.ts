@@ -29,6 +29,7 @@ type GuestMessageRow = {
   guest_name: string | null;
   has_attachments: boolean;
   attachments?: MessageAttachment[] | null;
+  message_status?: string | null;
 };
 
 function toLodgifyMessage(row: GuestMessageRow): LodgifyMessage {
@@ -40,6 +41,7 @@ function toLodgifyMessage(row: GuestMessageRow): LodgifyMessage {
     type,
     created_at: row.creation_time ?? "",
     sender_name: type === "Owner" ? "You" : row.guest_name ?? "Guest",
+    message_status: row.message_status ?? null,
   };
   if (Array.isArray(row.attachments) && row.attachments.length) {
     msg.attachments = row.attachments;
@@ -69,6 +71,9 @@ async function upsertMessages(
       // Refresh the cached presigned links on every pull; null (not omitted) so
       // the batch upsert has uniform columns and a since-deleted attachment clears.
       attachments: m.attachments && m.attachments.length ? m.attachments : null,
+      // Live delivery status from Lodgify — advances Submitted → Delivered as it
+      // relays; refreshed on every pull so a stuck send surfaces in the UI.
+      message_status: m.message_status ?? null,
     }));
   if (!rows.length) return;
   await admin
@@ -129,7 +134,7 @@ export async function GET(
     }
     const { data: rows } = await admin
       .from("guest_message")
-      .select("id, lodgify_message_id, thread_uid, message_type, subject, message, creation_time, guest_name, has_attachments, attachments")
+      .select("id, lodgify_message_id, thread_uid, message_type, subject, message, creation_time, guest_name, has_attachments, attachments, message_status")
       .eq("thread_uid", threadUid)
       .order("creation_time", { ascending: true });
     // Opening the thread marks it read.
@@ -148,7 +153,7 @@ export async function GET(
     const admin = createAdminClient();
     const { data: rows } = await admin
       .from("guest_message")
-      .select("id, lodgify_message_id, thread_uid, message_type, subject, message, creation_time, guest_name, has_attachments, attachments")
+      .select("id, lodgify_message_id, thread_uid, message_type, subject, message, creation_time, guest_name, has_attachments, attachments, message_status")
       .eq("thread_uid", bookingId)
       .order("creation_time", { ascending: true });
     await admin
@@ -167,7 +172,7 @@ export async function GET(
     const admin = createAdminClient();
     const { data: rows } = await admin
       .from("guest_message")
-      .select("id, lodgify_message_id, thread_uid, message_type, subject, message, creation_time, guest_name, has_attachments, attachments")
+      .select("id, lodgify_message_id, thread_uid, message_type, subject, message, creation_time, guest_name, has_attachments, attachments, message_status")
       .eq("registration_id", bookingId)
       .order("creation_time", { ascending: true });
     // Opening the conversation marks every thread for this reservation read.
@@ -264,7 +269,7 @@ export async function GET(
   if (messages.length === 0) {
     const query = admin
       .from("guest_message")
-      .select("id, lodgify_message_id, thread_uid, message_type, subject, message, creation_time, guest_name, has_attachments, attachments")
+      .select("id, lodgify_message_id, thread_uid, message_type, subject, message, creation_time, guest_name, has_attachments, attachments, message_status")
       .or("channel.is.null,channel.neq.web")
       .order("creation_time", { ascending: true });
     const { data: rows } = threadUid
@@ -281,7 +286,7 @@ export async function GET(
   if (reg?.id) {
     const { data: webRows } = await admin
       .from("guest_message")
-      .select("id, lodgify_message_id, thread_uid, message_type, subject, message, creation_time, guest_name, has_attachments, attachments")
+      .select("id, lodgify_message_id, thread_uid, message_type, subject, message, creation_time, guest_name, has_attachments, attachments, message_status")
       .eq("registration_id", reg.id)
       .eq("channel", "web")
       .order("creation_time", { ascending: true });
