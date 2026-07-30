@@ -107,6 +107,9 @@ export default function AdminMessagesPage() {
   // otherwise run against the previous conversation's messages mid-switch.
   const [messagesBookingId, setMessagesBookingId] = useState<number | string | null>(null);
   const [messageError, setMessageError] = useState<string | null>(null);
+  // Draft/AI failures are shown inline by the composer — never via messageError,
+  // which would blank the whole conversation pane and hide the guest's messages.
+  const [draftError, setDraftError] = useState<string | null>(null);
   const [newMessage, setNewMessage] = useState("");
   const [sending, setSending] = useState(false);
   const [draftLoading, setDraftLoading] = useState(false);
@@ -171,6 +174,7 @@ export default function AdminMessagesPage() {
     async function fetchMessages() {
       setLoadingMessages(true);
       setMessageError(null);
+      setDraftError(null);
       setMessages([]);
       setMessagesBookingId(null);
       // Clear any untouched auto-draft from the previous conversation.
@@ -471,10 +475,10 @@ export default function AdminMessagesPage() {
         setFixNote("");
         setFixOpen(false);
       } else {
-        setMessageError(data.error || "Failed to save rule");
+        setDraftError("Couldn't save the rule and regenerate. Try again.");
       }
     } catch {
-      setMessageError("Failed to save rule");
+      setDraftError("Couldn't save the rule and regenerate. Try again.");
     } finally {
       setFixing(null);
     }
@@ -485,6 +489,7 @@ export default function AdminMessagesPage() {
   // or regenerate the current one — at any time.
   async function generateDraft() {
     if (!selectedBookingId || draftLoading) return;
+    setDraftError(null);
     setDraftLoading(true);
     try {
       const res = await fetch(
@@ -503,10 +508,11 @@ export default function AdminMessagesPage() {
         setFixOpen(false);
         setFixNote("");
       } else {
-        setMessageError(data.error || "Failed to draft reply");
+        // Inline only — never messageError, which would replace the whole thread.
+        setDraftError("Couldn't generate an AI draft. Retry, or reply manually below.");
       }
     } catch {
-      setMessageError("Failed to draft reply");
+      setDraftError("Couldn't generate an AI draft. Retry, or reply manually below.");
     } finally {
       setDraftLoading(false);
     }
@@ -1013,6 +1019,24 @@ export default function AdminMessagesPage() {
                   <div className="flex items-center gap-1.5 pb-2 text-xs text-muted-foreground">
                     <Loader2 className="h-3 w-3 animate-spin" />
                     Drafting a suggested reply…
+                  </div>
+                )}
+                {draftError && !draftLoading && (
+                  <div className="flex items-center gap-2 pb-2 text-xs text-amber-700 dark:text-amber-400">
+                    <AlertTriangle className="h-3 w-3 shrink-0" />
+                    <span className="flex-1 min-w-0">{draftError}</span>
+                    <button
+                      className="shrink-0 underline hover:opacity-80"
+                      onClick={generateDraft}
+                    >
+                      Retry
+                    </button>
+                    <button
+                      className="shrink-0 underline hover:opacity-80"
+                      onClick={() => setDraftError(null)}
+                    >
+                      Dismiss
+                    </button>
                   </div>
                 )}
                 {!draftLoading && newMessage && newMessage === autoDraftRef.current && (
