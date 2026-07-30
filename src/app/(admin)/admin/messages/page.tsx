@@ -427,8 +427,14 @@ export default function AdminMessagesPage() {
       body: JSON.stringify(buildDraftPayload()),
     })
       .then((res) => res.json())
-      .then((data: { draft?: string | null }) => {
-        if (cancelled || !data.draft) return;
+      .then((data: { draft?: string | null; error?: string }) => {
+        if (cancelled) return;
+        if (!data.draft) {
+          // No draft: surface a real error (e.g. out-of-credits) so the host
+          // knows why nothing was suggested; quick-reply chips remain a fallback.
+          if (data.error) setDraftError(data.error);
+          return;
+        }
         autoDraftRef.current = data.draft;
         autoDraftSourceRef.current = "ai";
         setNewMessage((current) => {
@@ -475,7 +481,7 @@ export default function AdminMessagesPage() {
         setFixNote("");
         setFixOpen(false);
       } else {
-        setDraftError("Couldn't save the rule and regenerate. Try again.");
+        setDraftError(data.error || "Couldn't save the rule and regenerate. Try again.");
       }
     } catch {
       setDraftError("Couldn't save the rule and regenerate. Try again.");
@@ -508,8 +514,9 @@ export default function AdminMessagesPage() {
         setFixOpen(false);
         setFixNote("");
       } else {
-        // Inline only — never messageError, which would replace the whole thread.
-        setDraftError("Couldn't generate an AI draft. Retry, or reply manually below.");
+        // Inline only — never messageError, which would replace the whole
+        // thread. Prefer the server's specific reason (e.g. out-of-credits).
+        setDraftError(data.error || "Couldn't generate an AI draft. Retry, or reply manually below.");
       }
     } catch {
       setDraftError("Couldn't generate an AI draft. Retry, or reply manually below.");

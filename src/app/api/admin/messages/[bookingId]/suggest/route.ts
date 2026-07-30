@@ -129,6 +129,21 @@ export async function POST(
     return NextResponse.json({ draft, configured: true });
   } catch (err) {
     console.error("[suggest] Draft generation failed:", err);
-    return NextResponse.json({ draft: null, configured: true, error: "Draft generation failed" }, { status: 502 });
+    // Surface the specific reason when Anthropic rejects for an unpaid balance,
+    // so the host knows AI drafts are down because the Claude account needs
+    // credits — not a random glitch to keep retrying.
+    const msg = err instanceof Error ? err.message : String(err);
+    const outOfCredits = /credit balance is too low|Plans & Billing/i.test(msg);
+    return NextResponse.json(
+      {
+        draft: null,
+        configured: true,
+        reason: outOfCredits ? "billing" : "error",
+        error: outOfCredits
+          ? "AI drafts are paused: Anthropic (Claude) says this account's credit balance is too low. Add credits in the Anthropic console to turn drafting back on."
+          : "Draft generation failed",
+      },
+      { status: 502 }
+    );
   }
 }
