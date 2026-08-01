@@ -6,6 +6,8 @@ import Anthropic from "@anthropic-ai/sdk";
 import { after } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
+// Newest messages, not oldest: post-stay sentiment lives at the tail of the
+// thread, and the head of long threads is mostly automated registration nags.
 const MAX_MESSAGES = 40;
 
 export type ReviewGateResult = {
@@ -33,14 +35,15 @@ export async function shouldRequestReview(
     ...(registrationId ? [`registration_id.eq.${registrationId}`] : []),
   ];
   const supabase = createAdminClient();
-  const { data: messages } = await supabase
+  const { data: newest } = await supabase
     .from("guest_message")
     .select("message_type, message, creation_time")
     .or(filters.join(","))
-    .order("creation_time", { ascending: true })
+    .order("creation_time", { ascending: false })
     .limit(MAX_MESSAGES);
+  const messages = (newest ?? []).reverse();
 
-  const guestMessages = (messages ?? []).filter((m) => m.message_type === "Renter");
+  const guestMessages = messages.filter((m) => m.message_type === "Renter");
   if (guestMessages.length === 0) {
     return { send: true, reason: "no guest messages" };
   }
@@ -49,7 +52,7 @@ export async function shouldRequestReview(
     return { send: true, reason: "sentiment check unavailable" };
   }
 
-  const transcript = (messages ?? [])
+  const transcript = messages
     .map((m) => `${m.message_type === "Renter" ? "GUEST" : "HOST"}: ${(m.message ?? "").slice(0, 500)}`)
     .join("\n\n");
 
