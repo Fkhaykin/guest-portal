@@ -10,7 +10,12 @@ import {
   CalendarClock,
   CheckCircle2,
   Home,
+  Wrench,
 } from "lucide-react";
+import {
+  MaintenanceTaskList,
+  type MaintenanceTask,
+} from "@/components/cleaner/maintenance-task-list";
 import { SyncBookingsButton } from "@/components/cleaner/sync-bookings-button";
 import { NewIdsProvider } from "@/components/cleaner/new-ids-provider";
 import { PageHeader } from "@/components/ui/page-header";
@@ -146,6 +151,29 @@ export default async function CleanerDashboard() {
     ((statuses as CleaningStatusRow[]) || []).map((s) => [s.registration_id, s])
   );
 
+  // Maintenance punch list: all open items plus the last two weeks of fixes.
+  const recentCutoff = new Date(new Date().getTime() - 14 * 86_400_000).toISOString();
+  const { data: maintenanceRows } = await supabase
+    .from("maintenance_task")
+    .select("id, property_id, description, source, status, created_at, completed_at")
+    .in("property_id", propertyIds)
+    .or(`status.eq.open,completed_at.gte.${recentCutoff}`)
+    .order("created_at", { ascending: true });
+
+  const maintenanceTasks: MaintenanceTask[] = (maintenanceRows || []).map((t) => {
+    const prop = propertyMap.get(t.property_id);
+    return {
+      id: t.id,
+      description: t.description,
+      source: t.source,
+      status: t.status as "open" | "done",
+      created_at: t.created_at,
+      completed_at: t.completed_at,
+      propertyName: prop?.nickname || prop?.name || "Unknown",
+    };
+  });
+  const openMaintenanceCount = maintenanceTasks.filter((t) => t.status === "open").length;
+
   // Categorize
   const current: typeof regs = [];
   const upcoming: typeof regs = [];
@@ -280,6 +308,14 @@ export default async function CleanerDashboard() {
             count: upcoming.length,
             cards: renderCards(upcoming, "upcoming"),
             empty: "No upcoming arrivals.",
+          },
+          {
+            key: "maintenance",
+            label: "Maintenance",
+            icon: <Wrench className="h-3.5 w-3.5 text-warning" />,
+            count: openMaintenanceCount,
+            cards: <MaintenanceTaskList tasks={maintenanceTasks} />,
+            empty: "No maintenance items.",
           },
           {
             key: "completed",
