@@ -24,7 +24,7 @@ export async function POST(request: Request) {
 
   const { data: reg, error: regError } = await supabase
     .from("registration")
-    .select("id, guest_list, pets, property_id, lodgify_num_pets")
+    .select("id, guest_list, pets, property_id, lodgify_num_pets, upsells")
     .eq("id", registration_id)
     .single();
 
@@ -46,6 +46,9 @@ export async function POST(request: Request) {
   // Check if original Lodgify booking included pets
   const lodgifyNumPets = reg.lodgify_num_pets || 0;
   const currentPets = (reg.pets as Array<Record<string, unknown>>) || [];
+  // Flat fee: one paid pet_fee upsell covers the whole stay (up to 3 pets)
+  const upsells = (reg.upsells as Array<{ type?: string; status?: string }>) || [];
+  const petFeePaid = upsells.some((u) => u.type === "pet_fee" && u.status === "paid");
 
   return NextResponse.json({
     id: reg.id,
@@ -54,6 +57,7 @@ export async function POST(request: Request) {
     pets: reg.pets || [],
     lodgify_num_pets: lodgifyNumPets,
     pet_fee_cents: property?.guest_pet_fee_cents ?? 0,
+    pet_fee_paid: petFeePaid,
     has_pets_from_booking: lodgifyNumPets > 0 || currentPets.length > 0,
     max_guests: property?.max_guests ?? 12,
     vehicles: (vehicles || []).map((v) => ({

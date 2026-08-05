@@ -125,7 +125,7 @@ export function useBooking({
   propertySlug: string;
   maxGuests: number;
   petsAllowed: boolean;
-  /** Flat per-pet fee charged at checkout — folded into the card's total */
+  /** Flat per-stay pet fee (covers up to 3 pets) charged at checkout — folded into the card's total */
   petFeeCents?: number;
   initialCheckIn?: string;
   initialCheckOut?: string;

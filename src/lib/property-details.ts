@@ -39,7 +39,7 @@ export type PropertyDetails = {
     cover_image_url: string | null;
     max_guests: number | null;
     lodgify_property_id: number;
-    /** Flat fee per pet per stay, charged at checkout — mirrored in the booking card */
+    /** Flat per-stay pet fee (covers up to 3 pets), charged at checkout — mirrored in the booking card */
     pet_fee_cents: number;
   };
   lodgify: PropertyDetailsLodgify | null;

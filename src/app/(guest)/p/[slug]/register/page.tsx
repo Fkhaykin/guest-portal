@@ -265,7 +265,7 @@ export default function RegisterPage() {
   // Pet fee state
   const [lodgifyNumPets, setLodgifyNumPets] = useState(0);
   const [petFeeCents, setPetFeeCents] = useState(0);
-  const [paidPetCount, setPaidPetCount] = useState(0); // how many extra pets have been paid for
+  const [petFeePaid, setPetFeePaid] = useState(false); // flat fee paid — covers up to 3 pets for the stay
   const [petFeeLoading, setPetFeeLoading] = useState(false);
 
   // Government-ID verification via Stripe Identity (document + selfie).
@@ -325,6 +325,7 @@ export default function RegisterPage() {
       .then((data) => {
         setLodgifyNumPets(data.lodgify_num_pets ?? 0);
         setPetFeeCents(data.pet_fee_cents ?? 0);
+        setPetFeePaid(!!data.pet_fee_paid);
       })
       .catch(() => {});
 
@@ -417,7 +418,7 @@ export default function RegisterPage() {
         if (res.ok) {
           if (petFeeReturn === "true") {
             // Returning from pet fee payment — go back to pets step
-            setPaidPetCount((c) => c + 1);
+            setPetFeePaid(true);
             setStep(4);
           } else {
             setCart([]);
@@ -431,8 +432,8 @@ export default function RegisterPage() {
     const cancelled = params.get("upsell_cancelled");
     if (cancelled) {
       if (petFeeReturn === "true") {
-        // Cancelled pet fee — remove the last pet that triggered it
-        setPets((prev) => prev.slice(0, -1));
+        // Cancelled pet fee — back to the pets step; the flat fee covers all
+        // pets, so keep the list and let the guest pay or remove pets there.
         setStep(4);
       } else {
         setStep(6);
@@ -441,15 +442,16 @@ export default function RegisterPage() {
     }
   }, [loaded, session]);
 
-  /** Check if adding/keeping this many pets requires a fee and redirect to Stripe */
+  /** Check if bringing pets requires the flat stay fee and redirect to Stripe */
   async function checkPetFeeAndProceed(petsList: PetEntry[], onNoPetFee: () => void) {
     const validPets = petsList.filter((p) => p.name.trim());
-    const extraPets = validPets.length - lodgifyNumPets - paidPetCount;
-    if (extraPets <= 0 || petFeeCents <= 0 || !session) {
+    // Flat fee: one charge per stay covers up to 3 pets. Nothing due when the
+    // booking already included pets or the fee was already paid.
+    const feeDue = validPets.length > 0 && lodgifyNumPets === 0 && !petFeePaid;
+    if (!feeDue || petFeeCents <= 0 || !session) {
       onNoPetFee();
       return;
     }
-    // Need to pay for the extra pet(s)
     setPetFeeLoading(true);
     // Save current state before redirect
     saveRegistrationProgress({ registrationId: session.reservation.id, step: 4, fullName, email, phone, address, guests, hasPets: true, pets: petsList, notes, vehicles, usingRentalCar });
@@ -463,9 +465,9 @@ export default function RegisterPage() {
           registration_id: session.reservation.id,
           items: [{
             type: "pet_fee",
-            label: `Pet Fee — ${validPets[validPets.length - 1]?.name || "Pet"} (${validPets[validPets.length - 1]?.kind || "Pet"})`,
+            label: "Pet Fee (covers up to 3 pets)",
             price_cents: petFeeCents,
-            meta: { pet_name: validPets[validPets.length - 1]?.name },
+            meta: { pet_names: validPets.map((p) => p.name).join(", ") },
           }],
           return_path: "register",
           return_query: "pet_fee=true",
@@ -1157,15 +1159,14 @@ export default function RegisterPage() {
       {/* Step 4: Pets */}
       {step === 4 && (() => {
         const validPets = pets.filter((p) => p.name.trim());
-        const extraPetsNeeded = hasPets ? Math.max(0, validPets.length - lodgifyNumPets) : 0;
-        const unpaidExtraPets = extraPetsNeeded - paidPetCount;
-        const nextPetNeedsFee = hasPets && petFeeCents > 0 && (validPets.length + 1) > (lodgifyNumPets + paidPetCount);
+        // Flat fee: one charge per stay covers up to 3 pets
+        const petFeeDue = hasPets && validPets.length > 0 && lodgifyNumPets === 0 && !petFeePaid && petFeeCents > 0;
 
         return (
         <form onSubmit={(e) => {
           e.preventDefault();
-          if (unpaidExtraPets > 0 && petFeeCents > 0) {
-            // Can't proceed — extra pets need payment
+          if (petFeeDue) {
+            // Can't proceed — the stay's pet fee needs payment
             checkPetFeeAndProceed(pets, () => setStep(5));
             return;
           }
@@ -1197,15 +1198,16 @@ export default function RegisterPage() {
               {hasPets && petFeeCents > 0 && (
                 <div className="rounded-lg border border-warning/30 bg-warning/10 p-3 text-sm text-foreground">
                   {lodgifyNumPets > 0
-                    ? `Your reservation includes ${lodgifyNumPets} pet${lodgifyNumPets !== 1 ? "s" : ""}. A $${(petFeeCents / 100).toFixed(petFeeCents % 100 === 0 ? 0 : 2)} fee applies for each additional pet.`
-                    : `A $${(petFeeCents / 100).toFixed(petFeeCents % 100 === 0 ? 0 : 2)} non-refundable pet fee applies per pet.`}
+                    ? `Your reservation includes pets — the pet fee covers up to 3 pets, so no additional fee applies.`
+                    : petFeePaid
+                    ? `Your pet fee is paid — it covers up to 3 pets for this stay.`
+                    : `A flat $${(petFeeCents / 100).toFixed(petFeeCents % 100 === 0 ? 0 : 2)} non-refundable pet fee applies per stay and covers up to 3 pets.`}
                 </div>
               )}
 
               {hasPets && (
                 <div className="space-y-4 pt-2">
                   {pets.map((pet, index) => {
-                    const isPaidExtra = index >= lodgifyNumPets && index < lodgifyNumPets + paidPetCount;
                     return (
                     <div key={index}>
                       {index > 0 && <Separator className="mb-4" />}
@@ -1213,7 +1215,7 @@ export default function RegisterPage() {
                         <div className="flex items-center justify-between">
                           <span className="text-sm font-medium">
                             Pet {index + 1}
-                            {isPaidExtra && (
+                            {petFeePaid && (
                               <Badge variant="secondary" className="ml-2 text-green-700 bg-green-50 text-xs">
                                 <Check className="h-3 w-3 mr-0.5" /> Fee paid
                               </Badge>
@@ -1221,11 +1223,7 @@ export default function RegisterPage() {
                           </span>
                           {index > 0 && (
                             <Button type="button" variant="ghost" size="icon"
-                              onClick={() => {
-                                setPets(pets.filter((_, i) => i !== index));
-                                // If removing a paid extra pet, decrement paid count
-                                if (isPaidExtra) setPaidPetCount((c) => Math.max(0, c - 1));
-                              }}>
+                              onClick={() => setPets(pets.filter((_, i) => i !== index))}>
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           )}
@@ -1315,27 +1313,19 @@ export default function RegisterPage() {
                   );
                   })}
 
-                  {nextPetNeedsFee ? (
-                    <Button type="button" variant="outline" size="sm"
-                      disabled={petFeeLoading}
-                      onClick={() => {
-                        const newPets = [...pets, emptyPet()];
-                        setPets(newPets);
-                        // Fee will be charged when they fill in the pet and click Next
-                      }}>
-                      <Plus className="h-4 w-4 mr-1" /> Add Another Pet (${(petFeeCents / 100).toFixed(petFeeCents % 100 === 0 ? 0 : 2)} fee)
-                    </Button>
-                  ) : (
+                  {pets.length < 3 ? (
                     <Button type="button" variant="outline" size="sm"
                       onClick={() => setPets([...pets, emptyPet()])}>
                       <Plus className="h-4 w-4 mr-1" /> Add Another Pet
                     </Button>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">Maximum of 3 pets per stay.</p>
                   )}
                 </div>
               )}
             </CardContent>
           </Card>
-          {unpaidExtraPets > 0 && petFeeCents > 0 ? (
+          {petFeeDue ? (
             <div className="flex gap-3">
               <Button type="button" variant="outline" size="lg" onClick={() => setStep(3)}>
                 <ChevronLeft className="h-4 w-4 mr-1" /> Back
@@ -1343,7 +1333,7 @@ export default function RegisterPage() {
               <Button type="button" size="lg" className="flex-1"
                 disabled={petFeeLoading}
                 onClick={() => checkPetFeeAndProceed(pets, () => setStep(5))}>
-                {petFeeLoading ? "Redirecting to payment..." : `Pay Pet Fee — $${((petFeeCents * unpaidExtraPets) / 100).toFixed(0)}`}
+                {petFeeLoading ? "Redirecting to payment..." : `Pay Pet Fee — $${(petFeeCents / 100).toFixed(0)}`}
               </Button>
             </div>
           ) : (

@@ -218,9 +218,9 @@ export const SECTIONS: PolicySection[] = [
     ],
     items: [
       { label: "Approved Pets", body: "Only the specific pets named in the reservation are permitted. Substitutions, additions, and \"just-for-a-night\" exceptions are not allowed and are treated as unauthorized pets." },
-      { label: "Pet Fee", body: "A non-refundable pet fee of one hundred dollars ($100) per pet per stay applies to every approved pet." },
+      { label: "Pet Fee", body: "A non-refundable flat pet fee of one hundred dollars ($100) per stay applies when bringing approved pets, and covers up to three (3) dogs." },
       { label: "Species Restrictions \u2014 Dogs Only", body: "Dogs are the only pet species permitted at any Summit Lakeside Property. Cats are not allowed under any circumstances, including short visits, due to allergen persistence in soft furnishings. Exotic animals (reptiles, rodents, birds, primates), livestock, and any non-canine companion animal are likewise prohibited. Dogs that insurers categorize as restricted breeds are not permitted without an express written exception." },
-      { label: "Size & Count", body: "A maximum of two (2) dogs per Property, each under seventy-five (75) pounds, unless otherwise approved in writing." },
+      { label: "Size & Count", body: "A maximum of three (3) dogs per Property, each under seventy-five (75) pounds, unless otherwise approved in writing." },
       { label: "Documentation", body: "The Guest must provide current proof of rabies vaccination and, where required by the Property or HOA, proof of general vaccination and flea/tick prevention. The Host's registration system supports uploading these documents." },
       { label: "Supervision", body: "Pets must never be left unattended indoors for more than four (4) hours and must not be left unattended in outdoor spaces at any time. Pets may not be left crated unattended overnight in any common area." },
       { label: "Furniture", body: "Pets are not permitted on beds, upholstered furniture, or inside hot tubs or pools. Pet hair on upholstered furniture or bedding will be treated as a cleaning violation." },

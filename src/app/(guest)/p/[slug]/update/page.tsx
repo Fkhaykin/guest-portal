@@ -208,6 +208,7 @@ export default function UpdateRegistrationPage() {
       setHadPetsOnRegistration(data.has_pets_from_booking);
       setPetFeeCents(data.pet_fee_cents ?? 0);
       setLodgifyNumPets(data.lodgify_num_pets ?? 0);
+      setPetFeePaid(!!data.pet_fee_paid);
       setExistingVehicles(data.vehicles);
       setReservation({
         id: session.reservation.id,
@@ -280,6 +281,7 @@ export default function UpdateRegistrationPage() {
 
       if (updateRes.ok) {
         setExistingPets(updatedPets);
+        setPetFeePaid(true);
         setPetSaved(true);
         setTimeout(() => setPetSaved(false), 5000);
       }
@@ -344,6 +346,13 @@ export default function UpdateRegistrationPage() {
   const [hadPetsOnRegistration, setHadPetsOnRegistration] = useState(false);
   const [petFeeCents, setPetFeeCents] = useState(0);
   const [lodgifyNumPets, setLodgifyNumPets] = useState(0);
+  const [petFeePaid, setPetFeePaid] = useState(false);
+
+  // Flat fee: one charge per stay covers up to 3 pets. Due only for the first
+  // pet on a stay that had none booked and hasn't paid the fee yet.
+  const petFeeDue =
+    petFeeCents > 0 && lodgifyNumPets === 0 && existingPets.length === 0 && !petFeePaid;
+  const atPetLimit = existingPets.length >= 3;
 
   async function uploadPetDocs(regId: string, petIndex: number) {
     let rabiesPath: string | null = null;
@@ -379,7 +388,7 @@ export default function UpdateRegistrationPage() {
   }
 
   async function handleAddPet() {
-    if (!registrationId || !newPet.name.trim() || !newPet.kind.trim()) return;
+    if (!registrationId || !newPet.name.trim() || !newPet.kind.trim() || atPetLimit) return;
     setSavingPet(true);
     setUploadingDocs(true);
 
@@ -394,11 +403,9 @@ export default function UpdateRegistrationPage() {
       vaccination_doc_path: vaccinationPath,
     };
 
-    // Charge pet fee if this pet exceeds the original Lodgify booking pet count
-    const totalPetsAfterAdd = existingPets.length + 1;
-    const needsFee = totalPetsAfterAdd > lodgifyNumPets && petFeeCents > 0;
-
-    if (needsFee) {
+    // Flat fee: charge once per stay (covers up to 3 pets) — only when the
+    // booking had no pets and the fee hasn't been paid yet
+    if (petFeeDue) {
       sessionStorage.setItem(PENDING_PET_KEY, JSON.stringify({ pet: petEntry, registration_id: registrationId }));
 
       const checkoutRes = await fetch("/api/guest/upsells/checkout", {
@@ -408,7 +415,7 @@ export default function UpdateRegistrationPage() {
           registration_id: registrationId,
           items: [{
             type: "pet_fee",
-            label: `Pet Fee — ${petEntry.name} (${petEntry.kind})`,
+            label: "Pet Fee (covers up to 3 pets)",
             price_cents: petFeeCents,
             meta: { pet_name: petEntry.name, pet_kind: petEntry.kind },
           }],
@@ -623,9 +630,11 @@ export default function UpdateRegistrationPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Add a Pet</h1>
           <p className="text-muted-foreground text-sm">
-            {petFeeCents > 0 && existingPets.length + 1 > lodgifyNumPets
-              ? `A $${(petFeeCents / 100).toFixed(petFeeCents % 100 === 0 ? 0 : 2)} pet fee applies for pets not included in your original reservation. An updated form will be sent to the HOA.`
-              : "Add another pet to your registration. An updated form will be sent to the HOA."}
+            {atPetLimit
+              ? "Your registration already has the maximum of 3 pets per stay."
+              : petFeeDue
+              ? `A flat $${(petFeeCents / 100).toFixed(petFeeCents % 100 === 0 ? 0 : 2)} pet fee applies per stay and covers up to 3 pets. An updated form will be sent to the HOA.`
+              : "Add another pet to your registration — your stay's pet fee covers up to 3 pets. An updated form will be sent to the HOA."}
           </p>
         </div>
 
@@ -676,12 +685,12 @@ export default function UpdateRegistrationPage() {
 
         <Button
           className="w-full"
-          disabled={savingPet || !newPet.name.trim() || !newPet.kind.trim()}
+          disabled={savingPet || !newPet.name.trim() || !newPet.kind.trim() || atPetLimit}
           onClick={handleAddPet}
         >
           {savingPet
-            ? uploadingDocs ? "Uploading documents..." : (petFeeCents > 0 && existingPets.length + 1 > lodgifyNumPets) ? "Redirecting to payment..." : "Adding..."
-            : (petFeeCents > 0 && existingPets.length + 1 > lodgifyNumPets) ? `Add Pet — $${(petFeeCents / 100).toFixed(petFeeCents % 100 === 0 ? 0 : 2)}` : "Add Pet"}
+            ? uploadingDocs ? "Uploading documents..." : petFeeDue ? "Redirecting to payment..." : "Adding..."
+            : petFeeDue ? `Add Pet — $${(petFeeCents / 100).toFixed(petFeeCents % 100 === 0 ? 0 : 2)}` : "Add Pet"}
         </Button>
 
         {existingPets.length > 0 && (
@@ -1136,7 +1145,7 @@ export default function UpdateRegistrationPage() {
             </div>
             <div>
               <CardTitle className="text-sm font-semibold">Add a Pet</CardTitle>
-              <CardDescription className="text-xs mt-1 hidden sm:block">{petFeeCents > 0 && existingPets.length >= lodgifyNumPets ? `$${(petFeeCents / 100).toFixed(petFeeCents % 100 === 0 ? 0 : 2)} fee` : "Register a pet"}</CardDescription>
+              <CardDescription className="text-xs mt-1 hidden sm:block">{petFeeDue ? `$${(petFeeCents / 100).toFixed(petFeeCents % 100 === 0 ? 0 : 2)} fee` : "Register a pet"}</CardDescription>
             </div>
           </CardContent>
         </Card>
