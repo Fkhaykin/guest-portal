@@ -171,8 +171,8 @@ const AIRBNB_PHOTOS: Record<string, AirbnbPhotoSet> = {
     ],
   },
 
-  // Airbnb 51672067 — Bianca's — 47 photos (scraped Jun 2026; captions
-  // derived from the archived filenames)
+  // Airbnb 51672067 — Bianca's — 57 photos (47 scraped Jun 2026 + 10 added
+  // Aug 2026; captions derived from the archived filenames)
   "Cozy Lakefront Home w/ Game Room, Hot Tub, Fire Pit, & Boats": {
     airbnbId: "51672067",
     photos: [
@@ -183,18 +183,25 @@ const AIRBNB_PHOTOS: Record<string, AirbnbPhotoSet> = {
       { url: "https://arvbaoeszakyuxqhkogz.supabase.co/storage/v1/object/public/property-images/lodgify-368827/airbnb/05-full-kitchen-image-1.jpg", caption: "Full kitchen" },
       { url: "https://arvbaoeszakyuxqhkogz.supabase.co/storage/v1/object/public/property-images/lodgify-368827/airbnb/06-full-kitchen-image-2.jpg", caption: "Full kitchen" },
       { url: "https://arvbaoeszakyuxqhkogz.supabase.co/storage/v1/object/public/property-images/lodgify-368827/airbnb/07-full-kitchen-image-3.jpg", caption: "Full kitchen" },
+      { url: "https://arvbaoeszakyuxqhkogz.supabase.co/storage/v1/object/public/property-images/lodgify-368827/airbnb/48-full-kitchen-image-4.jpg", caption: "Full kitchen" },
       { url: "https://arvbaoeszakyuxqhkogz.supabase.co/storage/v1/object/public/property-images/lodgify-368827/airbnb/08-dining-area-image-1.jpg", caption: "Dining area" },
+      { url: "https://arvbaoeszakyuxqhkogz.supabase.co/storage/v1/object/public/property-images/lodgify-368827/airbnb/49-dining-room.jpg", caption: "Dining area" },
       { url: "https://arvbaoeszakyuxqhkogz.supabase.co/storage/v1/object/public/property-images/lodgify-368827/airbnb/09-dining-area-image-3.jpg", caption: "Dining area" },
       { url: "https://arvbaoeszakyuxqhkogz.supabase.co/storage/v1/object/public/property-images/lodgify-368827/airbnb/10-bedroom-1.jpg", caption: "Bedroom 1" },
       { url: "https://arvbaoeszakyuxqhkogz.supabase.co/storage/v1/object/public/property-images/lodgify-368827/airbnb/11-bedroom-1-image-2.jpg", caption: "Bedroom 1" },
       { url: "https://arvbaoeszakyuxqhkogz.supabase.co/storage/v1/object/public/property-images/lodgify-368827/airbnb/12-bedroom-1-image-3.jpg", caption: "Bedroom 1" },
+      { url: "https://arvbaoeszakyuxqhkogz.supabase.co/storage/v1/object/public/property-images/lodgify-368827/airbnb/50-bedroom-1-image-4.jpg", caption: "Bedroom 1" },
       { url: "https://arvbaoeszakyuxqhkogz.supabase.co/storage/v1/object/public/property-images/lodgify-368827/airbnb/13-bedroom-2.jpg", caption: "Bedroom 2" },
       { url: "https://arvbaoeszakyuxqhkogz.supabase.co/storage/v1/object/public/property-images/lodgify-368827/airbnb/14-bedroom-2-image-2.jpg", caption: "Bedroom 2" },
       { url: "https://arvbaoeszakyuxqhkogz.supabase.co/storage/v1/object/public/property-images/lodgify-368827/airbnb/15-bedroom-2-image-3.jpg", caption: "Bedroom 2" },
+      { url: "https://arvbaoeszakyuxqhkogz.supabase.co/storage/v1/object/public/property-images/lodgify-368827/airbnb/51-bedroom-2-image-4.jpg", caption: "Bedroom 2" },
       { url: "https://arvbaoeszakyuxqhkogz.supabase.co/storage/v1/object/public/property-images/lodgify-368827/airbnb/16-bedroom-3.jpg", caption: "Bedroom 3" },
       { url: "https://arvbaoeszakyuxqhkogz.supabase.co/storage/v1/object/public/property-images/lodgify-368827/airbnb/17-full-bathroom-1-image-1.jpg", caption: "Full bathroom" },
+      { url: "https://arvbaoeszakyuxqhkogz.supabase.co/storage/v1/object/public/property-images/lodgify-368827/airbnb/52-full-bathroom-2-image-1.jpg", caption: "Full bathroom" },
       { url: "https://arvbaoeszakyuxqhkogz.supabase.co/storage/v1/object/public/property-images/lodgify-368827/airbnb/18-full-bathroom-2-image-2.jpg", caption: "Full bathroom" },
       { url: "https://arvbaoeszakyuxqhkogz.supabase.co/storage/v1/object/public/property-images/lodgify-368827/airbnb/19-full-bathroom-2-image-3.jpg", caption: "Full bathroom" },
+      { url: "https://arvbaoeszakyuxqhkogz.supabase.co/storage/v1/object/public/property-images/lodgify-368827/airbnb/53-half-bathroom-image-1.jpg", caption: "Half bathroom" },
+      { url: "https://arvbaoeszakyuxqhkogz.supabase.co/storage/v1/object/public/property-images/lodgify-368827/airbnb/54-half-bathroom-image-2.jpg", caption: "Half bathroom" },
       { url: "https://arvbaoeszakyuxqhkogz.supabase.co/storage/v1/object/public/property-images/lodgify-368827/airbnb/20-backyard-image-1.jpg", caption: "Backyard" },
       { url: "https://arvbaoeszakyuxqhkogz.supabase.co/storage/v1/object/public/property-images/lodgify-368827/airbnb/21-backyard-image-2.jpg", caption: "Backyard" },
       { url: "https://arvbaoeszakyuxqhkogz.supabase.co/storage/v1/object/public/property-images/lodgify-368827/airbnb/22-patio-image-1.jpg", caption: "Patio" },
@@ -211,7 +218,10 @@ const AIRBNB_PHOTOS: Record<string, AirbnbPhotoSet> = {
       { url: "https://arvbaoeszakyuxqhkogz.supabase.co/storage/v1/object/public/property-images/lodgify-368827/airbnb/33-game-room-image-4.jpg", caption: "Game room" },
       { url: "https://arvbaoeszakyuxqhkogz.supabase.co/storage/v1/object/public/property-images/lodgify-368827/airbnb/34-game-room-image-5.jpg", caption: "Game room" },
       { url: "https://arvbaoeszakyuxqhkogz.supabase.co/storage/v1/object/public/property-images/lodgify-368827/airbnb/35-game-room-image-6.jpg", caption: "Game room" },
+      { url: "https://arvbaoeszakyuxqhkogz.supabase.co/storage/v1/object/public/property-images/lodgify-368827/airbnb/55-additional-photos-image-1.jpg", caption: "Hallway" },
       { url: "https://arvbaoeszakyuxqhkogz.supabase.co/storage/v1/object/public/property-images/lodgify-368827/airbnb/36-additional-photos-image-2.jpg", caption: "Hallway" },
+      { url: "https://arvbaoeszakyuxqhkogz.supabase.co/storage/v1/object/public/property-images/lodgify-368827/airbnb/56-additional-photos-image-3.jpg", caption: "Game room" },
+      { url: "https://arvbaoeszakyuxqhkogz.supabase.co/storage/v1/object/public/property-images/lodgify-368827/airbnb/57-arcade-games.jpg", caption: "Game room" },
       { url: "https://arvbaoeszakyuxqhkogz.supabase.co/storage/v1/object/public/property-images/lodgify-368827/airbnb/37-additional-photos-image-5.jpg", caption: "Exterior" },
       { url: "https://arvbaoeszakyuxqhkogz.supabase.co/storage/v1/object/public/property-images/lodgify-368827/airbnb/38-additional-photos-image-6.jpg", caption: "Lake view" },
       { url: "https://arvbaoeszakyuxqhkogz.supabase.co/storage/v1/object/public/property-images/lodgify-368827/airbnb/39-additional-photos-image-7.jpg", caption: "Lake view" },
