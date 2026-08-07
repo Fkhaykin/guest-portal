@@ -80,15 +80,43 @@ export default async function BookPropertyPage({
 
   // Structured data for rich search results. Reviews merge the house's old +
   // new listing names (retired duplicate rows) via reviewsForProperty.
+  // Field set follows Google's vacation-rental spec: containsPlace, geo, and
+  // identifier are REQUIRED (GSC marks items invalid without them).
+  // streetAddress is deliberately omitted — exact addresses stay private.
   const propReviews = reviewsForProperty(property.name);
+  const postalCode = property.address?.match(/\b(\d{5})\b/)?.[1];
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "VacationRental",
     name: property.name,
     url: `${SITE_URL}/book/${slug}`,
+    identifier: slug,
+    additionalType: "House",
+    brand: { "@type": "Brand", name: "Summit Lakeside Rentals" },
+    checkinTime: "16:00:00-05:00",
+    checkoutTime: "11:00:00-05:00",
+    knowsLanguage: "en-US",
     ...(property.description
       ? { description: stripHtml(property.description).slice(0, 500) }
       : {}),
+    containsPlace: {
+      "@type": "Accommodation",
+      additionalType: "EntirePlace",
+      ...(property.max_guests
+        ? { occupancy: { "@type": "QuantitativeValue", value: property.max_guests } }
+        : {}),
+      ...(lodgify?.bedrooms ? { numberOfBedrooms: lodgify.bedrooms } : {}),
+      ...(lodgify?.bathrooms ? { numberOfBathroomsTotal: lodgify.bathrooms } : {}),
+      ...(lodgify?.area
+        ? {
+            floorSize: {
+              "@type": "QuantitativeValue",
+              value: lodgify.area,
+              unitCode: lodgify.area_unit === "sqm" ? "MTK" : "FTK",
+            },
+          }
+        : {}),
+    },
     ...(lodgify
       ? {
           image: lodgify.images.slice(0, 8).map((img) => ({
@@ -101,6 +129,12 @@ export default async function BookPropertyPage({
             addressLocality: lodgify.city,
             addressRegion: lodgify.state,
             addressCountry: "US",
+            ...(postalCode ? { postalCode } : {}),
+          },
+          geo: {
+            "@type": "GeoCoordinates",
+            latitude: lodgify.lat,
+            longitude: lodgify.lng,
           },
         }
       : {}),
