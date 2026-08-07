@@ -13,9 +13,10 @@ import {
 } from "./visuals";
 
 export const metadata = {
-  title: "Rental Policies & Terms — Summit Lakeside",
+  title: "Rental Policies & Terms",
   description:
     "The complete terms, conditions, and house rules for staying at a Summit Lakeside property. Please read carefully before booking.",
+  alternates: { canonical: "/rental-policies" },
 };
 
 /* ------------------------------------------------------------------ */

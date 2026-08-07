@@ -18,9 +18,8 @@ export async function generateMetadata({
     .single();
 
   return {
-    title: property
-      ? `Checkout — ${property.name} | Summit Lakeside Rentals`
-      : "Checkout | Summit Lakeside Rentals",
+    title: property ? `Checkout — ${property.name}` : "Checkout",
+    robots: { index: false, follow: false },
   };
 }
 

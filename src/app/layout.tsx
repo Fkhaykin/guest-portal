@@ -5,6 +5,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { PWARegister } from "@/components/pwa-register";
 import { LiveChatGate } from "@/components/guest/live-chat-gate";
 import { IdleReturnGate } from "@/components/kiosk/idle-return";
+import { SITE_URL } from "@/lib/seo";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -32,9 +33,28 @@ export const viewport: Viewport = {
   ],
 };
 
+const DEFAULT_OG_IMAGE =
+  "https://arvbaoeszakyuxqhkogz.supabase.co/storage/v1/object/public/property-images/lodgify-355872/airbnb/46-lake-dock.jpg";
+
 export const metadata: Metadata = {
-  title: "Summit Lakeside Rentals — Poconos Lakehouse Vacations",
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: "Poconos Lakefront Vacation Rentals | Summit Lakeside",
+    template: "%s | Summit Lakeside Rentals",
+  },
   description: "Lakefront vacation homes in the Poconos with hot tubs, game rooms, boats, and direct lake access. Book direct and save.",
+  openGraph: {
+    siteName: "Summit Lakeside Rentals",
+    type: "website",
+    locale: "en_US",
+    images: [{ url: DEFAULT_OG_IMAGE, width: 1920, height: 1280 }],
+  },
+  twitter: {
+    card: "summary_large_image",
+  },
+  ...(process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION
+    ? { verification: { google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION } }
+    : {}),
   // Emitted as <link rel="manifest" href="/manifest.json"> (middleware swaps in
   // the subdomain-specific file). Driving it through metadata — rather than a
   // hard-coded <link> — lets deeper segments (the kiosk route) override it with

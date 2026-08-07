@@ -26,8 +26,10 @@ export async function generateMetadata({
   const heroImage = lodgify?.images[0]?.url ?? property.cover_image_url;
 
   return {
-    title: `${property.name} | Summit Lakeside Rentals`,
+    // Root layout template appends "| Summit Lakeside Rentals"
+    title: property.name,
     description,
+    alternates: { canonical: `/book/${slug}` },
     openGraph: {
       title: property.name,
       description,
