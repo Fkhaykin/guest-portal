@@ -12,6 +12,8 @@ import {
   Quote,
   Star,
   ChevronDown,
+  Check,
+  Minus,
 } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
@@ -462,6 +464,95 @@ export default function WhySummitPage() {
               </div>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* === BOOK DIRECT, PAY LESS === */}
+      <section className="py-24 sm:py-32 bg-muted/30 border-y">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          <div className="max-w-3xl mb-14">
+            <span className="text-xs uppercase tracking-[0.3em] text-muted-foreground font-semibold">
+              Book Direct, Pay Less
+            </span>
+            <h2 className="text-4xl sm:text-5xl font-bold tracking-tight mt-4 leading-[1.05]">
+              Same homes. Same beds. Smaller bill.
+            </h2>
+            <p className="text-lg text-muted-foreground mt-6 leading-relaxed">
+              You've seen these houses on Airbnb and Vrbo — they're ours. Book
+              here instead and the platform's guest service fee (typically
+              around 14% of the booking) simply never gets charged.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-px bg-border rounded-2xl overflow-hidden border">
+            {[
+              {
+                name: "Airbnb / Vrbo",
+                highlight: false,
+                rows: [
+                  { ok: true, text: "The same five lakefront homes" },
+                  { ok: false, text: "Guest service fee (~14%) on top" },
+                  { ok: false, text: "Messages relayed through the platform" },
+                  { ok: false, text: "No returning-guest discount" },
+                ],
+              },
+              {
+                name: "Book direct with us",
+                highlight: true,
+                rows: [
+                  { ok: true, text: "The same five lakefront homes" },
+                  { ok: true, text: "No platform service fees — ever" },
+                  { ok: true, text: "Text or call the actual owners" },
+                  { ok: true, text: "Loyalty discount when you come back" },
+                ],
+              },
+              {
+                name: "Either way",
+                highlight: false,
+                rows: [
+                  { ok: true, text: "Hot tubs, boats, fire pits included" },
+                  { ok: true, text: "Same cleaning standards, same crew" },
+                  { ok: true, text: "Same house rules & quiet hours" },
+                  { ok: true, text: "Same 4.91-star hosting" },
+                ],
+              },
+            ].map((col) => (
+              <div
+                key={col.name}
+                className={`p-7 sm:p-8 ${
+                  col.highlight ? "bg-foreground text-background" : "bg-background"
+                }`}
+              >
+                <h3 className="text-lg font-bold mb-5">{col.name}</h3>
+                <ul className="space-y-3.5">
+                  {col.rows.map((row) => (
+                    <li key={row.text} className="flex items-start gap-2.5 text-sm leading-snug">
+                      {row.ok ? (
+                        <Check className={`h-4 w-4 mt-0.5 shrink-0 ${col.highlight ? "text-background" : "text-primary"}`} />
+                      ) : (
+                        <Minus className="h-4 w-4 mt-0.5 shrink-0 text-muted-foreground" />
+                      )}
+                      <span className={col.highlight ? "" : row.ok ? "" : "text-muted-foreground"}>
+                        {row.text}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+
+          <p className="text-sm text-muted-foreground mt-6">
+            Questions before you book? Start with the{" "}
+            <Link href="/faq" className="text-primary font-medium hover:underline">
+              guest FAQ
+            </Link>{" "}
+            or the{" "}
+            <Link href="/rental-policies" className="text-primary font-medium hover:underline">
+              full policies
+            </Link>
+            .
+          </p>
         </div>
       </section>
 

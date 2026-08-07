@@ -29,6 +29,18 @@ export function SiteFooter() {
               <Link href="/things-to-do" className="hover:text-foreground transition-colors">
                 Visit the Poconos
               </Link>
+              <Link href="/penn-estates" className="hover:text-foreground transition-colors">
+                Penn Estates Rentals
+              </Link>
+              <Link href="/blue-mountain-lake" className="hover:text-foreground transition-colors">
+                Blue Mountain Lake
+              </Link>
+              <Link href="/poconos-fall-getaways" className="hover:text-foreground transition-colors">
+                Fall Getaways Guide
+              </Link>
+              <Link href="/faq" className="hover:text-foreground transition-colors">
+                Guest FAQ
+              </Link>
               <Link href="/why-summit" className="hover:text-foreground transition-colors">
                 Why Summit?
               </Link>

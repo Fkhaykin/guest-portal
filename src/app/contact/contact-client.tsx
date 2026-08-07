@@ -48,7 +48,7 @@ const QUICK_LINKS = [
     title: "View rental policies",
     description:
       "Check-in times, cancellation, pet policy, and everything else before you book.",
-    href: "/#policies",
+    href: "/rental-policies",
     cta: "Read policies",
     icon: ScrollText,
   },
@@ -56,7 +56,7 @@ const QUICK_LINKS = [
     title: "Visit our FAQs",
     description:
       "Quick answers to the most common questions from past and prospective guests.",
-    href: "/#faq",
+    href: "/faq",
     cta: "Open FAQs",
     icon: HelpCircle,
   },

@@ -40,6 +40,7 @@ import { AmenitiesSection } from "./amenities";
 import { GuestPhotoAlbum, type AlbumPhoto } from "@/components/guest/guest-photo-album";
 import { LocalPlacesSection } from "./local-places";
 
+import Link from "next/link";
 import { HOUSE_NAME_ALIASES } from "@/lib/house-aliases";
 
 /* ------------------------------------------------------------------ */
@@ -298,6 +299,20 @@ export function PropertyPage({
                         {lodgify.city}, {lodgify.state} — the Poconos
                       </span>
                     )}
+                    <Link
+                      href={
+                        property.slug ===
+                        "lakefront-mansion-w-3-decks-hot-tub-boats-game-room"
+                          ? "/blue-mountain-lake"
+                          : "/penn-estates"
+                      }
+                      className="flex items-center gap-1.5 font-medium text-primary hover:underline underline-offset-4"
+                    >
+                      {property.slug ===
+                      "lakefront-mansion-w-3-decks-hot-tub-boats-game-room"
+                        ? "In Blue Mountain Lake — gated, paddle-only lake"
+                        : "In Penn Estates — gated, 3 lakes, 2 pools"}
+                    </Link>
                     {reviewAvg !== null && (
                       <a
                         href="#reviews"

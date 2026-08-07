@@ -1207,6 +1207,46 @@ export default function HomeV2Page({
       )}
 
       {/* ============================================================ */}
+      {/*  TWO COMMUNITIES — gateway to the community landing pages     */}
+      {/* ============================================================ */}
+      <section className="px-4 sm:px-6 pb-16 sm:pb-20 max-w-6xl mx-auto w-full">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {[
+            {
+              href: "/penn-estates",
+              title: "Penn Estates vacation rentals",
+              sub: "Four homes on Lower Twin Lake, inside a gated 1,200-acre community — three lakes, two Olympic pools, courts for every sport.",
+              stat: "4 homes · 3 lakes · 2 pools",
+            },
+            {
+              href: "/blue-mountain-lake",
+              title: "Blue Mountain Lake rental",
+              sub: "The Lakefront Mansion on a quiet paddle-only lake — three decks, arcade & bar, with the same pools and courts nearby.",
+              stat: "Sleeps 12 · paddle-only lake",
+            },
+          ].map((c) => (
+            <Link
+              key={c.href}
+              href={c.href}
+              className="group rounded-3xl border bg-card p-7 sm:p-8 hover:shadow-xl transition-shadow"
+            >
+              <div className="text-xs uppercase tracking-[0.25em] text-primary font-semibold">
+                {c.stat}
+              </div>
+              <h3 className="text-2xl font-bold tracking-tight mt-3 group-hover:text-primary transition-colors">
+                {c.title}
+              </h3>
+              <p className="text-muted-foreground mt-2.5 leading-relaxed">{c.sub}</p>
+              <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary mt-5">
+                Explore the community
+                <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+              </span>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      {/* ============================================================ */}
       {/*  THE SUMMIT STANDARD — full-bleed parallax band               */}
       {/* ============================================================ */}
       <StoryBand
