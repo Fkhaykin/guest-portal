@@ -85,8 +85,8 @@ export default function FallGetawaysPage() {
       />
 
       <ContentHero
-        image={img("photo-1507041957456-9c397ce39c97", 2000)}
-        alt="Fall foliage over a Pocono mountain lake"
+        image={img("photo-1476820865390-c52aeebb9891", 2000)}
+        alt="Road through peak fall foliage in the Pocono Mountains"
         eyebrow="Seasonal Guide · Updated for this fall"
         title="Fall in the Poconos, done right."
         lede="Foliage hikes and leaf-peeping towns by day — then back to a lakefront house with the fire pit going and the hot tub steaming. This is the season the Poconos was built for."
