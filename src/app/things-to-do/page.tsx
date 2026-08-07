@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { JsonLd } from "@/components/seo/json-ld";
+import { SITE_URL } from "@/lib/seo";
 import ThingsToDoPage from "./things-to-do-client";
 
 export const metadata: Metadata = {
@@ -14,5 +16,19 @@ export const metadata: Metadata = {
 };
 
 export default function Page() {
-  return <ThingsToDoPage />;
+  return (
+    <>
+      <JsonLd
+        data={{
+          "@context": "https://schema.org",
+          "@type": "BreadcrumbList",
+          itemListElement: [
+            { "@type": "ListItem", position: 1, name: "Home", item: SITE_URL },
+            { "@type": "ListItem", position: 2, name: "Things to Do in the Poconos" },
+          ],
+        }}
+      />
+      <ThingsToDoPage />
+    </>
+  );
 }

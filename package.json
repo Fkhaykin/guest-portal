@@ -17,6 +17,7 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@hookform/resolvers": "^5.2.2",
     "@mediapipe/tasks-vision": "^0.10.18",
+    "@next/third-parties": "^16.3.0",
     "@react-google-maps/api": "^2.20.8",
     "@stripe/stripe-js": "^9.0.1",
     "@supabase/ssr": "^0.10.0",

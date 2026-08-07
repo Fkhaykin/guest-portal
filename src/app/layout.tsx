@@ -6,6 +6,8 @@ import { PWARegister } from "@/components/pwa-register";
 import { LiveChatGate } from "@/components/guest/live-chat-gate";
 import { IdleReturnGate } from "@/components/kiosk/idle-return";
 import { SITE_URL } from "@/lib/seo";
+import { JsonLd } from "@/components/seo/json-ld";
+import { AnalyticsGate } from "@/components/analytics-gate";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -102,6 +104,23 @@ export default function RootLayout({
           <LiveChatGate />
           <IdleReturnGate />
         </ThemeProvider>
+        <JsonLd
+          data={{
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            name: "Summit Lakeside Rentals",
+            url: SITE_URL,
+            logo: `${SITE_URL}/logo.png`,
+            contactPoint: {
+              "@type": "ContactPoint",
+              telephone: "+1-732-213-8571",
+              email: "contact@summitlakeside.com",
+              contactType: "customer service",
+            },
+            sameAs: ["https://instagram.com/summitlakeside"],
+          }}
+        />
+        <AnalyticsGate />
       </body>
     </html>
   );

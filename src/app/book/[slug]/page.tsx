@@ -1,9 +1,22 @@
 import { notFound } from "next/navigation";
 import { getPropertyDetails } from "@/lib/property-details";
-import { REVIEWS } from "@/lib/reviews-data";
+import { reviewsForProperty } from "@/lib/house-aliases";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getPublishedHousePhotos } from "@/lib/guest-photos";
+import { JsonLd } from "@/components/seo/json-ld";
+import { SITE_URL } from "@/lib/seo";
 import { PropertyPage } from "./property-page";
+
+// "April 2026" → "2026-04" for schema.org datePublished.
+const MONTHS: Record<string, string> = {
+  January: "01", February: "02", March: "03", April: "04",
+  May: "05", June: "06", July: "07", August: "08",
+  September: "09", October: "10", November: "11", December: "12",
+};
+function reviewDateToIso(date: string): string | null {
+  const [month, year] = date.split(" ");
+  return MONTHS[month] && year ? `${year}-${MONTHS[month]}` : null;
+}
 
 function stripHtml(html: string) {
   return html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
@@ -65,18 +78,24 @@ export default async function BookPropertyPage({
     nickname: propRow?.nickname ?? null,
   });
 
-  // Structured data for rich search results
-  const propReviews = REVIEWS.filter((r) => r.property === property.name);
+  // Structured data for rich search results. Reviews merge the house's old +
+  // new listing names (retired duplicate rows) via reviewsForProperty.
+  const propReviews = reviewsForProperty(property.name);
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "VacationRental",
     name: property.name,
+    url: `${SITE_URL}/book/${slug}`,
     ...(property.description
       ? { description: stripHtml(property.description).slice(0, 500) }
       : {}),
     ...(lodgify
       ? {
-          image: lodgify.images.slice(0, 8).map((img) => img.url),
+          image: lodgify.images.slice(0, 8).map((img) => ({
+            "@type": "ImageObject",
+            url: img.url,
+            ...(img.caption ? { caption: img.caption } : {}),
+          })),
           address: {
             "@type": "PostalAddress",
             addressLocality: lodgify.city,
@@ -94,16 +113,33 @@ export default async function BookPropertyPage({
             ).toFixed(2),
             reviewCount: propReviews.length,
           },
+          review: propReviews.slice(0, 10).map((r) => ({
+            "@type": "Review",
+            author: { "@type": "Person", name: r.name },
+            ...(reviewDateToIso(r.date)
+              ? { datePublished: reviewDateToIso(r.date) }
+              : {}),
+            reviewRating: { "@type": "Rating", ratingValue: r.rating },
+            reviewBody: r.text.replace(/<br\s*\/?>/gi, " "),
+          })),
         }
       : {}),
   };
 
+  const breadcrumbLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Home", item: SITE_URL },
+      { "@type": "ListItem", position: 2, name: "Lake Houses", item: `${SITE_URL}/search` },
+      { "@type": "ListItem", position: 3, name: property.name },
+    ],
+  };
+
   return (
     <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-      />
+      <JsonLd data={jsonLd} />
+      <JsonLd data={breadcrumbLd} />
       <PropertyPage
         details={details}
         checkIn={query.check_in}

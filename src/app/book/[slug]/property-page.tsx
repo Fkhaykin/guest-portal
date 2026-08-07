@@ -40,19 +40,7 @@ import { AmenitiesSection } from "./amenities";
 import { GuestPhotoAlbum, type AlbumPhoto } from "@/components/guest/guest-photo-album";
 import { LocalPlacesSection } from "./local-places";
 
-/* ------------------------------------------------------------------ */
-/*  House aliases — some houses have an old + new property row; merge  */
-/*  their review history                                               */
-/* ------------------------------------------------------------------ */
-
-const HOUSE_NAME_ALIASES: Record<string, string[]> = {
-  "Lakeview Chalet w/ hot tub, sauna, fire pit & decks": [
-    "Lakeview Chalet w/ Hot Tub, Sauna, Decks, Boats, & Fire Pit!",
-  ],
-  "Poconos Lakefront with Hot Tub, boats, and more!": [
-    "Lakefront Home w/ Hot Tub, Game Room, Deck, Boats, Fire Pit",
-  ],
-};
+import { HOUSE_NAME_ALIASES } from "@/lib/house-aliases";
 
 /* ------------------------------------------------------------------ */
 /*  Highlights — the headline features of the house                    */

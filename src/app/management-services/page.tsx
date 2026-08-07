@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { JsonLd } from "@/components/seo/json-ld";
+import { FAQS } from "./faq-data";
 import ManagementServicesPage from "./management-services-client";
 
 export const metadata: Metadata = {
@@ -14,5 +16,20 @@ export const metadata: Metadata = {
 };
 
 export default function Page() {
-  return <ManagementServicesPage />;
+  return (
+    <>
+      <JsonLd
+        data={{
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          mainEntity: FAQS.map((faq) => ({
+            "@type": "Question",
+            name: faq.q,
+            acceptedAnswer: { "@type": "Answer", text: faq.a },
+          })),
+        }}
+      />
+      <ManagementServicesPage />
+    </>
+  );
 }
