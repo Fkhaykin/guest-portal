@@ -35,6 +35,7 @@ export default async function NewInvoicePage() {
     .from("cleaning_status")
     .select("registration_id, cleaned_at, registration!inner(property_id)")
     .eq("is_cleaned", true)
+    .eq("is_skipped", false)
     .in("registration.property_id", propertyIds.length > 0 ? propertyIds : ["_none_"]);
 
   const cleanedRegIds = (cleanedStatuses || []).map((s) => s.registration_id);
