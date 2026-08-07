@@ -26,7 +26,7 @@ export default async function NewInvoicePage() {
 
   const { data: properties } = await supabase
     .from("property")
-    .select("id, name, nickname, cleaning_fee_cents")
+    .select("id, name, nickname, cleaning_fee_cents, owner_email")
     .in("id", propertyIds.length > 0 ? propertyIds : ["_none_"])
     .order("name");
 
@@ -129,6 +129,7 @@ export default async function NewInvoicePage() {
         nickname: p.nickname,
         cleaningFeeCents: p.cleaning_fee_cents ?? 0,
         petFeeCents: cleaner.pet_fee_cents ?? 0,
+        ownerEmail: p.owner_email ?? null,
       }))}
       unbilledCleanings={unbilledCleanings}
     />

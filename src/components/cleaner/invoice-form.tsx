@@ -34,6 +34,7 @@ type Property = {
   nickname: string | null;
   cleaningFeeCents: number;
   petFeeCents: number;
+  ownerEmail?: string | null;
 };
 
 type UnbilledCleaning = {
@@ -142,13 +143,32 @@ export function InvoiceForm({
     setLines((prev) => [...prev, ...newLines]);
   }
 
-  function autoPopulateUnbilled() {
-    if (!unbilledCleanings?.length) return;
+  // Houses with different owners are invoiced separately (e.g. Bianca's vs the
+  // Summit houses), keyed on the property's owner email.
+  const invoiceGroups = (() => {
+    if (!unbilledCleanings?.length) return [];
+    const propMap = new Map(properties.map((p) => [p.id, p]));
+    const byOwner = new Map<string, UnbilledCleaning[]>();
+    for (const c of unbilledCleanings) {
+      const key = propMap.get(c.property_id)?.ownerEmail || "__default__";
+      const arr = byOwner.get(key) || [];
+      arr.push(c);
+      byOwner.set(key, arr);
+    }
+    return [...byOwner.values()].map((items) => ({
+      label: [...new Set(items.map((c) => c.property_nickname || c.property_name))].join(", "),
+      items,
+    }));
+  })();
+
+  function autoPopulateUnbilled(subset?: UnbilledCleaning[]) {
+    const toAdd = subset ?? unbilledCleanings;
+    if (!toAdd?.length) return;
 
     const propMap = new Map(properties.map((p) => [p.id, p]));
     const newLines: InvoiceLineItem[] = [];
 
-    for (const cleaning of unbilledCleanings) {
+    for (const cleaning of toAdd) {
       const prop = propMap.get(cleaning.property_id);
       if (!prop) continue;
 
@@ -206,7 +226,7 @@ export function InvoiceForm({
 
       // Auto-set period from unbilled dates
       if (!periodStart && !periodEnd) {
-        const dates = unbilledCleanings.map((c) => c.check_out_date).sort();
+        const dates = toAdd.map((c) => c.check_out_date).sort();
         setPeriodStart(dates[0]);
         setPeriodEnd(dates[dates.length - 1]);
       }
@@ -301,15 +321,33 @@ export function InvoiceForm({
                 </p>
                 <p className="text-xs text-muted-foreground">
                   Auto-add completed cleanings, pet fees, firewood deliveries, and guest tips.
+                  {invoiceGroups.length > 1 &&
+                    " These houses are invoiced separately — add one group per invoice."}
                 </p>
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={autoPopulateUnbilled}
-                >
-                  <Zap className="h-3 w-3 mr-1" />
-                  Add All Unbilled Items
-                </Button>
+                {invoiceGroups.length > 1 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {invoiceGroups.map((group) => (
+                      <Button
+                        key={group.label}
+                        type="button"
+                        size="sm"
+                        onClick={() => autoPopulateUnbilled(group.items)}
+                      >
+                        <Zap className="h-3 w-3 mr-1" />
+                        {group.label} ({group.items.length})
+                      </Button>
+                    ))}
+                  </div>
+                ) : (
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => autoPopulateUnbilled()}
+                  >
+                    <Zap className="h-3 w-3 mr-1" />
+                    Add All Unbilled Items
+                  </Button>
+                )}
               </div>
             </div>
           </CardContent>
