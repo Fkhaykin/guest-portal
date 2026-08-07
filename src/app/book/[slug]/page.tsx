@@ -4,7 +4,7 @@ import { reviewsForProperty } from "@/lib/house-aliases";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getPublishedHousePhotos } from "@/lib/guest-photos";
 import { JsonLd } from "@/components/seo/json-ld";
-import { SITE_URL } from "@/lib/seo";
+import { SITE_URL, ogMeta } from "@/lib/seo";
 import { PropertyPage } from "./property-page";
 
 // "April 2026" → "2026-04" for schema.org datePublished.
@@ -43,11 +43,11 @@ export async function generateMetadata({
     title: property.name,
     description,
     alternates: { canonical: `/book/${slug}` },
-    openGraph: {
+    openGraph: ogMeta({
       title: property.name,
       description,
       ...(heroImage ? { images: [{ url: heroImage }] } : {}),
-    },
+    }),
   };
 }
 

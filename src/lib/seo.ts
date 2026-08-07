@@ -12,3 +12,28 @@ export function isIndexableHost(hostHeader: string | null): boolean {
   if (!hostHeader) return false;
   return INDEXABLE_HOSTS.has(hostHeader.split(":")[0].toLowerCase());
 }
+
+export const DEFAULT_OG_IMAGE =
+  "https://arvbaoeszakyuxqhkogz.supabase.co/storage/v1/object/public/property-images/lodgify-355872/airbnb/46-lake-dock.jpg";
+
+/** Full openGraph object for a page. Next's metadata merge is shallow — a
+ *  page-level `openGraph` replaces the layout's entirely — so every page that
+ *  customizes OG must go through this to keep siteName + a default image. */
+export function ogMeta({
+  title,
+  description,
+  images,
+}: {
+  title: string;
+  description: string;
+  images?: { url: string; width?: number; height?: number }[];
+}) {
+  return {
+    siteName: "Summit Lakeside Rentals",
+    type: "website" as const,
+    locale: "en_US",
+    title,
+    description,
+    images: images ?? [{ url: DEFAULT_OG_IMAGE, width: 1920, height: 1280 }],
+  };
+}

@@ -4,7 +4,7 @@ import { ArrowRight, Flame, Leaf, Mountain, TentTree } from "lucide-react";
 import { SiteNav } from "@/components/site-nav";
 import { SiteFooter } from "@/components/site-footer";
 import { JsonLd } from "@/components/seo/json-ld";
-import { SITE_URL } from "@/lib/seo";
+import { SITE_URL, ogMeta } from "@/lib/seo";
 import { img } from "@/lib/things-to-do-content";
 import { pickReviewQuotes } from "@/lib/review-quotes";
 import {
@@ -20,11 +20,11 @@ export const metadata: Metadata = {
   description:
     "Plan a Poconos fall weekend from a lakefront home in East Stroudsburg: peak foliage timing, Jim Thorpe and the Delaware Water Gap, Bushkill Falls, Hickory Run — then back to the hot tub and fire pit.",
   alternates: { canonical: "/poconos-fall-getaways" },
-  openGraph: {
+  openGraph: ogMeta({
     title: "Poconos Fall Getaways | Summit Lakeside",
     description:
       "Peak foliage, waterfall hikes, and small-town leaf-peeping — from a lakefront home with a hot tub and fire pit.",
-  },
+  }),
 };
 
 const STOPS = [

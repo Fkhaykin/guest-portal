@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { JsonLd } from "@/components/seo/json-ld";
-import { SITE_URL } from "@/lib/seo";
+import { SITE_URL, ogMeta } from "@/lib/seo";
 import ThingsToDoPage from "./things-to-do-client";
 
 export const metadata: Metadata = {
@@ -8,11 +8,11 @@ export const metadata: Metadata = {
   description:
     "A local's guide to the Poconos: Bushkill Falls, Delaware Water Gap hikes, Camelback and Shawnee skiing, lake days, restaurants, and rainy-day family activities near East Stroudsburg.",
   alternates: { canonical: "/things-to-do" },
-  openGraph: {
+  openGraph: ogMeta({
     title: "Things to Do in the Poconos — A Local's Guide",
     description:
       "Waterfalls, skiing, lakes, dining, and family activities — 40+ vetted local picks from your Summit Lakeside hosts.",
-  },
+  }),
 };
 
 export default function Page() {

@@ -4,7 +4,7 @@ import { ArrowRight, Waves, Droplets, Trophy, Gamepad2 } from "lucide-react";
 import { SiteNav } from "@/components/site-nav";
 import { SiteFooter } from "@/components/site-footer";
 import { JsonLd } from "@/components/seo/json-ld";
-import { SITE_URL } from "@/lib/seo";
+import { SITE_URL, ogMeta } from "@/lib/seo";
 import { COMMUNITIES } from "@/lib/things-to-do-content";
 import { pickReviewQuotes } from "@/lib/review-quotes";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -21,20 +21,22 @@ export const revalidate = 3600;
 
 const MANSION_SLUG = "lakefront-mansion-w-3-decks-hot-tub-boats-game-room";
 
+const HERO =
+  "https://arvbaoeszakyuxqhkogz.supabase.co/storage/v1/object/public/property-images/lodgify-368901/airbnb/28-backyard-image-1.jpg";
+
 export const metadata: Metadata = {
   title: "Blue Mountain Lake, PA Vacation Rental — The Lakefront Mansion",
   description:
     "Stay on Blue Mountain Lake in East Stroudsburg, PA: a 3,400+ sq ft lakefront mansion with three decks, hot tub, arcade game room, pool table, and bar — in a quiet gated community with a paddle-only lake and Olympic pools.",
   alternates: { canonical: "/blue-mountain-lake" },
-  openGraph: {
+  openGraph: ogMeta({
     title: "Blue Mountain Lake Vacation Rental | Summit Lakeside",
     description:
       "The Lakefront Mansion: three decks over a paddle-only lake, hot tub, arcade, pool table & bar — sleeps 12 in gated Blue Mountain Lake.",
-  },
+    images: [{ url: HERO }],
+  }),
 };
 
-const HERO =
-  "https://arvbaoeszakyuxqhkogz.supabase.co/storage/v1/object/public/property-images/lodgify-368901/airbnb/28-backyard-image-1.jpg";
 const INTERIOR =
   "https://arvbaoeszakyuxqhkogz.supabase.co/storage/v1/object/public/property-images/lodgify-368901/airbnb/01-living-room-image-1.jpg";
 

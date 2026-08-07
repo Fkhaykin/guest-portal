@@ -5,7 +5,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { PWARegister } from "@/components/pwa-register";
 import { LiveChatGate } from "@/components/guest/live-chat-gate";
 import { IdleReturnGate } from "@/components/kiosk/idle-return";
-import { SITE_URL } from "@/lib/seo";
+import { SITE_URL, DEFAULT_OG_IMAGE } from "@/lib/seo";
 import { JsonLd } from "@/components/seo/json-ld";
 import { AnalyticsGate } from "@/components/analytics-gate";
 import "./globals.css";
@@ -34,9 +34,6 @@ export const viewport: Viewport = {
     { media: "(prefers-color-scheme: dark)", color: "#15171c" },
   ],
 };
-
-const DEFAULT_OG_IMAGE =
-  "https://arvbaoeszakyuxqhkogz.supabase.co/storage/v1/object/public/property-images/lodgify-355872/airbnb/46-lake-dock.jpg";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),

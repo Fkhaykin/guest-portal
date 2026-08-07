@@ -3,7 +3,7 @@ import Link from "next/link";
 import { SiteNav } from "@/components/site-nav";
 import { SiteFooter } from "@/components/site-footer";
 import { JsonLd } from "@/components/seo/json-ld";
-import { SITE_URL } from "@/lib/seo";
+import { SITE_URL, ogMeta } from "@/lib/seo";
 import { FAQ_CATEGORIES, ALL_FAQS } from "@/lib/faq-content";
 import {
   ContentHero,
@@ -17,11 +17,11 @@ export const metadata: Metadata = {
   description:
     "Quick answers about staying at a Summit Lakeside home: booking direct, check-in and the gate, the lake and free boats, hot tubs, bringing your dog, and house rules.",
   alternates: { canonical: "/faq" },
-  openGraph: {
+  openGraph: ogMeta({
     title: "Summit Lakeside Guest FAQ",
     description:
       "Booking direct, check-in, the lake and boats, hot tubs, dogs, and house rules — answered by the hosts.",
-  },
+  }),
 };
 
 const HERO =

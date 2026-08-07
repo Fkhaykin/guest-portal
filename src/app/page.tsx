@@ -3,7 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getPropertyPhotoGalleries } from "@/lib/property-photos";
 import { REVIEW_STATS } from "@/lib/reviews-data";
 import { JsonLd } from "@/components/seo/json-ld";
-import { SITE_URL } from "@/lib/seo";
+import { SITE_URL, ogMeta } from "@/lib/seo";
 import HomeV2Page from "./home-client";
 
 // Property list + galleries refresh hourly without a redeploy.
@@ -14,11 +14,11 @@ export const metadata: Metadata = {
   description:
     "Five lakefront homes in the Poconos with hot tubs, saunas, game rooms, boats & fire pits. Pet-friendly, about 90 minutes from NYC. Book direct and save.",
   alternates: { canonical: "/" },
-  openGraph: {
+  openGraph: ogMeta({
     title: "Poconos Lakefront Vacation Rentals | Summit Lakeside",
     description:
       "Five lakefront homes in the Poconos with hot tubs, saunas, game rooms, boats & fire pits. Book direct and save.",
-  },
+  }),
 };
 
 export default async function Page() {

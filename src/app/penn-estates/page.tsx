@@ -4,7 +4,7 @@ import { Waves, Trophy, Droplets, Store, BadgeCheck } from "lucide-react";
 import { SiteNav } from "@/components/site-nav";
 import { SiteFooter } from "@/components/site-footer";
 import { JsonLd } from "@/components/seo/json-ld";
-import { SITE_URL } from "@/lib/seo";
+import { SITE_URL, ogMeta } from "@/lib/seo";
 import { COMMUNITIES } from "@/lib/things-to-do-content";
 import { pickReviewQuotes } from "@/lib/review-quotes";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -26,11 +26,11 @@ export const metadata: Metadata = {
   description:
     "Stay inside Penn Estates, a gated 1,200-acre Poconos community in East Stroudsburg, PA. Four Summit Lakeside homes on Lower Twin Lake — hot tubs, boats, game rooms — plus three lakes, two Olympic pools, and sports courts.",
   alternates: { canonical: "/penn-estates" },
-  openGraph: {
+  openGraph: ogMeta({
     title: "Penn Estates Vacation Rentals | Summit Lakeside",
     description:
       "Four lakefront vacation homes inside the gated Penn Estates community — with three lakes, two Olympic pools, and courts a few steps from your door.",
-  },
+  }),
 };
 
 const HERO =
