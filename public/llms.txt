@@ -1,0 +1,82 @@
+# Summit Lakeside Rentals
+
+> Five direct-booking lakefront vacation homes in East Stroudsburg, PA, in the
+> Pocono Mountains — about 90 minutes from New York City. Four homes sit on
+> Lakeside Drive in the gated Penn Estates community, on Lower Twin Lake; the
+> Mansion is on Blue Mountain Lake, a gated paddle-only-lake community nearby.
+> Every home includes a private hot tub, a fire pit, and free non-motorized
+> boats (kayaks, canoes, pedal boats). 837 verified guest reviews, 4.91
+> average. Booking direct here costs less than Airbnb or Vrbo — no platform
+> service fees — and returning guests get a loyalty discount.
+
+Key facts: check-in 4 PM, check-out 11 AM. The booking guest must be 21+ and
+stay on-site. Dogs welcome (up to 3, $100 flat fee per stay); no cats. No
+parties; quiet hours 10 PM–8 AM. Full payment is due at booking. The lakes at
+the houses are for boating and catch-and-release fishing; swimming is at the
+Hyland Lake sandy beach (Penn Estates) and at each community's two
+Olympic-size pools (Memorial Day–Labor Day, amenity badges included with
+every stay).
+
+## Properties
+
+- [The Lakehouse](https://www.summitlakeside.com/book/poconos-lakefront-with-hot-tub-boats-and-more):
+  Lakefront on Lower Twin Lake, sleeps 12. Hot tub, game room, big deck,
+  fire pit, and boats on a private dock.
+- [The Chalet](https://www.summitlakeside.com/book/luxury-lakefront-chalet-in-poconos-1-5hrs-from-nyc):
+  Lake-view A-frame, sleeps 12. Hot tub, sauna, stacked decks, fire pit,
+  boats — the ski-season favorite.
+- [The Manor](https://www.summitlakeside.com/book/lake-adjacent-home-w-hot-tub-game-room-boats-fenced-yard):
+  Lake-adjacent (water access two doors down), sleeps 12. Hot tub, game
+  room, boats, and a fully fenced yard — the pick for dog families.
+- [The Cottage](https://www.summitlakeside.com/book/cozy-lakefront-home-w-game-room-hot-tub-fire-pit-boats):
+  Lakefront, sleeps 8 — the cozy one. Arcade game room, hot tub, fire pit,
+  boats.
+- [The Mansion](https://www.summitlakeside.com/book/lakefront-mansion-w-3-decks-hot-tub-boats-game-room):
+  Lakefront on Blue Mountain Lake, sleeps 12, 3,400+ sq ft. Three decks,
+  hot tub, arcade, pool table, bar, boats.
+
+## Booking
+
+- [Search availability](https://www.summitlakeside.com/search): all five
+  homes by date and guest count.
+- Availability API: GET https://www.summitlakeside.com/api/availability
+  with check_in and check_out (YYYY-MM-DD) and optional guests — returns
+  available homes with id, slug, and max_guests. No authentication.
+- Pricing API: GET https://www.summitlakeside.com/api/checkout/pricing
+  with property_id (the id from the availability API), check_in, check_out,
+  guests, pets — returns a full quote including cleaning fee, pet fee, and
+  Pennsylvania state + Monroe County taxes. No authentication.
+- To book: open
+  https://www.summitlakeside.com/book/{slug}?check_in=YYYY-MM-DD&check_out=YYYY-MM-DD&guests=N
+  and complete checkout (card, Apple Pay, Google Pay).
+- [Rental policies](https://www.summitlakeside.com/rental-policies):
+  cancellation tiers, deposits, house rules, occupancy.
+- [Guest FAQ](https://www.summitlakeside.com/faq): booking, the gate, the
+  lake and boats, hot tubs, pets, house rules.
+
+## Area guides
+
+- [Things to do in the Poconos](https://www.summitlakeside.com/things-to-do):
+  40+ vetted local picks — waterfalls, skiing, lakes, dining, waterparks.
+- [Penn Estates](https://www.summitlakeside.com/penn-estates): the gated
+  community around four of our homes — three lakes, two Olympic pools,
+  sports courts.
+- [Blue Mountain Lake](https://www.summitlakeside.com/blue-mountain-lake):
+  the Mansion's community — paddle-only lake, pools, courts.
+- [Poconos fall getaways](https://www.summitlakeside.com/poconos-fall-getaways):
+  foliage timing and the four day trips worth the drive.
+
+## Contact
+
+- [Contact us](https://www.summitlakeside.com/contact): we typically reply
+  within the hour.
+- Email: contact@summitlakeside.com · Phone: +1-732-213-8571
+- [Why book direct](https://www.summitlakeside.com/why-summit)
+
+## Optional
+
+- [llms-full.txt](https://www.summitlakeside.com/llms-full.txt): expanded
+  property, policy, and community detail for AI agents.
+- [Guest portal](https://guest.summitlakeside.com): registration, add-ons,
+  and stay details for confirmed guests.
+- [Property management services](https://www.summitlakeside.com/management-services)
