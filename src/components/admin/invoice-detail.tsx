@@ -23,6 +23,7 @@ import {
   ReceiptText,
   User,
   FileText,
+  HandCoins,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { toneBadge, statusTone } from "@/lib/status-styles";
@@ -32,6 +33,7 @@ const TYPE_ICONS: Record<string, typeof Home> = {
   cleaning: Home,
   pet_fee: PawPrint,
   extra: Wrench,
+  tip: HandCoins,
   reimbursement: ReceiptText,
   monthly_fee: DollarSign,
 };
@@ -40,6 +42,7 @@ const TYPE_LABELS: Record<string, string> = {
   cleaning: "Cleaning",
   pet_fee: "Pet Fee",
   extra: "Extra",
+  tip: "Tip",
   reimbursement: "Reimbursement",
   monthly_fee: "Monthly Fee",
 };
@@ -254,6 +257,7 @@ export function AdminInvoiceDetail({
     cleaning: invoice.line_items.filter((l) => l.type === "cleaning"),
     pet_fee: orphanPetFees,
     extra: invoice.line_items.filter((l) => l.type === "extra"),
+    tip: invoice.line_items.filter((l) => l.type === "tip"),
     reimbursement: invoice.line_items.filter((l) => l.type === "reimbursement"),
   };
 
@@ -401,7 +405,7 @@ export function AdminInvoiceDetail({
       {/* Line items */}
       <Card>
         <CardContent className="pt-4 space-y-4">
-          {(["monthly_fee", "cleaning", "pet_fee", "extra", "reimbursement"] as const).map((type) => {
+          {(["monthly_fee", "cleaning", "pet_fee", "extra", "tip", "reimbursement"] as const).map((type) => {
             const items = grouped[type];
             if (items.length === 0) return null;
             const Icon = TYPE_ICONS[type];

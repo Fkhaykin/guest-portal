@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, Edit, Home, PawPrint, Wrench, FileText, SlidersHorizontal } from "lucide-react";
+import { ArrowLeft, Edit, Home, PawPrint, Wrench, FileText, SlidersHorizontal, HandCoins } from "lucide-react";
 import type { InvoiceLineItem, InvoiceAdjustment, InvoiceAttachment, InvoiceStatus } from "@/types/database";
 
 const STATUS_STYLES: Record<string, string> = {
@@ -19,12 +19,14 @@ const TYPE_ICONS: Record<string, typeof Home> = {
   cleaning: Home,
   pet_fee: PawPrint,
   extra: Wrench,
+  tip: HandCoins,
 };
 
 const TYPE_LABELS: Record<string, string> = {
   cleaning: "Cleaning",
   pet_fee: "Pet Fee",
   extra: "Extra",
+  tip: "Tip",
 };
 
 function formatCents(cents: number) {
@@ -79,6 +81,7 @@ export function InvoiceDetail({
     cleaning: invoice.line_items.filter((l) => l.type === "cleaning"),
     pet_fee: invoice.line_items.filter((l) => l.type === "pet_fee"),
     extra: invoice.line_items.filter((l) => l.type === "extra"),
+    tip: invoice.line_items.filter((l) => l.type === "tip"),
   };
 
   return (
@@ -118,7 +121,7 @@ export function InvoiceDetail({
       {/* Line items */}
       <Card>
         <CardContent className="pt-4 space-y-4">
-          {(["cleaning", "pet_fee", "extra"] as const).map((type) => {
+          {(["cleaning", "pet_fee", "extra", "tip"] as const).map((type) => {
             const items = grouped[type];
             if (items.length === 0) return null;
             const Icon = TYPE_ICONS[type];

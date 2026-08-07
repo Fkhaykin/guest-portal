@@ -46,31 +46,42 @@ export default async function NewInvoicePage() {
     .eq("cleaner_id", cleaner.id)
     .neq("status", "draft");
 
-  const billedRegIds = new Set<string>();
+  // Track what has been billed per registration, by kind: the cleaning itself
+  // (with its pet fee), the firewood delivery fee, and guest tips. A stay whose
+  // cleaning was already invoiced can still owe its firewood fee or tips.
+  const billedKinds = new Map<string, Set<"core" | "firewood" | "tip">>();
   for (const inv of existingInvoices || []) {
     const items = inv.line_items as InvoiceLineItem[];
     for (const item of items) {
-      if (item.registration_id) billedRegIds.add(item.registration_id);
+      if (!item.registration_id) continue;
+      let kinds = billedKinds.get(item.registration_id);
+      if (!kinds) {
+        kinds = new Set();
+        billedKinds.set(item.registration_id, kinds);
+      }
+      if (item.type === "tip") kinds.add("tip");
+      else if (item.type === "extra" && /firewood/i.test(item.description)) kinds.add("firewood");
+      else kinds.add("core");
     }
   }
 
-  // Get registration details for unbilled cleanings
-  const unbilledRegIds = cleanedRegIds.filter((id) => !billedRegIds.has(id));
   let unbilledCleanings: Array<{
     registration_id: string;
     property_id: string;
     property_name: string;
     property_nickname: string | null;
     check_out_date: string;
+    needs_cleaning: boolean;
     has_pets: boolean;
-    has_firewood: boolean;
+    firewood_count: number;
+    tip_cents: number;
   }> = [];
 
-  if (unbilledRegIds.length > 0) {
+  if (cleanedRegIds.length > 0) {
     const { data: regs } = await supabase
       .from("registration")
       .select("id, property_id, check_out_date, pets, upsells")
-      .in("id", unbilledRegIds);
+      .in("id", cleanedRegIds);
 
     const propMap = new Map(
       (properties || []).map((p) => [p.id, p])
@@ -80,22 +91,33 @@ export default async function NewInvoicePage() {
       .filter((r) => propMap.has(r.property_id))
       .map((r) => {
         const prop = propMap.get(r.property_id)!;
+        const kinds = billedKinds.get(r.id);
         const pets = r.pets as Array<{ name?: string }> | null;
         const hasPets = (pets || []).some((p) => p.name?.trim());
-        const upsells = r.upsells as Array<{ type: string; status: string }> | null;
-        const hasFirewood = (upsells || []).some(
-          (u) => u.type === "firewood" && u.status === "paid"
-        );
+        const upsells =
+          (r.upsells as Array<{ type: string; status: string; price_cents?: number }> | null) || [];
+        const paid = upsells.filter((u) => u.status === "paid");
+        const firewoodCount = kinds?.has("firewood")
+          ? 0
+          : paid.filter((u) => u.type === "firewood").length;
+        const tipCents = kinds?.has("tip")
+          ? 0
+          : paid
+              .filter((u) => u.type.startsWith("tip_"))
+              .reduce((sum, u) => sum + (u.price_cents || 0), 0);
         return {
           registration_id: r.id,
           property_id: r.property_id,
           property_name: prop.name,
           property_nickname: prop.nickname,
           check_out_date: r.check_out_date,
+          needs_cleaning: !kinds?.has("core"),
           has_pets: hasPets,
-          has_firewood: hasFirewood,
+          firewood_count: firewoodCount,
+          tip_cents: tipCents,
         };
       })
+      .filter((c) => c.needs_cleaning || c.firewood_count > 0 || c.tip_cents > 0)
       .sort((a, b) => a.check_out_date.localeCompare(b.check_out_date));
   }
 

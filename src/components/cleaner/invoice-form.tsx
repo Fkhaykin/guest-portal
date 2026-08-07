@@ -42,8 +42,10 @@ type UnbilledCleaning = {
   property_name: string;
   property_nickname: string | null;
   check_out_date: string;
+  needs_cleaning: boolean;
   has_pets: boolean;
-  has_firewood?: boolean;
+  firewood_count: number;
+  tip_cents: number;
 };
 
 const FIREWOOD_FEE_CENTS = 1_000;
@@ -151,38 +153,48 @@ export function InvoiceForm({
       if (!prop) continue;
 
       const propLabel = cleaning.property_nickname || cleaning.property_name;
-
-      // Add cleaning line
-      newLines.push({
-        description: `Cleaning — ${propLabel} (${cleaning.check_out_date})`,
-        type: "cleaning",
+      const common = {
         property_name: cleaning.property_name,
         property_nickname: cleaning.property_nickname ?? undefined,
         registration_id: cleaning.registration_id,
-        amount: prop.cleaningFeeCents,
-      });
+      };
 
-      // Add pet fee if pets were present
-      if (cleaning.has_pets && prop.petFeeCents > 0) {
+      if (cleaning.needs_cleaning) {
         newLines.push({
-          description: `Pet Fee — ${propLabel} (${cleaning.check_out_date})`,
-          type: "pet_fee",
-          property_name: cleaning.property_name,
-          property_nickname: cleaning.property_nickname ?? undefined,
-          registration_id: cleaning.registration_id,
-          amount: prop.petFeeCents,
+          description: `Cleaning — ${propLabel} (${cleaning.check_out_date})`,
+          type: "cleaning",
+          ...common,
+          amount: prop.cleaningFeeCents,
+        });
+
+        // Add pet fee if pets were present
+        if (cleaning.has_pets && prop.petFeeCents > 0) {
+          newLines.push({
+            description: `Pet Fee — ${propLabel} (${cleaning.check_out_date})`,
+            type: "pet_fee",
+            ...common,
+            amount: prop.petFeeCents,
+          });
+        }
+      }
+
+      // Add firewood delivery fee(s) if the guest purchased any
+      if (cleaning.firewood_count > 0) {
+        newLines.push({
+          description: `Firewood Delivery${cleaning.firewood_count > 1 ? ` ×${cleaning.firewood_count}` : ""} — ${propLabel} (${cleaning.check_out_date})`,
+          type: "extra",
+          ...common,
+          amount: cleaning.firewood_count * FIREWOOD_FEE_CENTS,
         });
       }
 
-      // Add firewood delivery fee if the guest purchased one
-      if (cleaning.has_firewood) {
+      // Pass through guest tips collected via the portal
+      if (cleaning.tip_cents > 0) {
         newLines.push({
-          description: `Firewood Delivery — ${propLabel} (${cleaning.check_out_date})`,
-          type: "extra",
-          property_name: cleaning.property_name,
-          property_nickname: cleaning.property_nickname ?? undefined,
-          registration_id: cleaning.registration_id,
-          amount: FIREWOOD_FEE_CENTS,
+          description: `Guest Tips — ${propLabel} (${cleaning.check_out_date})`,
+          type: "tip",
+          ...common,
+          amount: cleaning.tip_cents,
         });
       }
     }
@@ -285,10 +297,10 @@ export function InvoiceForm({
               <Zap className="h-5 w-5 text-info shrink-0 mt-0.5" />
               <div className="flex-1 space-y-2">
                 <p className="text-sm font-medium">
-                  {unbilledCleanings.length} unbilled cleaning{unbilledCleanings.length > 1 ? "s" : ""} found
+                  {unbilledCleanings.length} stay{unbilledCleanings.length > 1 ? "s" : ""} with unbilled items found
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  Auto-add all completed cleanings and pet fees with configured rates.
+                  Auto-add completed cleanings, pet fees, firewood deliveries, and guest tips.
                 </p>
                 <Button
                   type="button"
@@ -382,6 +394,7 @@ export function InvoiceForm({
                         <SelectItem value="cleaning">Cleaning</SelectItem>
                         <SelectItem value="pet_fee">Pet Fee</SelectItem>
                         <SelectItem value="extra">Extra</SelectItem>
+                        <SelectItem value="tip">Tip</SelectItem>
                         <SelectItem value="reimbursement">Reimbursement</SelectItem>
                       </SelectContent>
                     </Select>
