@@ -17,7 +17,10 @@ import type { InvoiceLineItem } from "@/types/database";
 // share is $200 and Summit gets the remainder ($800).
 //
 // Unbilled cleanings older than the window are swept in too, so a cleaning
-// marked complete late is picked up on the next run instead of lost.
+// marked complete late is picked up on the next run instead of lost. Billing
+// is tracked per kind (cleaning+pet / firewood / tips), so a stay whose
+// cleaning was already invoiced still gets missed firewood fees and guest
+// tips swept onto the next invoice.
 
 const BIANCA_MONTHLY_FEE_CENTS = 20_000;
 const FIREWOOD_FEE_CENTS = 1_000;
@@ -35,8 +38,14 @@ type RegRow = {
   property_id: string;
   check_out_date: string;
   pets: Array<{ name?: string }> | null;
-  upsells: Array<{ type: string; status: string }> | null;
+  upsells: Array<{ type: string; status: string; price_cents?: number }> | null;
 };
+
+// What has already been billed for a registration, by kind. "core" is the
+// cleaning + pet fee; firewood and guest tips are tracked separately so a
+// stay whose cleaning was invoiced can still get its missed extras swept
+// onto a later invoice.
+type BilledKind = "core" | "firewood" | "tip";
 
 type PropRow = {
   id: string;
@@ -50,50 +59,74 @@ type PropRow = {
 function buildLineItems(
   regs: RegRow[],
   propMap: Map<string, PropRow>,
-  petFeeCents: number
+  petFeeCents: number,
+  billedKinds: Map<string, Set<BilledKind>>
 ): InvoiceLineItem[] {
   const lineItems: InvoiceLineItem[] = [];
   for (const reg of regs) {
     const prop = propMap.get(reg.property_id);
     if (!prop) continue;
 
-    const cleaningFee = prop.cleaning_fee_cents ?? 0;
-    if (cleaningFee > 0) {
-      lineItems.push({
-        description: `Cleaning — ${prop.nickname || prop.name} (checkout ${reg.check_out_date})`,
-        type: "cleaning",
-        property_name: prop.name,
-        property_nickname: prop.nickname ?? undefined,
-        registration_id: reg.id,
-        amount: cleaningFee,
-      });
-    }
+    const kinds = billedKinds.get(reg.id);
+    const propLabel = prop.nickname || prop.name;
+    const paidUpsells = (reg.upsells || []).filter((u) => u.status === "paid");
 
-    // Pet fee (use cleaner's rate, not property's guest-facing rate)
-    const hasPets = (reg.pets || []).some((p) => p.name?.trim());
-    if (hasPets && petFeeCents > 0) {
-      lineItems.push({
-        description: `Pet fee — ${prop.nickname || prop.name} (checkout ${reg.check_out_date})`,
-        type: "pet_fee",
-        property_name: prop.name,
-        property_nickname: prop.nickname ?? undefined,
-        registration_id: reg.id,
-        amount: petFeeCents,
-      });
+    if (!kinds?.has("core")) {
+      const cleaningFee = prop.cleaning_fee_cents ?? 0;
+      if (cleaningFee > 0) {
+        lineItems.push({
+          description: `Cleaning — ${propLabel} (checkout ${reg.check_out_date})`,
+          type: "cleaning",
+          property_name: prop.name,
+          property_nickname: prop.nickname ?? undefined,
+          registration_id: reg.id,
+          amount: cleaningFee,
+        });
+      }
+
+      // Pet fee (use cleaner's rate, not property's guest-facing rate)
+      const hasPets = (reg.pets || []).some((p) => p.name?.trim());
+      if (hasPets && petFeeCents > 0) {
+        lineItems.push({
+          description: `Pet fee — ${propLabel} (checkout ${reg.check_out_date})`,
+          type: "pet_fee",
+          property_name: prop.name,
+          property_nickname: prop.nickname ?? undefined,
+          registration_id: reg.id,
+          amount: petFeeCents,
+        });
+      }
     }
 
     // Firewood delivery fee — cleaner drops off the bundle
-    const hasFirewood = (reg.upsells || []).some(
-      (u) => u.type === "firewood" && u.status === "paid"
-    );
-    if (hasFirewood) {
+    const firewoodCount = kinds?.has("firewood")
+      ? 0
+      : paidUpsells.filter((u) => u.type === "firewood").length;
+    if (firewoodCount > 0) {
       lineItems.push({
-        description: `Firewood delivery — ${prop.nickname || prop.name} (checkout ${reg.check_out_date})`,
+        description: `Firewood delivery${firewoodCount > 1 ? ` ×${firewoodCount}` : ""} — ${propLabel} (checkout ${reg.check_out_date})`,
         type: "extra",
         property_name: prop.name,
         property_nickname: prop.nickname ?? undefined,
         registration_id: reg.id,
-        amount: FIREWOOD_FEE_CENTS,
+        amount: firewoodCount * FIREWOOD_FEE_CENTS,
+      });
+    }
+
+    // Guest tips collected through the portal pass through in full
+    const tipCents = kinds?.has("tip")
+      ? 0
+      : paidUpsells
+          .filter((u) => u.type.startsWith("tip_"))
+          .reduce((sum, u) => sum + (u.price_cents || 0), 0);
+    if (tipCents > 0) {
+      lineItems.push({
+        description: `Guest tips — ${propLabel} (checkout ${reg.check_out_date})`,
+        type: "tip",
+        property_name: prop.name,
+        property_nickname: prop.nickname ?? undefined,
+        registration_id: reg.id,
+        amount: tipCents,
       });
     }
   }
@@ -206,10 +239,18 @@ async function runAutoGenerate(force?: "weekly" | "monthly") {
       .eq("cleaner_id", cleaner.id)
       .neq("status", "draft");
 
-    const billedRegIds = new Set<string>();
+    const billedKinds = new Map<string, Set<BilledKind>>();
     for (const inv of existingInvoices || []) {
       for (const item of inv.line_items as InvoiceLineItem[]) {
-        if (item.registration_id) billedRegIds.add(item.registration_id);
+        if (!item.registration_id) continue;
+        let kinds = billedKinds.get(item.registration_id);
+        if (!kinds) {
+          kinds = new Set();
+          billedKinds.set(item.registration_id, kinds);
+        }
+        if (item.type === "tip") kinds.add("tip");
+        else if (item.type === "extra" && /firewood/i.test(item.description)) kinds.add("firewood");
+        else kinds.add("core");
       }
     }
 
@@ -233,16 +274,16 @@ async function runAutoGenerate(force?: "weekly" | "monthly") {
       .eq("is_skipped", false)
       .in("registration.property_id", propertyIds);
 
-    const unbilledRegIds = (cleanedStatuses || [])
-      .map((s) => s.registration_id)
-      .filter((id) => !billedRegIds.has(id));
+    // Fetch every cleaned registration — buildLineItems emits only the kinds
+    // still unbilled for each, so fully-billed stays contribute nothing.
+    const cleanedIds = (cleanedStatuses || []).map((s) => s.registration_id);
 
     let regs: RegRow[] = [];
-    if (unbilledRegIds.length > 0) {
+    if (cleanedIds.length > 0) {
       const { data } = await supabase
         .from("registration")
         .select("id, property_id, check_out_date, pets, upsells")
-        .in("id", unbilledRegIds);
+        .in("id", cleanedIds);
       regs = (data || []) as RegRow[];
     }
 
@@ -257,7 +298,7 @@ async function runAutoGenerate(force?: "weekly" | "monthly") {
       const weeklyRegs = regs.filter(
         (r) => !biancaIds.has(r.property_id) && r.check_out_date <= lastSunday
       );
-      const lineItems = buildLineItems(weeklyRegs, propMap, petFee);
+      const lineItems = buildLineItems(weeklyRegs, propMap, petFee, billedKinds);
 
       // Summit's share of the monthly fee rides on the first weekly invoice of the month
       if (summitFee > 0 && !feeAlreadyBilled("Summit")) {
@@ -324,7 +365,7 @@ async function runAutoGenerate(force?: "weekly" | "monthly") {
       const monthlyRegs = regs.filter(
         (r) => biancaIds.has(r.property_id) && r.check_out_date <= priorMonthEnd
       );
-      const lineItems = buildLineItems(monthlyRegs, propMap, petFee);
+      const lineItems = buildLineItems(monthlyRegs, propMap, petFee, billedKinds);
 
       if (biancaFee > 0 && !feeAlreadyBilled("Bianca's")) {
         lineItems.push({
