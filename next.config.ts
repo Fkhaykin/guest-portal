@@ -36,6 +36,94 @@ const nextConfig: NextConfig = {
       // --- Legacy Lodgify-site URLs still in Google's index. Recover their
       // equity by pointing each at its modern equivalent. Order matters: the
       // specific entries above and below must precede the /en catch-all.
+      // Targets chosen from the GSC 16-month export (Aug 2026): the numbered
+      // pages below earned real clicks/impressions and must keep topical
+      // relevance rather than falling through to "/".
+      {
+        source: "/en/4262985/:path*",
+        destination: "/penn-estates",
+        permanent: true,
+      },
+      {
+        source: "/en/4264320/:path*",
+        destination: "/blue-mountain-lake",
+        permanent: true,
+      },
+      {
+        source: "/en/2579480/:path*",
+        destination: "/east-stroudsburg-restaurants",
+        permanent: true,
+      },
+      {
+        source: "/en/2450460/:path*",
+        destination: "/things-to-do",
+        permanent: true,
+      },
+      {
+        source: "/en/2450458/:path*",
+        destination: "/things-to-do",
+        permanent: true,
+      },
+      {
+        source: "/en/2450447/:path*",
+        destination: "/things-to-do",
+        permanent: true,
+      },
+      {
+        source: "/en/2450462/:path*",
+        destination: "/penn-estates",
+        permanent: true,
+      },
+      {
+        source: "/en/2450324/:path*",
+        destination: "/search",
+        permanent: true,
+      },
+      {
+        source: "/en/4279949/:path*",
+        destination: "/search",
+        permanent: true,
+      },
+      {
+        source: "/en/2450455/:path*",
+        destination: "/rental-policies",
+        permanent: true,
+      },
+      {
+        source: "/en/2183836/:path*",
+        destination: "/rental-policies",
+        permanent: true,
+      },
+      {
+        source: "/en/4097004/:path*",
+        destination: "/book/luxury-lakefront-chalet-in-poconos-1-5hrs-from-nyc",
+        permanent: true,
+      },
+      {
+        source: "/en/4097003/:path*",
+        destination: "/book/poconos-lakefront-with-hot-tub-boats-and-more",
+        permanent: true,
+      },
+      {
+        source: "/en/2550800/:path*",
+        destination: "/book/cozy-lakefront-home-w-game-room-hot-tub-fire-pit-boats",
+        permanent: true,
+      },
+      {
+        source: "/en/2450327/:path*",
+        destination: "/book/lake-adjacent-home-w-hot-tub-game-room-boats-fenced-yard",
+        permanent: true,
+      },
+      {
+        source: "/en/2450325/:path*",
+        destination: "/book/poconos-lakefront-with-hot-tub-boats-and-more",
+        permanent: true,
+      },
+      {
+        source: "/listing/:path*",
+        destination: "/search",
+        permanent: true,
+      },
       {
         source: "/en/2551487/:path*",
         destination: "/book/lakefront-mansion-w-3-decks-hot-tub-boats-game-room",

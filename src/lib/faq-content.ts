@@ -75,7 +75,7 @@ export const FAQ_CATEGORIES: FaqCategory[] = [
       },
       {
         q: "Can we swim in the lake?",
-        a: "Our Penn Estates homes sit on Lower Twin Lake, which is for boating and fishing rather than swimming. The sandy swimming beach is at Hyland Lake, a few minutes away inside the community, and two Olympic-size pools are open Memorial Day through Labor Day. Blue Mountain Lake is paddle-only, with the same community pools.",
+        a: "Our Penn Estates homes sit on Lower Twin Lake, which is for boating and fishing rather than swimming. The sandy swimming beach is at Highland Lake, a few minutes away inside the community, and two Olympic-size pools are open Memorial Day through Labor Day. Blue Mountain Lake is paddle-only, with the same community pools.",
         href: "/penn-estates",
       },
       {

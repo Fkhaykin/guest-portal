@@ -74,7 +74,11 @@ const PE_FAQ = [
   },
   {
     q: "Can you swim in the lakes at Penn Estates?",
-    a: "Swimming happens at Hyland Lake's sandy beach and at the two Olympic-size community pools (open Memorial Day through Labor Day). Lower Twin Lake — where our houses sit — is for boating and catch-and-release fishing, right off the dock.",
+    a: "Swimming happens at Highland Lake's sandy beach and at the two Olympic-size community pools (open Memorial Day through Labor Day). Lower Twin Lake — where our houses sit — is for boating and catch-and-release fishing, right off the dock.",
+  },
+  {
+    q: "Where are the Penn Estates front gate and Welcome Center?",
+    a: "All arrivals check in at the main gate at 525 Penn Estates Drive, East Stroudsburg — set your GPS there, have your driver's license ready, and pick up your printed gate pass. The Welcome Center sits at the same entrance. If your GPS suggests the back gate, re-route to the main gate: visitor passes are only issued at the front.",
   },
   {
     q: "Which Summit Lakeside homes are inside Penn Estates?",

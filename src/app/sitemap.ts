@@ -10,6 +10,7 @@ const MARKETING_PATHS = [
   "/",
   "/search",
   "/things-to-do",
+  "/east-stroudsburg-restaurants",
   "/penn-estates",
   "/blue-mountain-lake",
   "/poconos-fall-getaways",

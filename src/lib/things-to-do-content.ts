@@ -186,6 +186,15 @@ export const CATEGORIES: Category[] = [
         website: "https://www.shawneemt.com",
         mapQuery: "Shawnee Mountain Ski Area PA",
       },
+      {
+        name: "Snowmobile & Winter ATV Tours",
+        description:
+          "Guided snowmobile rentals and winter ATV tours run all season at outfitters around Pocono Manor and Lake Harmony — most offer 1–2 hour guided rides, no experience needed. Book ahead on snowy weekends; machines sell out fast.",
+        image: img("photo-1517299321609-52687d1bc55a"),
+        distance: "20-35 min",
+        tags: ["Snowmobiling", "Guided Tours", "Winter"],
+        mapQuery: "snowmobile tours Pocono PA",
+      },
     ],
   },
   {
@@ -540,12 +549,12 @@ export const COMMUNITIES: Community[] = [
         fullWidth: true,
         items: [
           {
-            name: "Hyland Lake",
+            name: "Highland Lake",
             description:
               "The social lake. A sandy swimming beach, dancing fountains on the water, and a picnic area with BBQ grills — bring the charcoal and make a day of it.",
             image: img("photo-1500964757637-c85e8a162699"),
             tags: ["Swimming", "Beach", "BBQ Grills", "Picnic"],
-            mapQuery: "Hyland Lake Penn Estates East Stroudsburg PA",
+            mapQuery: "Highland Lake Penn Estates East Stroudsburg PA",
             featured: true,
           },
           {
@@ -707,7 +716,8 @@ export const DIVIDERS: Divider[] = [
   },
   {
     afterKey: "winter",
-    image: img("photo-1486572788966-cfd3df1f5b42", 2000),
+    // (was photo-1486572788966 — a video-game controller, not snow)
+    image: img("photo-1512273222628-4daea6e55abb", 2000),
     eyebrow: "November through March",
     heading: "First chair, last run, deep snow.",
     sub: "Four resorts, 100+ trails, and the largest snow-tubing park on the planet — all inside a half-hour drive.",

@@ -38,6 +38,9 @@ export function SiteFooter() {
               <Link href="/poconos-fall-getaways" className="hover:text-foreground transition-colors">
                 Fall Getaways Guide
               </Link>
+              <Link href="/east-stroudsburg-restaurants" className="hover:text-foreground transition-colors">
+                Where to Eat
+              </Link>
               <Link href="/faq" className="hover:text-foreground transition-colors">
                 Guest FAQ
               </Link>
