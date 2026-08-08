@@ -56,6 +56,13 @@ const STOPS = [
     image: img("photo-1441974231531-c6227db76b6e"),
     drive: "~40 min",
   },
+  {
+    name: "U-Pick Orchards & the 1890s Farm",
+    when: "Late September – October",
+    text: "Twenty minutes west, Gould's Produce in Brodheadsville and Heckman Orchards in Effort run u-pick apples and pumpkins on fall weekends — cider, farm stands, the whole ritual. Pair either with Quiet Valley Living Historical Farm in Stroudsburg, an 1890s farmstead with animals, and its early-October Harvest Festival weekend.",
+    image: img("photo-1570913149827-d2ac84ab3f9a"),
+    drive: "~15-25 min",
+  },
 ];
 
 export default function FallGetawaysPage() {
@@ -123,8 +130,8 @@ export default function FallGetawaysPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <SectionLabel
             eyebrow="The Itinerary"
-            title="Four stops worth the drive."
-            sub="All four are day trips from the houses — pick one per day and leave the afternoons for the lake."
+            title="Five stops worth the drive."
+            sub="All are day trips from the houses — pick one per day and leave the afternoons for the lake."
           />
           <div className="space-y-16 sm:space-y-24">
             {STOPS.map((stop, i) => (
