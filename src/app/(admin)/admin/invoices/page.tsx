@@ -206,62 +206,8 @@ export default async function AdminInvoicesPage() {
     }
   }
 
-  // --- Auto-create monthly fee invoices for the current month ---
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth(); // 0-indexed
-  const periodStart = `${year}-${String(month + 1).padStart(2, "0")}-01`;
-  const lastDay = new Date(year, month + 1, 0).getDate();
-  const periodEnd = `${year}-${String(month + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
-
-  if (cleanerIds.length > 0) {
-    // Get cleaners with monthly fees
-    const { data: cleanersWithFees } = await admin
-      .from("cleaner")
-      .select("id, host_id, name, monthly_fee_cents")
-      .in("id", cleanerIds)
-      .gt("monthly_fee_cents", 0);
-
-    for (const cl of cleanersWithFees || []) {
-      // Check if monthly fee invoice already exists for this month
-      const { data: existing } = await admin
-        .from("cleaner_invoice")
-        .select("id, line_items")
-        .eq("cleaner_id", cl.id)
-        .eq("period_start", periodStart)
-        .eq("period_end", periodEnd);
-
-      const alreadyHas = (existing || []).some((inv) => {
-        const items = inv.line_items as InvoiceLineItem[];
-        return items.some((item) => item.type === "monthly_fee");
-      });
-
-      if (alreadyHas) continue;
-
-      const monthName = now.toLocaleString("en-US", { month: "long", year: "numeric" });
-      const lineItems: InvoiceLineItem[] = [
-        {
-          description: `Monthly fee — ${monthName}`,
-          type: "monthly_fee",
-          amount: cl.monthly_fee_cents,
-        },
-      ];
-
-      await admin.from("cleaner_invoice").insert({
-        cleaner_id: cl.id,
-        host_id: cl.host_id,
-        status: "open",
-        period_start: periodStart,
-        period_end: periodEnd,
-        line_items: lineItems,
-        adjustments: [],
-        attachments: [],
-        subtotal: cl.monthly_fee_cents,
-        total: cl.monthly_fee_cents,
-        notes: `Monthly fee for ${monthName}`,
-      });
-    }
-  }
+  // Monthly fees are billed by the auto-generate cron, split Summit/Bianca's —
+  // the full-amount fee invoices this page used to create are retired.
 
   // --- Tab 2: Invoice history ---
   const { data: invoices } = await admin
