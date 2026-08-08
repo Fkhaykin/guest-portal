@@ -52,52 +52,98 @@ export const CATEGORIES: Category[] = [
     accent: "emerald",
     activities: [
       {
-        name: "Delaware Water Gap",
+        name: "Mt. Minsi via the Appalachian Trail",
         description:
-          "70,000 acres of protected land along the Delaware River. Hike Mt. Tammany for jaw-dropping ridge views, paddle the river, or explore hidden waterfalls along the Appalachian Trail.",
+          "The closest real hike to the houses — a 5-mile loop on the PA side of the Water Gap with river views the whole climb, and a fraction of Tammany's crowds. Park in Delaware Water Gap borough if the small Lake Lenape lot is full, and cap it with pizza at ShawneeCraft.",
+        image: img("photo-1464822759023-fed622ff2c3b"),
+        distance: "10 min",
+        tags: ["Hiking", "River Views", "Quieter"],
+        mapQuery: "Mount Minsi Trailhead Delaware Water Gap PA",
+      },
+      {
+        name: "Mt. Tammany & the Water Gap",
+        description:
+          "The marquee Gap hike: up the red-dot trail, down the blue-dot, about 3.5 steep miles to THE view of the river bend. The lots fill by 8 AM on nice weekends — go early, go midweek, or hike Minsi instead.",
         image: img("photo-1506905925346-21bda4d32df4"),
-        distance: "35 min",
-        tags: ["Hiking", "Swimming", "Scenic"],
+        distance: "15 min",
+        tags: ["Hiking", "Iconic View", "Go Early"],
         website: "https://www.nps.gov/dewa",
-        mapQuery: "Delaware Water Gap National Recreation Area",
+        mapQuery: "Mount Tammany Trailhead NJ",
+      },
+      {
+        name: "McDade Trail",
+        description:
+          "Thirty-two miles of smooth riverside trail inside the national recreation area, with trailheads starting ten minutes from the houses. Walk a stretch, bike it, or use it for the low-effort fall-color fix — flat, marked, and never fully crowded.",
+        image: img("photo-1507041957456-9c397ce39c97"),
+        distance: "10-25 min",
+        tags: ["Walking", "Biking", "Riverside"],
+        mapQuery: "McDade Recreational Trail Smithfield Beach Trailhead PA",
       },
       {
         name: "Bushkill Falls",
         description:
-          'The "Niagara of Pennsylvania" — eight stunning waterfalls connected by bridges and hiking trails through hemlock gorges. Easy to moderate trails for all skill levels.',
+          'The "Niagara of Pennsylvania" — eight falls strung together with wooden bridges through hemlock gorges. It\'s paid admission (~$20) and popular: a 9 AM weekday start on the red trail gets you the gorge nearly alone. Lots of stairs, so no strollers.',
         image: img("photo-1433162653888-a571db5ccccf"),
-        distance: "30 min",
-        tags: ["Waterfalls", "Hiking", "Family"],
+        distance: "25 min",
+        tags: ["Waterfalls", "Family", "Go Early"],
         website: "https://www.visitbushkillfalls.com",
         mapQuery: "Bushkill Falls PA",
       },
       {
+        name: "Raymondskill Falls",
+        description:
+          "Pennsylvania's tallest waterfall, and it's free — a short staircase trail to the lookouts, no ticket booth in sight. Weekdays are best in October. Even closer to home, Resica Falls off Route 402 needs no hike at all.",
+        image: img("photo-1470770841072-f978cf4d019e"),
+        distance: "30 min",
+        tags: ["Waterfalls", "Free", "Tallest in PA"],
+        mapQuery: "Raymondskill Falls Milford PA",
+      },
+      {
+        name: "Hornbecks Creek / Indian Ladders",
+        description:
+          "The quiet one the internet hasn't ruined: a couple of creekside miles over little footbridges to a stacked pair of waterfalls. You'll pass more chipmunks than people. Kids love the bridges; the last stretch is a scramble.",
+        image: img("photo-1437482078695-73f5ca6c96e2"),
+        distance: "25 min",
+        tags: ["Hidden Gem", "Waterfalls", "Quiet"],
+        mapQuery: "Hornbecks Creek Trail Dingmans Ferry PA",
+      },
+      {
+        name: "George W. Childs Park",
+        description:
+          "Three waterfalls — Factory, Fulmer, and Deer Leap — freshly reopened in 2025 after years of trail rebuilding. Accessible paths along the top, stairs down to the good views. An easy win with mixed-age groups.",
+        image: img("photo-1432405972618-c60b0225b8f9"),
+        distance: "35 min",
+        tags: ["Waterfalls", "Reopened 2025", "All Ages"],
+        mapQuery: "George W Childs Recreation Site Dingmans Ferry PA",
+      },
+      {
+        name: "Big Pocono State Park",
+        description:
+          "The summit of Camelback without the lift ticket: drive to the top for a three-state panorama, sunset picnics, and short rim trails. The summit road closes for winter — it's a spring-through-fall move.",
+        image: img("photo-1465056836041-7f43ac27dcb5"),
+        distance: "25 min",
+        tags: ["Drive-Up Views", "Sunsets", "Picnic"],
+        mapQuery: "Big Pocono State Park Tannersville PA",
+      },
+      {
         name: "Hickory Run State Park",
         description:
-          "Over 15,000 acres of wilderness with 40+ miles of trails. Don't miss Boulder Field — a surreal landscape of car-sized boulders left by glaciers.",
+          "Home of the surreal 16-acre glacial Boulder Field, the Hawk Falls mini-hike, and the Shades of Death trail (scarier name than hike). Summer weekends get slammed — make it an early or midweek trip, and cool off at Sand Spring Lake.",
         image: img("photo-1441974231531-c6227db76b6e"),
         distance: "40 min",
-        tags: ["Hiking", "Nature", "Unique"],
+        tags: ["Boulder Field", "Hawk Falls", "Go Midweek"],
         website: "https://www.dcnr.pa.gov/StateParks/FindAPark/HickoryRunStatePark",
         mapQuery: "Hickory Run State Park PA",
       },
       {
-        name: "Dingmans Falls",
+        name: "Pocono Environmental Education Center",
         description:
-          "A 130-foot waterfall — the second highest in Pennsylvania. A short, accessible boardwalk trail leads right to the base. Free admission.",
-        image: img("photo-1470770841072-f978cf4d019e"),
-        distance: "45 min",
-        tags: ["Waterfalls", "Easy", "Free"],
-        mapQuery: "Dingmans Falls PA",
-      },
-      {
-        name: "Promised Land State Park",
-        description:
-          "Peaceful forest and lake setting perfect for an afternoon hike, kayak, or picnic. Over 50 miles of trails ranging from easy lakeside walks to rugged backcountry.",
-        image: img("photo-1426604966848-d7adac402bff"),
-        distance: "50 min",
-        tags: ["Hiking", "Lakes", "Peaceful"],
-        mapQuery: "Promised Land State Park PA",
+          "PEEC's Tumbling Waters trail ends at a falls where kids can wade at the bottom, the nature center is a great rainy-hour stop, and in winter they lend snowshoes for free. Check their calendar — the family programs are legitimately good.",
+        image: img("photo-1502082553048-f009c37129b9"),
+        distance: "25 min",
+        tags: ["Family", "Nature Center", "Free Snowshoes"],
+        website: "https://www.peec.org",
+        mapQuery: "Pocono Environmental Education Center Dingmans Ferry PA",
       },
     ],
   },
@@ -110,40 +156,49 @@ export const CATEGORIES: Category[] = [
     accent: "sky",
     activities: [
       {
+        name: "The Delaware River",
+        description:
+          "Fifteen minutes away: Smithfield Beach is the sanctioned river swim — sandy shoreline, lifeguards in season, small fee. Rent kayaks, canoes, or tubes from Edge of the Woods in town (summer weekends sell out — reserve), and use the free Saturday–Sunday river shuttle to float one-way. Go early on summer weekends.",
+        image: img("photo-1506905925346-21bda4d32df4"),
+        distance: "15 min",
+        tags: ["Swimming", "Tubing", "Paddling"],
+        mapQuery: "Smithfield Beach Delaware Water Gap PA",
+      },
+      {
+        name: "Promised Land State Park",
+        description:
+          "The swim beach locals actually vouch for — clean lake, forest all around, 50 miles of trails from lakeside strolls to backcountry. If it's busy, the quieter beaches at Tobyhanna and Gouldsboro state parks are the fallback.",
+        image: img("photo-1426604966848-d7adac402bff"),
+        distance: "35 min",
+        tags: ["Swim Beach", "Hiking", "Peaceful"],
+        mapQuery: "Promised Land State Park PA",
+      },
+      {
         name: "Lake Wallenpaupack",
         description:
-          "The crown jewel of the Poconos — 5,700 acres of crystal-clear water with 52 miles of shoreline. Rent pontoons, jet skis, kayaks, or take a scenic boat cruise.",
+          "The big one — 5,700 acres with 52 miles of shoreline. Rent pontoons, jet skis, or kayaks, or take a scenic boat cruise. Make a day of it with drinks at Glass Wine Bar in Hawley on the way back.",
         image: img("photo-1444044205806-38f3ed106c10"),
-        distance: "25 min",
-        tags: ["Boating", "Fishing", "Swimming"],
+        distance: "40 min",
+        tags: ["Boating", "Pontoons", "Day Trip"],
         website: "https://www.wallenpaupack.com",
         mapQuery: "Lake Wallenpaupack PA",
       },
       {
         name: "Lehigh River Rafting",
         description:
-          "Class II-III whitewater rafting through a spectacular gorge. Multiple outfitters offer guided trips — spring dam releases create the best rapids.",
+          "Class II-III whitewater through the Lehigh Gorge. Book a dam-release weekend for the real rapids — outfitters in Jim Thorpe run guided trips spring through fall.",
         image: img("photo-1504196606672-aef5c9cefc92"),
-        distance: "35 min",
-        tags: ["Adventure", "Rafting", "Seasonal"],
+        distance: "45 min",
+        tags: ["Adventure", "Rafting", "Dam Releases"],
         website: "https://www.poconowhitewater.com",
         mapQuery: "Lehigh River Whitewater Rafting Jim Thorpe PA",
       },
       {
-        name: "Lake Harmony",
-        description:
-          "A smaller, more intimate lake perfect for a quiet paddle or afternoon swim. Located near Split Rock Resort with beach access and boat rentals.",
-        image: img("photo-1501785888041-af3ef285b470"),
-        distance: "20 min",
-        tags: ["Swimming", "Kayaking", "Relaxed"],
-        mapQuery: "Lake Harmony PA",
-      },
-      {
         name: "Fishing the Poconos",
         description:
-          "World-class trout streams, bass-filled lakes, and walleye in the bigger reservoirs. Brodhead Creek and the Lehigh River are local favorites. PA fishing license required.",
+          "World-class trout water starts at Brodhead Creek, minutes from the houses, with bass lakes and walleye reservoirs beyond. PA license required off-property — but remember the stocked catch-and-release lake right off your dock needs nothing.",
         image: img("photo-1504309092620-4d0ec726efa4"),
-        tags: ["Fishing", "Relaxing", "Year-Round"],
+        tags: ["Fishing", "Brodhead Creek", "Year-Round"],
         mapQuery: "Brodhead Creek East Stroudsburg PA",
       },
     ],
@@ -159,7 +214,7 @@ export const CATEGORIES: Category[] = [
       {
         name: "Camelback Mountain Resort",
         description:
-          "The Poconos' biggest ski area — 39 trails, 16 lifts, and the largest snow tubing park in the US with 42 lanes. Also home to Camelback Lodge & Aquatopia indoor waterpark.",
+          "The Poconos' biggest ski area — 39 trails, 16 lifts, and the largest snow tubing park in the US with 42 lanes (book the first morning slot; holiday-weekend tubing lines get brutal). Also home to Camelback Lodge & Aquatopia indoor waterpark.",
         image: img("photo-1551698618-1dfe5d97d256"),
         distance: "25 min",
         tags: ["Skiing", "Tubing", "Waterpark"],
@@ -185,6 +240,15 @@ export const CATEGORIES: Category[] = [
         tags: ["Family", "Skiing", "Budget-Friendly"],
         website: "https://www.shawneemt.com",
         mapQuery: "Shawnee Mountain Ski Area PA",
+      },
+      {
+        name: "Sledding & Snowshoeing, Locals' Edition",
+        description:
+          "Skip the resort lines after a snowfall: the free sledding hills locals use are right in Stroudsburg (the big one at Wesleyan Church on N 5th St, another behind the junior high). For snowshoeing, PEEC lends snowshoes free — the McDade Trail in snow is the quiet winter walk.",
+        image: img("photo-1478265409131-1f65c88f965c"),
+        distance: "15 min",
+        tags: ["Free", "Sledding", "Snowshoeing"],
+        mapQuery: "Stroudsburg Wesleyan Church PA",
       },
       {
         name: "Snowmobile & Winter ATV Tours",

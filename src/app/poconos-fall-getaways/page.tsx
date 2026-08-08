@@ -38,14 +38,14 @@ const STOPS = [
   {
     name: "Delaware Water Gap",
     when: "Peak: early–mid October",
-    text: "Twenty minutes from the houses and the best bang-for-effort foliage around. Drive Route 209 through the National Recreation Area, or climb Mount Tammany if your crew wants to earn the view — the red-and-gold river bend from the top is the fall photo.",
+    text: "Twenty minutes from the houses and the best bang-for-effort foliage around. Drive Route 209 through the National Recreation Area, or climb Mount Tammany if your crew wants to earn the view — the red-and-gold river bend from the top is the fall photo. Trailhead lots fill by 8 AM on October weekends; go midweek, start at sunrise, or take quieter Mt. Minsi instead.",
     image: img("photo-1506905925346-21bda4d32df4"),
     drive: "~20 min",
   },
   {
     name: "Bushkill Falls",
     when: "Peak: early–mid October",
-    text: "The 'Niagara of Pennsylvania' — eight waterfalls strung together with wooden boardwalks and bridges. Fall turns the whole gorge amber; the upper trails get you above the canopy.",
+    text: "The 'Niagara of Pennsylvania' — eight waterfalls strung together with wooden boardwalks and bridges. Fall turns the whole gorge amber; the upper trails get you above the canopy. It's paid entry (~$20), and a 9 AM weekday start has the boardwalks nearly to yourself. Prefer free? Raymondskill Falls — PA's tallest — is 20 minutes further up Route 209.",
     image: img("photo-1433162653888-a571db5ccccf"),
     drive: "~25 min",
   },
