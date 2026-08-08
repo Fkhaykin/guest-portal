@@ -52,6 +52,34 @@ export const CATEGORIES: Category[] = [
     accent: "emerald",
     activities: [
       {
+        name: "ForEvergreen Nature Preserve",
+        description:
+          "Literally outside the Penn Estates gate in Analomink: 42 acres of restored meadow and woods with a mile-long, stroller-friendly gravel loop down to the Brodhead Creek — the stretch where American trout fishing was born. Open dawn to dusk, free, and the perfect first-morning leg-stretcher.",
+        image: img("photo-1502082553048-f009c37129b9"),
+        distance: "5 min",
+        tags: ["Outside the Gate", "Easy Loop", "Free"],
+        website: "https://brodheadwatershed.org/forevergreen-nature-preserve/",
+        mapQuery: "ForEvergreen Nature Preserve Analomink PA",
+      },
+      {
+        name: "Brodhead Creek Park & Levee Loop",
+        description:
+          "Thirty acres of creekside trails, pavilions, and fishing access — dog-friendly, and connected by a flat 1.5-mile gravel path that hugs the Brodhead from the Stokes Mill Road levee down to Pinebrook Park. Small non-resident fee in summer (waived if you're fishing with a PA license).",
+        image: img("photo-1473448912268-2022ce9509d8"),
+        distance: "10 min",
+        tags: ["Creekside", "Dog-Friendly", "Flat Trail"],
+        mapQuery: "Brodhead Creek Park East Stroudsburg PA",
+      },
+      {
+        name: "Zacharias Pond Park",
+        description:
+          "The town secret hiding half a mile behind the 9th Street Wendy's: a gentle three-quarter-mile loop around a fishing pond, with benches, a playground, and fitness stations. Stroller- and grandparent-approved — the easy evening walk when nobody wants a 'hike.'",
+        image: img("photo-1444492417251-9c84a5fa18e0"),
+        distance: "15 min",
+        tags: ["Pond Loop", "Playground", "Easy"],
+        mapQuery: "Zacharias Pond Park Stroudsburg PA",
+      },
+      {
         name: "Mt. Minsi via the Appalachian Trail",
         description:
           "The closest real hike to the houses — a 5-mile loop on the PA side of the Water Gap with river views the whole climb, and a fraction of Tammany's crowds. Park in Delaware Water Gap borough if the small Lake Lenape lot is full, and cap it with pizza at ShawneeCraft.",
@@ -139,7 +167,7 @@ export const CATEGORIES: Category[] = [
         name: "Pocono Environmental Education Center",
         description:
           "PEEC's Tumbling Waters trail ends at a falls where kids can wade at the bottom, the nature center is a great rainy-hour stop, and in winter they lend snowshoes for free. Check their calendar — the family programs are legitimately good.",
-        image: img("photo-1502082553048-f009c37129b9"),
+        image: img("photo-1439066615861-d1af74d74000"),
         distance: "25 min",
         tags: ["Family", "Nature Center", "Free Snowshoes"],
         website: "https://www.peec.org",

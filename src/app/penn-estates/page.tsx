@@ -183,6 +183,12 @@ export default async function PennEstatesPage() {
               you're on the dock, where the kayaks, canoes, and pedal boats
               are waiting.
             </p>
+            <p>
+              And right outside the gate sits the ForEvergreen Nature Preserve
+              — 42 acres of meadow and woods with an easy mile loop down to
+              the Brodhead Creek, the stream where American trout fishing was
+              born. First-morning coffee walk, solved.
+            </p>
             <p className="text-foreground font-medium">
               It's the rare setup where a big group can book multiple houses on
               one street and spend the weekend two doors apart.
