@@ -253,61 +253,120 @@ export const CATEGORIES: Category[] = [
     accent: "rose",
     activities: [
       {
-        name: "The Farhouse",
+        name: "Farmhouse Eatery",
         description:
-          "A farm-to-table breakfast and lunch spot that sources everything locally. The avocado toast and shakshuka are legendary. Reservations recommended on weekends.",
+          "All-day brunch seven days a week, made from scratch — the Crystal Street spot in East Stroudsburg is ten minutes from our homes (sister locations on Main Street and Fox Run). A Pocono Record \"Best Brunch\" winner, and it earns it.",
         image: img("photo-1504674900247-0877df9cc836"),
+        distance: "10 min",
+        tags: ["Brunch", "All-Day", "Local Favorite"],
+        website: "https://farmhousepoconos.com",
+        mapQuery: "Farmhouse Eatery Crystal Street East Stroudsburg PA",
+      },
+      {
+        name: "Compton's Pancake House",
+        description:
+          "The Poconos' breakfast institution — a menu of pancakes that runs from banana-nut to cheesecake, at diner prices, from 6 AM. Expect a weekend wait, and note it's closed Tuesdays.",
+        image: img("photo-1528207776546-365bb710ee93"),
         distance: "15 min",
-        tags: ["Brunch", "Farm-to-Table", "Popular"],
-        website: "https://www.thefarhousepa.com",
-        mapQuery: "The Farhouse Cresco PA",
+        tags: ["Breakfast", "Pancakes", "Institution"],
+        website: "https://www.comptonspancakehouse.com",
+        mapQuery: "Compton's Pancake House Stroudsburg PA",
       },
       {
-        name: "PizzaOne",
+        name: "The Cure Cafe",
         description:
-          "Wood-fired Neapolitan pizza that rivals anything in NYC. Fresh ingredients, blistered crust, and a casual BYOB atmosphere. The margherita is perfection.",
+          "From-scratch breakfast and lunch on Main Street with the best gluten-free and vegan range in town — and it doesn't taste like a compromise. A true locals' room.",
+        image: img("photo-1482049016688-2d3e1b311543"),
+        distance: "15 min",
+        tags: ["Cafe", "Gluten-Free", "Vegan-Friendly"],
+        mapQuery: "The Cure Cafe Stroudsburg PA",
+      },
+      {
+        name: "Sarah Street Grill",
+        description:
+          "Thirty years running and still the town's reliable night out — surprisingly serious sushi, live music six nights a week, a deck for summer, and a game room for the kids.",
+        image: img("photo-1579584425555-c3ce17fd4351"),
+        distance: "15 min",
+        tags: ["Sushi", "Live Music", "Deck"],
+        website: "https://www.sarahstreetgrill.com",
+        mapQuery: "Sarah Street Grill Stroudsburg PA",
+      },
+      {
+        name: "Newberry's Yard of Ale",
+        description:
+          "The biggest craft-beer list in Stroudsburg, a hidden speakeasy behind the bar, and a basement of vintage arcade games. Dog-friendly patio out front. Yes, all one place.",
+        image: img("photo-1535958636474-b021ee887b13"),
+        distance: "15 min",
+        tags: ["Craft Beer", "Speakeasy", "Arcade"],
+        website: "https://www.newberrysyardofale.com",
+        mapQuery: "Newberry's Yard of Ale Stroudsburg PA",
+      },
+      {
+        name: "Village Farmer & Bakery",
+        description:
+          "The famous hot dog + slice of apple pie combo (about five bucks) in Delaware Water Gap, with the pies rolled out behind glass while you watch. Zero pretense, all-day line for a reason.",
+        image: img("photo-1535920527002-b35e96722eb9"),
+        distance: "15 min",
+        tags: ["Bakery", "Apple Pie", "Cheap Eats"],
+        website: "http://www.villagefarmerbakery.com",
+        mapQuery: "Village Farmer and Bakery Delaware Water Gap PA",
+      },
+      {
+        name: "ShawneeCraft Brewing",
+        description:
+          "Taproom and beer garden at the old Shawnee Inn — fire pits, axe throwing, shuffleboard, wood-fired pizza, and live music Thursday through Sunday. The easy 'we don't feel like cooking' night.",
         image: img("photo-1513104890138-7c749659a591"),
-        distance: "20 min",
-        tags: ["Pizza", "BYOB", "Casual"],
-        mapQuery: "PizzaOne Stroudsburg PA",
-      },
-      {
-        name: "Garlic",
-        description:
-          "Upscale Mediterranean-inspired fine dining. Creative seasonal menu, extensive wine list, and a sleek atmosphere. Perfect for a special night out.",
-        image: img("photo-1551218808-94e220e084d2"),
-        distance: "20 min",
-        tags: ["Fine Dining", "Date Night", "Wine"],
-        website: "https://www.gaborgarlic.com",
-        mapQuery: "Garlic Restaurant Stroudsburg PA",
-      },
-      {
-        name: "Glass Wine Bar at Ledges Hotel",
-        description:
-          "Perched on a cliff overlooking a waterfall, this is the most scenic spot for drinks in the Poconos. Craft cocktails, local wines, and stunning views.",
-        image: img("photo-1470337458703-46ad1756a187"),
-        distance: "45 min",
-        tags: ["Cocktails", "Views", "Romantic"],
-        website: "https://www.ledgeshotel.com",
-        mapQuery: "Glass Wine Bar Ledges Hotel Hawley PA",
+        distance: "15 min",
+        tags: ["Brewery", "Beer Garden", "Wood-Fired Pizza"],
+        website: "https://www.shawneecraft.com",
+        mapQuery: "ShawneeCraft Brewing Shawnee on Delaware PA",
       },
       {
         name: "Barley Creek Brewing",
         description:
-          "A local brewery with a huge menu of craft beers, burgers, and pub fare. Live music on weekends and a great outdoor patio.",
+          "A Pocono landmark since 1995, a mile from Camelback — the après-ski default. Get the five-glass sampler flight and grab the 'Pint-Sized Park' lawn in summer. Weekends get packed.",
         image: img("photo-1559526324-593bc073d938"),
         distance: "15 min",
-        tags: ["Brewery", "Live Music", "Casual"],
+        tags: ["Brewery", "Après-Ski", "Live Music"],
         website: "https://www.barleycreek.com",
         mapQuery: "Barley Creek Brewing Company Tannersville PA",
       },
       {
+        name: "Glass Wine Bar at Ledges Hotel",
+        description:
+          "An 1890 bluestone glass factory hanging over the falls gorge in Hawley. Go for cocktails and small plates on the deck at sunset — pair it with a Lake Wallenpaupack day.",
+        image: img("photo-1470337458703-46ad1756a187"),
+        distance: "45 min",
+        tags: ["Cocktails", "Waterfall Views", "Date Night"],
+        website: "https://www.ledgeshotel.com",
+        mapQuery: "Glass Wine Bar Ledges Hotel Hawley PA",
+      },
+      {
+        name: "Desaki",
+        description:
+          "The big-production hibachi show — flames, tricks, and a full night's entertainment for groups. Budget $70–80 a head and book ahead; it fills up with birthday parties for a reason.",
+        image: img("photo-1552566626-52f8b828add9"),
+        distance: "20 min",
+        tags: ["Hibachi", "Groups", "Book Ahead"],
+        website: "https://www.desaki.us",
+        mapQuery: "Desaki Restaurant Swiftwater PA",
+      },
+      {
+        name: "The Pocono Wine Trail",
+        description:
+          "Three tasting rooms within a half hour: Blue Ridge Estate (360° vineyard views, free cellar tours), Sorrenti's Cherry Valley (pouring since 1981), and Mountain View — the Poconos' only winery, brewery, and distillery in one.",
+        image: img("photo-1506377247377-2a5b3b417ebb"),
+        distance: "20-30 min",
+        tags: ["Wineries", "Tastings", "Rainy Day"],
+        mapQuery: "Blue Ridge Estate Winery Saylorsburg PA",
+      },
+      {
         name: "Sweet Creams Cafe",
         description:
-          "A charming Main Street cafe in downtown Stroudsburg serving breakfast, lunch, espresso drinks, and house-made ice cream. Pair a stop here with a stroll through the boutiques and galleries.",
+          "A charming Main Street cafe serving breakfast, lunch, espresso, and house-made ice cream. Heads up: closed Mondays and Tuesdays, short hours midweek — it's a weekend stop.",
         image: img("photo-1501339847302-ac426a4a7cbb"),
         distance: "15 min",
-        tags: ["Breakfast", "Coffee", "Ice Cream"],
+        tags: ["Coffee", "Ice Cream", "Weekends"],
         mapQuery: "Sweet Creams Cafe Main Street Stroudsburg PA",
       },
     ],
@@ -323,7 +382,7 @@ export const CATEGORIES: Category[] = [
       {
         name: "Downtown Stroudsburg",
         description:
-          "A walkable main street packed with independent boutiques, galleries, antique shops, and cafes. Thursday night street fairs in summer.",
+          "A walkable main street packed with independent boutiques, galleries, and cafes. Don't miss Olde Engine Works — a 22,000 sq ft antique marketplace with ~100 vendors — and the Saturday-morning farmers market at Courthouse Square. Live music up and down the street most nights.",
         image: img("photo-1519999482648-25049ddd37b1"),
         distance: "20 min",
         tags: ["Boutiques", "Galleries", "Walkable"],

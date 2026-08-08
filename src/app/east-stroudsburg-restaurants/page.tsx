@@ -76,7 +76,7 @@ export default function RestaurantsPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <SectionLabel
             eyebrow="The Short List"
-            title="Six spots worth the reservation."
+            title="The spots worth the drive."
             sub="Distances are from our homes in Penn Estates. Weekends book up — reserve ahead where you can."
           />
           <div className="space-y-16 sm:space-y-24">

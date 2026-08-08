@@ -31,7 +31,7 @@ const STOPS = [
   {
     name: "Jim Thorpe",
     when: "Peak: mid–late October",
-    text: "The Poconos' postcard town — Victorian storefronts squeezed into a mountain gap, with the Lehigh Gorge Scenic Railway running leaf-peeping trains through the canyon. Go early on weekends; the whole region has the same idea.",
+    text: "The Poconos' postcard town — Victorian storefronts squeezed into a mountain gap, with the Lehigh Gorge Scenic Railway running leaf-peeping trains through the canyon (~$24 adults; October Saturdays sell out, so book the open-air cars ahead). On Fall Foliage Festival weekends, skip the downtown parking hunt: park at Mauch Chunk Lake Park and ride the shuttle in.",
     image: img("photo-1477959858617-67f85cf4f1df"),
     drive: "~45 min from our homes",
   },
