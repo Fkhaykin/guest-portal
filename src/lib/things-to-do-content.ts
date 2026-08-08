@@ -62,22 +62,22 @@ export const CATEGORIES: Category[] = [
         mapQuery: "ForEvergreen Nature Preserve Analomink PA",
       },
       {
-        name: "Brodhead Creek Park & Levee Loop",
+        name: "Brodhead Greenway: Creek Park & Pinebrook",
         description:
-          "Thirty acres of creekside trails, pavilions, and fishing access — dog-friendly, and connected by a flat 1.5-mile gravel path that hugs the Brodhead from the Stokes Mill Road levee down to Pinebrook Park. Small non-resident fee in summer (waived if you're fishing with a PA license).",
+          "The green backbone of Stroud Township: Brodhead Creek Park's 30 creekside acres connect by a flat 1.5-mile gravel path to Pinebrook Park — picnic tables, grills, catch-and-release fishing, and the Levee Loop at the Stokes Mill end. Dog-friendly the whole way; snowshoe or cross-country ski it in winter. Small non-resident fee at Creek Park in summer (waived with a PA fishing license).",
         image: img("photo-1473448912268-2022ce9509d8"),
         distance: "10 min",
         tags: ["Creekside", "Dog-Friendly", "Flat Trail"],
         mapQuery: "Brodhead Creek Park East Stroudsburg PA",
       },
       {
-        name: "Zacharias Pond Park",
+        name: "Gregory's Pond Park",
         description:
-          "The town secret hiding half a mile behind the 9th Street Wendy's: a gentle three-quarter-mile loop around a fishing pond, with benches, a playground, and fitness stations. Stroller- and grandparent-approved — the easy evening walk when nobody wants a 'hike.'",
+          "The town secret hiding right behind the Wendy's: sixteen quiet acres beside Terra Greens golf course, with a mile of gentle gravel loop around a catch-and-release pond, a gazebo on the water, and leashed dogs welcome. Free, year-round — the easy evening walk when nobody wants a 'hike.' (Zacharias Pond off Chipperfield is the same idea with a playground.)",
         image: img("photo-1444492417251-9c84a5fa18e0"),
         distance: "15 min",
-        tags: ["Pond Loop", "Playground", "Easy"],
-        mapQuery: "Zacharias Pond Park Stroudsburg PA",
+        tags: ["Pond Loop", "Free", "Easy"],
+        mapQuery: "Gregory's Pond Park East Stroudsburg PA",
       },
       {
         name: "Mt. Minsi via the Appalachian Trail",
