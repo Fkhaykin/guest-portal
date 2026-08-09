@@ -16,7 +16,7 @@ import {
 export const metadata: Metadata = {
   title: "The Best Restaurants in East Stroudsburg & the Poconos",
   description:
-    "Where we actually send our guests to eat near East Stroudsburg, PA: farm-to-table brunch, wood-fired pizza, fine dining, a cliffside wine bar, and the brewery with live music — picked by the hosts who live here.",
+    "Where we actually send our guests to eat near East Stroudsburg, PA: farm-to-table brunch, wood-fired pizza, fine dining, a cliffside wine bar, and the brewery with live music — picked by your hosts.",
   alternates: { canonical: "/east-stroudsburg-restaurants" },
   openGraph: ogMeta({
     title: "The Best Restaurants in East Stroudsburg & the Poconos",
@@ -66,7 +66,7 @@ export default function RestaurantsPage() {
         alt="A long candlelit restaurant table"
         eyebrow="Local Guide · From Your Hosts"
         title="Where to eat in East Stroudsburg."
-        lede="We live here, we host here, and these are the places we actually text our guests about — from farm-table brunch to a wine bar hanging over a waterfall."
+        lede="Years of hosting the Poconos, distilled into the places we actually text our guests about — from farm-table brunch to a wine bar hanging over a waterfall."
       />
 
       <TrustStrip />

@@ -51,7 +51,7 @@ export function TrustStrip() {
   const stats = [
     { icon: Star, value: REVIEW_STATS.averageRating.toFixed(2), label: "Average guest rating" },
     { icon: BadgeCheck, value: `${REVIEW_STATS.totalCount}+`, label: "Verified reviews" },
-    { icon: Users, value: "Family-run", label: "Hosts who live here" },
+    { icon: Users, value: "Family-run", label: "Hands-on hosts" },
     { icon: ShieldCheck, value: "Book direct", label: "No platform fees" },
   ];
   return (

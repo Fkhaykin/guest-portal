@@ -168,7 +168,7 @@ export default async function PennEstatesPage() {
           </div>
           <div className="lg:col-span-7 space-y-5 text-lg text-muted-foreground leading-relaxed">
             <p>
-              Penn Estates is where we live and host. Behind the gatehouse
+              Penn Estates is where we've hosted since day one. Behind the gatehouse
               you'll find quiet wooded streets, {pennEstates.stats[0].num}{" "}
               community lakes, {pennEstates.stats[1].num} Olympic-size pools,
               and {pennEstates.stats[2].num} kinds of sports courts — tennis,

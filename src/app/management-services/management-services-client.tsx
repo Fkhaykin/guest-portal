@@ -121,7 +121,7 @@ const HOW_IT_WORKS = [
 
 const DIFFERENTIATORS = [
   {
-    title: "We live here",
+    title: "Skin in the game",
     body:
       "Our team lives and works in the Poconos. When your guest locks themselves out at 10pm, a real person is 20 minutes away — not a call center in another state.",
   },

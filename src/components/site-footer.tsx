@@ -45,7 +45,7 @@ export function SiteFooter() {
                 Guest FAQ
               </Link>
               <Link href="/why-summit" className="hover:text-foreground transition-colors">
-                Why Summit?
+                About Us
               </Link>
               <Link href="/management-services" className="hover:text-foreground transition-colors">
                 Management Services
