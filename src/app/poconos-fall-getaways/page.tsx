@@ -46,7 +46,7 @@ const STOPS = [
     name: "Bushkill Falls",
     when: "Peak: early–mid October",
     text: "The 'Niagara of Pennsylvania' — eight waterfalls strung together with wooden boardwalks and bridges. Fall turns the whole gorge amber; the upper trails get you above the canopy. It's paid entry (~$20), and a 9 AM weekday start has the boardwalks nearly to yourself. Prefer free? Raymondskill Falls — PA's tallest — is 20 minutes further up Route 209.",
-    image: img("photo-1433162653888-a571db5ccccf"),
+    image: img("photo-1442850473887-0fb77cd0b337"),
     drive: "~25 min",
   },
   {

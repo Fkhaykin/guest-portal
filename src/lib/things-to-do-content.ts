@@ -111,7 +111,7 @@ export const CATEGORIES: Category[] = [
         name: "Bushkill Falls",
         description:
           'The "Niagara of Pennsylvania" — eight falls strung together with wooden bridges through hemlock gorges. It\'s paid admission (~$20) and popular: a 9 AM weekday start on the red trail gets you the gorge nearly alone. Lots of stairs, so no strollers.',
-        image: img("photo-1433162653888-a571db5ccccf"),
+        image: img("photo-1442850473887-0fb77cd0b337"),
         distance: "25 min",
         tags: ["Waterfalls", "Family", "Go Early"],
         website: "https://www.visitbushkillfalls.com",
@@ -121,7 +121,7 @@ export const CATEGORIES: Category[] = [
         name: "Raymondskill Falls",
         description:
           "Pennsylvania's tallest waterfall, and it's free — a short staircase trail to the lookouts, no ticket booth in sight. Weekdays are best in October. Even closer to home, Resica Falls off Route 402 needs no hike at all.",
-        image: img("photo-1470770841072-f978cf4d019e"),
+        image: img("photo-1433086966358-54859d0ed716"),
         distance: "30 min",
         tags: ["Waterfalls", "Free", "Tallest in PA"],
         mapQuery: "Raymondskill Falls Milford PA",
