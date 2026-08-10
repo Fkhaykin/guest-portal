@@ -696,53 +696,85 @@ export const COMMUNITIES: Community[] = [
     name: "Penn Estates",
     tagline: "Our home community",
     description:
-      "A gated, 1,200-acre community in the heart of the Poconos — three lakes, two Olympic pools, and courts for every sport a few steps from your door.",
-    hero: img("photo-1500534623283-312aade485b7", 2000),
+      "A gated, 1,200-acre community in the heart of the Poconos — three lakes, two Olympic pools, and freshly rebuilt courts and fields for every sport a few steps from your door.",
+    hero: guideImg("pe-basketball-wide"),
     gradient: "from-emerald-900 via-teal-700 to-green-400",
     mapQuery: "Penn Estates East Stroudsburg PA",
     stats: [
       { num: "3", label: "Community lakes" },
       { num: "2", label: "Olympic pools" },
-      { num: "4", label: "Sports courts" },
+      { num: "8", label: "Courts & fields" },
     ],
     groups: [
       {
         key: "sports",
-        title: "Sports Courts",
-        subtitle: "Match point, half-court, and everything between",
+        title: "Courts & Fields",
+        subtitle: "Freshly rebuilt, and all included with your stay",
         icon: Trophy,
         items: [
           {
-            name: "Tennis Courts",
+            name: "Tennis & Pickleball Courts",
             description:
-              "Well-maintained hard courts open to residents and guests. Great for a morning rally before the heat sets in.",
-            image: img("photo-1622279457486-62dcc4a431d6"),
-            tags: ["Hard Court", "All Ages"],
+              "Resurfaced hard courts with dedicated pickleball nets alongside the tennis — bring rackets or paddles, or both.",
+            image: guideImg("pe-courts"),
+            tags: ["Tennis", "Pickleball"],
             mapQuery: "Penn Estates tennis court East Stroudsburg PA",
           },
           {
             name: "Basketball Courts",
             description:
-              "Full outdoor courts for pickup games. Bring a ball — the backboards and hoops are always ready.",
-            image: img("photo-1546519638-68e109498ffc"),
-            tags: ["Pickup", "Outdoor"],
+              "Full courts with fresh surfaces, new hoops, and bleachers for the spectators. Bring a ball and run it.",
+            image: guideImg("pe-basketball"),
+            tags: ["Full Court", "Pickup"],
             mapQuery: "Penn Estates basketball court East Stroudsburg PA",
+          },
+          {
+            name: "Baseball Field",
+            description:
+              "A real diamond with a backstop, tucked into the woods — glove-and-catch territory, or get an actual game going.",
+            image: guideImg("pe-baseball"),
+            tags: ["Diamond", "Backstop"],
+            mapQuery: "Penn Estates baseball field East Stroudsburg PA",
           },
           {
             name: "Soccer Field",
             description:
-              "Open-play grass field that also doubles as frisbee, flag-football, and running space.",
-            image: img("photo-1459865264687-595d652de67e"),
+              "An open grass pitch with goals up all season — doubles as frisbee, flag-football, and run-the-kids-tired space.",
+            image: guideImg("pe-soccer"),
             tags: ["Open Play", "Grass"],
             mapQuery: "Penn Estates soccer field East Stroudsburg PA",
           },
           {
-            name: "Volleyball Field",
+            name: "Sand Volleyball",
             description:
-              "Sand-court volleyball for a sunset match with the group. Nets up all summer.",
-            image: img("photo-1612872087720-bb876e2e67d1"),
+              "A proper sand court for a sunset match — nets up all summer, steps from the fitness stations.",
+            image: guideImg("pe-volleyball"),
             tags: ["Sand", "Groups"],
             mapQuery: "Penn Estates volleyball East Stroudsburg PA",
+          },
+          {
+            name: "Wallball Court",
+            description:
+              "A dedicated handball and wallball wall on its own painted court — endlessly useful for solo practice too.",
+            image: guideImg("pe-wallball"),
+            tags: ["Handball", "Wallball"],
+            mapQuery: "Penn Estates wallball court East Stroudsburg PA",
+          },
+          {
+            name: "Outdoor Fitness Stations",
+            description:
+              "An al-fresco circuit of fitness equipment next to the volleyball court — morning workout with a forest view.",
+            image: guideImg("pe-fitness"),
+            tags: ["Fitness", "Free"],
+            mapQuery: "Penn Estates fitness stations East Stroudsburg PA",
+          },
+          {
+            name: "Horseshoe Pits",
+            description:
+              "Brand-new wooden horseshoe pits along the tree line — the lawn game that turns into a tournament by Sunday.",
+            image: guideImg("pe-horseshoes"),
+            tags: ["Lawn Games", "New"],
+            mapQuery: "Penn Estates horseshoe pits East Stroudsburg PA",
           },
         ],
       },
@@ -823,7 +855,7 @@ export const COMMUNITIES: Community[] = [
     tagline: "Paddle, swim, play",
     description:
       "A quieter sister community built around a paddle-only lake. Same caliber of pools and courts as Penn Estates — with kayaks, canoes, and pedal boats free to borrow.",
-    hero: img("photo-1502900829763-e9f1a3c3a4da", 2000),
+    hero: "https://arvbaoeszakyuxqhkogz.supabase.co/storage/v1/object/public/property-images/lodgify-368901/airbnb/28-backyard-image-1.jpg",
     gradient: "from-sky-900 via-blue-700 to-cyan-400",
     mapQuery: "Blue Mountain Lake community East Stroudsburg PA",
     stats: [

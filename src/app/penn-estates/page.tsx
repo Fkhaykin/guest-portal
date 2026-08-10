@@ -171,8 +171,10 @@ export default async function PennEstatesPage() {
               Penn Estates is where we've hosted since day one. Behind the gatehouse
               you'll find quiet wooded streets, {pennEstates.stats[0].num}{" "}
               community lakes, {pennEstates.stats[1].num} Olympic-size pools,
-              and {pennEstates.stats[2].num} kinds of sports courts — tennis,
-              basketball, sand volleyball, and an open soccer field. Every
+              and {pennEstates.stats[2].num} freshly rebuilt courts and fields
+              — tennis, pickleball, basketball, baseball, soccer, sand
+              volleyball, wallball, even horseshoe pits and outdoor fitness
+              stations. Every
               Summit Lakeside stay includes the HOA amenity badges that unlock
               all of it.
             </p>

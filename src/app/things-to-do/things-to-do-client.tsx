@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import {
   img,
+  guideImg,
   CATEGORIES,
   COMMUNITIES,
   DIVIDERS,
@@ -841,8 +842,8 @@ export default function ThingsToDoPage() {
           }}
         >
           <SmartImage
-            src={img("photo-1506905925346-21bda4d32df4", 2400)}
-            alt="Pocono Mountains at golden hour"
+            src={guideImg("tammany-hero")}
+            alt="The Delaware River winding through the Water Gap, seen from Mt. Tammany"
             className="absolute inset-0 w-full h-full object-cover"
             fallback="from-emerald-900 via-emerald-600 to-sky-400"
             priority
