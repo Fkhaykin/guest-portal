@@ -339,7 +339,7 @@ export const CATEGORIES: Category[] = [
         name: "Camelback Mountain Adventures",
         description:
           "PA's only alpine mountain coaster (worth every penny), a 4,000-foot zipflyer, treetop courses, and summer tubing on the ski hill. Buy tickets online — it's cheaper than the window — and expect a parking fee.",
-        image: img("photo-1518623380242-d992d3c57b37"),
+        image: guideImg("camelbackadv"),
         distance: "25 min",
         tags: ["Mountain Coaster", "Zipflyer", "Book Online"],
         website: "https://www.camelbackmountainadventures.com",
@@ -378,7 +378,7 @@ export const CATEGORIES: Category[] = [
         name: "Paintball: Skirmish or the Asylum",
         description:
           "Skirmish USA is the world-famous one — 750 acres, 50+ fields with castles and tanks; make it an all-day thing, pre-sign waivers online, and budget 500+ paintballs each. Want casual and close? The Paintball Asylum by Camelback runs laid-back three-hour sessions on 30 wooded acres.",
-        image: img("photo-1518791841217-8f162f1e1131"),
+        image: guideImg("skirmish"),
         distance: "20-40 min",
         tags: ["Paintball", "Groups", "All Day or Casual"],
         mapQuery: "Skirmish Paintball Albrightsville PA",
@@ -407,7 +407,7 @@ export const CATEGORIES: Category[] = [
         name: "Compton's Pancake House",
         description:
           "The Poconos' breakfast institution — a menu of pancakes that runs from banana-nut to cheesecake, at diner prices, from 6 AM. Expect a weekend wait, and note it's closed Tuesdays.",
-        image: img("photo-1528207776546-365bb710ee93"),
+        image: guideImg("comptons"),
         distance: "15 min",
         tags: ["Breakfast", "Pancakes", "Institution"],
         website: "https://www.comptonspancakehouse.com",
@@ -456,7 +456,7 @@ export const CATEGORIES: Category[] = [
         name: "ShawneeCraft Brewing",
         description:
           "Taproom and beer garden at the old Shawnee Inn — fire pits, axe throwing, shuffleboard, wood-fired pizza, and live music Thursday through Sunday. The easy 'we don't feel like cooking' night.",
-        image: img("photo-1513104890138-7c749659a591"),
+        image: guideImg("shawneecraft"),
         distance: "15 min",
         tags: ["Brewery", "Beer Garden", "Wood-Fired Pizza"],
         website: "https://www.shawneecraft.com",
@@ -476,7 +476,7 @@ export const CATEGORIES: Category[] = [
         name: "Glass Wine Bar at Ledges Hotel",
         description:
           "An 1890 bluestone glass factory hanging over the falls gorge in Hawley. Go for cocktails and small plates on the deck at sunset — pair it with a Lake Wallenpaupack day.",
-        image: img("photo-1470337458703-46ad1756a187"),
+        image: guideImg("ledges"),
         distance: "45 min",
         tags: ["Cocktails", "Waterfall Views", "Date Night"],
         website: "https://www.ledgeshotel.com",
@@ -630,7 +630,7 @@ export const CATEGORIES: Category[] = [
         name: "The Lodge at Woodloch",
         description:
           "A Forbes Five-Star destination spa resort. Day packages include access to the spa, fitness classes, archery, kayaking, and gourmet meals. Pure luxury.",
-        image: img("photo-1544161515-4ab6ce6db874"),
+        image: guideImg("woodloch"),
         distance: "35 min",
         tags: ["Luxury", "Full Day", "Forbes 5-Star"],
         website: "https://www.thelodgeatwoodloch.com",
