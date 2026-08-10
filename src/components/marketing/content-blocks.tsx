@@ -189,6 +189,36 @@ export function FaqAccordion({ items }: { items: { q: string; a: string; href?: 
   );
 }
 
+/** Compact attribution line for CC-licensed place photography. */
+export function PhotoCredits({
+  credits,
+}: {
+  credits: { subject: string; author: string; license: string; url: string }[];
+}) {
+  return (
+    <div className="border-t">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+        <p className="text-[11px] leading-relaxed text-muted-foreground/80">
+          Place photography via Wikimedia Commons:{" "}
+          {credits.map((c, i) => (
+            <span key={c.url}>
+              <a
+                href={c.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline decoration-muted-foreground/30 underline-offset-2 hover:decoration-muted-foreground"
+              >
+                {c.subject}
+              </a>{" "}
+              © {c.author} ({c.license}){i < credits.length - 1 ? " · " : "."}
+            </span>
+          ))}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export function BookDirectCta({
   heading = "Book direct and save",
   sub = "Same homes, better price — no platform service fees, and returning guests get a loyalty discount. Questions first? Text, call, or email anytime.",

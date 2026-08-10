@@ -5,7 +5,7 @@ import { SiteNav } from "@/components/site-nav";
 import { SiteFooter } from "@/components/site-footer";
 import { JsonLd } from "@/components/seo/json-ld";
 import { SITE_URL, ogMeta } from "@/lib/seo";
-import { img } from "@/lib/things-to-do-content";
+import { img, guideImg, IMAGE_CREDITS } from "@/lib/things-to-do-content";
 import { pickReviewQuotes } from "@/lib/review-quotes";
 import {
   ContentHero,
@@ -13,6 +13,7 @@ import {
   SectionLabel,
   ReviewQuoteGrid,
   BookDirectCta,
+  PhotoCredits,
 } from "@/components/marketing/content-blocks";
 
 export const metadata: Metadata = {
@@ -32,28 +33,28 @@ const STOPS = [
     name: "Jim Thorpe",
     when: "Peak: mid–late October",
     text: "The Poconos' postcard town — Victorian storefronts squeezed into a mountain gap, with the Lehigh Gorge Scenic Railway running leaf-peeping trains through the canyon (~$24 adults; October Saturdays sell out, so book the open-air cars ahead). On Fall Foliage Festival weekends, skip the downtown parking hunt: park at Mauch Chunk Lake Park and ride the shuttle in.",
-    image: img("photo-1477959858617-67f85cf4f1df"),
+    image: guideImg("jimthorpe"),
     drive: "~45 min from our homes",
   },
   {
     name: "Delaware Water Gap",
     when: "Peak: early–mid October",
     text: "Twenty minutes from the houses and the best bang-for-effort foliage around. Drive Route 209 through the National Recreation Area, or climb Mount Tammany if your crew wants to earn the view — the red-and-gold river bend from the top is the fall photo. Trailhead lots fill by 8 AM on October weekends; go midweek, start at sunrise, or take quieter Mt. Minsi instead.",
-    image: img("photo-1506905925346-21bda4d32df4"),
+    image: guideImg("tammany"),
     drive: "~20 min",
   },
   {
     name: "Bushkill Falls",
     when: "Peak: early–mid October",
     text: "The 'Niagara of Pennsylvania' — eight waterfalls strung together with wooden boardwalks and bridges. Fall turns the whole gorge amber; the upper trails get you above the canopy. It's paid entry (~$20), and a 9 AM weekday start has the boardwalks nearly to yourself. Prefer free? Raymondskill Falls — PA's tallest — is 20 minutes further up Route 209.",
-    image: img("photo-1442850473887-0fb77cd0b337"),
+    image: guideImg("bushkill"),
     drive: "~25 min",
   },
   {
     name: "Hickory Run Boulder Field",
     when: "Great all October",
     text: "A 16-acre field of ice-age boulders that looks borrowed from another planet — surrounded by state-park forest that goes full crimson in October. Pair it with the Hawk Falls trail for an easy family hike.",
-    image: img("photo-1441974231531-c6227db76b6e"),
+    image: guideImg("boulderfield"),
     drive: "~40 min",
   },
   {
@@ -227,6 +228,11 @@ export default function FallGetawaysPage() {
       </section>
 
       <BookDirectCta heading="Book your foliage weekend" />
+      <PhotoCredits
+        credits={IMAGE_CREDITS.filter((c) =>
+          ["Jim Thorpe station", "Delaware Water Gap from Mt. Tammany", "Bushkill Falls", "Boulder Field, Hickory Run"].includes(c.subject)
+        )}
+      />
       <SiteFooter />
     </div>
   );

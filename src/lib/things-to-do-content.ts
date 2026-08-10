@@ -42,6 +42,31 @@ export type Category = {
 export const img = (id: string, w = 1200) =>
   `https://images.unsplash.com/${id}?auto=format&fit=crop&w=${w}&q=80`;
 
+// Real place photography, self-hosted (sourced from Wikimedia Commons — see
+// IMAGE_CREDITS; attribution required by the CC licenses).
+export const guideImg = (name: string) =>
+  `https://arvbaoeszakyuxqhkogz.supabase.co/storage/v1/object/public/property-images/guide/${name}.jpg`;
+
+export type ImageCredit = { subject: string; author: string; license: string; url: string };
+
+export const IMAGE_CREDITS: ImageCredit[] = [
+  { subject: "Bushkill Falls", author: "Ronen Perry", license: "CC BY 3.0", url: "https://commons.wikimedia.org/wiki/File:046_Bushkill_Falls_PA.jpg" },
+  { subject: "Raymondskill Falls", author: "G. Edward Johnson", license: "CC BY 4.0", url: "https://commons.wikimedia.org/wiki/File:Long_exposure_of_Raymondskill_Falls_PA_2025-09-29_14-27-40.jpg" },
+  { subject: "Childs Park", author: "Nicholas A. Tonelli", license: "CC BY 2.0", url: "https://commons.wikimedia.org/wiki/File:Flickr_-_Nicholas_T_-_Split.jpg" },
+  { subject: "Delaware Water Gap from Mt. Tammany", author: "Famartin", license: "CC BY-SA 3.0", url: "https://commons.wikimedia.org/wiki/File:2013-08-20_11_50_58_View_of_the_Delaware_Water_Gap_from_about_720_feet_on_the_Mount_Tammany_Trail.jpg" },
+  { subject: "Mount Minsi", author: "Nicholas A. Tonelli", license: "CC BY 2.0", url: "https://commons.wikimedia.org/wiki/File:Mount_Minsi.jpg" },
+  { subject: "Boulder Field, Hickory Run", author: "Nicholas A. Tonelli", license: "CC BY 2.0", url: "https://commons.wikimedia.org/wiki/File:Rocky_Boulder_Field,_Hickory_Run_State_Park.jpg" },
+  { subject: "Big Pocono State Park", author: "Dough4872", license: "CC BY-SA 3.0", url: "https://commons.wikimedia.org/wiki/File:Big_Pocono_State_Park_view_south_from_Camelback_Mountain.jpg" },
+  { subject: "Promised Land State Park", author: "Nicholas A. Tonelli", license: "CC BY 2.0", url: "https://commons.wikimedia.org/wiki/File:Promised_Land_State_Park_(1).jpg" },
+  { subject: "Lake Wallenpaupack", author: "Doug Kerr", license: "CC BY-SA 2.0", url: "https://commons.wikimedia.org/wiki/File:Lake_Wallenpaupack,_Pennsylvania_(4095488190).jpg" },
+  { subject: "Lehigh Gorge rafting", author: "Thekohser", license: "CC BY-SA 4.0", url: "https://commons.wikimedia.org/wiki/File:Jim_Thorpe_River_Adventures_rafts_at_Glen_Onoko.jpg" },
+  { subject: "Brodhead Creek", author: "AshleyLiz231", license: "CC BY-SA 4.0", url: "https://commons.wikimedia.org/wiki/File:Brodhead_Creek.jpg" },
+  { subject: "Camelback Mountain", author: "Jkarps", license: "CC BY-SA 4.0", url: "https://commons.wikimedia.org/wiki/File:Camelback_Ski_Area_Feb_2014.JPG" },
+  { subject: "Jim Thorpe station", author: "Fabartus", license: "CC BY-SA 3.0", url: "https://commons.wikimedia.org/wiki/File:FAB%27s_IMG_4669_Train_Station_1blk_From_LC%26N-Corp-HQ_Mauch_Chunk-Jim_Thorpe,PA.JPG" },
+  { subject: "Main Street Stroudsburg", author: "Famartin", license: "CC BY-SA 4.0", url: "https://commons.wikimedia.org/wiki/File:2022-08-09_14_19_06_View_south_along_U.S._Route_209_Business_(Main_Street)_at_Pennsylvania_State_Route_191_(Broad_Street-North_Fifth_Street)_in_Stroudsburg,_Monroe_County,_Pennsylvania.jpg" },
+];
+
+
 export const CATEGORIES: Category[] = [
   {
     key: "outdoor",
@@ -83,7 +108,7 @@ export const CATEGORIES: Category[] = [
         name: "Mt. Minsi via the Appalachian Trail",
         description:
           "The closest real hike to the houses — a 5-mile loop on the PA side of the Water Gap with river views the whole climb, and a fraction of Tammany's crowds. Park in Delaware Water Gap borough if the small Lake Lenape lot is full, and cap it with pizza at ShawneeCraft.",
-        image: img("photo-1464822759023-fed622ff2c3b"),
+        image: guideImg("minsi"),
         distance: "10 min",
         tags: ["Hiking", "River Views", "Quieter"],
         mapQuery: "Mount Minsi Trailhead Delaware Water Gap PA",
@@ -92,7 +117,7 @@ export const CATEGORIES: Category[] = [
         name: "Mt. Tammany & the Water Gap",
         description:
           "The marquee Gap hike: up the red-dot trail, down the blue-dot, about 3.5 steep miles to THE view of the river bend. The lots fill by 8 AM on nice weekends — go early, go midweek, or hike Minsi instead.",
-        image: img("photo-1506905925346-21bda4d32df4"),
+        image: guideImg("tammany"),
         distance: "15 min",
         tags: ["Hiking", "Iconic View", "Go Early"],
         website: "https://www.nps.gov/dewa",
@@ -111,7 +136,7 @@ export const CATEGORIES: Category[] = [
         name: "Bushkill Falls",
         description:
           'The "Niagara of Pennsylvania" — eight falls strung together with wooden bridges through hemlock gorges. It\'s paid admission (~$20) and popular: a 9 AM weekday start on the red trail gets you the gorge nearly alone. Lots of stairs, so no strollers.',
-        image: img("photo-1442850473887-0fb77cd0b337"),
+        image: guideImg("bushkill"),
         distance: "25 min",
         tags: ["Waterfalls", "Family", "Go Early"],
         website: "https://www.visitbushkillfalls.com",
@@ -121,7 +146,7 @@ export const CATEGORIES: Category[] = [
         name: "Raymondskill Falls",
         description:
           "Pennsylvania's tallest waterfall, and it's free — a short staircase trail to the lookouts, no ticket booth in sight. Weekdays are best in October. Even closer to home, Resica Falls off Route 402 needs no hike at all.",
-        image: img("photo-1433086966358-54859d0ed716"),
+        image: guideImg("raymondskill"),
         distance: "30 min",
         tags: ["Waterfalls", "Free", "Tallest in PA"],
         mapQuery: "Raymondskill Falls Milford PA",
@@ -139,7 +164,7 @@ export const CATEGORIES: Category[] = [
         name: "George W. Childs Park",
         description:
           "Three waterfalls — Factory, Fulmer, and Deer Leap — freshly reopened in 2025 after years of trail rebuilding. Accessible paths along the top, stairs down to the good views. An easy win with mixed-age groups.",
-        image: img("photo-1432405972618-c60b0225b8f9"),
+        image: guideImg("childs"),
         distance: "35 min",
         tags: ["Waterfalls", "Reopened 2025", "All Ages"],
         mapQuery: "George W Childs Recreation Site Dingmans Ferry PA",
@@ -148,7 +173,7 @@ export const CATEGORIES: Category[] = [
         name: "Big Pocono State Park",
         description:
           "The summit of Camelback without the lift ticket: drive to the top for a three-state panorama, sunset picnics, and short rim trails. The summit road closes for winter — it's a spring-through-fall move.",
-        image: img("photo-1465056836041-7f43ac27dcb5"),
+        image: guideImg("bigpocono"),
         distance: "25 min",
         tags: ["Drive-Up Views", "Sunsets", "Picnic"],
         mapQuery: "Big Pocono State Park Tannersville PA",
@@ -157,7 +182,7 @@ export const CATEGORIES: Category[] = [
         name: "Hickory Run State Park",
         description:
           "Home of the surreal 16-acre glacial Boulder Field, the Hawk Falls mini-hike, and the Shades of Death trail (scarier name than hike). Summer weekends get slammed — make it an early or midweek trip, and cool off at Sand Spring Lake.",
-        image: img("photo-1441974231531-c6227db76b6e"),
+        image: guideImg("boulderfield"),
         distance: "40 min",
         tags: ["Boulder Field", "Hawk Falls", "Go Midweek"],
         website: "https://www.dcnr.pa.gov/StateParks/FindAPark/HickoryRunStatePark",
@@ -187,7 +212,7 @@ export const CATEGORIES: Category[] = [
         name: "The Delaware River",
         description:
           "Fifteen minutes away: Smithfield Beach is the sanctioned river swim — sandy shoreline, lifeguards in season, small fee. Rent kayaks, canoes, or tubes from family-run Chamberlain Canoes or Edge of the Woods (summer weekends sell out — reserve), and use the free weekend river shuttle to float one-way. Go early on summer weekends.",
-        image: img("photo-1506905925346-21bda4d32df4"),
+        image: guideImg("tammany"),
         distance: "15 min",
         tags: ["Swimming", "Tubing", "Paddling"],
         mapQuery: "Smithfield Beach Delaware Water Gap PA",
@@ -196,7 +221,7 @@ export const CATEGORIES: Category[] = [
         name: "Promised Land State Park",
         description:
           "The swim beach locals actually vouch for — clean lake, forest all around, 50 miles of trails from lakeside strolls to backcountry. If it's busy, the quieter beaches at Tobyhanna and Gouldsboro state parks are the fallback.",
-        image: img("photo-1426604966848-d7adac402bff"),
+        image: guideImg("promisedland"),
         distance: "35 min",
         tags: ["Swim Beach", "Hiking", "Peaceful"],
         mapQuery: "Promised Land State Park PA",
@@ -205,7 +230,7 @@ export const CATEGORIES: Category[] = [
         name: "Lake Wallenpaupack",
         description:
           "The big one — 5,700 acres with 52 miles of shoreline. Rent pontoons, jet skis, or kayaks, or take a scenic boat cruise. Make a day of it with drinks at Glass Wine Bar in Hawley on the way back.",
-        image: img("photo-1444044205806-38f3ed106c10"),
+        image: guideImg("wallenpaupack"),
         distance: "40 min",
         tags: ["Boating", "Pontoons", "Day Trip"],
         website: "https://www.wallenpaupack.com",
@@ -215,7 +240,7 @@ export const CATEGORIES: Category[] = [
         name: "Lehigh River Rafting",
         description:
           "Class II-III whitewater through the Lehigh Gorge. Book a dam-release weekend for the real rapids — outfitters in Jim Thorpe run guided trips spring through fall.",
-        image: img("photo-1504196606672-aef5c9cefc92"),
+        image: guideImg("lehigh"),
         distance: "45 min",
         tags: ["Adventure", "Rafting", "Dam Releases"],
         website: "https://www.poconowhitewater.com",
@@ -225,7 +250,7 @@ export const CATEGORIES: Category[] = [
         name: "Fishing the Poconos",
         description:
           "World-class trout water starts at Brodhead Creek, minutes from the houses, with bass lakes and walleye reservoirs beyond. PA license required off-property — but remember the stocked catch-and-release lake right off your dock needs nothing.",
-        image: img("photo-1504309092620-4d0ec726efa4"),
+        image: guideImg("brodhead"),
         tags: ["Fishing", "Brodhead Creek", "Year-Round"],
         mapQuery: "Brodhead Creek East Stroudsburg PA",
       },
@@ -243,7 +268,7 @@ export const CATEGORIES: Category[] = [
         name: "Camelback Mountain Resort",
         description:
           "The Poconos' biggest ski area — 39 trails, 16 lifts, and the largest snow tubing park in the US with 42 lanes (book the first morning slot; holiday-weekend tubing lines get brutal). Also home to Camelback Lodge & Aquatopia indoor waterpark.",
-        image: img("photo-1551698618-1dfe5d97d256"),
+        image: guideImg("camelback"),
         distance: "25 min",
         tags: ["Skiing", "Tubing", "Waterpark"],
         website: "https://www.camelbackresort.com",
@@ -496,7 +521,7 @@ export const CATEGORIES: Category[] = [
         name: "Downtown Stroudsburg",
         description:
           "A walkable main street packed with independent boutiques, galleries, and cafes. Don't miss Olde Engine Works — a 22,000 sq ft antique marketplace with ~100 vendors — and the Saturday-morning farmers market at Courthouse Square. Live music up and down the street most nights.",
-        image: img("photo-1519999482648-25049ddd37b1"),
+        image: guideImg("stroudsburg"),
         distance: "20 min",
         tags: ["Boutiques", "Galleries", "Walkable"],
         mapQuery: "Main Street Stroudsburg PA",
@@ -515,7 +540,7 @@ export const CATEGORIES: Category[] = [
         name: "Jim Thorpe",
         description:
           'Called the "Switzerland of America" — this historic Victorian town has unique shops, art galleries, the Lehigh Gorge trail, and the Old Jail Museum. Stunning fall foliage.',
-        image: img("photo-1477959858617-67f85cf4f1df"),
+        image: guideImg("jimthorpe"),
         distance: "40 min",
         tags: ["Historic", "Scenic", "Art"],
         mapQuery: "Jim Thorpe PA",

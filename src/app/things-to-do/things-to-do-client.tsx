@@ -7,6 +7,7 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { SiteNav } from "@/components/site-nav";
 import { SiteFooter } from "@/components/site-footer";
+import { PhotoCredits } from "@/components/marketing/content-blocks";
 import {
   MapPin,
   ArrowUpRight,
@@ -20,6 +21,7 @@ import {
   CATEGORIES,
   COMMUNITIES,
   DIVIDERS,
+  IMAGE_CREDITS,
   type Activity,
   type Category,
   type Community,
@@ -225,7 +227,7 @@ function ParallaxDivider({ divider }: { divider: Divider }) {
   return (
     <section
       ref={sectionRef}
-      className="relative w-screen left-1/2 -translate-x-1/2 h-[70vh] min-h-105 max-h-175 overflow-hidden my-16 sm:my-24"
+      className="relative w-full h-[55vh] min-h-90 max-h-140 overflow-hidden rounded-lg my-16 sm:my-24"
     >
       <div
         className="absolute inset-0 scale-125 will-change-transform"
@@ -988,6 +990,7 @@ export default function ThingsToDoPage() {
         </div>
       </div>
 
+      <PhotoCredits credits={IMAGE_CREDITS} />
       <SiteFooter />
     </div>
   );
