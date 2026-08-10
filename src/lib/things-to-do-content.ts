@@ -843,7 +843,7 @@ export const COMMUNITIES: Community[] = [
             name: "Archie's Corner",
             description:
               "The community store and sandwich shop rolled into one. Grab-and-go lunches, cold drinks, firewood for the pit, and every last-minute supply you forgot to pack.",
-            image: img("photo-1578916171728-46686eac8d58"),
+            image: guideImg("archies"),
             tags: ["Sandwiches", "Snacks", "Firewood", "Supplies"],
             mapQuery: "Archie's Corner Penn Estates East Stroudsburg PA",
             featured: true,
