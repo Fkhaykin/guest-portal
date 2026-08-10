@@ -50,6 +50,11 @@ export const guideImg = (name: string) =>
 export type ImageCredit = { subject: string; author: string; license: string; url: string };
 
 export const IMAGE_CREDITS: ImageCredit[] = [
+  { subject: "McDade Trail", author: "Bold Frontiers", license: "CC BY 2.0", url: "https://www.flickr.com/photos/boldfrontiers/" },
+  { subject: "Hornbeck's Creek", author: "olekinderhook", license: "CC BY 3.0", url: "https://commons.wikimedia.org/wiki/File:Water_falling_on_Hornbeck%27s_Creek_-_panoramio.jpg" },
+  { subject: "Jack Frost Mountain", author: "Rhys A.", license: "CC BY 2.0", url: "https://www.flickr.com/photos/rhysasplundh/" },
+  { subject: "Great Wolf Lodge Poconos", author: "Vox Efx", license: "CC BY 2.0", url: "https://www.flickr.com/photos/vox_efx/" },
+  { subject: "Pocono Raceway", author: "DReifGalaxyM31", license: "CC BY 3.0", url: "https://commons.wikimedia.org/wiki/File:Aerial_view_of_Pocono_Raceway.JPG" },
   { subject: "Raymondskill Falls", author: "G. Edward Johnson", license: "CC BY 4.0", url: "https://commons.wikimedia.org/wiki/File:Long_exposure_of_Raymondskill_Falls_PA_2025-09-29_14-27-40.jpg" },
   { subject: "Childs Park", author: "Nicholas A. Tonelli", license: "CC BY 2.0", url: "https://commons.wikimedia.org/wiki/File:Flickr_-_Nicholas_T_-_Split.jpg" },
   { subject: "Delaware Water Gap from Mt. Tammany", author: "Famartin", license: "CC BY-SA 3.0", url: "https://commons.wikimedia.org/wiki/File:2013-08-20_11_50_58_View_of_the_Delaware_Water_Gap_from_about_720_feet_on_the_Mount_Tammany_Trail.jpg" },
@@ -125,7 +130,7 @@ export const CATEGORIES: Category[] = [
         name: "McDade Trail",
         description:
           "Thirty-two miles of smooth riverside trail inside the national recreation area, with trailheads starting ten minutes from the houses. Walk a stretch, bike it, or use it for the low-effort fall-color fix — flat, marked, and never fully crowded.",
-        image: img("photo-1507041957456-9c397ce39c97"),
+        image: guideImg("mcdade"),
         distance: "10-25 min",
         tags: ["Walking", "Biking", "Riverside"],
         mapQuery: "McDade Recreational Trail Smithfield Beach Trailhead PA",
@@ -153,7 +158,7 @@ export const CATEGORIES: Category[] = [
         name: "Hornbecks Creek / Indian Ladders",
         description:
           "The quiet one the internet hasn't ruined: a couple of creekside miles over little footbridges to a stacked pair of waterfalls. You'll pass more chipmunks than people. Kids love the bridges; the last stretch is a scramble.",
-        image: img("photo-1437482078695-73f5ca6c96e2"),
+        image: guideImg("hornbecks"),
         distance: "25 min",
         tags: ["Hidden Gem", "Waterfalls", "Quiet"],
         mapQuery: "Hornbecks Creek Trail Dingmans Ferry PA",
@@ -276,7 +281,7 @@ export const CATEGORIES: Category[] = [
         name: "Jack Frost Big Boulder",
         description:
           "Two mountains, one ticket. Jack Frost has great intermediate terrain while Big Boulder is the terrain park paradise for snowboarders. Night skiing available.",
-        image: img("photo-1548777123-e216912df7d8"),
+        image: guideImg("jackfrost"),
         distance: "20 min",
         tags: ["Skiing", "Snowboarding", "Night Skiing"],
         website: "https://www.jfbb.com",
@@ -575,7 +580,7 @@ export const CATEGORIES: Category[] = [
         name: "Great Wolf Lodge",
         description:
           "The indoor waterpark for the under-8 crowd — wave pools, mini bowling, and relentless kid programming (freshly renovated top to bottom). Limited day passes from ~$35 sell out, so book ahead — and brace for the upcharge add-ons.",
-        image: img("photo-1530103862676-de8c9debad1d"),
+        image: guideImg("greatwolf"),
         distance: "20 min",
         tags: ["Waterpark", "Under-8s", "Day Passes"],
         website: "https://www.greatwolf.com/poconos",
@@ -605,7 +610,7 @@ export const CATEGORIES: Category[] = [
         name: "Pocono Raceway",
         description:
           'The "Tricky Triangle" NASCAR track. Race weekends are an event (plan around the traffic — locals avoid Route 115 entirely); the rest of the season you can book a stock-car ride-along at 145 mph, ages 14 and up.',
-        image: img("photo-1540575861501-7cf05a4b125a"),
+        image: guideImg("raceway"),
         distance: "35 min",
         tags: ["NASCAR", "Ride-Alongs", "Seasonal"],
         website: "https://www.poconoraceway.com",
