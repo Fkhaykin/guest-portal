@@ -2,8 +2,6 @@
 
 import { useState, useEffect, useRef, useMemo } from "react";
 import Link from "next/link";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -11,13 +9,10 @@ import { SiteNav } from "@/components/site-nav";
 import { SiteFooter } from "@/components/site-footer";
 import {
   MapPin,
-  ExternalLink,
-  Sparkles,
-  Navigation,
+  ArrowUpRight,
   Compass,
   ArrowLeft,
   ArrowRight,
-  Home,
   Fish,
 } from "lucide-react";
 import {
@@ -277,98 +272,81 @@ function ParallaxDivider({ divider }: { divider: Divider }) {
 /*  Activity card                                                      */
 /* ------------------------------------------------------------------ */
 
+/** Small-caps dot-separated meta line — replaces pill tags. */
+function MetaLine({ parts }: { parts: (string | undefined | null)[] }) {
+  const clean = parts.filter(Boolean) as string[];
+  if (!clean.length) return null;
+  return (
+    <p className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground/90 leading-relaxed">
+      {clean.join("  ·  ")}
+    </p>
+  );
+}
+
+/** Understated text link with an external arrow — replaces buttons. */
+function TextLink({ href, children }: { href: string; children: React.ReactNode }) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="inline-flex items-center gap-1 text-sm font-semibold text-foreground underline decoration-foreground/25 decoration-1 underline-offset-4 hover:decoration-foreground transition-colors"
+    >
+      {children}
+      <ArrowUpRight className="h-3.5 w-3.5" />
+    </a>
+  );
+}
+
 function ActivityCard({
   activity,
   fallback,
+  index,
 }: {
   activity: Activity;
   fallback: string;
+  index: number;
 }) {
   return (
-    <Card className="overflow-hidden group border-border/60 hover:border-border hover:shadow-[0_20px_50px_-15px_rgba(0,0,0,0.25)] hover:-translate-y-1 transition-all duration-500 will-change-transform py-0 gap-0">
-      <div className="relative h-56 w-full overflow-hidden bg-muted">
+    <article className="group">
+      <div className="relative aspect-4/3 w-full overflow-hidden rounded-lg bg-muted">
         <SmartImage
           src={activity.image}
           alt={activity.name}
           fallback={fallback}
-          className="absolute inset-0 w-full h-full object-cover scale-105 group-hover:scale-115 transition-transform duration-1200 ease-out"
+          className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.04]"
         />
-        <div className="absolute inset-0 bg-linear-to-t from-black/75 via-black/20 to-transparent" />
-        <div className="absolute inset-0 bg-linear-to-br from-transparent via-transparent to-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+      </div>
 
-        {activity.distance && (
-          <div className="absolute top-3 right-3 transform group-hover:-translate-y-0.5 transition-transform duration-300">
-            <Badge className="bg-black/70 text-white border-0 backdrop-blur-md gap-1.5 text-xs font-medium shadow-lg">
-              <Navigation className="h-3 w-3" />
-              {activity.distance}
-            </Badge>
-          </div>
-        )}
-
-        <div className="absolute bottom-0 left-0 right-0 p-4 translate-y-0 group-hover:-translate-y-1 transition-transform duration-500">
-          <h3 className="font-bold text-xl text-white leading-tight drop-shadow-lg tracking-tight">
+      <div className="mt-4 border-t border-foreground/15 pt-4">
+        <div className="flex items-baseline gap-3">
+          <span className="text-xs tabular-nums font-medium text-muted-foreground/60">
+            {String(index + 1).padStart(2, "0")}
+          </span>
+          <h3 className="font-bold text-lg tracking-tight leading-snug">
             {activity.name}
           </h3>
         </div>
-      </div>
-
-      <CardContent className="p-5 space-y-3">
-        <p className="text-sm text-muted-foreground leading-relaxed">
-          {activity.description}
-        </p>
-
-        {activity.tags && (
-          <div className="flex flex-wrap gap-1.5">
-            {activity.tags.map((tag) => (
-              <Badge
-                key={tag}
-                variant="secondary"
-                className="text-[11px] font-medium"
+        <div className="mt-1.5 pl-7">
+          <MetaLine parts={[activity.distance, ...(activity.tags ?? [])]} />
+          <p className="mt-3 text-sm text-muted-foreground leading-relaxed">
+            {activity.description}
+          </p>
+          <div className="mt-4 flex items-center gap-6">
+            {activity.mapQuery && (
+              <TextLink
+                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(activity.mapQuery)}`}
               >
-                {tag}
-              </Badge>
-            ))}
+                Directions
+              </TextLink>
+            )}
+            {activity.website && (
+              <TextLink href={activity.website}>Website</TextLink>
+            )}
           </div>
-        )}
-
-        <div className="flex gap-2 pt-1">
-          {activity.mapQuery && (
-            <Button
-              variant="default"
-              size="sm"
-              className="flex-1 gap-1.5"
-              render={
-                <a
-                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(activity.mapQuery)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                />
-              }
-            >
-              <MapPin className="h-3.5 w-3.5" />
-              Directions
-            </Button>
-          )}
-          {activity.website && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="flex-1 gap-1.5"
-              render={
-                <a
-                  href={activity.website}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                />
-              }
-            >
-              <ExternalLink className="h-3.5 w-3.5" />
-              Website
-            </Button>
-          )}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </article>
   );
 }
 
@@ -386,87 +364,49 @@ function AmenityCard({
   large?: boolean;
 }) {
   return (
-    <Card
-      className={`overflow-hidden group border-border/60 hover:border-border hover:shadow-[0_20px_50px_-15px_rgba(0,0,0,0.25)] hover:-translate-y-1 transition-all duration-500 will-change-transform py-0 gap-0 ${
-        large ? "sm:col-span-2" : ""
-      }`}
-    >
+    <article className={`group ${large ? "sm:col-span-2" : ""}`}>
       <div
-        className={`relative w-full overflow-hidden bg-muted ${
-          large ? "h-72 sm:h-96" : "h-56"
+        className={`relative w-full overflow-hidden rounded-lg bg-muted ${
+          large ? "aspect-video" : "aspect-4/3"
         }`}
       >
         <SmartImage
           src={amenity.image}
           alt={amenity.name}
           fallback={fallback}
-          className="absolute inset-0 w-full h-full object-cover scale-105 group-hover:scale-115 transition-transform duration-1200 ease-out"
+          className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.04]"
         />
-        <div className="absolute inset-0 bg-linear-to-t from-black/80 via-black/20 to-transparent" />
-        <div className="absolute inset-0 bg-linear-to-br from-transparent via-transparent to-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-
-        {amenity.featured && (
-          <div className="absolute top-3 left-3">
-            <Badge className="bg-white/95 text-black border-0 backdrop-blur-md gap-1.5 text-[10px] font-semibold uppercase tracking-wider shadow-lg">
-              <Sparkles className="h-3 w-3" />
-              Highlight
-            </Badge>
-          </div>
-        )}
-
-        <div className="absolute bottom-0 left-0 right-0 p-4 translate-y-0 group-hover:-translate-y-1 transition-transform duration-500">
-          <h4
-            className={`font-bold text-white leading-tight drop-shadow-lg tracking-tight ${
-              large ? "text-2xl sm:text-3xl" : "text-xl"
-            }`}
-          >
-            {amenity.name}
-          </h4>
-        </div>
       </div>
 
-      <CardContent className="p-5 space-y-3">
-        {amenity.description && (
-          <p className="text-sm text-muted-foreground leading-relaxed">
-            {amenity.description}
-          </p>
-        )}
-
-        {amenity.tags && (
-          <div className="flex flex-wrap gap-1.5">
-            {amenity.tags.map((tag) => (
-              <Badge
-                key={tag}
-                variant="secondary"
-                className="text-[11px] font-medium"
+      <div className="mt-4 border-t border-foreground/15 pt-4">
+        <h4
+          className={`font-bold tracking-tight leading-snug ${
+            large ? "text-xl" : "text-lg"
+          }`}
+        >
+          {amenity.name}
+        </h4>
+        <div className="mt-1.5">
+          <MetaLine
+            parts={[amenity.featured ? "Highlight" : null, ...(amenity.tags ?? [])]}
+          />
+          {amenity.description && (
+            <p className="mt-3 text-sm text-muted-foreground leading-relaxed">
+              {amenity.description}
+            </p>
+          )}
+          {amenity.mapQuery && (
+            <div className="mt-4">
+              <TextLink
+                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(amenity.mapQuery)}`}
               >
-                {tag}
-              </Badge>
-            ))}
-          </div>
-        )}
-
-        {amenity.mapQuery && (
-          <div className="pt-1">
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-1.5"
-              render={
-                <a
-                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(amenity.mapQuery)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                />
-              }
-            >
-              <MapPin className="h-3.5 w-3.5" />
-              Open in Maps
-            </Button>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+                Open in Maps
+              </TextLink>
+            </div>
+          )}
+        </div>
+      </div>
+    </article>
   );
 }
 
@@ -484,24 +424,20 @@ function CommunityGroupSection({
   const Icon = group.icon;
   return (
     <div className="space-y-5">
-      <div className="flex items-start gap-3 pt-2">
-        <div
-          className={`flex items-center justify-center h-11 w-11 rounded-xl bg-linear-to-br ${fallback} shadow-md shadow-black/10 shrink-0`}
-        >
-          <Icon className="h-5 w-5 text-white drop-shadow" />
+      <div className="pt-2">
+        <div className="flex items-center gap-2 text-muted-foreground">
+          <Icon className="h-4 w-4" />
+          <span className="text-[11px] uppercase tracking-[0.25em] font-semibold">
+            {group.subtitle ?? group.title}
+          </span>
         </div>
-        <div className="flex-1 min-w-0">
-          <h3 className="text-xl sm:text-2xl font-bold tracking-tight">
-            {group.title}
-          </h3>
-          {group.subtitle && (
-            <p className="text-muted-foreground text-sm">{group.subtitle}</p>
-          )}
-        </div>
+        <h3 className="mt-1.5 text-xl sm:text-2xl font-bold tracking-tight">
+          {group.title}
+        </h3>
       </div>
 
       {group.note && (
-        <div className="flex gap-2 items-start rounded-lg border border-border/60 bg-muted/40 px-4 py-3">
+        <div className="flex gap-2.5 items-start border-l-2 border-foreground/25 pl-4 py-0.5">
           <Fish className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
           <p className="text-sm text-muted-foreground leading-relaxed">
             {group.note}
@@ -559,10 +495,10 @@ function CommunityPanel({ community }: { community: Community }) {
         />
 
         <div className="relative h-full flex flex-col justify-end p-6 sm:p-10">
-          <Badge className="w-fit mb-3 gap-1.5 bg-white/20 text-white border-white/30 backdrop-blur-md text-xs">
+          <span className="mb-3 inline-flex items-center gap-1.5 text-[11px] uppercase tracking-[0.25em] font-semibold text-white/85">
             <MapPin className="h-3 w-3" />
             {community.tagline}
-          </Badge>
+          </span>
           <h3 className="text-3xl sm:text-5xl font-bold text-white tracking-tight drop-shadow-lg">
             {community.name}
           </h3>
@@ -598,22 +534,18 @@ function CommunityPanel({ community }: { community: Community }) {
 
       {/* Embedded map */}
       <div className="space-y-4">
-        <div className="flex items-start gap-3">
-          <div
-            className={`flex items-center justify-center h-11 w-11 rounded-xl bg-linear-to-br ${community.gradient} shadow-md shadow-black/10 shrink-0`}
-          >
-            <MapPin className="h-5 w-5 text-white drop-shadow" />
-          </div>
-          <div className="flex-1">
-            <h3 className="text-xl sm:text-2xl font-bold tracking-tight">
-              Find it on the map
-            </h3>
-            <p className="text-muted-foreground text-sm">
+        <div>
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <MapPin className="h-4 w-4" />
+            <span className="text-[11px] uppercase tracking-[0.25em] font-semibold">
               {community.name}, East Stroudsburg, PA
-            </p>
+            </span>
           </div>
+          <h3 className="mt-1.5 text-xl sm:text-2xl font-bold tracking-tight">
+            Find it on the map
+          </h3>
         </div>
-        <div className="relative w-full h-72 sm:h-96 rounded-2xl overflow-hidden border border-border/60 shadow-md bg-muted">
+        <div className="relative w-full h-72 sm:h-96 rounded-lg overflow-hidden border bg-muted">
           <iframe
             src={mapEmbed}
             className="absolute inset-0 w-full h-full"
@@ -635,29 +567,27 @@ function CommunitySection({ communities }: { communities: Community[] }) {
   return (
     <section className="space-y-8">
       <Reveal>
-        <div className="flex items-center gap-4">
-          <div className="flex items-center justify-center h-14 w-14 rounded-2xl bg-linear-to-br from-emerald-900 via-teal-700 to-green-400 shadow-lg shadow-black/10">
-            <Home className="h-6 w-6 text-white drop-shadow" />
-          </div>
-          <div>
-            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">
-              In the Community
-            </h2>
-            <p className="text-muted-foreground text-sm sm:text-base">
-              Amenities right here on the property — before you even pick up the keys.
-            </p>
-          </div>
+        <div className="border-b border-foreground/60 pb-5">
+          <span className="text-[11px] uppercase tracking-[0.3em] text-muted-foreground font-semibold tabular-nums">
+            01 — On the Property
+          </span>
+          <h2 className="mt-2 text-3xl sm:text-4xl font-bold tracking-tight">
+            In the Community
+          </h2>
+          <p className="text-muted-foreground text-sm sm:text-base mt-1">
+            Amenities right here on the property — before you even pick up the keys.
+          </p>
         </div>
       </Reveal>
 
       <Reveal delay={60}>
         <Tabs defaultValue={communities[0]?.id} className="gap-4">
-          <TabsList className="w-full sm:w-fit h-auto p-1">
+          <TabsList className="w-full justify-start gap-7 h-auto p-0 bg-transparent rounded-none border-b">
             {communities.map((c) => (
               <TabsTrigger
                 key={c.id}
                 value={c.id}
-                className="px-4 py-2 text-sm sm:text-base"
+                className="flex-none px-0 pb-3 pt-0 text-[12px] uppercase tracking-[0.15em] font-semibold rounded-none border-0 border-b-2 border-transparent bg-transparent shadow-none data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none text-muted-foreground data-[state=active]:text-foreground"
               >
                 {c.name}
               </TabsTrigger>
@@ -679,33 +609,34 @@ function CommunitySection({ communities }: { communities: Community[] }) {
 /*  Category section                                                   */
 /* ------------------------------------------------------------------ */
 
-function CategorySection({ category }: { category: Category }) {
-  const Icon = category.icon;
-
+function CategorySection({
+  category,
+  num,
+}: {
+  category: Category;
+  num: number;
+}) {
   return (
-    <section className="space-y-8">
+    <section className="space-y-10">
       <Reveal>
-        <div className="flex items-center gap-4">
-          <div
-            className={`flex items-center justify-center h-14 w-14 rounded-2xl bg-linear-to-br ${category.gradient} shadow-lg shadow-black/10`}
-          >
-            <Icon className="h-6 w-6 text-white drop-shadow" />
-          </div>
-          <div>
-            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">
-              {category.title}
-            </h2>
-            <p className="text-muted-foreground text-sm sm:text-base">
-              {category.subtitle}
-            </p>
-          </div>
+        <div className="border-b border-foreground/60 pb-5">
+          <span className="text-[11px] uppercase tracking-[0.3em] text-muted-foreground font-semibold tabular-nums">
+            {String(num).padStart(2, "0")} — {category.subtitle}
+          </span>
+          <h2 className="mt-2 text-3xl sm:text-4xl font-bold tracking-tight">
+            {category.title}
+          </h2>
         </div>
       </Reveal>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-12">
         {category.activities.map((activity, i) => (
           <Reveal key={activity.name} delay={i * 60} y={32}>
-            <ActivityCard activity={activity} fallback={category.gradient} />
+            <ActivityCard
+              activity={activity}
+              fallback={category.gradient}
+              index={i}
+            />
           </Reveal>
         ))}
       </div>
@@ -720,32 +651,63 @@ function CategorySection({ category }: { category: Category }) {
 type NavItem = {
   key: string;
   title: string;
-  icon: React.ComponentType<{ className?: string }>;
-  gradient: string;
-};
-
-const COMMUNITY_NAV_ITEM: NavItem = {
-  key: "community",
-  title: "In the Community",
-  icon: Home,
-  gradient: "from-emerald-900 via-teal-700 to-green-400",
 };
 
 const NAV_ITEMS: NavItem[] = [
-  COMMUNITY_NAV_ITEM,
-  ...CATEGORIES.map((c) => ({
-    key: c.key,
-    title: c.title,
-    icon: c.icon,
-    gradient: c.gradient,
-  })),
+  { key: "community", title: "In the Community" },
+  ...CATEGORIES.map((c) => ({ key: c.key, title: c.title })),
 ];
 
 /* ------------------------------------------------------------------ */
-/*  Quick-jump nav                                                     */
+/*  Section nav — vertical rail on desktop, slim underline bar mobile  */
 /* ------------------------------------------------------------------ */
 
-function QuickNav({
+function SideNav({
+  active,
+  onSelect,
+}: {
+  active: string | null;
+  onSelect: (key: string) => void;
+}) {
+  return (
+    <nav className="sticky top-28 border-l border-border">
+      <p className="pl-5 mb-4 text-[10px] uppercase tracking-[0.3em] text-muted-foreground font-semibold">
+        The Guide
+      </p>
+      <ul>
+        {NAV_ITEMS.map((item, i) => {
+          const isActive = active === item.key;
+          return (
+            <li key={item.key} className="relative">
+              {isActive && (
+                <span className="absolute -left-px top-1.5 bottom-1.5 w-0.5 bg-foreground" />
+              )}
+              <button
+                onClick={() => onSelect(item.key)}
+                className={`flex w-full items-baseline gap-3 pl-5 pr-2 py-2 text-left transition-colors duration-200 ${
+                  isActive
+                    ? "text-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <span className="text-[10px] tabular-nums font-medium opacity-50">
+                  {String(i + 1).padStart(2, "0")}
+                </span>
+                <span
+                  className={`text-sm tracking-tight ${isActive ? "font-semibold" : "font-medium"}`}
+                >
+                  {item.title}
+                </span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </nav>
+  );
+}
+
+function MobileNav({
   active,
   onSelect,
 }: {
@@ -754,7 +716,7 @@ function QuickNav({
 }) {
   const scrollerRef = useRef<HTMLDivElement | null>(null);
 
-  // Keep the active chip centered in the horizontal scroller.
+  // Keep the active item centered in the horizontal scroller.
   // Use direct scrollLeft instead of scrollIntoView — the latter reaches up
   // to the document scroller and jerks the whole page inside a sticky nav.
   useEffect(() => {
@@ -770,27 +732,25 @@ function QuickNav({
   }, [active]);
 
   return (
-    <div className="sticky top-16 z-40 -mx-4 sm:-mx-6 px-4 sm:px-6 py-3 bg-background/75 backdrop-blur-xl border-b">
+    <div className="lg:hidden sticky top-16 z-40 -mx-4 sm:-mx-6 px-4 sm:px-6 bg-background/85 backdrop-blur-xl border-b">
       <div
         ref={scrollerRef}
-        className="flex gap-2 overflow-x-auto"
+        className="flex gap-6 overflow-x-auto pt-3"
         style={{ scrollbarWidth: "none" }}
       >
         {NAV_ITEMS.map((item) => {
-          const Icon = item.icon;
           const isActive = active === item.key;
           return (
             <button
               key={item.key}
               data-key={item.key}
               onClick={() => onSelect(item.key)}
-              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-medium whitespace-nowrap transition-all duration-300 ${
+              className={`whitespace-nowrap pb-3 text-[11px] uppercase tracking-[0.15em] font-semibold border-b-2 transition-colors duration-200 ${
                 isActive
-                  ? `bg-linear-to-br ${item.gradient} text-white shadow-md scale-105`
-                  : "bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                  ? "border-foreground text-foreground"
+                  : "border-transparent text-muted-foreground"
               }`}
             >
-              <Icon className="h-3.5 w-3.5" />
               {item.title}
             </button>
           );
@@ -900,13 +860,10 @@ export default function ThingsToDoPage() {
           }}
         >
           <div className="max-w-6xl mx-auto w-full px-4 sm:px-6 pb-16 sm:pb-24">
-            <Badge
-              variant="secondary"
-              className="mb-5 gap-1.5 text-xs bg-white/15 text-white border-white/20 backdrop-blur-md"
-            >
+            <span className="mb-5 inline-flex items-center gap-1.5 text-[11px] uppercase tracking-[0.25em] font-semibold text-white/85">
               <MapPin className="h-3 w-3" />
               Pocono Mountains, Pennsylvania
-            </Badge>
+            </span>
             <h1 className="text-4xl sm:text-6xl lg:text-7xl font-bold tracking-tight text-white leading-[1.02] max-w-4xl drop-shadow-2xl">
               Your guide to{" "}
               <span className="italic font-serif bg-linear-to-r from-emerald-200 via-white to-sky-200 bg-clip-text text-transparent">
@@ -948,29 +905,40 @@ export default function ThingsToDoPage() {
         </div>
       </div>
 
-      {/* Quick nav + all sections share a parent so sticky works across scroll */}
-      <div className="max-w-6xl mx-auto w-full px-4 sm:px-6">
-        <QuickNav active={activeSection} onSelect={scrollToSection} />
+      {/* Mobile nav + rail/content grid share a parent so sticky works */}
+      <div className="max-w-7xl mx-auto w-full px-4 sm:px-6">
+        <MobileNav active={activeSection} onSelect={scrollToSection} />
 
-        {/* Community section (on-property amenities) */}
-        <div className="pt-12 sm:pt-16">
-          <div id="section-community">
-            <CommunitySection communities={COMMUNITIES} />
+        <div className="lg:grid lg:grid-cols-[230px_minmax(0,1fr)] lg:gap-14">
+          {/* Vertical rail (desktop only) */}
+          <aside className="hidden lg:block pt-12 sm:pt-16">
+            <SideNav active={activeSection} onSelect={scrollToSection} />
+          </aside>
+
+          <div className="min-w-0">
+            {/* Community section (on-property amenities) */}
+            <div className="pt-12 sm:pt-16">
+              <div id="section-community">
+                <CommunitySection communities={COMMUNITIES} />
+              </div>
+            </div>
+
+            {/* Category sections + parallax dividers */}
+            <div className="py-12 sm:py-16 space-y-16 sm:space-y-20">
+              {interleaved.map((item, i) => {
+                if (item.type === "category") {
+                  const num =
+                    CATEGORIES.findIndex((c) => c.key === item.cat.key) + 2;
+                  return (
+                    <div key={item.cat.key} id={`section-${item.cat.key}`}>
+                      <CategorySection category={item.cat} num={num} />
+                    </div>
+                  );
+                }
+                return <ParallaxDivider key={`div-${i}`} divider={item.div} />;
+              })}
+            </div>
           </div>
-        </div>
-
-        {/* Category sections + parallax dividers */}
-        <div className="py-12 sm:py-16 space-y-16 sm:space-y-20">
-          {interleaved.map((item, i) => {
-            if (item.type === "category") {
-              return (
-                <div key={item.cat.key} id={`section-${item.cat.key}`}>
-                  <CategorySection category={item.cat} />
-                </div>
-              );
-            }
-            return <ParallaxDivider key={`div-${i}`} divider={item.div} />;
-          })}
         </div>
       </div>
 
@@ -987,9 +955,7 @@ export default function ThingsToDoPage() {
         />
         <div className="relative max-w-4xl mx-auto px-4 sm:px-6 py-20 text-center space-y-5">
           <Reveal>
-            <div className="inline-flex items-center justify-center h-14 w-14 rounded-2xl bg-linear-to-br from-emerald-500 to-sky-500 shadow-lg">
-              <Compass className="h-6 w-6 text-white" />
-            </div>
+            <Compass className="h-8 w-8 mx-auto text-muted-foreground" strokeWidth={1.5} />
           </Reveal>
           <Reveal delay={80}>
             <h2 className="text-2xl sm:text-4xl font-bold tracking-tight">
