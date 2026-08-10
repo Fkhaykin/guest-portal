@@ -195,7 +195,7 @@ export const CATEGORIES: Category[] = [
         name: "Pocono Environmental Education Center",
         description:
           "PEEC's Tumbling Waters trail ends at a falls where kids can wade at the bottom, the nature center is a great rainy-hour stop, and in winter they lend snowshoes for free. Check their calendar — the family programs are legitimately good.",
-        image: img("photo-1439066615861-d1af74d74000"),
+        image: guideImg("peecfalls"),
         distance: "25 min",
         tags: ["Family", "Nature Center", "Free Snowshoes"],
         website: "https://www.peec.org",
@@ -310,7 +310,7 @@ export const CATEGORIES: Category[] = [
         name: "Winter UTV Tours",
         description:
           "Honest local intel: nobody publicly rents snowmobiles in the Poconos anymore. The winter thrill-ride that does exist is a guided UTV tour with Pocono Outdoor Adventure Tours near the Raceway — enclosed side-by-sides, runs year-round including snow days, and kids 5+ can ride along.",
-        image: img("photo-1517299321609-52687d1bc55a"),
+        image: guideImg("atv"),
         distance: "25 min",
         tags: ["UTV", "Guided", "Kids Ride Along"],
         mapQuery: "Pocono Outdoor Adventure Tours Pocono Manor PA",
@@ -349,7 +349,7 @@ export const CATEGORIES: Category[] = [
         name: "ATV & UTV Tours",
         description:
           "The real outfitters, named: Pocono ATV Tours at Memorytown for ~50-minute guided rides, and Pocono Outdoor Adventure Tours near the Raceway for year-round guided UTV — kids 5+ can ride along. Alvin's Off-Road Playground in Long Pond is the bigger-terrain option.",
-        image: img("photo-1533923156502-be31530547c4"),
+        image: guideImg("atv"),
         distance: "20-30 min",
         tags: ["ATV", "UTV", "Guided"],
         mapQuery: "Pocono ATV Tours Memorytown Mount Pocono PA",
@@ -949,7 +949,7 @@ export type Divider = {
 export const DIVIDERS: Divider[] = [
   {
     afterKey: "outdoor",
-    image: img("photo-1472214103451-9374bd1c798e", 2000),
+    image: guideImg("mcdade"),
     eyebrow: "In every direction",
     heading: "A thousand square miles of mountain.",
     sub: "From Appalachian ridgelines to quiet hemlock gorges — the Poconos rewards every kind of wanderer.",
