@@ -47,7 +47,7 @@ const STOPS = [
     name: "Bushkill Falls",
     when: "Peak: early–mid October",
     text: "The 'Niagara of Pennsylvania' — eight waterfalls strung together with wooden boardwalks and bridges. Fall turns the whole gorge amber; the upper trails get you above the canopy. It's paid entry (~$20), and a 9 AM weekday start has the boardwalks nearly to yourself. Prefer free? Raymondskill Falls — PA's tallest — is 20 minutes further up Route 209.",
-    image: guideImg("bushkill"),
+    image: guideImg("bushkill-host"),
     drive: "~25 min",
   },
   {
@@ -230,7 +230,7 @@ export default function FallGetawaysPage() {
       <BookDirectCta heading="Book your foliage weekend" />
       <PhotoCredits
         credits={IMAGE_CREDITS.filter((c) =>
-          ["Jim Thorpe station", "Delaware Water Gap from Mt. Tammany", "Bushkill Falls", "Boulder Field, Hickory Run"].includes(c.subject)
+          ["Jim Thorpe station", "Delaware Water Gap from Mt. Tammany", "Boulder Field, Hickory Run"].includes(c.subject)
         )}
       />
       <SiteFooter />

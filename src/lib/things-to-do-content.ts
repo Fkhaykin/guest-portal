@@ -50,7 +50,6 @@ export const guideImg = (name: string) =>
 export type ImageCredit = { subject: string; author: string; license: string; url: string };
 
 export const IMAGE_CREDITS: ImageCredit[] = [
-  { subject: "Bushkill Falls", author: "Ronen Perry", license: "CC BY 3.0", url: "https://commons.wikimedia.org/wiki/File:046_Bushkill_Falls_PA.jpg" },
   { subject: "Raymondskill Falls", author: "G. Edward Johnson", license: "CC BY 4.0", url: "https://commons.wikimedia.org/wiki/File:Long_exposure_of_Raymondskill_Falls_PA_2025-09-29_14-27-40.jpg" },
   { subject: "Childs Park", author: "Nicholas A. Tonelli", license: "CC BY 2.0", url: "https://commons.wikimedia.org/wiki/File:Flickr_-_Nicholas_T_-_Split.jpg" },
   { subject: "Delaware Water Gap from Mt. Tammany", author: "Famartin", license: "CC BY-SA 3.0", url: "https://commons.wikimedia.org/wiki/File:2013-08-20_11_50_58_View_of_the_Delaware_Water_Gap_from_about_720_feet_on_the_Mount_Tammany_Trail.jpg" },
@@ -63,7 +62,6 @@ export const IMAGE_CREDITS: ImageCredit[] = [
   { subject: "Brodhead Creek", author: "AshleyLiz231", license: "CC BY-SA 4.0", url: "https://commons.wikimedia.org/wiki/File:Brodhead_Creek.jpg" },
   { subject: "Camelback Mountain", author: "Jkarps", license: "CC BY-SA 4.0", url: "https://commons.wikimedia.org/wiki/File:Camelback_Ski_Area_Feb_2014.JPG" },
   { subject: "Jim Thorpe station", author: "Fabartus", license: "CC BY-SA 3.0", url: "https://commons.wikimedia.org/wiki/File:FAB%27s_IMG_4669_Train_Station_1blk_From_LC%26N-Corp-HQ_Mauch_Chunk-Jim_Thorpe,PA.JPG" },
-  { subject: "Main Street Stroudsburg", author: "Famartin", license: "CC BY-SA 4.0", url: "https://commons.wikimedia.org/wiki/File:2022-08-09_14_19_06_View_south_along_U.S._Route_209_Business_(Main_Street)_at_Pennsylvania_State_Route_191_(Broad_Street-North_Fifth_Street)_in_Stroudsburg,_Monroe_County,_Pennsylvania.jpg" },
 ];
 
 
@@ -136,7 +134,7 @@ export const CATEGORIES: Category[] = [
         name: "Bushkill Falls",
         description:
           'The "Niagara of Pennsylvania" — eight falls strung together with wooden bridges through hemlock gorges. It\'s paid admission (~$20) and popular: a 9 AM weekday start on the red trail gets you the gorge nearly alone. Lots of stairs, so no strollers.',
-        image: guideImg("bushkill"),
+        image: guideImg("bushkill-host"),
         distance: "25 min",
         tags: ["Waterfalls", "Family", "Go Early"],
         website: "https://www.visitbushkillfalls.com",
@@ -288,7 +286,7 @@ export const CATEGORIES: Category[] = [
         name: "Shawnee Mountain",
         description:
           "Family-friendly slopes with 23 trails and a great ski school for beginners. Smaller crowds, lower prices, and a charming lodge at the base.",
-        image: img("photo-1418985991508-e47386d96a71"),
+        image: guideImg("shawnee-host"),
         distance: "30 min",
         tags: ["Family", "Skiing", "Budget-Friendly"],
         website: "https://www.shawneemt.com",
@@ -352,10 +350,10 @@ export const CATEGORIES: Category[] = [
         mapQuery: "Pocono ATV Tours Memorytown Mount Pocono PA",
       },
       {
-        name: "Horseback at Mountain Creek",
+        name: "Horseback Trail Rides",
         description:
-          "Beginner-friendly guided trail rides through Cresco woods, open seven days year-round — snow rides included. Pony rides and wagon rides for the littlest crew members.",
-        image: img("photo-1553284965-83fd3e82fa5a"),
+          "Bushkill Riding Stables is the close one — about fifteen minutes out, with guided rides through the woods. Mountain Creek Riding Stable in Cresco runs beginner trail rides seven days a week year-round, snow included, plus pony and wagon rides for the littlest crew members.",
+        image: guideImg("horseback-host"),
         distance: "15 min",
         tags: ["Trail Rides", "Beginners", "Year-Round"],
         website: "https://mtcreekstable.com",
@@ -521,7 +519,7 @@ export const CATEGORIES: Category[] = [
         name: "Downtown Stroudsburg",
         description:
           "A walkable main street packed with independent boutiques, galleries, and cafes. Don't miss Olde Engine Works — a 22,000 sq ft antique marketplace with ~100 vendors — and the Saturday-morning farmers market at Courthouse Square. Live music up and down the street most nights.",
-        image: guideImg("stroudsburg"),
+        image: guideImg("downtown-host"),
         distance: "20 min",
         tags: ["Boutiques", "Galleries", "Walkable"],
         mapQuery: "Main Street Stroudsburg PA",
@@ -530,7 +528,7 @@ export const CATEGORIES: Category[] = [
         name: "Pocono Premium Outlets",
         description:
           "Over 100 brand-name outlet stores including Nike, Coach, J.Crew, and more — renovated and renamed (locals still say \"the Crossings\"). A rainy-day lifesaver with deals year-round.",
-        image: img("photo-1441986300917-64674bd600d8"),
+        image: guideImg("outlets-host"),
         distance: "25 min",
         tags: ["Outlets", "Brands", "Deals"],
         website: "https://www.premiumoutlets.com/outlet/pocono",
@@ -790,7 +788,7 @@ export const COMMUNITIES: Community[] = [
             name: "Highland Lake",
             description:
               "The social lake. A sandy swimming beach, dancing fountains on the water, and a picnic area with BBQ grills — bring the charcoal and make a day of it.",
-            image: img("photo-1500964757637-c85e8a162699"),
+            image: guideImg("pe-highland-lake"),
             tags: ["Swimming", "Beach", "BBQ Grills", "Picnic"],
             mapQuery: "Highland Lake Penn Estates East Stroudsburg PA",
             featured: true,
@@ -799,7 +797,7 @@ export const COMMUNITIES: Community[] = [
             name: "Upper Twin Lake",
             description:
               "The quiet one. A picnic area tucked into the trees — great for a packed lunch or an early-morning coffee.",
-            image: img("photo-1437750769465-301382cdf094"),
+            image: guideImg("pe-upper-twin"),
             tags: ["Picnic", "Quiet"],
             mapQuery: "Upper Twin Lake Penn Estates PA",
           },
@@ -807,7 +805,7 @@ export const COMMUNITIES: Community[] = [
             name: "Lower Twin Lake",
             description:
               "Our lake. Every one of our houses sits on the water here — and it's where we keep the boats. Step out the back door and you're on the dock.",
-            image: img("photo-1530541930197-ff16ac917b0e"),
+            image: guideImg("pe-lower-twin"),
             tags: ["Our Houses", "Boats", "Dock"],
             mapQuery: "Lower Twin Lake Penn Estates PA",
             featured: true,
@@ -824,7 +822,7 @@ export const COMMUNITIES: Community[] = [
             name: "Two Olympic-Size Pools",
             description:
               "Full-length lap lanes and plenty of deck for a lazy afternoon. Open Memorial Day through Labor Day.",
-            image: img("photo-1540541338287-41700207dee6"),
+            image: guideImg("pe-pool"),
             tags: ["Memorial Day → Labor Day", "Lap Lanes"],
             mapQuery: "Penn Estates pool East Stroudsburg PA",
           },
@@ -906,7 +904,7 @@ export const COMMUNITIES: Community[] = [
             name: "The Lake",
             description:
               "No swimming, but that's not the point — kayaks, canoes, and pedal boats are all provided. Stocked with fish (catch and release only) for the anglers.",
-            image: img("photo-1502900829763-e9f1a3c3a4da"),
+            image: guideImg("bml-lake"),
             tags: ["Kayaks", "Canoes", "Pedal Boats", "Catch & Release"],
             mapQuery: "Blue Mountain Lake East Stroudsburg PA",
             featured: true,
