@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { SiteNav } from "@/components/site-nav";
 import { SiteFooter } from "@/components/site-footer";
-import { AlertTriangle, ArrowRight, Mail, Phone } from "lucide-react";
+import { ArrowRight, Mail, Phone } from "lucide-react";
 import { QUICK_RULES } from "@/lib/house-rules";
 import { SECTIONS, CHAPTERS, type PolicySection } from "@/lib/policy-content";
 import {
@@ -144,15 +144,6 @@ export default function RentalPoliciesPage() {
                 </span>
               </a>
             ))}
-          </div>
-          {/* Binding notice, folded into the band */}
-          <div className="mt-10 flex items-start gap-3 rounded-2xl border border-amber-400/20 bg-amber-400/10 p-4 sm:p-5">
-            <AlertTriangle className="h-5 w-5 text-amber-400 shrink-0 mt-0.5" />
-            <p className="text-sm text-amber-100/90 leading-relaxed">
-              <span className="font-semibold text-amber-200">This is a legally binding agreement.</span>{" "}
-              By booking or occupying any Summit Lakeside property you agree to
-              every provision on this page — the short version included.
-            </p>
           </div>
         </div>
       </section>
