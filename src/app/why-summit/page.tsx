@@ -188,9 +188,8 @@ export default async function AboutPage() {
                 became five.
               </p>
               <p className="text-foreground font-medium">
-                We don't live in the Poconos ourselves — but we're in these
-                houses constantly, and our local crew is in them every week,
-                year-round.
+                We're in these houses constantly, and our local crew is in
+                them every week, year-round.
               </p>
             </div>
           </div>
