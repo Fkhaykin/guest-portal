@@ -18,6 +18,7 @@ export async function sendPEPOAPDF({
   hoaType,
   isUpdate,
   changeSummary,
+  note,
 }: {
   to: string | string[];
   cc?: string[];
@@ -32,6 +33,8 @@ export async function sendPEPOAPDF({
   hoaType?: string;
   isUpdate?: boolean;
   changeSummary?: string;
+  /** Free-text note typed by the admin, shown above the attachment line. */
+  note?: string;
 }) {
   const isBML = hoaType === "bmlc";
   const lotPart = isBML ? "" : ` — Lot/Section ${lotSection}`;
@@ -56,6 +59,9 @@ export async function sendPEPOAPDF({
 
   const changeLine = changeSummary ? `Changes: ${changeSummary}` : "";
 
+  const trimmedNote = note?.trim();
+  const noteLines = trimmedNote ? ["", "Note:", trimmedNote] : [];
+
   // The HOA's mail system can't search subject lines, so everything they file
   // by — the subject itself, the property address, and the lot/section — must
   // also appear in the searchable body.
@@ -74,6 +80,7 @@ export async function sendPEPOAPDF({
         "",
         ...detailLines,
         ...(changeLine ? ["", changeLine] : []),
+        ...noteLines,
         "",
         "The updated Short-Term Tenant Registration Form and Lease is attached as a PDF.",
         ...contactLines,
@@ -84,6 +91,7 @@ export async function sendPEPOAPDF({
         `A new tenant registration form has been submitted${isBML ? "" : ` for Lot/Section ${lotSection}`}.`,
         "",
         ...detailLines,
+        ...noteLines,
         "",
         "The completed Short-Term Tenant Registration Form and Lease is attached as a PDF.",
         ...contactLines,

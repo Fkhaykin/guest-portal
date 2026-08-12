@@ -18,7 +18,7 @@ export async function POST(request: Request) {
     }
   }
 
-  let body: { registration_id: string; is_update?: boolean; change_summary?: string };
+  let body: { registration_id: string; is_update?: boolean; change_summary?: string; note?: string };
 
   try {
     body = await request.json();
@@ -26,9 +26,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { registration_id, is_update, change_summary } = body;
+  const { registration_id, is_update, change_summary, note } = body;
   if (!registration_id) {
     return NextResponse.json({ error: "Missing registration_id" }, { status: 400 });
+  }
+  if (note != null && typeof note !== "string") {
+    return NextResponse.json({ error: "Invalid note" }, { status: 400 });
   }
 
   try {
@@ -36,6 +39,7 @@ export async function POST(request: Request) {
       registrationId: registration_id,
       isUpdate: is_update,
       changeSummary: change_summary,
+      note: note?.slice(0, 2000),
       // This route is only triggered by the manual "Email to HOA" admin action,
       // which overrides the per-reservation HOA-email off switch.
       force: true,

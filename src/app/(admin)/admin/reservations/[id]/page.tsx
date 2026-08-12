@@ -24,6 +24,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -128,6 +129,8 @@ export default function ReservationDetailPage() {
   const [payEmails, setPayEmails] = useState<{ email_type: string; sent_to: string[]; created_at: string }[]>([]);
   const [emailing, setEmailing] = useState(false);
   const [emailResult, setEmailResult] = useState<"success" | "error" | null>(null);
+  const [hoaEmailOpen, setHoaEmailOpen] = useState(false);
+  const [hoaEmailNote, setHoaEmailNote] = useState("");
   const [hoaToggling, setHoaToggling] = useState(false);
   const [reviewToggling, setReviewToggling] = useState(false);
   const [timingToggling, setTimingToggling] = useState(false);
@@ -203,13 +206,18 @@ export default function ReservationDetailPage() {
   async function handleEmail() {
     setEmailing(true);
     setEmailResult(null);
+    const note = hoaEmailNote.trim();
     try {
       const res = await fetch("/api/pepoa/submit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ registration_id: id }),
+        body: JSON.stringify({ registration_id: id, ...(note ? { note } : {}) }),
       });
       setEmailResult(res.ok ? "success" : "error");
+      if (res.ok) {
+        setHoaEmailOpen(false);
+        setHoaEmailNote("");
+      }
     } catch {
       setEmailResult("error");
     } finally {
@@ -1630,7 +1638,7 @@ export default function ReservationDetailPage() {
                           <Download className="h-4 w-4 mr-1" /> Download PDF
                         </Button>
                       </a>
-                      <Button variant="outline" size="sm" onClick={handleEmail} disabled={emailing}>
+                      <Button variant="outline" size="sm" onClick={() => setHoaEmailOpen(true)} disabled={emailing}>
                         {emailing ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : emailResult === "success" ? <Mail className="h-4 w-4 mr-1 text-success" /> : emailResult === "error" ? <Mail className="h-4 w-4 mr-1 text-destructive" /> : <Mail className="h-4 w-4 mr-1" />}
                         {emailResult === "success" ? "Sent!" : emailResult === "error" ? "Failed" : "Email to HOA"}
                       </Button>
@@ -1863,6 +1871,48 @@ export default function ReservationDetailPage() {
         onOpenChange={setEditOpen}
         onSaved={() => loadData({ force: true })}
       />
+
+      {/* Email to HOA dialog — optional note added to the email body */}
+      <Dialog open={hoaEmailOpen} onOpenChange={(open) => { if (!emailing) setHoaEmailOpen(open); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Email registration to HOA</DialogTitle>
+            <DialogDescription>
+              {property?.hoa_submission_email
+                ? `Sends the registration PDF to ${property.hoa_submission_email}.`
+                : "Sends the registration PDF to the HOA."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1">
+              <label htmlFor="hoa-note" className="text-sm font-medium">Note (optional)</label>
+              <Textarea
+                id="hoa-note"
+                rows={4}
+                placeholder="Anything the HOA should know — e.g. late arrival, extra vehicle, corrected dates…"
+                value={hoaEmailNote}
+                onChange={(e) => setHoaEmailNote(e.target.value)}
+                maxLength={2000}
+              />
+              <p className="text-xs text-muted-foreground">
+                Added to the email body above the attachment line. Leave blank to send the standard email.
+              </p>
+            </div>
+            {emailResult === "error" && (
+              <p className="text-sm text-destructive">Failed to send. Try again.</p>
+            )}
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setHoaEmailOpen(false)} disabled={emailing}>
+                Cancel
+              </Button>
+              <Button onClick={handleEmail} disabled={emailing}>
+                {emailing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Mail className="h-4 w-4 mr-2" />}
+                Send to HOA
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Cancel Booking Dialog */}
       <Dialog open={cancelOpen} onOpenChange={setCancelOpen}>

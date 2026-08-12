@@ -33,12 +33,15 @@ export async function submitPEPOAEmail({
   isUpdate,
   changeSummary,
   force,
+  note,
 }: {
   registrationId: string;
   isUpdate?: boolean;
   changeSummary?: string;
   /** Bypass the per-reservation HOA-email off switch (manual admin override). */
   force?: boolean;
+  /** Free-text note added by the admin, included in the email body. */
+  note?: string;
 }): Promise<void> {
   const data = await fetchRegistrationData(registrationId);
   if (!data) throw new Error("Registration not found");
@@ -136,6 +139,7 @@ export async function submitPEPOAEmail({
       hoaType,
       isUpdate,
       changeSummary,
+      note,
     });
   } catch (err) {
     // The claim was taken above but nothing went out — release it so a retry or
@@ -152,7 +156,10 @@ export async function submitPEPOAEmail({
     registration_id: registrationId,
     sent_to: [...hoaEmail, ...afterHoursCc],
     subject,
-    body_summary: changeSummary || null,
+    body_summary:
+      [changeSummary, note?.trim() ? `Note: ${note.trim()}` : null]
+        .filter(Boolean)
+        .join(" — ") || null,
     email_type: "pepoa",
     is_update: !!isUpdate,
   });
