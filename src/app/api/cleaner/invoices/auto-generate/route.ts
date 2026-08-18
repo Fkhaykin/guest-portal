@@ -7,7 +7,8 @@ import type { InvoiceLineItem } from "@/types/database";
 // Called daily by Vercel cron (GET) or manually (POST with optional { force }).
 //
 // - Mondays: weekly invoice per cleaner for Summit properties (everything
-//   except Bianca's) covering checkouts from last Monday through Sunday.
+//   except Bianca's) covering the week before last (Monday–Sunday), so a
+//   checkout ages at least a week before it's billed.
 //   The first weekly invoice of each month also carries the Summit share
 //   of the monthly fee.
 // - 1st of the month: monthly invoice per cleaner for Bianca's covering the
@@ -153,11 +154,12 @@ async function runAutoGenerate(force?: "weekly" | "monthly") {
     });
   }
 
-  // Weekly window: last Monday through last Sunday
+  // Weekly window: the week before last (Monday–Sunday), a full week back so
+  // Sunday checkouts aren't racing the Monday-morning cron
   const daysSinceMonday = (today.getUTCDay() + 6) % 7;
   const thisMonday = addDays(today, -daysSinceMonday);
-  const lastMonday = isoDate(addDays(thisMonday, -7));
-  const lastSunday = isoDate(addDays(thisMonday, -1));
+  const weekStart = isoDate(addDays(thisMonday, -14));
+  const weekEnd = isoDate(addDays(thisMonday, -8));
 
   // Prior calendar month
   const year = today.getUTCFullYear();
@@ -293,10 +295,10 @@ async function runAutoGenerate(force?: "weekly" | "monthly") {
       monthlyFeeTotal > 0 ? Math.min(BIANCA_MONTHLY_FEE_CENTS, monthlyFeeTotal) : 0;
     const summitFee = Math.max(0, monthlyFeeTotal - biancaFee);
 
-    // --- Weekly invoice: Summit properties, checkouts through last Sunday ---
+    // --- Weekly invoice: Summit properties, checkouts through the window ---
     if (runWeekly && assignedSummit) {
       const weeklyRegs = regs.filter(
-        (r) => !biancaIds.has(r.property_id) && r.check_out_date <= lastSunday
+        (r) => !biancaIds.has(r.property_id) && r.check_out_date <= weekEnd
       );
       const lineItems = buildLineItems(weeklyRegs, propMap, petFee, billedKinds);
 
@@ -310,13 +312,19 @@ async function runAutoGenerate(force?: "weekly" | "monthly") {
       }
 
       if (lineItems.length > 0) {
+        // Stretch the period back only for stays actually billed on this
+        // invoice (late-swept items) — not for old, fully-billed stays
+        const billedRegIds = new Set(
+          lineItems.map((i) => i.registration_id).filter(Boolean)
+        );
         const earliestCheckout = weeklyRegs
+          .filter((r) => billedRegIds.has(r.id))
           .map((r) => r.check_out_date)
           .sort()[0];
         const periodStart =
-          earliestCheckout && earliestCheckout < lastMonday
+          earliestCheckout && earliestCheckout < weekStart
             ? earliestCheckout
-            : lastMonday;
+            : weekStart;
         const subtotal = lineItems.reduce((s, i) => s + i.amount, 0);
 
         const { data: created, error } = await supabase
@@ -326,13 +334,13 @@ async function runAutoGenerate(force?: "weekly" | "monthly") {
             host_id: cleaner.host_id,
             status: "submitted",
             period_start: periodStart,
-            period_end: lastSunday,
+            period_end: weekEnd,
             line_items: lineItems,
             adjustments: [],
             attachments: [],
             subtotal,
             total: subtotal,
-            notes: `Auto-generated weekly invoice (${lastMonday} – ${lastSunday})`,
+            notes: `Auto-generated weekly invoice (${weekStart} – ${weekEnd})`,
             submitted_at: new Date().toISOString(),
           })
           .select("invoice_number")
@@ -350,7 +358,7 @@ async function runAutoGenerate(force?: "weekly" | "monthly") {
             cleanerCompany: cleaner.company,
             kind: "Weekly — Summit",
             periodStart,
-            periodEnd: lastSunday,
+            periodEnd: weekEnd,
             lineItems,
             total: subtotal,
             ownerEmails: emails,
@@ -376,7 +384,11 @@ async function runAutoGenerate(force?: "weekly" | "monthly") {
       }
 
       if (lineItems.length > 0) {
+        const billedRegIds = new Set(
+          lineItems.map((i) => i.registration_id).filter(Boolean)
+        );
         const earliestCheckout = monthlyRegs
+          .filter((r) => billedRegIds.has(r.id))
           .map((r) => r.check_out_date)
           .sort()[0];
         const periodStart =
