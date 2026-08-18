@@ -461,8 +461,12 @@ function GuestDashboard({
           </CardContent>
         </Card>
 
-        {/* Important Information — shown when address is unlocked (Penn Estates only) */}
-        {daysUntil <= 7 && reservation.property.address && reservation.property.hoa_type !== "bmlc" && (
+        {/* Important Information — shown when address is unlocked (Penn Estates only;
+            Edison NJ carries hoa_type "pepoa" in the DB but is outside the community) */}
+        {daysUntil <= 7 &&
+          reservation.property.address &&
+          reservation.property.hoa_type !== "bmlc" &&
+          reservation.property.slug !== "large-stylish-home-right-next-to-train-station" && (
           <Card className="border-amber-200 bg-amber-50/50 dark:border-amber-800 dark:bg-amber-950/30">
             <CardHeader className="pb-3">
               <CardTitle className="text-xl flex items-center gap-2">
