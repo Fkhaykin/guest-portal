@@ -103,7 +103,7 @@ export default function RentalPoliciesPage() {
         </div>
       </HeroMedia>
 
-      {/* === CHAPTER NAV — scrollspy bar === */}
+      {/* === CHAPTER NAV — floating vertical scrollspy menu === */}
       <ChapterNav
         chapters={CHAPTERS.map((c) => ({ id: c.id, index: c.index, title: c.title }))}
       />

@@ -237,16 +237,21 @@ export function ParallaxBand({
   );
 }
 
-/* ---------------- Scrollspy chapter bar ---------------- */
+/* ---------------- Vertical chapter menu ---------------- */
 
 export function ChapterNav({
   chapters,
 }: {
   chapters: { id: string; index: string; title: string }[];
 }) {
-  // null until the reader actually reaches a chapter — the bar shouldn't
+  // null until the reader actually reaches a chapter — the menu shouldn't
   // claim a location while they're still in the hero/summary.
   const [active, setActive] = useState<string | null>(null);
+  // Hidden until the reader scrolls past the hero, where this component
+  // sits in the page flow (the sentinel marks that spot).
+  const [shown, setShown] = useState(false);
+  const [open, setOpen] = useState(false);
+  const sentinelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const io = new IntersectionObserver(
@@ -266,7 +271,14 @@ export function ChapterNav({
       if (first && window.scrollY + window.innerHeight * 0.3 < first.offsetTop) {
         setActive(null);
       }
+      const sentinel = sentinelRef.current;
+      if (sentinel) {
+        const past = sentinel.getBoundingClientRect().top < 0;
+        setShown(past);
+        if (!past) setOpen(false);
+      }
     }
+    onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => {
       io.disconnect();
@@ -274,19 +286,8 @@ export function ChapterNav({
     };
   }, [chapters]);
 
-  // Keep the active chip scrolled into view on mobile
-  const navRef = useRef<HTMLElement>(null);
-  useEffect(() => {
-    if (!active) return;
-    const el = navRef.current?.querySelector<HTMLElement>(`[data-chapter="${active}"]`);
-    el?.scrollIntoView({
-      behavior: prefersReducedMotion() ? "auto" : "smooth",
-      inline: "center",
-      block: "nearest",
-    });
-  }, [active]);
-
   function jump(e: React.MouseEvent<HTMLAnchorElement>, id: string) {
+    setOpen(false);
     if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
     e.preventDefault();
     document.getElementById(id)?.scrollIntoView({
@@ -296,40 +297,99 @@ export function ChapterNav({
     history.pushState(null, "", `#${id}`);
   }
 
-  return (
-    <div className="sticky top-16 z-30 bg-[#101820]/90 backdrop-blur-xl border-b border-white/10 print:hidden">
-      <nav
-        ref={navRef}
-        className="max-w-7xl mx-auto px-4 sm:px-6 flex gap-1 overflow-x-auto pr-10 mask-[linear-gradient(to_right,black_calc(100%-2.5rem),transparent)]"
-        style={{ scrollbarWidth: "none" }}
-        aria-label="Policy chapters"
+  const activeChapter = chapters.find((c) => c.id === active);
+
+  const links = (
+    <>
+      <a
+        href="#short-version"
+        onClick={(e) => jump(e, "short-version")}
+        className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-white/55 hover:text-white hover:bg-white/5 transition-colors"
+        aria-label="Back to the short version"
       >
+        ↑ Top
+      </a>
+      {chapters.map((c) => (
         <a
-          href="#short-version"
-          onClick={(e) => jump(e, "short-version")}
-          className="shrink-0 flex items-center px-3 py-3 text-sm font-medium border-b-2 -mb-px border-transparent text-white/55 hover:text-white transition-colors"
-          aria-label="Back to the short version"
+          key={c.id}
+          href={`#${c.id}`}
+          aria-current={active === c.id ? "true" : undefined}
+          onClick={(e) => jump(e, c.id)}
+          className={`flex items-baseline gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+            active === c.id
+              ? "bg-white/10 text-white"
+              : "text-white/55 hover:text-white hover:bg-white/5"
+          }`}
         >
-          ↑ Top
-        </a>
-        {chapters.map((c) => (
-          <a
-            key={c.id}
-            href={`#${c.id}`}
-            data-chapter={c.id}
-            aria-current={active === c.id ? "true" : undefined}
-            onClick={(e) => jump(e, c.id)}
-            className={`shrink-0 flex items-baseline gap-1.5 px-3 py-3 text-sm font-medium border-b-2 -mb-px transition-colors ${
-              active === c.id
-                ? "border-primary text-white"
-                : "border-transparent text-white/55 hover:text-white"
+          <span
+            className={`text-[10px] tabular-nums ${
+              active === c.id ? "text-primary" : "opacity-60"
             }`}
           >
-            <span className="text-[10px] tabular-nums opacity-60">{c.index}</span>
-            {c.title}
-          </a>
-        ))}
+            {c.index}
+          </span>
+          {c.title}
+        </a>
+      ))}
+    </>
+  );
+
+  return (
+    <>
+      {/* In-flow marker for where the menu becomes relevant (just past the hero) */}
+      <div ref={sentinelRef} aria-hidden />
+
+      {/* Desktop: fixed vertical rail on the right */}
+      <nav
+        aria-label="Policy chapters"
+        className={`hidden lg:flex fixed right-5 top-1/2 -translate-y-1/2 z-30 w-60 flex-col gap-0.5 rounded-2xl border border-white/10 bg-[#101820]/90 p-2.5 backdrop-blur-xl shadow-2xl shadow-black/30 print:hidden transition-all duration-300 motion-reduce:transition-none ${
+          shown ? "opacity-100 translate-x-0" : "opacity-0 translate-x-3 pointer-events-none"
+        }`}
+      >
+        {links}
       </nav>
-    </div>
+
+      {/* Mobile: floating button that opens the same list vertically.
+          Bottom-left — the chat widget owns the bottom-right corner. */}
+      <div
+        className={`lg:hidden fixed bottom-5 left-4 z-40 print:hidden transition-all duration-300 motion-reduce:transition-none ${
+          shown ? "opacity-100 translate-y-0" : "opacity-0 translate-y-3 pointer-events-none"
+        }`}
+      >
+        {open && (
+          <>
+            <div
+              className="fixed inset-0 -z-10 bg-black/40"
+              aria-hidden
+              onClick={() => setOpen(false)}
+            />
+            <nav
+              aria-label="Policy chapters"
+              className="absolute bottom-full left-0 mb-2 w-64 max-h-[70vh] overflow-y-auto flex flex-col gap-0.5 rounded-2xl border border-white/10 bg-[#101820]/95 p-2.5 backdrop-blur-xl shadow-2xl shadow-black/40"
+            >
+              {links}
+            </nav>
+          </>
+        )}
+        <button
+          type="button"
+          aria-expanded={open}
+          aria-label="Jump to a chapter"
+          onClick={() => setOpen((o) => !o)}
+          className="flex items-baseline gap-2 rounded-full border border-white/10 bg-[#101820]/90 px-4 py-3 text-sm font-medium text-white backdrop-blur-xl shadow-lg shadow-black/30"
+        >
+          {activeChapter ? (
+            <>
+              <span className="text-[10px] tabular-nums text-primary">
+                {activeChapter.index}
+              </span>
+              {activeChapter.title}
+            </>
+          ) : (
+            "Chapters"
+          )}
+        </button>
+      </div>
+    </>
   );
 }
