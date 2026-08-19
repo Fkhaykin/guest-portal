@@ -150,6 +150,11 @@ const nextConfig: NextConfig = {
         permanent: true,
       },
       {
+        source: "/en/lake-activities",
+        destination: "/things-to-do",
+        permanent: true,
+      },
+      {
         source: "/en/:path*",
         destination: "/",
         permanent: true,
