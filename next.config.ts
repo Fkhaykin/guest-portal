@@ -155,6 +155,11 @@ const nextConfig: NextConfig = {
         permanent: true,
       },
       {
+        source: "/en/community-amenities",
+        destination: "/penn-estates",
+        permanent: true,
+      },
+      {
         source: "/en/:path*",
         destination: "/",
         permanent: true,
