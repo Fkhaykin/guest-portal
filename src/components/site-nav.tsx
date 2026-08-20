@@ -24,18 +24,30 @@ const RESOURCES_LINKS = [
  */
 export function SiteNav({ variant = "solid" }: { variant?: "transparent" | "solid" }) {
   const [scrolled, setScrolled] = useState(false);
+  const [hidden, setHidden] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [resourcesOpen, setResourcesOpen] = useState(false);
   const resourcesTimeout = useRef<ReturnType<typeof setTimeout>>(null);
+  const lastScrollY = useRef(0);
 
   useEffect(() => {
-    if (variant !== "transparent") return;
     function handleScroll() {
-      setScrolled(window.scrollY > 40);
+      const y = Math.max(0, window.scrollY);
+      setScrolled(y > 40);
+      // Hide on scroll down, reveal on scroll up. The 8px delta filters out
+      // trackpad/rubber-band jitter; near the top the nav is always shown.
+      if (y < 80) {
+        setHidden(false);
+      } else if (y > lastScrollY.current + 8) {
+        setHidden(true);
+      } else if (y < lastScrollY.current - 8) {
+        setHidden(false);
+      }
+      lastScrollY.current = y;
     }
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
-  }, [variant]);
+  }, []);
 
   const isOpaque = variant === "solid" || scrolled || mobileOpen;
 
@@ -47,7 +59,11 @@ export function SiteNav({ variant = "solid" }: { variant?: "transparent" | "soli
 
   return (
     <>
-      <nav className="fixed top-0 left-0 right-0 z-50 px-3 pt-3 sm:px-6">
+      <nav
+        className={`fixed top-0 left-0 right-0 z-50 px-3 pt-3 sm:px-6 transition-transform duration-300 ease-in-out ${
+          hidden && !mobileOpen ? "-translate-y-[110%]" : "translate-y-0"
+        }`}
+      >
         <div
           className={`max-w-7xl mx-auto px-4 sm:px-5 rounded-2xl transition-all duration-300 ${
             isOpaque
