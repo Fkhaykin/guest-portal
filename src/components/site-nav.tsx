@@ -39,17 +39,23 @@ export function SiteNav({ variant = "solid" }: { variant?: "transparent" | "soli
 
   const isOpaque = variant === "solid" || scrolled || mobileOpen;
 
+  // Over the transparent hero the nav sits on a dark photo, so text stays
+  // white; once the floating card appears it follows the theme tokens.
+  const linkCls = isOpaque
+    ? "text-foreground/80 hover:text-foreground hover:bg-foreground/10"
+    : "text-white/80 hover:text-white hover:bg-white/10";
+
   return (
     <>
-      <nav
-        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-          isOpaque
-            ? "bg-black/70 backdrop-blur-xl border-b border-white/10 shadow-lg"
-            : "bg-transparent"
-        }`}
-      >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="flex items-center justify-between h-16">
+      <nav className="fixed top-0 left-0 right-0 z-50 px-3 pt-3 sm:px-6">
+        <div
+          className={`max-w-7xl mx-auto px-4 sm:px-5 rounded-2xl transition-all duration-300 ${
+            isOpaque
+              ? "border bg-card/85 supports-backdrop-filter:bg-card/75 backdrop-blur-xl shadow-lg shadow-black/5 dark:border-white/10 dark:shadow-black/30"
+              : "border border-transparent bg-transparent"
+          }`}
+        >
+          <div className="flex items-center justify-between h-14">
             {/* Logo */}
             <Link href="/" className="shrink-0">
               <Image
@@ -57,7 +63,9 @@ export function SiteNav({ variant = "solid" }: { variant?: "transparent" | "soli
                 alt="Summit Lakeside Rentals"
                 width={140}
                 height={70}
-                className="h-9 w-auto"
+                className={`h-9 w-auto transition-[filter] duration-300 ${
+                  isOpaque ? "invert dark:invert-0" : ""
+                }`}
                 priority
               />
             </Link>
@@ -68,7 +76,7 @@ export function SiteNav({ variant = "solid" }: { variant?: "transparent" | "soli
                 <Link
                   key={link.label}
                   href={link.href}
-                  className="px-3 py-2 text-sm font-medium text-white/80 hover:text-white transition-colors rounded-lg hover:bg-white/10"
+                  className={`px-3 py-2 text-sm font-medium transition-colors rounded-lg ${linkCls}`}
                 >
                   {link.label}
                 </Link>
@@ -86,19 +94,29 @@ export function SiteNav({ variant = "solid" }: { variant?: "transparent" | "soli
                 }}
               >
                 <button
-                  className="px-3 py-2 text-sm font-medium text-white/80 hover:text-white transition-colors rounded-lg hover:bg-white/10 flex items-center gap-1"
+                  className={`px-3 py-2 text-sm font-medium transition-colors rounded-lg flex items-center gap-1 ${linkCls}`}
                   onClick={() => setResourcesOpen(!resourcesOpen)}
                 >
                   Resources
                   <ChevronDown className={`h-3.5 w-3.5 transition-transform ${resourcesOpen ? "rotate-180" : ""}`} />
                 </button>
                 {resourcesOpen && (
-                  <div className="absolute top-full left-0 mt-1 w-52 rounded-xl bg-black/80 backdrop-blur-xl border border-white/15 shadow-xl overflow-hidden py-1">
+                  <div
+                    className={`absolute top-full left-0 mt-2 w-52 rounded-xl backdrop-blur-xl border shadow-xl overflow-hidden py-1 ${
+                      isOpaque
+                        ? "bg-card/90 dark:border-white/15 dark:shadow-black/30"
+                        : "bg-black/80 border-white/15"
+                    }`}
+                  >
                     {RESOURCES_LINKS.map((link) => (
                       <Link
                         key={link.label}
                         href={link.href}
-                        className="block px-4 py-2.5 text-sm text-white/80 hover:text-white hover:bg-white/10 transition-colors"
+                        className={`block px-4 py-2.5 text-sm transition-colors ${
+                          isOpaque
+                            ? "text-foreground/80 hover:text-foreground hover:bg-foreground/10"
+                            : "text-white/80 hover:text-white hover:bg-white/10"
+                        }`}
                         onClick={() => setResourcesOpen(false)}
                       >
                         {link.label}
@@ -108,12 +126,16 @@ export function SiteNav({ variant = "solid" }: { variant?: "transparent" | "soli
                 )}
               </div>
 
-              <ThemeToggle className="inline-flex items-center justify-center rounded-md p-2 text-white/80 hover:text-white hover:bg-white/10 transition-colors focus:outline-none" />
+              <ThemeToggle className={`inline-flex items-center justify-center rounded-md p-2 transition-colors focus:outline-none ${linkCls}`} />
 
               {/* CTA */}
               <Link
                 href="/search"
-                className="ml-3 px-5 py-2 text-sm font-semibold bg-white text-black rounded-lg hover:bg-white/90 transition-colors"
+                className={`ml-3 px-5 py-2 text-sm font-semibold rounded-lg transition-colors ${
+                  isOpaque
+                    ? "bg-foreground text-background hover:bg-foreground/90"
+                    : "bg-white text-black hover:bg-white/90"
+                }`}
               >
                 Book Now
               </Link>
@@ -121,7 +143,11 @@ export function SiteNav({ variant = "solid" }: { variant?: "transparent" | "soli
 
             {/* Mobile menu button */}
             <button
-              className="md:hidden p-2 text-white/80 hover:text-white transition-colors"
+              className={`md:hidden p-2 transition-colors ${
+                isOpaque
+                  ? "text-foreground/80 hover:text-foreground"
+                  : "text-white/80 hover:text-white"
+              }`}
               onClick={() => setMobileOpen(!mobileOpen)}
             >
               {mobileOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
