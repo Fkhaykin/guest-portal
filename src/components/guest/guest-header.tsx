@@ -52,8 +52,8 @@ export function GuestHeader() {
   const firstName = session?.guestName?.split(" ")[0];
 
   return (
-    <header className="sticky top-0 z-40 px-3 pt-3 sm:px-4">
-      <div className="max-w-4xl mx-auto px-4 py-2.5 flex items-center justify-between rounded-2xl border bg-card/85 supports-backdrop-filter:bg-card/75 backdrop-blur-md shadow-md shadow-black/5 dark:shadow-black/25">
+    <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-40">
+      <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
         <Link href={WEBSITE_URL} className="hover:opacity-80 transition-opacity">
           <Image
             src="/logo.png"
@@ -102,8 +102,11 @@ export function PropertyHeader({
   }, []);
 
   return (
-    <header data-kiosk-hide className="sticky top-0 z-40 px-3 pt-3 sm:px-4">
-      <div className="max-w-4xl mx-auto px-4 py-2.5 flex items-center justify-between rounded-2xl border bg-card/85 supports-backdrop-filter:bg-card/75 backdrop-blur-md shadow-md shadow-black/5 dark:shadow-black/25">
+    <header
+      data-kiosk-hide
+      className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-40"
+    >
+      <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3 min-w-0">
           {mounted && hasSession && showBack && (
             <Link href="/" className="text-muted-foreground hover:text-foreground transition-colors shrink-0">
