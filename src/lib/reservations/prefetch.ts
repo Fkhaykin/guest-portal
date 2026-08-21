@@ -43,7 +43,7 @@ export type FullRegistration = {
   pet_fee_total_cents: number;
   discount_cents: number;
   discount_label: string | null;
-  nightly_rates_snapshot: Array<{ date: string; cents: number }> | null;
+  nightly_rates_snapshot: Array<{ date: string; price_cents: number }> | null;
   lodgify_price_breakdown: LodgifyPriceBreakdown | null;
   payment_plan: "full" | "split" | "automatic";
   deposit_paid_at: string | null;

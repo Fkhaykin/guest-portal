@@ -474,7 +474,7 @@ export default function ReservationDetailPage() {
   const petFeeCents = reg.pet_fee_total_cents ?? 0;
   const discountCents = reg.discount_cents ?? 0;
   const nightlyRates = reg.nightly_rates_snapshot ?? [];
-  const nightsSubtotalCents = nightlyRates.reduce((s, n) => s + (n?.cents ?? 0), 0);
+  const nightsSubtotalCents = nightlyRates.reduce((s, n) => s + (n?.price_cents ?? 0), 0);
   const hasBreakdown =
     nightlyRates.length > 0 || cleaningCents > 0 || taxCents > 0 || petFeeCents > 0 || discountCents > 0;
 

@@ -55,8 +55,8 @@ export default async function PayPage({ params }: { params: Promise<{ id: string
   const cleaningCents = registration.cleaning_fee_cents ?? 0;
   const taxCents = registration.tax_amount_cents ?? 0;
   const petCents = registration.pet_fee_total_cents ?? 0;
-  const nightlyRates = (registration.nightly_rates_snapshot as Array<{ date: string; cents: number }> | null) ?? [];
-  const nightsSubtotalCents = nightlyRates.reduce((sum, n) => sum + (n?.cents ?? 0), 0);
+  const nightlyRates = (registration.nightly_rates_snapshot as Array<{ date: string; price_cents: number }> | null) ?? [];
+  const nightsSubtotalCents = nightlyRates.reduce((sum, n) => sum + (n?.price_cents ?? 0), 0);
 
   const alreadyPaid = !!registration.deposit_paid_at || !!registration.balance_paid_at;
 
