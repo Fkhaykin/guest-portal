@@ -5,6 +5,9 @@ import { pushBookingToLodgify } from "@/lib/lodgify/push";
 import { sendDirectBookingConfirmation } from "@/lib/guest-messages/send";
 import { applyExtension } from "@/lib/upsells/extend-stay";
 import { finalizeIdentitySession } from "@/lib/identity/verify";
+import { notifyCleanersOfEarlyCheckin, notifyCleanersOfLateCheckout } from "@/lib/sms/notify-cleaners";
+import { notifyHostOfUpsellPurchase } from "@/lib/push/notify-host";
+import { timingUpsellTime, STANDARD_CHECKIN_TIME, STANDARD_CHECKOUT_TIME } from "@/lib/upsells/timing";
 import Stripe from "stripe";
 
 export async function POST(request: Request) {
@@ -55,12 +58,71 @@ export async function POST(request: Request) {
     if (isBooking) {
       const registrationId = session.metadata?.registration_id;
 
-      // Activate the registration
+      // Activate the registration and settle booking-time add-ons: upsells
+      // picked in the booking cart were paid as line items of this very
+      // checkout, so flip them to "paid" and notify — mirroring
+      // /api/guest/upsells/confirm. Cart add-ons bought later carry a
+      // stripe_session_id and are confirmed by that flow instead; the
+      // no-session-id filter also makes a webhook redelivery a no-op.
       if (registrationId) {
+        const { data: reg } = await supabase
+          .from("registration")
+          .select("id, upsells, property_id, check_in_date, check_out_date, guest:guest_id(full_name)")
+          .eq("id", registrationId)
+          .single();
+
+        const upsells =
+          (reg?.upsells as Array<{ stripe_session_id?: string; status: string; [key: string]: unknown }> | null) ?? [];
+        const justPaid = upsells.filter((u) => u.status === "pending" && !u.stripe_session_id);
+        const updatedUpsells = upsells.map((u) =>
+          u.status === "pending" && !u.stripe_session_id ? { ...u, status: "paid" } : u
+        );
+
         await supabase
           .from("registration")
-          .update({ status: "active" })
+          .update({ status: "active", ...(justPaid.length > 0 ? { upsells: updatedUpsells } : {}) })
           .eq("id", registrationId);
+
+        if (reg && justPaid.length > 0) {
+          const guestRow = reg.guest as unknown as { full_name: string } | null;
+          const guestName = guestRow?.full_name ?? "Guest";
+
+          // Awaited — Vercel freezes the function once the response is
+          // returned, killing fire-and-forget sends mid-flight.
+          for (const u of justPaid) {
+            const timingLike = {
+              type: u.type as string,
+              label: u.label as string | undefined,
+              meta: u.meta as Record<string, unknown> | null | undefined,
+            };
+            if (u.type === "early_checkin" && reg.check_in_date) {
+              await notifyCleanersOfEarlyCheckin({
+                propertyId: reg.property_id,
+                registrationId: reg.id,
+                guestName,
+                checkIn: reg.check_in_date as string,
+                checkInTime: timingUpsellTime(timingLike) ?? STANDARD_CHECKIN_TIME,
+              }).catch(() => {});
+            }
+            if (u.type === "late_checkout" && reg.check_out_date) {
+              await notifyCleanersOfLateCheckout({
+                propertyId: reg.property_id,
+                registrationId: reg.id,
+                guestName,
+                checkOut: reg.check_out_date as string,
+                checkOutTime: timingUpsellTime(timingLike) ?? STANDARD_CHECKOUT_TIME,
+              }).catch(() => {});
+            }
+          }
+
+          await notifyHostOfUpsellPurchase({
+            propertyId: reg.property_id,
+            registrationId: reg.id,
+            guestName,
+            labels: justPaid.map((u) => (u.label as string) || (u.type as string)),
+            totalCents: justPaid.reduce((sum, u) => sum + (Number(u.price_cents) || 0), 0),
+          }).catch(() => {});
+        }
       }
 
       // Increment usage for every applied promo (a booking may stack several).
