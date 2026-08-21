@@ -157,7 +157,7 @@ function SectionNav({ hasGallery }: { hasGallery: boolean }) {
   const active = useScrollSpy(useMemo(() => sections.map((s) => s.id), [sections]));
 
   return (
-    <div className="sticky top-16 z-30 bg-background/85 backdrop-blur-xl border-b mt-6">
+    <div className="sticky top-(--site-nav-offset) z-30 bg-background/85 backdrop-blur-xl border-b mt-6 transition-[top] duration-300 ease-in-out motion-reduce:transition-none">
       <nav
         className="max-w-7xl mx-auto px-4 sm:px-6 flex gap-1 overflow-x-auto"
         style={{ scrollbarWidth: "none" }}

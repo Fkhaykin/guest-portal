@@ -735,7 +735,7 @@ function MobileNav({
   }, [active]);
 
   return (
-    <div className="lg:hidden sticky top-16 z-40 -mx-4 sm:-mx-6 px-4 sm:px-6 bg-background/85 backdrop-blur-xl border-b">
+    <div className="lg:hidden sticky top-(--site-nav-offset) z-40 -mx-4 sm:-mx-6 px-4 sm:px-6 bg-background/85 backdrop-blur-xl border-b transition-[top] duration-300 ease-in-out motion-reduce:transition-none">
       <div
         ref={scrollerRef}
         className="flex gap-6 overflow-x-auto pt-3"

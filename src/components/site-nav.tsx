@@ -49,6 +49,16 @@ export function SiteNav({ variant = "solid" }: { variant?: "transparent" | "soli
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  // Mirror the hidden state onto <html> so sticky sub-bars (pinned at
+  // --site-nav-offset) ride up to the viewport edge in sync with the nav.
+  useEffect(() => {
+    document.documentElement.toggleAttribute(
+      "data-site-nav-hidden",
+      hidden && !mobileOpen
+    );
+    return () => document.documentElement.removeAttribute("data-site-nav-hidden");
+  }, [hidden, mobileOpen]);
+
   const isOpaque = variant === "solid" || scrolled || mobileOpen;
 
   // Over the transparent hero the nav sits on a dark photo, so text stays

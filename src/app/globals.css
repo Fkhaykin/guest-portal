@@ -55,6 +55,11 @@
 }
 
 :root {
+  /* Bottom edge of the floating site nav (pt-3 + h-14). Sticky sub-bars pin
+     to this so they ride up to the viewport edge when the nav auto-hides
+     (SiteNav toggles data-site-nav-hidden on <html>). */
+  --site-nav-offset: 68px;
+
   /* Lake-blue brand palette over cool-tinted neutrals; page background sits
      slightly below the white cards so surfaces read with depth */
   --background: oklch(0.98 0.004 240);
@@ -111,6 +116,10 @@
   --demand-good: #d8f0dd;
   --demand-high: #d5e6fb;
   --demand-unavailable: #ececeb;
+}
+
+html[data-site-nav-hidden] {
+  --site-nav-offset: 0px;
 }
 
 .dark {
