@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -149,6 +149,48 @@ export function AdminCalendarView({
   const [selected, setSelected] = useState<AdminCalendarEntry | null>(null);
   const [failedImages, setFailedImages] = useState<Set<string>>(new Set());
 
+  // Drag-to-scrub: dragging horizontally anywhere on the timeline shifts the
+  // visible window one day per column-width of travel. Window listeners (not
+  // pointer capture) keep bar clicks targeting the bar, and a suppress flag
+  // swallows the click that fires after a real drag ends on one.
+  const scrubRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef<{ startX: number; origin: Date; colW: number; lastShift: number; moved: boolean } | null>(null);
+  const suppressClickRef = useRef(false);
+
+  function onScrubMove(e: PointerEvent) {
+    const d = dragRef.current;
+    if (!d) return;
+    const delta = e.clientX - d.startX;
+    if (!d.moved && Math.abs(delta) < 5) return;
+    d.moved = true;
+    const shift = Math.round(-delta / d.colW);
+    if (shift !== d.lastShift) {
+      d.lastShift = shift;
+      setStartDate(addDays(d.origin, shift));
+    }
+  }
+
+  function onScrubEnd() {
+    suppressClickRef.current = dragRef.current?.moved ?? false;
+    dragRef.current = null;
+    window.removeEventListener("pointermove", onScrubMove);
+    window.removeEventListener("pointerup", onScrubEnd);
+    window.removeEventListener("pointercancel", onScrubEnd);
+  }
+
+  function onScrubStart(e: React.PointerEvent) {
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    suppressClickRef.current = false;
+    const timelineWidth = scrubRef.current
+      ?.querySelector("[data-timeline]")
+      ?.getBoundingClientRect().width;
+    const colW = timelineWidth ? timelineWidth / VISIBLE_DAYS : 40;
+    dragRef.current = { startX: e.clientX, origin: startDate, colW, lastShift: 0, moved: false };
+    window.addEventListener("pointermove", onScrubMove);
+    window.addEventListener("pointerup", onScrubEnd);
+    window.addEventListener("pointercancel", onScrubEnd);
+  }
+
   const todayStr = toDateStr(today);
 
   const days: { date: Date; str: string }[] = [];
@@ -234,105 +276,120 @@ export function AdminCalendarView({
           </Button>
         </div>
 
-        {/* Day headers — px-2 matches the p-2 on the rows container so columns align */}
+        {/* Scrub surface: headers + rows. touch-pan-y keeps vertical page scroll on touch */}
         <div
-          className="grid gap-0 border-b pb-2 mb-2 px-2"
-          style={{ gridTemplateColumns: `var(--label-w) repeat(${VISIBLE_DAYS}, 1fr)` }}
+          ref={scrubRef}
+          onPointerDown={onScrubStart}
+          onDragStart={(e) => e.preventDefault()}
+          onClickCapture={(e) => {
+            if (suppressClickRef.current) {
+              suppressClickRef.current = false;
+              e.preventDefault();
+              e.stopPropagation();
+            }
+          }}
+          className="cursor-grab active:cursor-grabbing select-none touch-pan-y"
         >
-          <div />
-          {days.map(({ date, str }) => {
-            const isToday = str === todayStr;
-            const isWeekend = date.getDay() === 0 || date.getDay() === 6;
-            return (
-              <div
-                key={str}
-                className={`text-center leading-tight ${
-                  isToday ? "font-bold text-primary" : isWeekend ? "text-muted-foreground/50" : "text-muted-foreground"
-                }`}
-              >
-                <div className="text-[10px]">{DAY_NAMES_SHORT[date.getDay()]}</div>
+          {/* Day headers — px-2 matches the p-2 on the rows container so columns align */}
+          <div
+            className="grid gap-0 border-b pb-2 mb-2 px-2"
+            style={{ gridTemplateColumns: `var(--label-w) repeat(${VISIBLE_DAYS}, 1fr)` }}
+          >
+            <div />
+            {days.map(({ date, str }) => {
+              const isToday = str === todayStr;
+              const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+              return (
                 <div
-                  className={`text-xs ${
-                    isToday
-                      ? "bg-primary text-primary-foreground rounded-full w-6 h-6 flex items-center justify-center mx-auto"
-                      : ""
+                  key={str}
+                  className={`text-center leading-tight ${
+                    isToday ? "font-bold text-primary" : isWeekend ? "text-muted-foreground/50" : "text-muted-foreground"
                   }`}
                 >
-                  {date.getDate()}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Property rows */}
-        <div className="space-y-1 bg-gray-50 dark:bg-gray-900/30 rounded-lg p-2">
-          {properties.map(([groupKey, { coverImage, label, entries: propEntries }]) => {
-            const positions = propEntries.map(getBarPosition);
-            const lanes = assignLanes(positions);
-            const numLanes = lanes.length ? Math.max(...lanes) + 1 : 1;
-            const totalH = ROW_TOP_PAD + numLanes * BAR_H + (numLanes - 1) * LANE_GAP + ROW_BOT_PAD;
-
-            return (
-              <div key={groupKey} className="flex items-start border-b border-muted/10 last:border-b-0 py-1">
-                {/* Property label */}
-                <div className="flex sm:flex-row flex-col items-center gap-1 sm:gap-2.5 pr-1 sm:pr-3 min-w-0 shrink-0 w-(--label-w)">
-                  <div className="h-9 w-9 rounded-lg overflow-hidden shrink-0 border border-border/50">
-                    {coverImage && !failedImages.has(coverImage) ? (
-                      <img
-                        src={coverImage}
-                        alt={label}
-                        className="w-full h-full object-cover"
-                        onError={() => setFailedImages((prev) => new Set(prev).add(coverImage))}
-                      />
-                    ) : (
-                      <div className="w-full h-full bg-muted flex items-center justify-center">
-                        <Home className="h-4 w-4 text-muted-foreground" />
-                      </div>
-                    )}
+                  <div className="text-[10px]">{DAY_NAMES_SHORT[date.getDay()]}</div>
+                  <div
+                    className={`text-xs ${
+                      isToday
+                        ? "bg-primary text-primary-foreground rounded-full w-6 h-6 flex items-center justify-center mx-auto"
+                        : ""
+                    }`}
+                  >
+                    {date.getDate()}
                   </div>
-                  <span className="text-[9px] sm:text-xs font-medium truncate block max-w-full text-center sm:text-left">{label}</span>
                 </div>
+              );
+            })}
+          </div>
 
-                {/* Timeline area */}
-                <div className="flex-1 relative" style={{ height: totalH }}>
-                  {/* Grid lines */}
-                  <div className="absolute inset-0 grid pointer-events-none" style={{ gridTemplateColumns: `repeat(${VISIBLE_DAYS}, 1fr)` }}>
-                    {days.map(({ str }, i) => (
-                      <div key={str} className={`border-l h-full border-border/15${i === days.length - 1 ? " border-r" : ""}`} />
-                    ))}
+          {/* Property rows */}
+          <div className="space-y-1 bg-gray-50 dark:bg-gray-900/30 rounded-lg p-2">
+            {properties.map(([groupKey, { coverImage, label, entries: propEntries }]) => {
+              const positions = propEntries.map(getBarPosition);
+              const lanes = assignLanes(positions);
+              const numLanes = lanes.length ? Math.max(...lanes) + 1 : 1;
+              const totalH = ROW_TOP_PAD + numLanes * BAR_H + (numLanes - 1) * LANE_GAP + ROW_BOT_PAD;
+
+              return (
+                <div key={groupKey} className="flex items-start border-b border-muted/10 last:border-b-0 py-1">
+                  {/* Property label */}
+                  <div className="flex sm:flex-row flex-col items-center gap-1 sm:gap-2.5 pr-1 sm:pr-3 min-w-0 shrink-0 w-(--label-w)">
+                    <div className="h-9 w-9 rounded-lg overflow-hidden shrink-0 border border-border/50">
+                      {coverImage && !failedImages.has(coverImage) ? (
+                        <img
+                          src={coverImage}
+                          alt={label}
+                          className="w-full h-full object-cover"
+                          onError={() => setFailedImages((prev) => new Set(prev).add(coverImage))}
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-muted flex items-center justify-center">
+                          <Home className="h-4 w-4 text-muted-foreground" />
+                        </div>
+                      )}
+                    </div>
+                    <span className="text-[9px] sm:text-xs font-medium truncate block max-w-full text-center sm:text-left">{label}</span>
                   </div>
 
-                  {/* Bars */}
-                  {propEntries.map((e, idx) => {
-                    const { startIdx, endIdx, isClampedStart, isClampedEnd } = positions[idx];
-                    // Half-day overlap: bar starts mid-box on check-in day, ends mid-box on check-out day
-                    const leftPct = startIdx * colPct + (isClampedStart ? 0 : colPct * 0.5);
-                    const rightPct = (VISIBLE_DAYS - 1 - endIdx) * colPct + (isClampedEnd ? 0 : colPct * 0.5);
-                    const widthPct = 100 - leftPct - rightPct;
-                    if (widthPct <= 0) return null;
+                  {/* Timeline area */}
+                  <div className="flex-1 relative" data-timeline style={{ height: totalH }}>
+                    {/* Grid lines */}
+                    <div className="absolute inset-0 grid pointer-events-none" style={{ gridTemplateColumns: `repeat(${VISIBLE_DAYS}, 1fr)` }}>
+                      {days.map(({ str }, i) => (
+                        <div key={str} className={`border-l h-full border-border/15${i === days.length - 1 ? " border-r" : ""}`} />
+                      ))}
+                    </div>
 
-                    const top = ROW_TOP_PAD + lanes[idx] * (BAR_H + LANE_GAP);
-                    const barClass = STATUS_BAR[e.displayStatus];
-                    const label2 = e.guestName
-                      ? `${e.guestName.split(" ")[0]} · ${e.numGuests}g${e.totalAmountCents ? ` · $${Math.round(e.totalAmountCents / 100).toLocaleString()}` : ""}`
-                      : "Blocked";
+                    {/* Bars */}
+                    {propEntries.map((e, idx) => {
+                      const { startIdx, endIdx, isClampedStart, isClampedEnd } = positions[idx];
+                      // Half-day overlap: bar starts mid-box on check-in day, ends mid-box on check-out day
+                      const leftPct = startIdx * colPct + (isClampedStart ? 0 : colPct * 0.5);
+                      const rightPct = (VISIBLE_DAYS - 1 - endIdx) * colPct + (isClampedEnd ? 0 : colPct * 0.5);
+                      const widthPct = 100 - leftPct - rightPct;
+                      if (widthPct <= 0) return null;
 
-                    return (
-                      <button
-                        key={e.id}
-                        onClick={() => setSelected(e)}
-                        className={`absolute h-6 text-[10px] font-semibold flex items-center px-3 truncate cursor-pointer hover:brightness-110 active:scale-[0.98] transition-all z-10 ${barRounding(isClampedStart, isClampedEnd)} ${barClass}`}
-                        style={{ left: `${leftPct}%`, width: `${widthPct}%`, top, minWidth: "24px" }}
-                      >
-                        <span className="truncate">{label2}</span>
-                      </button>
-                    );
-                  })}
+                      const top = ROW_TOP_PAD + lanes[idx] * (BAR_H + LANE_GAP);
+                      const barClass = STATUS_BAR[e.displayStatus];
+                      const label2 = e.guestName
+                        ? `${e.guestName.split(" ")[0]} · ${e.numGuests}g${e.totalAmountCents ? ` · $${Math.round(e.totalAmountCents / 100).toLocaleString()}` : ""}`
+                        : "Blocked";
+
+                      return (
+                        <button
+                          key={e.id}
+                          onClick={() => setSelected(e)}
+                          className={`absolute h-6 text-[10px] font-semibold flex items-center px-3 truncate cursor-pointer hover:brightness-110 active:scale-[0.98] transition-all z-10 ${barRounding(isClampedStart, isClampedEnd)} ${barClass}`}
+                          style={{ left: `${leftPct}%`, width: `${widthPct}%`, top, minWidth: "24px" }}
+                        >
+                          <span className="truncate">{label2}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       </Card>
 
