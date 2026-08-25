@@ -207,3 +207,21 @@ export async function notifyHostOfUpsellPurchase(params: {
     url: reservationUrl(params.registrationId),
   });
 }
+
+export async function notifyHostOfCalendarHoldLost(params: {
+  propertyId: string;
+  registrationId?: string | null;
+  guestName: string;
+  checkIn: string;
+  checkOut: string;
+  problem: string;
+}) {
+  const property = await getProperty(params.propertyId);
+  if (!property) return;
+
+  await sendPushToHost(property.hostId, {
+    title: `Calendar hold lost — ${property.name}`,
+    body: `${params.guestName} · ${formatDate(params.checkIn)} – ${formatDate(params.checkOut)}: ${params.problem}`,
+    url: reservationUrl(params.registrationId),
+  });
+}

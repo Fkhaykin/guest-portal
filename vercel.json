@@ -73,6 +73,10 @@
       "schedule": "45 7 * * *"
     },
     {
+      "path": "/api/cron/lodgify-status-check",
+      "schedule": "30 11 * * *"
+    },
+    {
       "path": "/api/cron/market-pulse",
       "schedule": "30 8 * * *"
     },
