@@ -307,11 +307,10 @@ export function AdminCalendarView({
                   }`}
                 >
                   <div className="text-[10px]">{DAY_NAMES_SHORT[date.getDay()]}</div>
+                  {/* Fixed circle geometry on every day so today entering/leaving the window doesn't shift layout */}
                   <div
-                    className={`text-xs ${
-                      isToday
-                        ? "bg-primary text-primary-foreground rounded-full w-6 h-6 flex items-center justify-center mx-auto"
-                        : ""
+                    className={`text-xs rounded-full w-6 h-6 flex items-center justify-center mx-auto ${
+                      isToday ? "bg-primary text-primary-foreground" : ""
                     }`}
                   >
                     {date.getDate()}
