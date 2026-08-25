@@ -383,7 +383,11 @@ export async function syncBooking(booking: LodgifyBooking, options?: { skipNotif
     lodgify_num_pets: booking.pets || 0,
     notes: booking.notes,
     status: mapStatus(booking.status),
-    booking_source: booking.source,
+    // Only seed booking_source on brand-new rows. Locally-created bookings are
+    // stamped "direct"/"admin", and the reaper guard above depends on that
+    // marker surviving every echo-back sync — overwriting it with Lodgify's
+    // source ("PublicApi") let the reaper erase paid direct bookings.
+    ...(isNewBooking ? { booking_source: booking.source } : {}),
     // Gross (v1 list) amounts only seed brand-new rows; stay-based revenue
     // from the v2 detail is authoritative and must not be overwritten.
     ...(booking.total_amount && (isNewBooking || !booking.total_amount_is_gross)
