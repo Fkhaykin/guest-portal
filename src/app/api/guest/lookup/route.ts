@@ -125,48 +125,71 @@ export async function POST(request: Request) {
       );
     }
 
-    // Find guest by any combination of name, email, phone
-    let guestQuery = supabase
-      .from("guest")
-      .select("id, full_name");
-
-    // Build OR conditions — match any provided identifier
-    const orConditions: string[] = [];
-
+    // Find candidate guests by each provided identifier with individually
+    // selective queries. A single OR over every name word used to turn a
+    // one-letter word (Airbnb stores guests as "First L") into ilike '%l%',
+    // match over 1000 rows, and get truncated at PostgREST's row cap — the
+    // real guest never reached the last-name check below.
+    const lastNameClean = last_name.trim().replace(/\.$/, "").replace(/[%_]/g, "");
+    const patterns = new Set<string>();
     if (full_name) {
-      const words = full_name.trim().split(/\s+/);
-      for (const word of words) {
-        orConditions.push(`full_name.ilike.%${word}%`);
+      const firstWord = full_name.trim().split(/\s+/)[0]?.replace(/[%_]/g, "");
+      if (firstWord && firstWord.toLowerCase() !== lastNameClean.toLowerCase()) {
+        patterns.add(`${firstWord}%`);
       }
     }
-
-    if (email) {
-      orConditions.push(`email.ilike.${email}`);
+    if (lastNameClean) {
+      patterns.add(`%${lastNameClean}`);
+      patterns.add(`% ${lastNameClean[0]}`);
     }
 
+    const guestSelects: PromiseLike<{
+      data: { id: string; full_name: string | null }[] | null;
+    }>[] = [...patterns].map((p) =>
+      supabase.from("guest").select("id, full_name").ilike("full_name", p).limit(500)
+    );
+    if (email) {
+      guestSelects.push(
+        supabase.from("guest").select("id, full_name").ilike("email", email).limit(500)
+      );
+    }
     if (phone) {
       const phoneDigits = phone.replace(/\D/g, "");
-      orConditions.push(`phone.eq.${phoneDigits}`);
+      const variants = [...new Set([phoneDigits, phoneDigits.replace(/^1/, ""), `1${phoneDigits}`])];
+      guestSelects.push(
+        supabase.from("guest").select("id, full_name").in("phone", variants).limit(500)
+      );
     }
 
-    if (orConditions.length > 0) {
-      guestQuery = guestQuery.or(orConditions.join(","));
+    const guestResults = await Promise.all(guestSelects);
+    const candidates = new Map<string, { id: string; full_name: string | null }>();
+    for (const { data } of guestResults) {
+      for (const g of data ?? []) candidates.set(g.id, g);
     }
 
-    const { data: guests, error: guestError } = await guestQuery;
-
-    if (guestError || !guests || guests.length === 0) {
+    if (candidates.size === 0) {
       return NextResponse.json(
         { error: "No reservation found. Please check your details and try again." },
         { status: 404 }
       );
     }
 
-    // Validate last name against guest records
-    const lastNameLower = last_name.toLowerCase();
-    const matchedGuests = guests.filter((g) => {
-      const guestLastName = (g.full_name || "").trim().split(/\s+/).pop()?.toLowerCase();
-      return guestLastName === lastNameLower;
+    // Validate last name against guest records. Airbnb truncates names to a
+    // last initial ("Sean H"), so a single letter on either side matches any
+    // last name starting with it.
+    const lastNameLower = lastNameClean.toLowerCase();
+    const matchedGuests = [...candidates.values()].filter((g) => {
+      const storedLast = (g.full_name || "")
+        .trim()
+        .replace(/\.$/, "")
+        .split(/\s+/)
+        .pop()
+        ?.toLowerCase();
+      if (!storedLast || !lastNameLower) return false;
+      if (storedLast === lastNameLower) return true;
+      if (storedLast.length === 1 && lastNameLower.startsWith(storedLast)) return true;
+      if (lastNameLower.length === 1 && storedLast.startsWith(lastNameLower)) return true;
+      return false;
     });
 
     if (matchedGuests.length === 0) {
