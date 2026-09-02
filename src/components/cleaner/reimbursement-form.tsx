@@ -213,7 +213,7 @@ export function ReimbursementModal({
 
         <div className="space-y-4">
           {error && (
-            <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+            <p className="text-sm text-destructive">{error}</p>
           )}
 
           {/* Description */}

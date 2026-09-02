@@ -246,8 +246,8 @@ export function ReservationCard({
                   onError={(e) => { e.currentTarget.style.display = "none"; e.currentTarget.nextElementSibling?.classList.remove("hidden"); }}
                 />
               ) : null}
-              <div className={`w-full h-full bg-linear-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-800 flex items-center justify-center${propertyCoverImage ? " hidden" : ""}`}>
-                <Home className="h-4 w-4 text-slate-400 dark:text-slate-500" />
+              <div className={`w-full h-full bg-muted flex items-center justify-center${propertyCoverImage ? " hidden" : ""}`}>
+                <Home className="h-4 w-4 text-muted-foreground" />
               </div>
             </div>
 

@@ -328,7 +328,7 @@ export function CalendarView({
                               <div className="min-w-0 flex-1">
                                 <span className="font-medium truncate block">{r.propertyNickname || r.propertyName}</span>
                                 {r.backToBack && (
-                                  <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full mt-0.5 bg-rose-600 text-white">
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full mt-0.5 bg-destructive text-white">
                                     <Repeat2 className="h-2.5 w-2.5" />
                                     {backToBackLabel(r.backToBack)}
                                   </span>
@@ -360,7 +360,7 @@ export function CalendarView({
                           <td className="p-3 text-center">
                             <Badge
                               variant={r.isCleaned ? "default" : "outline"}
-                              className={`text-[10px] ${r.isCleaned ? "bg-green-600" : ""}`}
+                              className={`text-[10px] ${r.isCleaned ? "bg-success" : ""}`}
                             >
                               {r.isCleaned ? "Cleaned" : "Pending"}
                             </Badge>
@@ -404,7 +404,7 @@ export function CalendarView({
                               <div className="min-w-0 flex-1">
                                 <span className="font-medium truncate block">{r.propertyNickname || r.propertyName}</span>
                                 {r.backToBack && (
-                                  <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full mt-0.5 bg-rose-600 text-white">
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full mt-0.5 bg-destructive text-white">
                                     <Repeat2 className="h-2.5 w-2.5" />
                                     {backToBackLabel(r.backToBack)}
                                   </span>
@@ -436,7 +436,7 @@ export function CalendarView({
                           <td className="p-3 text-center">
                             <Badge
                               variant={r.isCleaned ? "default" : "outline"}
-                              className={`text-[10px] ${r.isCleaned ? "bg-green-600" : ""}`}
+                              className={`text-[10px] ${r.isCleaned ? "bg-success" : ""}`}
                             >
                               {r.isCleaned ? "Cleaned" : "Pending"}
                             </Badge>
@@ -466,7 +466,7 @@ export function CalendarView({
                       <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                         <p className="font-medium text-sm truncate">{r.propertyNickname || r.propertyName}</p>
                         {r.backToBack && (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-rose-600 text-white shrink-0">
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-destructive text-white shrink-0">
                             <Repeat2 className="h-2.5 w-2.5" />
                             {backToBackLabel(r.backToBack)}
                           </span>
@@ -488,7 +488,7 @@ export function CalendarView({
                         )}
                         <Badge
                           variant={r.isCleaned ? "default" : "outline"}
-                          className={`text-[10px] ${r.isCleaned ? "bg-green-600" : ""}`}
+                          className={`text-[10px] ${r.isCleaned ? "bg-success" : ""}`}
                         >
                           {r.isCleaned ? "Cleaned" : "Pending"}
                         </Badge>
@@ -550,7 +550,7 @@ export function CalendarView({
         </div>
 
         {/* Property rows */}
-        <div className="space-y-1 bg-gray-50 dark:bg-gray-900/30 rounded-lg p-2">
+        <div className="space-y-1 bg-muted/40 rounded-lg p-2">
           {properties.map(([groupKey, { coverImage, label, reservations: propRes }]) => {
               const positions = propRes.map(getBarPosition);
               const lanes = assignLanes(positions);
@@ -610,8 +610,8 @@ export function CalendarView({
                           onClick={() => setSelected(r)}
                           className={`absolute h-6 text-[10px] font-semibold flex items-center px-3 truncate cursor-pointer hover:brightness-110 active:scale-[0.98] transition-all z-10 ${
                             !r.guestName
-                              ? "bg-gray-200 text-gray-500 dark:bg-gray-700 dark:text-gray-400"
-                              : `bg-teal-700 text-white ${r.isCleaned ? "opacity-40" : ""}`
+                              ? "bg-muted text-muted-foreground"
+                              : `bg-primary text-primary-foreground ${r.isCleaned ? "opacity-40" : ""}`
                           }`}
                           style={{
                             left: `${leftPct}%`,
@@ -711,7 +711,7 @@ export function CalendarView({
                       </Badge>
                       <Badge
                         variant={selected.isCleaned ? "default" : "destructive"}
-                        className={`gap-1 text-xs ${selected.isCleaned ? "bg-green-600" : ""}`}
+                        className={`gap-1 text-xs ${selected.isCleaned ? "bg-success" : ""}`}
                       >
                         {selected.isCleaned ? (
                           <CheckCircle2 className="h-3 w-3" />

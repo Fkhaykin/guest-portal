@@ -20,7 +20,7 @@ export default function CleanerLoginPage() {
               <SprayCan className="h-6 w-6 text-primary" />
             </div>
             <div className="space-y-1">
-              <h1 className="text-2xl font-bold tracking-tight">Cleaner Portal</h1>
+              <h1 className="text-2xl font-semibold tracking-tight">Cleaner Portal</h1>
               <p className="text-sm text-muted-foreground">
                 Enter your name and password to view your schedule
               </p>

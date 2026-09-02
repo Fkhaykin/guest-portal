@@ -84,7 +84,7 @@ function ExifDetailScreen({
         {/* Source badge */}
         <div className="flex items-center gap-2">
           <span className={`text-[10px] font-medium uppercase tracking-wider px-2 py-0.5 rounded-full ${
-            exif.source === "exif" ? "bg-green-100 text-green-700" : exif.source === "mixed" ? "bg-yellow-100 text-yellow-700" : "bg-blue-100 text-blue-700"
+            exif.source === "exif" ? "bg-success/10 text-success" : exif.source === "mixed" ? "bg-warning/15 text-warning" : "bg-primary/10 text-primary"
           }`}>
             {exif.source === "exif" ? "From photo EXIF" : exif.source === "mixed" ? "EXIF + Browser" : "Captured by browser"}
           </span>
@@ -169,7 +169,7 @@ function ExifDetailScreen({
 
 function UploadError({ message, onDismiss }: { message: string; onDismiss: () => void }) {
   return (
-    <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
+    <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-destructive/25 bg-destructive/[0.07] text-destructive text-sm">
       <span className="flex-1">{message}</span>
       <button onClick={onDismiss} className="shrink-0">
         <X className="h-3.5 w-3.5" />
@@ -459,7 +459,7 @@ export function CleaningDialog({
                 <div className="flex items-center justify-between">
                   <h3 className="text-sm font-semibold">{area}</h3>
                   {areaPhotos.length > 0 ? (
-                    <Badge variant="default" className="text-xs bg-green-600 gap-1">
+                    <Badge variant="default" className="text-xs bg-success gap-1">
                       <Check className="h-3 w-3" />
                       {areaPhotos.length} photo{areaPhotos.length > 1 ? "s" : ""}
                     </Badge>
@@ -596,13 +596,13 @@ export function CleaningDialog({
                 htmlFor="report-damage"
                 className="flex items-center gap-1.5 text-sm font-medium cursor-pointer"
               >
-                <AlertTriangle className="h-4 w-4 text-red-500" />
+                <AlertTriangle className="h-4 w-4 text-destructive" />
                 Report damages that occurred during this stay
               </label>
             </div>
 
             {reportDamage && (
-              <div className="ml-6 space-y-3 p-3 rounded-lg border border-red-200 bg-red-50/50 dark:border-red-900 dark:bg-red-950/20">
+              <div className="ml-6 space-y-3 p-3 rounded-lg border border-destructive/25 bg-destructive/[0.07]">
                 <textarea
                   placeholder="Describe the damages..."
                   value={damageDescription}
@@ -663,13 +663,13 @@ export function CleaningDialog({
                 htmlFor="report-pets"
                 className="flex items-center gap-1.5 text-sm font-medium cursor-pointer"
               >
-                <PawPrint className="h-4 w-4 text-amber-500" />
+                <PawPrint className="h-4 w-4 text-warning" />
                 This reservation had pets
               </label>
             </div>
 
             {reportPets && (
-              <div className="ml-6 space-y-3 p-3 rounded-lg border border-amber-200 bg-amber-50/50 dark:border-amber-900 dark:bg-amber-950/20">
+              <div className="ml-6 space-y-3 p-3 rounded-lg border border-warning/25 bg-warning/[0.07]">
                 {expectedPetCount != null && (
                   <p className="text-xs text-muted-foreground">
                     Expected pets on booking: <span className="font-medium">{expectedPetCount}</span>

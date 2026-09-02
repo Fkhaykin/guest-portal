@@ -9,9 +9,12 @@ import type { UpsellEntry, GuestListEntry, PetEntry } from "@/types/database";
 
 export const dynamic = "force-dynamic";
 
+// One swatch per property, so a cleaner can tell houses apart at a glance.
+// Decorative identity, not status — hence the tint ramp (plus the brand as a
+// sixth slot, which is enough for the current portfolio) rather than raw hues.
 const PROPERTY_COLORS = [
-  "bg-blue-500", "bg-emerald-500", "bg-violet-500", "bg-amber-500",
-  "bg-rose-500", "bg-cyan-500", "bg-orange-500", "bg-pink-500",
+  "bg-tint-lake", "bg-tint-pine", "bg-tint-sand",
+  "bg-tint-dusk", "bg-tint-ember", "bg-primary",
 ];
 
 const UPSELL_LABELS: Record<string, string> = {

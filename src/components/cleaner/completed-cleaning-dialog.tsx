@@ -214,7 +214,7 @@ export function CompletedCleaningDialog({
                 </span>
               </div>
               {cleanedDate && (
-                <div className="flex items-center gap-1.5 text-green-600">
+                <div className="flex items-center gap-1.5 text-success">
                   <Check className="h-4 w-4" />
                   <span>Cleaned {cleanedDate}</span>
                 </div>
@@ -281,7 +281,7 @@ export function CompletedCleaningDialog({
                 Add more photos
               </h4>
               {uploadError && (
-                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs">
+                <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-destructive/25 bg-destructive/[0.07] text-destructive text-xs">
                   <span className="flex-1">{uploadError}</span>
                   <button onClick={() => setUploadError(null)} className="shrink-0">
                     <X className="h-3 w-3" />
@@ -418,7 +418,7 @@ export function CompletedCleaningDialog({
                     <h3 className="font-semibold text-sm">Photo Details</h3>
                     {exif.source && (
                       <span className={`text-[10px] font-medium uppercase tracking-wider px-2 py-0.5 rounded-full ${
-                        exif.source === "exif" ? "bg-green-100 text-green-700" : exif.source === "mixed" ? "bg-yellow-100 text-yellow-700" : "bg-blue-100 text-blue-700"
+                        exif.source === "exif" ? "bg-success/10 text-success" : exif.source === "mixed" ? "bg-warning/15 text-warning" : "bg-primary/10 text-primary"
                       }`}>
                         {exif.source === "exif" ? "EXIF" : exif.source === "mixed" ? "EXIF + Browser" : "Browser"}
                       </span>

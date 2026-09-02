@@ -10,9 +10,9 @@ import type { InvoiceLineItem, InvoiceAdjustment, InvoiceAttachment, InvoiceStat
 
 const STATUS_STYLES: Record<string, string> = {
   draft: "bg-muted text-muted-foreground",
-  submitted: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
-  approved: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
-  paid: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
+  submitted: "bg-primary/10 text-primary",
+  approved: "bg-warning/15 text-warning",
+  paid: "bg-success/10 text-success",
 };
 
 const TYPE_ICONS: Record<string, typeof Home> = {
@@ -172,7 +172,7 @@ export function InvoiceDetail({
                   <div key={i}>
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-muted-foreground">{adj.description}</span>
-                      <span className={`font-medium ${adj.amount < 0 ? "text-red-600" : ""}`}>
+                      <span className={`font-medium ${adj.amount < 0 ? "text-destructive" : ""}`}>
                         {adj.amount >= 0 ? "+" : ""}{formatCents(adj.amount)}
                       </span>
                     </div>
