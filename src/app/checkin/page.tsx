@@ -14,6 +14,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
+import Image from "next/image";
 import {
   MapPin,
   Users,
@@ -60,6 +61,8 @@ import { GuestNav } from "@/components/guest/guest-nav";
 import { LandingPage } from "@/components/guest/landing-page";
 import { SiteNav } from "@/components/site-nav";
 import { SiteFooter } from "@/components/site-footer";
+import { accentText, type Accent } from "@/lib/status-styles";
+import { cn } from "@/lib/utils";
 
 type GuestBreakdown = {
   adults: number;
@@ -138,18 +141,36 @@ function getDaysUntil(dateStr: string) {
 }
 
 // --- Guest Dashboard ---
+// Seven raw hues (blue/purple/orange/pink/amber/green/rose) made this list
+// read as a bag of Skittles. Each add-on now picks a decorative accent:
+// timing = lake, linens = dusk, anything warm or edible = sand, fire and
+// gratitude = ember, outdoors = pine.
+const upsellAccents: Record<string, Accent> = {
+  early_checkin: "lake",
+  late_checkout: "lake",
+  new_sheets: "dusk",
+  firewood: "ember",
+  baby_high_chair: "sand",
+  private_chef: "sand",
+  luxury_picnic: "pine",
+  breakfast_delivery: "sand",
+  tip_cleaning: "ember",
+  tip_delivery: "ember",
+  tip_breakfast: "ember",
+};
+
 const upsellIcons: Record<string, React.ReactNode> = {
-  early_checkin: <DoorOpen className="h-5 w-5 text-blue-600" />,
-  late_checkout: <DoorClosed className="h-5 w-5 text-blue-600" />,
-  new_sheets: <BedDouble className="h-5 w-5 text-purple-600" />,
-  firewood: <Flame className="h-5 w-5 text-orange-600" />,
-  baby_high_chair: <Baby className="h-5 w-5 text-pink-500" />,
-  private_chef: <UtensilsCrossed className="h-5 w-5 text-amber-600" />,
-  luxury_picnic: <TreePine className="h-5 w-5 text-green-600" />,
-  breakfast_delivery: <Coffee className="h-5 w-5 text-amber-700" />,
-  tip_cleaning: <Heart className="h-5 w-5 text-rose-500" />,
-  tip_delivery: <Heart className="h-5 w-5 text-rose-500" />,
-  tip_breakfast: <Heart className="h-5 w-5 text-rose-500" />,
+  early_checkin: <DoorOpen className={cn("h-5 w-5", accentText(upsellAccents.early_checkin))} />,
+  late_checkout: <DoorClosed className={cn("h-5 w-5", accentText(upsellAccents.late_checkout))} />,
+  new_sheets: <BedDouble className={cn("h-5 w-5", accentText(upsellAccents.new_sheets))} />,
+  firewood: <Flame className={cn("h-5 w-5", accentText(upsellAccents.firewood))} />,
+  baby_high_chair: <Baby className={cn("h-5 w-5", accentText(upsellAccents.baby_high_chair))} />,
+  private_chef: <UtensilsCrossed className={cn("h-5 w-5", accentText(upsellAccents.private_chef))} />,
+  luxury_picnic: <TreePine className={cn("h-5 w-5", accentText(upsellAccents.luxury_picnic))} />,
+  breakfast_delivery: <Coffee className={cn("h-5 w-5", accentText(upsellAccents.breakfast_delivery))} />,
+  tip_cleaning: <Heart className={cn("h-5 w-5", accentText(upsellAccents.tip_cleaning))} />,
+  tip_delivery: <Heart className={cn("h-5 w-5", accentText(upsellAccents.tip_delivery))} />,
+  tip_breakfast: <Heart className={cn("h-5 w-5", accentText(upsellAccents.tip_breakfast))} />,
 };
 
 type PurchasedUpsell = {
@@ -244,17 +265,26 @@ function GuestDashboard({
       {/* Hero image — full width, fades into background */}
       {reservation.property.cover_image_url && (
         <div className="relative w-full">
-          <div className="relative w-full h-48 sm:h-56">
-            <img
+          <div className="relative h-48 w-full sm:h-64">
+            <Image
               src={reservation.property.cover_image_url}
-              alt={reservation.property.name}
-              className="w-full h-full object-cover"
+              alt=""
+              fill
+              priority
+              sizes="100vw"
+              className="object-cover"
             />
-            <div className="absolute inset-0 bg-linear-to-t from-background via-background/20 to-transparent" />
+            {/* The title sits in ink, not white, so the fade has to reach
+                full page background well before it — a bright photo (snow,
+                sky) left the name barely legible with the old stops. */}
+            <div
+              aria-hidden="true"
+              className="absolute inset-0 bg-linear-to-t from-background from-30% via-background/70 to-transparent"
+            />
           </div>
           <div className="absolute bottom-4 left-0 right-0 px-6 sm:px-8">
             <div className="max-w-2xl mx-auto">
-              <h2 className="text-2xl sm:text-3xl font-bold leading-tight">
+              <h2 className="font-display text-title-lg leading-tight text-balance sm:text-3xl">
                 {reservation.property.name}
               </h2>
               {reservation.property.address && (
@@ -278,7 +308,7 @@ function GuestDashboard({
       <div className="max-w-2xl w-full space-y-6 p-4 sm:p-6">
         {/* Welcome + countdown */}
         <div className="text-center space-y-2">
-          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight">
+          <h1 className="font-display text-display">
             {firstName ? `Welcome, ${firstName}!` : "Welcome!"}
           </h1>
           <p className="text-muted-foreground max-w-lg mx-auto">
@@ -353,9 +383,9 @@ function GuestDashboard({
           <CardContent className="space-y-4">
             {/* Check-in / Check-out row */}
             <div className="grid grid-cols-2 gap-4">
-              <div className={`relative rounded-lg border p-4 space-y-1 overflow-hidden ${hasEarlyCheckin ? "border-blue-300 bg-blue-50/50 dark:border-blue-700 dark:bg-blue-950/30" : ""}`}>
+              <div className={`relative rounded-lg border p-4 space-y-1 overflow-hidden ${hasEarlyCheckin ? "border-tint-lake/30 bg-tint-lake/[0.07]" : ""}`}>
                 {hasEarlyCheckin && (
-                  <div className="absolute top-0 right-0 bg-blue-600 text-white text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-bl-lg">
+                  <div className="absolute top-0 right-0 rounded-bl-lg bg-tint-lake px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">
                     Early
                   </div>
                 )}
@@ -366,13 +396,13 @@ function GuestDashboard({
                 <p className="font-semibold">
                   {formatShortDate(reservation.check_in_date)}
                 </p>
-                <p className={`text-sm ${hasEarlyCheckin ? "text-blue-700 dark:text-blue-400 font-medium" : "text-muted-foreground"}`}>
+                <p className={`text-sm ${hasEarlyCheckin ? "font-medium text-tint-lake" : "text-muted-foreground"}`}>
                   After {hasEarlyCheckin ? checkInTime : lodgify?.check_in_time ? formatTime(lodgify.check_in_time) : "4:00 PM"}
                 </p>
               </div>
-              <div className={`relative rounded-lg border p-4 space-y-1 overflow-hidden ${hasLateCheckout ? "border-purple-300 bg-purple-50/50 dark:border-purple-700 dark:bg-purple-950/30" : ""}`}>
+              <div className={`relative rounded-lg border p-4 space-y-1 overflow-hidden ${hasLateCheckout ? "border-tint-dusk/30 bg-tint-dusk/[0.07]" : ""}`}>
                 {hasLateCheckout && (
-                  <div className="absolute top-0 right-0 bg-purple-600 text-white text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-bl-lg">
+                  <div className="absolute top-0 right-0 rounded-bl-lg bg-tint-dusk px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">
                     Late
                   </div>
                 )}
@@ -383,7 +413,7 @@ function GuestDashboard({
                 <p className="font-semibold">
                   {formatShortDate(reservation.check_out_date)}
                 </p>
-                <p className={`text-sm ${hasLateCheckout ? "text-purple-700 dark:text-purple-400 font-medium" : "text-muted-foreground"}`}>
+                <p className={`text-sm ${hasLateCheckout ? "font-medium text-tint-dusk" : "text-muted-foreground"}`}>
                   By {hasLateCheckout ? checkOutTime : lodgify?.check_out_time ? formatTime(lodgify.check_out_time) : "11:00 AM"}
                 </p>
                 {canExtend && (
@@ -467,10 +497,10 @@ function GuestDashboard({
           reservation.property.address &&
           reservation.property.hoa_type !== "bmlc" &&
           reservation.property.slug !== "large-stylish-home-right-next-to-train-station" && (
-          <Card className="border-amber-200 bg-amber-50/50 dark:border-amber-800 dark:bg-amber-950/30">
+          <Card className="border-warning/30 bg-warning/[0.07]">
             <CardHeader className="pb-3">
               <CardTitle className="text-xl flex items-center gap-2">
-                <AlertCircle className="h-5 w-5 text-amber-600" />
+                <AlertCircle className="h-5 w-5 text-warning" />
                 Important Information
               </CardTitle>
             </CardHeader>
@@ -483,7 +513,7 @@ function GuestDashboard({
                   Penn Estates has <strong>two entrances</strong>, but you{" "}
                   <strong className="text-foreground">must enter via Hallet Road to the Main Gate</strong>{" "}
                   to get your gate pass before proceeding to the home.{" "}
-                  <span className="text-red-600 dark:text-red-400 font-medium">
+                  <span className="font-medium text-destructive">
                     GPS often routes guests to the Cranberry Road entrance instead
                   </span>{" "}
                   — which means driving all the way around the community. Don&apos;t
@@ -492,7 +522,7 @@ function GuestDashboard({
                 <GettingHereMap propertyAddress={reservation.property.address} />
                 <div className="rounded-lg bg-white/80 dark:bg-black/20 border p-3 text-sm space-y-1.5">
                   <p className="font-semibold flex items-center gap-1.5">
-                    <MapPin className="h-4 w-4 text-green-600" /> Main Gate Address
+                    <MapPin className="h-4 w-4 text-success" /> Main Gate Address
                   </p>
                   <p className="font-medium">525 Penn Estates Drive, East Stroudsburg, PA</p>
                   <p className="text-muted-foreground text-xs">
@@ -577,7 +607,7 @@ function GuestDashboard({
                       <p className="text-xs text-muted-foreground">${(u.price_cents / 100).toFixed(2)}</p>
                     )}
                   </div>
-                  <Check className="h-4 w-4 text-green-600 shrink-0" />
+                  <Check className="h-4 w-4 shrink-0 text-success" />
                 </div>
               ))}
               <Link href={`/p/${reservation.property.slug}/add-ons`}>
@@ -602,9 +632,9 @@ function GuestDashboard({
                 <div key={d.id} className="flex items-center gap-3 rounded-lg border p-3">
                   <div className="shrink-0">
                     {d.category === "rideshare" ? (
-                      <Car className="h-5 w-5 text-blue-600" />
+                      <Car className={cn("h-5 w-5", accentText("lake"))} />
                     ) : d.category === "food_grocery" ? (
-                      <ShoppingBag className="h-5 w-5 text-green-600" />
+                      <ShoppingBag className={cn("h-5 w-5", accentText("pine"))} />
                     ) : (
                       <Package className="h-5 w-5 text-muted-foreground" />
                     )}
