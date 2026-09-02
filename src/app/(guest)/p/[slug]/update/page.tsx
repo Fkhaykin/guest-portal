@@ -581,7 +581,7 @@ export default function UpdateRegistrationPage() {
         </Card>
 
         {guestSaved && (
-          <div className="flex items-center gap-2 text-sm text-green-600">
+          <div className="flex items-center gap-2 text-sm text-success">
             <Check className="h-4 w-4" /> Guest added successfully
           </div>
         )}
@@ -653,7 +653,7 @@ export default function UpdateRegistrationPage() {
               <div className="flex items-center gap-2">
                 <label className="flex-1 flex items-center gap-2 cursor-pointer rounded-md border border-input px-3 py-2 text-sm hover:bg-accent transition-colors">
                   <Upload className="h-4 w-4 text-muted-foreground" />
-                  <span className={rabiesFile ? "text-green-600" : "text-muted-foreground"}>
+                  <span className={rabiesFile ? "text-success" : "text-muted-foreground"}>
                     {rabiesFile ? rabiesFile.name : "Upload file"}
                   </span>
                   <input type="file" className="hidden" accept=".pdf,.jpg,.jpeg,.png,.webp"
@@ -666,7 +666,7 @@ export default function UpdateRegistrationPage() {
               <div className="flex items-center gap-2">
                 <label className="flex-1 flex items-center gap-2 cursor-pointer rounded-md border border-input px-3 py-2 text-sm hover:bg-accent transition-colors">
                   <Upload className="h-4 w-4 text-muted-foreground" />
-                  <span className={vaccinationFile ? "text-green-600" : "text-muted-foreground"}>
+                  <span className={vaccinationFile ? "text-success" : "text-muted-foreground"}>
                     {vaccinationFile ? vaccinationFile.name : "Upload file"}
                   </span>
                   <input type="file" className="hidden" accept=".pdf,.jpg,.jpeg,.png,.webp"
@@ -678,7 +678,7 @@ export default function UpdateRegistrationPage() {
         </Card>
 
         {petSaved && (
-          <div className="flex items-center gap-2 text-sm text-green-600">
+          <div className="flex items-center gap-2 text-sm text-success">
             <Check className="h-4 w-4" /> Pet added successfully
           </div>
         )}
@@ -774,7 +774,7 @@ export default function UpdateRegistrationPage() {
         </Card>
 
         {driverSaved && (
-          <div className="flex items-center gap-2 text-sm text-green-600">
+          <div className="flex items-center gap-2 text-sm text-success">
             <Check className="h-4 w-4" /> Driver added successfully
           </div>
         )}
@@ -819,8 +819,8 @@ export default function UpdateRegistrationPage() {
       return (
         <div className="space-y-6 max-w-md mx-auto kiosk-wide-md">
           <div className="text-center space-y-6 py-8">
-            <div className="mx-auto w-16 h-16 rounded-full bg-green-100 flex items-center justify-center">
-              <Check className="h-8 w-8 text-green-600" />
+            <div className="mx-auto w-16 h-16 rounded-full bg-success/10 flex items-center justify-center">
+              <Check className="h-8 w-8 text-success" />
             </div>
             <div className="space-y-2">
               <h2 className="text-2xl font-bold">Registration Submitted</h2>
@@ -921,7 +921,7 @@ export default function UpdateRegistrationPage() {
                     {BRAND_LOGOS[p.id] ? (
                       <img src={BRAND_LOGOS[p.id]} alt={p.name} className="w-12 h-12 object-contain" />
                     ) : (
-                      <Car className="h-8 w-8 text-yellow-500" />
+                      <Car className="h-8 w-8 text-warning" />
                     )}
                   </div>
                   <p className="font-semibold text-lg">{p.name}</p>
@@ -1108,7 +1108,7 @@ export default function UpdateRegistrationPage() {
       </div>
 
       {petSaved && (
-        <div className="flex items-center justify-center gap-2 text-sm text-green-600">
+        <div className="flex items-center justify-center gap-2 text-sm text-success">
           <Check className="h-4 w-4" /> Pet added successfully — updated form sent to HOA
         </div>
       )}

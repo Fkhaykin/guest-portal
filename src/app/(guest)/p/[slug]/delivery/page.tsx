@@ -182,8 +182,8 @@ export default function DeliveryPage() {
     return (
       <main className="flex-1 flex flex-col items-center justify-center p-6">
         <div className="max-w-md w-full text-center space-y-6">
-          <div className="mx-auto w-16 h-16 rounded-full bg-green-100 flex items-center justify-center">
-            <Check className="h-8 w-8 text-green-600" />
+          <div className="mx-auto w-16 h-16 rounded-full bg-success/10 flex items-center justify-center">
+            <Check className="h-8 w-8 text-success" />
           </div>
           <div className="space-y-2">
             <h2 className="text-2xl font-bold">Registration Submitted</h2>
@@ -320,7 +320,7 @@ export default function DeliveryPage() {
                     {BRAND_LOGOS[p.id] ? (
                       <img src={BRAND_LOGOS[p.id]} alt={p.name} className="w-12 h-12 object-contain" />
                     ) : (
-                      <Car className="h-8 w-8 text-yellow-500" />
+                      <Car className="h-8 w-8 text-warning" />
                     )}
                   </div>
                   <p className="font-semibold text-lg">{p.name}</p>

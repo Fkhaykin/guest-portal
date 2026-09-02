@@ -609,7 +609,7 @@ export default function UpgradesPage() {
     }
 
     if (!opt.available && opt.unavailable_reason) {
-      return <p className="text-sm text-amber-600">{opt.unavailable_reason}</p>;
+      return <p className="text-sm text-warning">{opt.unavailable_reason}</p>;
     }
     return null;
   }
@@ -647,7 +647,7 @@ export default function UpgradesPage() {
                   key={opt.type}
                   type="button"
                   onClick={() => setOpenType(opt.type)}
-                  className="group relative flex items-end overflow-hidden rounded-md bg-black text-left ring-1 ring-border transition-transform active:scale-[0.98]"
+                  className="group relative flex items-end overflow-hidden rounded-2xl bg-black text-left ring-1 ring-inset ring-black/10 transition-transform active:scale-[0.98]"
                 >
                   {opt.image && (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -665,7 +665,7 @@ export default function UpgradesPage() {
                     <p className="mt-0.5 text-sm font-semibold text-white/85">{priceLabel(opt)}</p>
                   </div>
                   {opt.purchased && (
-                    <span className="absolute right-2.5 top-2.5 rounded-full bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white shadow">
+                    <span className="absolute right-2.5 top-2.5 rounded-full bg-success px-2.5 py-1 text-xs font-semibold text-success-foreground shadow">
                       Purchased
                     </span>
                   )}
@@ -720,7 +720,7 @@ export default function UpgradesPage() {
                   <span>Total</span>
                   <span>{formatCents(cartTotal)}</span>
                 </div>
-                <Button className="w-full" size="lg" disabled={checkingOut} onClick={handleCheckout}>
+                <Button className="w-full" size="xl" variant="amber" disabled={checkingOut} onClick={handleCheckout}>
                   {checkingOut ? (
                     <><Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> Redirecting…</>
                   ) : (
@@ -752,7 +752,7 @@ export default function UpgradesPage() {
                   <p className="mt-1.5 text-sm font-semibold text-muted-foreground">{priceLabel(opt)}</p>
                 </div>
                 {opt.purchased && (
-                  <span className="absolute right-2 top-2 rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-semibold text-white shadow">
+                  <span className="absolute right-2 top-2 rounded-full bg-success px-2 py-0.5 text-[10px] font-semibold text-white shadow">
                     Purchased
                   </span>
                 )}
@@ -807,7 +807,7 @@ export default function UpgradesPage() {
                 ))}
               </div>
               {inCart("tip_cleaning") && (
-                <p className="flex items-center gap-1 text-sm text-emerald-600">
+                <p className="flex items-center gap-1 text-sm text-success">
                   <Check className="h-4 w-4" /> Added to your cart.
                 </p>
               )}
@@ -864,7 +864,7 @@ export default function UpgradesPage() {
                   <span>Total</span>
                   <span>{formatCents(cartTotal)}</span>
                 </div>
-                <Button className="w-full" size="lg" disabled={checkingOut} onClick={handleCheckout}>
+                <Button className="w-full" size="xl" variant="amber" disabled={checkingOut} onClick={handleCheckout}>
                   {checkingOut ? (
                     <><Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> Redirecting to checkout…</>
                   ) : (

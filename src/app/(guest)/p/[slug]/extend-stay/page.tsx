@@ -354,8 +354,8 @@ export default function ExtendStayPage() {
   if (lateConfirmedTime) {
     return (
       <div className="max-w-md mx-auto space-y-6 text-center py-6">
-        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-green-100 dark:bg-green-950">
-          <Clock className="h-7 w-7 text-green-600" />
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-success/10">
+          <Clock className="h-7 w-7 text-success" />
         </div>
         <div className="space-y-1">
           <h1 className="text-2xl font-bold tracking-tight">Late checkout confirmed!</h1>
@@ -374,8 +374,8 @@ export default function ExtendStayPage() {
   if (confirmed) {
     return (
       <div className="max-w-md mx-auto space-y-6 text-center py-6">
-        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-green-100 dark:bg-green-950">
-          <PartyPopper className="h-7 w-7 text-green-600" />
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-success/10">
+          <PartyPopper className="h-7 w-7 text-success" />
         </div>
         <div className="space-y-1">
           <h1 className="text-2xl font-bold tracking-tight">Your stay is extended!</h1>
@@ -491,7 +491,7 @@ export default function ExtendStayPage() {
             )}
 
             {optionsError && !optionsLoading && (
-              <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50/60 dark:border-amber-900 dark:bg-amber-950/30 px-3 py-2 text-sm text-amber-700 dark:text-amber-400">
+              <div className="flex items-start gap-2 rounded-md border border-warning/25 bg-warning/[0.07] px-3 py-2 text-sm text-warning">
                 <Info className="h-4 w-4 shrink-0 mt-0.5" />
                 <span>{optionsError}</span>
               </div>
@@ -512,7 +512,7 @@ export default function ExtendStayPage() {
                 </div>
 
                 {data.options.length === 0 && (
-                  <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50/60 dark:border-amber-900 dark:bg-amber-950/30 px-3 py-2 text-sm text-amber-700 dark:text-amber-400">
+                  <div className="flex items-start gap-2 rounded-md border border-warning/25 bg-warning/[0.07] px-3 py-2 text-sm text-warning">
                     <Info className="h-4 w-4 shrink-0 mt-0.5" />
                     <span>No additional nights are open right after your stay — but a late checkout may still be available on the right.</span>
                   </div>
@@ -661,7 +661,7 @@ export default function ExtendStayPage() {
                   {selected && <span className="text-xs font-normal text-muted-foreground">on {fmtDate(selected.date)}</span>}
                 </p>
                 {lateOption.purchased ? (
-                  <div className="flex items-center gap-2 rounded-md border border-green-200 bg-green-50/60 dark:border-green-900 dark:bg-green-950/30 px-3 py-2 text-sm text-green-700 dark:text-green-400">
+                  <div className="flex items-center gap-2 rounded-md border border-success/25 bg-success/[0.07] px-3 py-2 text-sm text-success">
                     <Check className="h-4 w-4 shrink-0" /> Already confirmed for this stay.
                   </div>
                 ) : lateBuyable ? (
@@ -699,7 +699,7 @@ export default function ExtendStayPage() {
                       <p className="text-xs text-muted-foreground">{lateOption.unavailable_reason}</p>
                     )}
                     {lateRequested ? (
-                      <div className="flex items-center gap-2 text-sm text-green-700 dark:text-green-400">
+                      <div className="flex items-center gap-2 text-sm text-success">
                         <Check className="h-4 w-4" /> Request sent — we&apos;ll be in touch.
                       </div>
                     ) : (

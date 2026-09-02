@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useProperty } from "@/hooks/use-property";
 import { getGuestToken } from "@/lib/guest-session";
 import { Button } from "@/components/ui/button";
+import { StepProgress } from "@/components/ui/step-progress";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -787,15 +788,15 @@ export default function RegisterPage() {
   function navButtons(back: number, opts?: { submit?: boolean }) {
     return (
       <div className="flex gap-3">
-        <Button type="button" variant="outline" size="lg" onClick={() => setStep(back)}>
+        <Button type="button" variant="outline" size="xl" onClick={() => setStep(back)}>
           <ChevronLeft className="h-4 w-4 mr-1" /> Back
         </Button>
         {opts?.submit ? (
-          <Button type="submit" size="lg" className="flex-1" disabled={saving}>
+          <Button type="submit" size="xl" className="flex-1" disabled={saving}>
             {saving ? "Submitting..." : "Submit Registration"}
           </Button>
         ) : (
-          <Button type="submit" size="lg" className="flex-1">
+          <Button type="submit" size="xl" className="flex-1">
             Next <ChevronRight className="h-4 w-4 ml-1" />
           </Button>
         )}
@@ -805,18 +806,20 @@ export default function RegisterPage() {
 
   return (
     <div className="max-w-lg mx-auto space-y-6 kiosk-wide-md">
-      {/* Progress */}
+      {/* Progress. Segments rather than a single filled bar: a guest can see
+          how many steps are left, which a percentage hides. */}
       <div className="space-y-2">
-        <div className="flex items-center justify-between text-sm text-muted-foreground">
-          <span>Step {step} of {totalSteps}</span>
-          <span>{stepLabels[step]}</span>
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-muted-foreground">
+            Step {step} of {totalSteps}
+          </span>
+          <span className="font-medium">{stepLabels[step]}</span>
         </div>
-        <div className="h-2.5 bg-muted rounded-full overflow-hidden">
-          <div
-            className="h-full bg-primary rounded-full transition-all duration-300"
-            style={{ width: `${(step / totalSteps) * 100}%` }}
-          />
-        </div>
+        <StepProgress
+          current={step}
+          total={totalSteps}
+          label={`Step ${step} of ${totalSteps}: ${stepLabels[step]}`}
+        />
       </div>
 
       {/* Step 1: Identity */}
@@ -869,7 +872,7 @@ export default function RegisterPage() {
               </div>
             </CardContent>
           </Card>
-          <Button type="submit" size="lg" className="w-full">
+          <Button type="submit" size="xl" className="w-full">
             Continue <ChevronRight className="h-4 w-4 ml-1" />
           </Button>
         </form>
@@ -959,9 +962,9 @@ export default function RegisterPage() {
                   Direct bookings require a quick ID check — a photo of your government-issued ID plus a selfie. It&apos;s handled securely by Stripe; we never see or store your ID images.
                 </p>
                 {idVerifyStatus === "verified" ? (
-                  <div className="flex items-center gap-2 rounded-lg border border-green-600/30 bg-green-600/10 p-3">
-                    <FileCheck className="h-5 w-5 text-green-600 shrink-0" />
-                    <span className="text-sm font-medium text-green-700 dark:text-green-400">
+                  <div className="flex items-center gap-2 rounded-lg border border-success/30 bg-success/10 p-3">
+                    <FileCheck className="h-5 w-5 text-success shrink-0" />
+                    <span className="text-sm font-medium text-success">
                       Identity verified
                     </span>
                   </div>
@@ -1103,7 +1106,7 @@ export default function RegisterPage() {
                 {guests.length} of {property.max_guests} max guest{property.max_guests !== 1 ? "s" : ""} listed
               </p>
               {guests.length >= property.max_guests && (
-                <p className="text-xs text-amber-600 font-medium">
+                <p className="text-xs text-warning font-medium">
                   This property has a maximum occupancy of {property.max_guests} guests.
                 </p>
               )}
@@ -1216,7 +1219,7 @@ export default function RegisterPage() {
                           <span className="text-sm font-medium">
                             Pet {index + 1}
                             {petFeePaid && (
-                              <Badge variant="secondary" className="ml-2 text-green-700 bg-green-50 text-xs">
+                              <Badge variant="secondary" className="ml-2 text-success bg-success/10 text-xs">
                                 <Check className="h-3 w-3 mr-0.5" /> Fee paid
                               </Badge>
                             )}
@@ -1249,7 +1252,7 @@ export default function RegisterPage() {
                         <div className="space-y-1">
                           <Label className="text-xs">Rabies Certificate *</Label>
                           {pet.rabies_doc_name ? (
-                            <div className="flex items-center gap-2 text-sm text-green-600 bg-green-50 rounded-lg p-2">
+                            <div className="flex items-center gap-2 text-sm text-success bg-success/10 rounded-lg p-2">
                               <FileCheck className="h-4 w-4 shrink-0" />
                               <span className="truncate">{pet.rabies_doc_name}</span>
                               <Button type="button" variant="ghost" size="sm"
@@ -1281,7 +1284,7 @@ export default function RegisterPage() {
                         <div className="space-y-1">
                           <Label className="text-xs">Vaccination Records *</Label>
                           {pet.vaccination_doc_name ? (
-                            <div className="flex items-center gap-2 text-sm text-green-600 bg-green-50 rounded-lg p-2">
+                            <div className="flex items-center gap-2 text-sm text-success bg-success/10 rounded-lg p-2">
                               <FileCheck className="h-4 w-4 shrink-0" />
                               <span className="truncate">{pet.vaccination_doc_name}</span>
                               <Button type="button" variant="ghost" size="sm"
@@ -1502,7 +1505,7 @@ export default function RegisterPage() {
           {purchasedUpsells.length > 0 && (
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-2 text-green-700">
+                <CardTitle className="flex items-center gap-2 text-success">
                   <Check className="h-5 w-5" /> Confirmed Purchases
                 </CardTitle>
               </CardHeader>
@@ -1510,7 +1513,7 @@ export default function RegisterPage() {
                 {purchasedUpsells.map((u, i) => (
                   <div key={i} className="flex items-center justify-between text-sm">
                     <span>{u.label}</span>
-                    <Badge variant="secondary" className="text-green-700 bg-green-50">
+                    <Badge variant="secondary" className="text-success bg-success/10">
                       Paid — {formatCents(u.price_cents)}
                     </Badge>
                   </div>
@@ -1636,7 +1639,7 @@ export default function RegisterPage() {
                             <div className="mt-2 space-y-2">
                               <p className="text-xs text-muted-foreground leading-snug">{option.unavailable_reason}</p>
                               {requestSent.has(option.type) ? (
-                                <Badge variant="secondary" className="text-green-700 bg-green-50 border-green-200">
+                                <Badge variant="secondary" className="text-success bg-success/10 border-success/25">
                                   <Check className="h-3 w-3 mr-1" /> Request sent
                                 </Badge>
                               ) : (
@@ -1653,7 +1656,7 @@ export default function RegisterPage() {
                             </div>
                           )}
                           {!option.available && !option.request_only && option.unavailable_reason && (
-                            <p className="text-xs text-amber-600 mt-2">{option.unavailable_reason}</p>
+                            <p className="text-xs text-warning mt-2">{option.unavailable_reason}</p>
                           )}
                         </div>
                       </div>
@@ -2041,7 +2044,7 @@ export default function RegisterPage() {
                   <span>Total</span>
                   <span>{formatCents(cart.reduce((sum, i) => sum + i.price_cents, 0))}</span>
                 </div>
-                <Button className="w-full" size="lg" disabled={checkingOut} onClick={handleUpsellCheckout}>
+                <Button className="w-full" size="xl" variant="amber" disabled={checkingOut} onClick={handleUpsellCheckout}>
                   {checkingOut ? "Redirecting to checkout..." : "Checkout"}
                 </Button>
               </CardContent>
