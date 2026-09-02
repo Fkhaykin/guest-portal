@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { ArrowLeft } from "lucide-react";
+import { Logo } from "@/components/logo";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
 
@@ -52,17 +52,10 @@ export function GuestHeader() {
   const firstName = session?.guestName?.split(" ")[0];
 
   return (
-    <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-40">
+    <header className="sticky top-0 z-40 border-b bg-background/85 backdrop-blur-lg supports-[backdrop-filter]:bg-background/70">
       <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
         <Link href={WEBSITE_URL} className="hover:opacity-80 transition-opacity">
-          <Image
-            src="/logo.png"
-            alt="Summit Lakeside"
-            width={120}
-            height={60}
-            className="h-8 w-auto invert dark:invert-0"
-            priority
-          />
+          <Logo size="sm" priority />
         </Link>
 
         {session && (
@@ -104,7 +97,7 @@ export function PropertyHeader({
   return (
     <header
       data-kiosk-hide
-      className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-40"
+      className="sticky top-0 z-40 border-b bg-background/85 backdrop-blur-lg supports-[backdrop-filter]:bg-background/70"
     >
       <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3 min-w-0">
@@ -114,19 +107,12 @@ export function PropertyHeader({
             </Link>
           )}
           <Link href={WEBSITE_URL} className="shrink-0 hover:opacity-80 transition-opacity">
-            <Image
-              src="/logo.png"
-              alt="Summit Lakeside"
-              width={120}
-              height={60}
-              className="h-8 w-auto invert dark:invert-0"
-              priority
-            />
+            <Logo size="sm" priority />
           </Link>
-          <span className="text-muted-foreground hidden sm:inline">|</span>
-          <h1 className="font-semibold text-base sm:text-lg truncate">
+          <span aria-hidden="true" className="hidden h-4 w-px shrink-0 bg-border sm:block" />
+          <span className="hidden truncate text-sm text-muted-foreground sm:inline">
             {propertyName}
-          </h1>
+          </span>
         </div>
         <div className="flex items-center gap-2">
           <ThemeToggle />

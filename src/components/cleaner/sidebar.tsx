@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
@@ -13,6 +12,7 @@ import {
   SprayCan,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Logo } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 const navItems = [
@@ -48,15 +48,9 @@ export function CleanerSidebar({
   return (
     <>
       {/* Desktop sidebar */}
-      <aside className="hidden md:flex fixed inset-y-0 left-0 z-40 w-56 bg-card border-r flex-col">
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-56 flex-col border-r bg-sidebar md:flex">
         <div className="p-4 border-b space-y-3">
-          <Image
-            src="/logo.png"
-            alt="Summit Lakeside"
-            width={120}
-            height={60}
-            className="h-7 w-auto invert dark:invert-0"
-          />
+          <Logo size="sm" />
           <div className="flex items-center gap-2">
             <div className="rounded-full bg-primary/10 p-1.5">
               <SprayCan className="h-4 w-4 text-primary" />
@@ -81,13 +75,13 @@ export function CleanerSidebar({
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors",
+                  "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all duration-200 ease-out-soft",
                   isActive
-                    ? "bg-accent text-accent-foreground font-medium"
-                    : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
+                    ? "bg-sidebar-accent font-medium text-sidebar-accent-foreground shadow-xs ring-1 ring-foreground/[0.05]"
+                    : "text-muted-foreground hover:bg-sidebar-accent/50 hover:text-foreground"
                 )}
               >
-                <item.icon className="h-4 w-4" />
+                <item.icon className={cn("h-4 w-4", isActive && "text-primary")} />
                 {item.label}
               </Link>
             );
@@ -112,16 +106,10 @@ export function CleanerSidebar({
       </aside>
 
       {/* Mobile top bar */}
-      <header className="md:hidden fixed top-0 left-0 right-0 z-40 border-b bg-card">
+      <header className="fixed top-0 left-0 right-0 z-40 border-b bg-background/90 backdrop-blur-lg md:hidden">
         <div className="flex items-center justify-between px-4 py-2.5">
           <div className="flex items-center gap-3">
-            <Image
-              src="/logo.png"
-              alt="Summit Lakeside"
-              width={100}
-              height={50}
-              className="h-6 w-auto invert dark:invert-0"
-            />
+            <Logo size="sm" className="h-6" />
             <div className="h-5 w-px bg-border" />
             <div>
               <p className="font-semibold text-sm">{cleanerName}</p>
@@ -142,7 +130,7 @@ export function CleanerSidebar({
       {/* Mobile bottom nav */}
       <nav
         aria-label="Cleaner portal"
-        className="md:hidden fixed bottom-0 left-0 right-0 z-40 border-t bg-card pb-[env(safe-area-inset-bottom)]"
+        className="fixed bottom-0 left-0 right-0 z-40 border-t bg-background/90 backdrop-blur-lg pb-[env(safe-area-inset-bottom)] md:hidden"
       >
         <div className="flex justify-around py-2">
           {navItems.map((item) => {
@@ -156,14 +144,18 @@ export function CleanerSidebar({
                 href={item.href}
                 aria-current={isActive ? "page" : undefined}
                 className={cn(
-                  "flex flex-col items-center justify-center gap-0.5 px-4 py-2.5 min-h-12 text-xs transition-colors",
-                  isActive
-                    ? "text-primary font-medium"
-                    : "text-muted-foreground"
+                  "relative flex min-h-12 flex-col items-center justify-center gap-0.5 px-4 py-2.5 text-xs transition-colors duration-200 active:scale-95",
+                  isActive ? "font-medium text-primary" : "text-muted-foreground"
                 )}
               >
                 <item.icon className="h-5 w-5" />
                 {item.label}
+                {isActive && (
+                  <span
+                    aria-hidden="true"
+                    className="absolute bottom-0.5 h-1 w-1 rounded-full bg-primary"
+                  />
+                )}
               </Link>
             );
           })}

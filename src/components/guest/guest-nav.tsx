@@ -47,7 +47,7 @@ export function GuestNav({ slug: slugProp }: { slug?: string } = {}) {
     <nav
       aria-label="Property portal"
       data-kiosk-hide
-      className="fixed bottom-0 left-0 right-0 z-50 bg-background border-t pb-[env(safe-area-inset-bottom)] md:relative md:border-t-0 md:border-b md:pb-0"
+      className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background/90 backdrop-blur-lg pb-[env(safe-area-inset-bottom)] md:relative md:border-t-0 md:border-b md:pb-0"
     >
       <div className="grid grid-cols-5 md:flex md:items-center md:justify-center md:gap-6 px-2 py-2 max-w-4xl mx-auto">
         {navItems.map((item) => {
@@ -62,14 +62,23 @@ export function GuestNav({ slug: slugProp }: { slug?: string } = {}) {
               key={item.label}
               href={href}
               aria-current={isActive ? "page" : undefined}
-              className={`relative flex flex-col items-center justify-center gap-1.5 px-2 py-1.5 min-h-11 rounded-lg transition-colors md:min-w-16 ${
+              className={`relative flex min-h-12 flex-col items-center justify-center gap-1 rounded-lg px-2 py-1.5 transition-colors duration-200 active:scale-95 md:min-w-16 ${
                 isActive
-                  ? "text-primary font-medium bg-primary/10"
+                  ? "font-medium text-primary"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
               <item.icon className={`h-5 w-5 ${isActive ? "stroke-[2.5]" : ""}`} />
               <span className="text-xs">{item.label}</span>
+              {/* A tinted pill behind five items made the bar noisy; the
+                  active item is marked by a dot instead, which becomes an
+                  underline once the bar moves to the top on md+. */}
+              {isActive && (
+                <span
+                  aria-hidden="true"
+                  className="absolute bottom-0.5 h-1 w-1 rounded-full bg-primary md:inset-x-2 md:bottom-[-9px] md:h-0.5 md:w-auto md:rounded-none"
+                />
+              )}
             </Link>
           );
         })}

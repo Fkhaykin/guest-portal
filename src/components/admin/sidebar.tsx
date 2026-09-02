@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { prefetchAdminRoute } from "@/lib/admin/nav";
@@ -23,23 +22,48 @@ import {
   PanelLeftOpen,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Logo } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 
-const navItems = [
-  { label: "Dashboard", href: "/admin", icon: Home },
-  { label: "Reservations", href: "/admin/reservations", icon: ClipboardList },
-  { label: "Deliveries", href: "/admin/deliveries", icon: Truck },
-  { label: "Messages", href: "/admin/messages", icon: MessageSquare },
-  { label: "Campaigns", href: "/admin/campaigns", icon: Megaphone },
-  { label: "Pricing Lab", href: "/admin/pricing", icon: LineChart },
-  { label: "Potential Claims", href: "/admin/aircover-claims", icon: ShieldAlert },
-  { label: "Guest Photos", href: "/admin/guest-photos", icon: Images },
-  { label: "Invoices", href: "/admin/invoices", icon: Receipt },
-  { label: "Settings", href: "/admin/settings", icon: Settings },
+// Ten flat items read as a list to scan rather than a place to navigate.
+// Grouped by what the host is actually doing: the guest\'s stay, or the money.
+// Settings lives in the footer with the account block, not in the run.
+const navGroups: { label: string | null; items: { label: string; href: string; icon: typeof Home }[] }[] = [
+  {
+    label: null,
+    items: [{ label: "Dashboard", href: "/admin", icon: Home }],
+  },
+  {
+    label: "Stays",
+    items: [
+      { label: "Reservations", href: "/admin/reservations", icon: ClipboardList },
+      { label: "Messages", href: "/admin/messages", icon: MessageSquare },
+      { label: "Deliveries", href: "/admin/deliveries", icon: Truck },
+      { label: "Guest Photos", href: "/admin/guest-photos", icon: Images },
+    ],
+  },
+  {
+    label: "Revenue",
+    items: [
+      { label: "Pricing Lab", href: "/admin/pricing", icon: LineChart },
+      { label: "Campaigns", href: "/admin/campaigns", icon: Megaphone },
+      { label: "Invoices", href: "/admin/invoices", icon: Receipt },
+      { label: "Potential Claims", href: "/admin/aircover-claims", icon: ShieldAlert },
+    ],
+  },
 ];
+
+const settingsItem = { label: "Settings", href: "/admin/settings", icon: Settings };
+
+/** Initials for the account block avatar ("Summit Lakeside" -> "SL"). */
+function initialsOf(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  return (parts[0][0] + (parts.length > 1 ? parts[parts.length - 1][0] : "")).toUpperCase();
+}
 
 const COLLAPSED_KEY = "admin-sidebar-collapsed";
 
@@ -111,13 +135,7 @@ export function AdminSidebar({
           )}
         >
           <div className={cn("min-w-0", collapsed && "md:hidden")}>
-            <Image
-              src="/logo.png"
-              alt="Summit Lakeside"
-              width={180}
-              height={90}
-              className="h-12 w-auto invert dark:invert-0"
-            />
+            <Logo size="lg" />
           </div>
           <Button
             variant="ghost"
@@ -134,52 +152,67 @@ export function AdminSidebar({
           </Button>
         </div>
 
-        <nav className="flex-1 p-3 space-y-1">
-          {navItems.map((item) => {
-            // Dashboard (/admin) is a prefix of every route — exact match only
-            const isActive =
-              item.href === "/admin"
-                ? currentPath === "/admin"
-                : currentPath === item.href || currentPath.startsWith(item.href + "/");
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => setOpen(false)}
-                // Warm the destination's DATA on hover/focus (Next already
-                // prefetches the bundle) so the click lands on a ready page.
-                onMouseEnter={() => prefetchAdminRoute(item.href)}
-                onFocus={() => prefetchAdminRoute(item.href)}
-                onTouchStart={() => prefetchAdminRoute(item.href)}
-                aria-current={isActive ? "page" : undefined}
-                title={collapsed ? item.label : undefined}
-                className={cn(
-                  "flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-all duration-200 active:scale-[0.98]",
-                  collapsed && "md:justify-center md:px-2",
-                  isActive
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                    : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/50"
-                )}
-              >
-                <item.icon className="h-4 w-4 shrink-0" />
-                <span className={cn(collapsed && "md:hidden")}>{item.label}</span>
-              </Link>
-            );
-          })}
+        <nav className="flex-1 overflow-y-auto p-3">
+          {navGroups.map((group, gi) => (
+            <div key={group.label ?? "root"} className={cn(gi > 0 && "mt-5")}>
+              {group.label && (
+                <>
+                  {/* Collapsed to the icon rail there is no room for a word,
+                      so the group reads as a divider instead. */}
+                  <p
+                    className={cn(
+                      "px-3 pb-1.5 text-eyebrow text-muted-foreground",
+                      collapsed && "md:hidden"
+                    )}
+                  >
+                    {group.label}
+                  </p>
+                  <div
+                    className={cn("mx-2 mb-2 hidden h-px bg-border", collapsed && "md:block")}
+                    aria-hidden="true"
+                  />
+                </>
+              )}
+              <div className="space-y-0.5">
+                {group.items.map((item) => (
+                  <NavLink
+                    key={item.href}
+                    item={item}
+                    currentPath={currentPath}
+                    collapsed={collapsed}
+                    onNavigate={() => setOpen(false)}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
         </nav>
 
-        <div className={cn("p-3 border-t space-y-3", collapsed && "md:p-2 md:space-y-2")}>
+        <div className={cn("border-t p-3 space-y-2", collapsed && "md:p-2")}>
+          <NavLink
+            item={settingsItem}
+            currentPath={currentPath}
+            collapsed={collapsed}
+            onNavigate={() => setOpen(false)}
+          />
           <div
             className={cn(
-              "flex items-center justify-between px-3",
+              "flex items-center gap-2.5 rounded-lg px-2 py-1.5",
               collapsed && "md:justify-center md:px-0"
             )}
           >
-            <div className={cn("min-w-0", collapsed && "md:hidden")}>
-              <p className="text-sm font-medium truncate">{hostName}</p>
-              <p className="text-xs text-muted-foreground truncate">
-                {hostEmail}
-              </p>
+            <div
+              className={cn(
+                "flex size-8 shrink-0 items-center justify-center rounded-full bg-sidebar-accent text-[11px] font-semibold text-sidebar-accent-foreground",
+                collapsed && "md:hidden"
+              )}
+              aria-hidden="true"
+            >
+              {initialsOf(hostName)}
+            </div>
+            <div className={cn("min-w-0 flex-1", collapsed && "md:hidden")}>
+              <p className="truncate text-[13px] font-medium">{hostName}</p>
+              <p className="truncate text-xs text-muted-foreground">{hostEmail}</p>
             </div>
             <ThemeToggle />
           </div>
@@ -187,7 +220,7 @@ export function AdminSidebar({
             variant="ghost"
             size="sm"
             className={cn(
-              "w-full justify-start gap-2",
+              "w-full justify-start gap-2 text-muted-foreground",
               collapsed && "md:justify-center md:px-0"
             )}
             onClick={handleSignOut}
@@ -197,6 +230,7 @@ export function AdminSidebar({
             <span className={cn(collapsed && "md:hidden")}>Sign out</span>
           </Button>
         </div>
+
       </aside>
 
       {/* Mobile overlay — always mounted so it can fade both in and out */}
@@ -209,5 +243,51 @@ export function AdminSidebar({
         aria-hidden={!open}
       />
     </>
+  );
+}
+
+/**
+ * One sidebar row. The active state is a lake-tinted pill with a hairline and
+ * a primary icon — enough to find at a glance without shouting, and it still
+ * reads when the rail is collapsed to icons.
+ */
+function NavLink({
+  item,
+  currentPath,
+  collapsed,
+  onNavigate,
+}: {
+  item: { label: string; href: string; icon: typeof Home };
+  currentPath: string;
+  collapsed: boolean;
+  onNavigate: () => void;
+}) {
+  // Dashboard (/admin) is a prefix of every route — exact match only
+  const isActive =
+    item.href === "/admin"
+      ? currentPath === "/admin"
+      : currentPath === item.href || currentPath.startsWith(item.href + "/");
+  return (
+    <Link
+      href={item.href}
+      onClick={onNavigate}
+      // Warm the destination's DATA on hover/focus (Next already prefetches
+      // the bundle) so the click lands on a ready page.
+      onMouseEnter={() => prefetchAdminRoute(item.href)}
+      onFocus={() => prefetchAdminRoute(item.href)}
+      onTouchStart={() => prefetchAdminRoute(item.href)}
+      aria-current={isActive ? "page" : undefined}
+      title={collapsed ? item.label : undefined}
+      className={cn(
+        "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all duration-200 ease-out-soft active:scale-[0.98]",
+        collapsed && "md:justify-center md:px-2",
+        isActive
+          ? "bg-sidebar-accent font-medium text-sidebar-accent-foreground shadow-xs ring-1 ring-foreground/[0.05]"
+          : "text-muted-foreground hover:bg-sidebar-accent/50 hover:text-foreground"
+      )}
+    >
+      <item.icon className={cn("h-4 w-4 shrink-0", isActive && "text-primary")} />
+      <span className={cn(collapsed && "md:hidden")}>{item.label}</span>
+    </Link>
   );
 }
