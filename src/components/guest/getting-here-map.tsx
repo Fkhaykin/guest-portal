@@ -306,7 +306,7 @@ export function GettingHereMap({ propertyAddress, variant = "penn-estates" }: Ge
           <div
             className={`flex items-center gap-1 px-2.5 py-1 rounded-full transition-colors ${
               currentStep >= 1
-                ? "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300"
+                ? "bg-success/10 text-success"
                 : "bg-muted text-muted-foreground"
             }`}
           >
@@ -316,7 +316,7 @@ export function GettingHereMap({ propertyAddress, variant = "penn-estates" }: Ge
           <div
             className={`flex items-center gap-1 px-2.5 py-1 rounded-full transition-colors ${
               currentStep >= 2
-                ? "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300"
+                ? "bg-info/10 text-info"
                 : "bg-muted text-muted-foreground"
             }`}
           >
@@ -400,9 +400,9 @@ export function GettingHereMap({ propertyAddress, variant = "penn-estates" }: Ge
             {showNorthInfo && (
               <InfoWindow position={NORTH_GATE} onCloseClick={() => setShowNorthInfo(false)}>
                 <div className="p-1">
-                  <p className="font-bold text-green-700 text-sm">Step 1: Main Gate (via Hallet Rd)</p>
+                  <p className="text-sm font-bold text-success">Step 1: Main Gate (via Hallet Rd)</p>
                   <p className="text-xs">525 Penn Estates Drive</p>
-                  <p className="text-xs text-gray-500">Show license &amp; get gate pass</p>
+                  <p className="text-xs text-muted-foreground">Show license &amp; get gate pass</p>
                 </div>
               </InfoWindow>
             )}
@@ -420,8 +420,8 @@ export function GettingHereMap({ propertyAddress, variant = "penn-estates" }: Ge
                     pointerEvents: showGateTooltip ? "auto" : "none",
                   }}
                 >
-                  <div className="bg-white dark:bg-gray-900 rounded-lg shadow-lg px-3 py-1.5 border border-green-200 max-w-55">
-                    <p className="font-bold text-green-700 dark:text-green-400 text-sm leading-tight">
+                  <div className="max-w-55 rounded-lg border border-success/30 bg-card px-3 py-1.5 shadow-raised">
+                    <p className="text-sm font-bold leading-tight text-success">
                       Gatehouse: 525 Penn Estates Dr
                     </p>
                   </div>
@@ -456,8 +456,8 @@ export function GettingHereMap({ propertyAddress, variant = "penn-estates" }: Ge
               {showHomeInfo && (
                 <InfoWindow position={homePos} onCloseClick={() => setShowHomeInfo(false)}>
                   <div className="p-1">
-                    <p className="font-bold text-blue-700 text-sm">Your Home</p>
-                    {!isBml && <p className="text-xs text-gray-500">Proceed here after gate pass</p>}
+                    <p className="text-sm font-bold text-info">Your Home</p>
+                    {!isBml && <p className="text-xs text-muted-foreground">Proceed here after gate pass</p>}
                   </div>
                 </InfoWindow>
               )}
@@ -475,8 +475,8 @@ export function GettingHereMap({ propertyAddress, variant = "penn-estates" }: Ge
                       pointerEvents: showHomeTooltip ? "auto" : "none",
                     }}
                   >
-                    <div className="bg-white dark:bg-gray-900 rounded-lg shadow-lg px-3 py-1.5 border border-blue-200 max-w-55">
-                      <p className="font-bold text-blue-700 dark:text-blue-400 text-sm leading-tight">
+                    <div className="max-w-55 rounded-lg border border-info/30 bg-card px-3 py-1.5 shadow-raised">
+                      <p className="text-sm font-bold leading-tight text-info">
                         Your Home
                       </p>
                     </div>
@@ -508,8 +508,8 @@ export function GettingHereMap({ propertyAddress, variant = "penn-estates" }: Ge
             {showSouthInfo && (
               <InfoWindow position={SOUTH_GATE} onCloseClick={() => setShowSouthInfo(false)}>
                 <div className="p-1">
-                  <p className="font-bold text-red-600 text-sm">Cranberry Rd Gate (Wrong Way)</p>
-                  <p className="text-xs text-gray-500">GPS often routes here — avoid!</p>
+                  <p className="text-sm font-bold text-destructive">Cranberry Rd Gate (Wrong Way)</p>
+                  <p className="text-xs text-muted-foreground">GPS often routes here — avoid!</p>
                 </div>
               </InfoWindow>
             )}
@@ -522,14 +522,14 @@ export function GettingHereMap({ propertyAddress, variant = "penn-estates" }: Ge
                   className="transition-all duration-300 ease-in-out"
                   style={{ transform: "translate(-50%, 8px)" }}
                 >
-                  <div className="relative bg-white dark:bg-gray-900 rounded-lg shadow-lg px-3 py-1.5 border border-red-200">
+                  <div className="relative rounded-lg border border-destructive/30 bg-card px-3 py-1.5 shadow-raised">
                     <button
                       onClick={() => setShowDontGoHere(false)}
-                      className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-gray-500 hover:text-gray-700 text-xs leading-none"
+                      className="absolute -top-2 -right-2 flex h-5 w-5 items-center justify-center rounded-full bg-muted text-xs leading-none text-muted-foreground hover:text-foreground"
                     >
                       ✕
                     </button>
-                    <p className="font-black text-red-600 text-sm tracking-wide">
+                    <p className="text-sm font-black tracking-wide text-destructive">
                       DON&apos;T GO HERE
                     </p>
                   </div>
@@ -545,8 +545,8 @@ export function GettingHereMap({ propertyAddress, variant = "penn-estates" }: Ge
         {!isBml && showPulse && (
           <div className="flex items-center gap-2 bg-white/90 dark:bg-black/80 rounded-full px-3 py-1.5 shadow-md">
             <span className="relative flex h-2.5 w-2.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500" />
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-75" />
+              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-success" />
             </span>
             <span className="text-xs font-medium">Get gate pass</span>
           </div>
@@ -554,8 +554,8 @@ export function GettingHereMap({ propertyAddress, variant = "penn-estates" }: Ge
         {showLeg2Pulse && (
           <div className="flex items-center gap-2 bg-white/90 dark:bg-black/80 rounded-full px-3 py-1.5 shadow-md">
             <span className="relative flex h-2.5 w-2.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-blue-500" />
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-info opacity-75" />
+              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-info" />
             </span>
             <span className="text-xs font-medium">Head to your home</span>
           </div>
@@ -566,18 +566,18 @@ export function GettingHereMap({ propertyAddress, variant = "penn-estates" }: Ge
       <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
         {isBml ? (
           <div className="flex items-center gap-1.5">
-            <div className="w-5 h-1 bg-blue-500 rounded" />
+            <div className="h-1 w-5 rounded bg-info" />
             <span>Route to Home</span>
           </div>
         ) : (
           <>
             <div className="flex items-center gap-1.5">
-              <div className="w-5 h-1 bg-green-600 rounded" />
+              <div className="h-1 w-5 rounded bg-success" />
               <span>Hallet Rd → Gate</span>
             </div>
             {homeLocation && (
               <div className="flex items-center gap-1.5">
-                <div className="w-5 h-1 bg-blue-500 rounded" />
+                <div className="h-1 w-5 rounded bg-info" />
                 <span>Gate → Home</span>
               </div>
             )}
