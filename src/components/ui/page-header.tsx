@@ -4,17 +4,26 @@ import { cn } from "@/lib/utils";
  * Consistent page header for app surfaces (admin / cleaner / guest portal).
  * Replaces the grab-bag of `text-xl` / `text-lg` / `text-2xl` / `text-3xl`
  * one-off headings with a single rhythm. Pass `actions` for trailing buttons.
+ *
+ * `eyebrow` is the section a page belongs to ("Operations", "Deliveries") —
+ * it gives a stack of otherwise-identical admin pages a sense of place.
+ * Guest pages reach for drama by passing
+ * `titleClassName="font-display text-display"`.
  */
 export function PageHeader({
+  eyebrow,
   title,
   description,
   actions,
   className,
+  titleClassName,
 }: {
+  eyebrow?: React.ReactNode;
   title: React.ReactNode;
   description?: React.ReactNode;
   actions?: React.ReactNode;
   className?: string;
+  titleClassName?: string;
 }) {
   return (
     <div
@@ -24,11 +33,19 @@ export function PageHeader({
       )}
     >
       <div className="min-w-0 space-y-1">
-        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-balance">
+        {eyebrow && (
+          <p className="text-eyebrow text-muted-foreground">{eyebrow}</p>
+        )}
+        <h1
+          className={cn(
+            "text-xl sm:text-2xl font-semibold tracking-tight text-balance",
+            titleClassName
+          )}
+        >
           {title}
         </h1>
         {description && (
-          <p className="text-sm sm:text-base text-muted-foreground text-pretty">
+          <p className="text-sm text-muted-foreground text-pretty">
             {description}
           </p>
         )}

@@ -38,7 +38,13 @@ const Toaster = ({ ...props }: ToasterProps) => {
       }
       toastOptions={{
         classNames: {
-          toast: "cn-toast",
+          // `cn-toast` was a class that existed nowhere — toasts were
+          // rendering with sonner's defaults. Put them on the system's
+          // elevation and radius instead.
+          toast:
+            "!rounded-xl !shadow-pop !ring-1 !ring-foreground/[0.06] font-sans",
+          title: "font-heading font-semibold",
+          description: "!text-muted-foreground",
         },
       }}
       {...props}

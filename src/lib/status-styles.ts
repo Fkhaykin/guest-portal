@@ -58,6 +58,46 @@ export function toneTile(tone: Tone): string {
   }
 }
 
+/**
+ * Decorative accent ramp. Tones carry *meaning* (this thing succeeded, this
+ * one is overdue); accents carry *identity* — the five slots that let a row
+ * of icon tiles or category cards look varied without reaching for raw
+ * Tailwind hues. Never use an accent to signal status.
+ */
+export type Accent = "lake" | "pine" | "sand" | "dusk" | "ember";
+
+/** Tinted square holding an icon, in one of the five decorative accents. */
+export function accentTile(accent: Accent): string {
+  switch (accent) {
+    case "pine":
+      return "bg-tint-pine/12 text-tint-pine";
+    case "sand":
+      return "bg-tint-sand/15 text-tint-sand";
+    case "dusk":
+      return "bg-tint-dusk/12 text-tint-dusk";
+    case "ember":
+      return "bg-tint-ember/12 text-tint-ember";
+    default:
+      return "bg-tint-lake/12 text-tint-lake";
+  }
+}
+
+/** Bare accent-colored text (icons, small labels, category dots). */
+export function accentText(accent: Accent): string {
+  switch (accent) {
+    case "pine":
+      return "text-tint-pine";
+    case "sand":
+      return "text-tint-sand";
+    case "dusk":
+      return "text-tint-dusk";
+    case "ember":
+      return "text-tint-ember";
+    default:
+      return "text-tint-lake";
+  }
+}
+
 /** Map common status strings (reservation + invoice) to a tone. */
 export function statusTone(status: string): Tone {
   switch (status.toLowerCase()) {

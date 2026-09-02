@@ -1,13 +1,17 @@
 import type { LucideIcon } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { IconTile } from "@/components/ui/icon-tile";
 import { cn } from "@/lib/utils";
-import { toneTile, type Tone } from "@/lib/status-styles";
+import type { Tone } from "@/lib/status-styles";
 
 /**
- * Dashboard metric card with a tinted icon tile, value, and label. Defaults to
- * the brand/primary tone so dashboards stop looking like a bag of Skittles
- * (amber + green + blue + purple + rose icon tiles). Use `tone` only where a
- * status genuinely needs to read as success/warning/danger.
+ * Dashboard metric card. The number is the point, so it leads the column and
+ * the icon is demoted to a corner tile — the previous layout put a colored
+ * square first and made every dashboard read as a row of badges.
+ *
+ * Defaults to the brand tone so dashboards stop looking like a bag of
+ * Skittles. Use `tone` only where a status genuinely needs to read as
+ * success/warning/danger.
  */
 export function StatCard({
   icon: Icon,
@@ -25,23 +29,21 @@ export function StatCard({
   className?: string;
 }) {
   return (
-    <Card className={cn("transition-shadow hover:shadow-sm", className)}>
-      <CardContent className="flex items-center gap-3.5 p-4">
-        <div
-          className={cn(
-            "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
-            toneTile(tone)
-          )}
-        >
-          <Icon className="h-5 w-5" />
-        </div>
-        <div className="min-w-0">
-          <div className="text-2xl font-bold leading-tight tracking-tight">
+    <Card
+      className={cn(
+        "transition-[transform,box-shadow] duration-200 ease-out-soft hover:shadow-raised",
+        className
+      )}
+    >
+      <CardContent className="flex items-start justify-between gap-3">
+        <div className="min-w-0 space-y-1">
+          <div className="truncate text-[13px] text-muted-foreground">{label}</div>
+          <div className="text-[26px] font-semibold leading-none tracking-tight tabular-nums">
             {value}
           </div>
-          <div className="truncate text-xs text-muted-foreground">{label}</div>
-          {hint && <div className="mt-0.5 text-xs text-muted-foreground/80">{hint}</div>}
+          {hint && <div className="pt-0.5 text-xs text-muted-foreground/80">{hint}</div>}
         </div>
+        <IconTile icon={Icon} tone={tone} className="size-9 rounded-lg" />
       </CardContent>
     </Card>
   );
