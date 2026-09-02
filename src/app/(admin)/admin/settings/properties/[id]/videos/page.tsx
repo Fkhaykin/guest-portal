@@ -16,6 +16,8 @@ import {
 } from "@/components/ui/dialog";
 import { Plus, Trash2, Upload, Video } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
+import { PageContainer } from "@/components/ui/container";
 import type { Tables } from "@/types/database";
 
 export default function AdminVideosPage({
@@ -95,9 +97,9 @@ export default function AdminVideosPage({
   }
 
   return (
-    <div className="space-y-6">
+    <PageContainer className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold tracking-tight">Videos</h1>
+        <PageHeader eyebrow="Property" title="Videos" />
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger render={<Button />}>
               <Plus className="h-4 w-4 mr-2" />
@@ -181,6 +183,6 @@ export default function AdminVideosPage({
           description="Upload instructional videos to walk guests through the property."
         />
       )}
-    </div>
+    </PageContainer>
   );
 }

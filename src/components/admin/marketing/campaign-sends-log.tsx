@@ -19,10 +19,10 @@ interface SendRow {
 }
 
 const STATUS_BADGE: Record<CampaignSendStatus, { className: string; Icon: typeof CheckCircle2 }> = {
-  sent:          { className: "bg-green-500/15 text-green-700 dark:text-green-400", Icon: CheckCircle2 },
-  failed:        { className: "bg-red-500/15 text-red-700 dark:text-red-400",       Icon: XCircle },
+  sent:          { className: "bg-success/15 text-success", Icon: CheckCircle2 },
+  failed:        { className: "bg-destructive/10 text-destructive",       Icon: XCircle },
   pending:       { className: "bg-muted text-muted-foreground",                     Icon: CheckCircle2 },
-  skipped_capped:{ className: "bg-amber-500/15 text-amber-700 dark:text-amber-400", Icon: Ban },
+  skipped_capped:{ className: "bg-warning/15 text-warning", Icon: Ban },
 };
 
 export function CampaignSendsLog({ campaignId }: { campaignId: string }) {
@@ -90,7 +90,7 @@ export function CampaignSendsLog({ campaignId }: { campaignId: string }) {
                 </span>
               </div>
               {s.error && (
-                <p className="mt-1 text-xs text-red-600 dark:text-red-400">{s.error}</p>
+                <p className="mt-1 text-xs text-destructive">{s.error}</p>
               )}
             </Card>
           );

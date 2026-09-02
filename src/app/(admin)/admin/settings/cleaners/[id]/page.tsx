@@ -13,6 +13,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Check, Building2, Mail, Phone, DollarSign, PawPrint, FileText, MapPin, CreditCard } from "lucide-react";
 import { Breadcrumbs } from "@/components/admin/breadcrumbs";
+import { PageHeader } from "@/components/ui/page-header";
+import { PageContainer } from "@/components/ui/container";
 import type { Tables } from "@/types/database";
 
 export default function AdminCleanerDetailPage({
@@ -94,7 +96,7 @@ export default function AdminCleanerDetailPage({
   }
 
   return (
-    <div className="space-y-6">
+    <PageContainer className="space-y-6">
       <Breadcrumbs
         items={[
           { label: "Settings", href: "/admin/settings" },
@@ -110,9 +112,7 @@ export default function AdminCleanerDetailPage({
         >
           <ArrowLeft className="h-4 w-4" />
         </Button>
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">{cleaner.name}</h1>
-        </div>
+        <PageHeader eyebrow="Cleaners" title={cleaner.name} />
       </div>
 
       {/* Profile info */}
@@ -218,6 +218,6 @@ export default function AdminCleanerDetailPage({
           )}
         </CardContent>
       </Card>
-    </div>
+    </PageContainer>
   );
 }

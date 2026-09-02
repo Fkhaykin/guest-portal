@@ -9,9 +9,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, ClipboardList} from "lucide-react";
 import { RegistrationActions } from "@/components/admin/registration-actions";
 import { ResendPaymentButton } from "@/components/admin/resend-payment-button";
+import { PageHeader } from "@/components/ui/page-header";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PageContainer } from "@/components/ui/container";
 import type { GuestListEntry, PetEntry } from "@/types/database";
 
 export default async function AdminRegistrationsPage({
@@ -38,11 +41,8 @@ export default async function AdminRegistrationsPage({
     .order("created_at", { ascending: false });
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Registrations</h1>
-        <p className="text-muted-foreground">{property.name}</p>
-      </div>
+    <PageContainer className="space-y-6">
+      <PageHeader eyebrow="Property" title="Registrations" description={property.name} />
 
       {registrations && registrations.length > 0 ? (
         <>
@@ -111,7 +111,7 @@ export default async function AdminRegistrationsPage({
                               {c > 0 && <span>{c}C</span>}
                               {inf > 0 && <span>{inf}I</span>}
                               {pets.length > 0 && (
-                                <span className={extraPets > 0 ? "text-amber-600 font-medium" : ""}>
+                                <span className={extraPets > 0 ? "text-warning font-medium" : ""}>
                                   {pets.length}P{extraPets > 0 && ` (+${extraPets})`}
                                 </span>
                               )}
@@ -159,9 +159,9 @@ export default async function AdminRegistrationsPage({
                           }
                           className={
                             reg.status === "pending_payment"
-                              ? "border-amber-500 text-amber-600"
+                              ? "border-warning text-warning"
                               : reg.status === "quote"
-                                ? "border-blue-500 text-blue-600"
+                                ? "border-primary text-primary"
                                 : ""
                           }
                         >
@@ -236,9 +236,9 @@ export default async function AdminRegistrationsPage({
                       }
                       className={
                         reg.status === "pending_payment"
-                          ? "border-amber-500 text-amber-600 shrink-0"
+                          ? "border-warning text-warning shrink-0"
                           : reg.status === "quote"
-                            ? "border-blue-500 text-blue-600 shrink-0"
+                            ? "border-primary text-primary shrink-0"
                             : "shrink-0"
                       }
                     >
@@ -283,7 +283,7 @@ export default async function AdminRegistrationsPage({
                             {rc > 0 && <span>{rc}C</span>}
                             {ri > 0 && <span>{ri}I</span>}
                             {pets.length > 0 && (
-                              <span className={extraPets > 0 ? "text-amber-600 font-medium" : ""}>
+                              <span className={extraPets > 0 ? "text-warning font-medium" : ""}>
                                 {pets.length}P{extraPets > 0 && ` (+${extraPets})`}
                               </span>
                             )}
@@ -333,8 +333,12 @@ export default async function AdminRegistrationsPage({
           </div>
         </>
       ) : (
-        <p className="text-muted-foreground">No registrations yet.</p>
+        <EmptyState
+          icon={ClipboardList}
+          title="No registrations yet"
+          description="Completed guest registrations for this property will appear here."
+        />
       )}
-    </div>
+    </PageContainer>
   );
 }

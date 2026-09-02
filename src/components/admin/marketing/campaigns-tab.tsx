@@ -22,9 +22,9 @@ interface CampaignRow {
 
 const STATUS_VARIANTS: Record<CampaignStatus, { label: string; className: string }> = {
   draft:    { label: "Draft",    className: "bg-muted text-muted-foreground" },
-  active:   { label: "Active",   className: "bg-green-500/15 text-green-700 dark:text-green-400" },
-  paused:   { label: "Paused",   className: "bg-amber-500/15 text-amber-700 dark:text-amber-400" },
-  sent:     { label: "Sent",     className: "bg-blue-500/15 text-blue-700 dark:text-blue-400" },
+  active:   { label: "Active",   className: "bg-success/15 text-success" },
+  paused:   { label: "Paused",   className: "bg-warning/15 text-warning" },
+  sent:     { label: "Sent",     className: "bg-primary/10 text-primary" },
   archived: { label: "Archived", className: "bg-muted text-muted-foreground" },
 };
 

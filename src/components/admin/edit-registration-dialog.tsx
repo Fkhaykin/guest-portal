@@ -539,7 +539,7 @@ export function EditRegistrationDialog({
           <div className="flex flex-col gap-2 border-t p-4">
             {error && <p className="text-sm text-destructive">{error}</p>}
             {warning && (
-              <p className="text-sm rounded-md px-3 py-2 bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200">
+              <p className="text-sm rounded-md px-3 py-2 bg-warning/15 text-warning">
                 Saved. {warning}
               </p>
             )}

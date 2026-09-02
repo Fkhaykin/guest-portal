@@ -143,7 +143,7 @@ export function CustomizationsModal({
                           }`}
                         >
                           <span className="truncate">{it.title}</span>
-                          {isApplied && <Check className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />}
+                          {isApplied && <Check className="h-3.5 w-3.5 shrink-0 text-success" />}
                         </button>
                       );
                     })}
@@ -160,7 +160,7 @@ export function CustomizationsModal({
             <div className="mt-3 flex items-start gap-2 rounded-md border border-border bg-muted/40 px-3 py-2">
               <Badge
                 variant="secondary"
-                className={selected.applied(rules) ? "bg-emerald-600/15 text-emerald-700 dark:text-emerald-400" : ""}
+                className={selected.applied(rules) ? "bg-success/15 text-success" : ""}
               >
                 {selected.applied(rules) ? "Applied" : "Off"}
               </Badge>
@@ -181,7 +181,7 @@ export function CustomizationsModal({
             <span className="flex items-center gap-2">
               Preview Prices
               {preview?.avgDeltaPct != null && preview.avgDeltaPct !== 0 && (
-                <Badge variant="secondary" className={preview.avgDeltaPct > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}>
+                <Badge variant="secondary" className={preview.avgDeltaPct > 0 ? "text-success" : "text-destructive"}>
                   {preview.avgDeltaPct > 0 ? "+" : ""}
                   {preview.avgDeltaPct}% avg
                 </Badge>
@@ -204,7 +204,7 @@ export function CustomizationsModal({
                       )}
                       <span className="font-medium">{fmtUsd(n.newCents)}</span>
                       {n.deltaPct != null && n.deltaPct !== 0 && (
-                        <span className={n.deltaPct > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}>
+                        <span className={n.deltaPct > 0 ? "text-success" : "text-destructive"}>
                           {n.deltaPct > 0 ? "+" : ""}
                           {n.deltaPct}%
                         </span>

@@ -20,6 +20,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/ui/page-header";
+import { PageContainer } from "@/components/ui/container";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import type { Tables } from "@/types/database";
 
@@ -81,9 +83,9 @@ export default function AdminServicesPage({
   }
 
   return (
-    <div className="space-y-6">
+    <PageContainer className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold tracking-tight">Services</h1>
+        <PageHeader eyebrow="Property" title="Services" />
         <Dialog open={dialogOpen} onOpenChange={(open) => {
           setDialogOpen(open);
           if (!open) setEditing(null);
@@ -184,6 +186,6 @@ export default function AdminServicesPage({
           No services yet. Add services guests can purchase.
         </p>
       )}
-    </div>
+    </PageContainer>
   );
 }

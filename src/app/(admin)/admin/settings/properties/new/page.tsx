@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Breadcrumbs } from "@/components/admin/breadcrumbs";
+import { PageHeader } from "@/components/ui/page-header";
 
 function slugify(text: string): string {
   return text
@@ -82,9 +83,7 @@ export default function NewPropertyPage() {
           { label: "New Property" },
         ]}
       />
-      <h1 className="text-3xl font-bold tracking-tight mb-6">
-        New Property
-      </h1>
+      <PageHeader eyebrow="Property" title="New property" className="mb-6" />
 
       <Card>
         <CardHeader>

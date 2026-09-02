@@ -213,7 +213,7 @@ export function CompsTable({ comps, onChanged }: { comps: CompRow[]; onChanged: 
                         </a>
                       )}
                       {c.last_error && (
-                        <span title={c.last_error} className="shrink-0 text-amber-600">
+                        <span title={c.last_error} className="shrink-0 text-warning">
                           <AlertTriangle className="h-3.5 w-3.5" />
                         </span>
                       )}
@@ -227,7 +227,7 @@ export function CompsTable({ comps, onChanged }: { comps: CompRow[]; onChanged: 
                   <TableCell className="text-center text-sm">
                     {c.rating != null ? (
                       <span className="inline-flex items-center gap-0.5">
-                        <Star className="h-3 w-3 fill-current text-amber-500" /> {c.rating}
+                        <Star className="h-3 w-3 fill-current text-warning" /> {c.rating}
                       </span>
                     ) : (
                       "—"

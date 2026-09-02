@@ -6,6 +6,7 @@ import { ReplyTraining } from "@/components/admin/reply-training";
 import { GuestMessageSettings } from "@/components/admin/guest-message-settings";
 import { LodgifyMessageSync } from "@/components/admin/lodgify-message-sync";
 import { AiEffectiveness } from "@/components/admin/ai-effectiveness";
+import { PageHeader } from "@/components/ui/page-header";
 
 export default function AutoMessagesPage() {
   return (
@@ -17,9 +18,7 @@ export default function AutoMessagesPage() {
         >
           <ArrowLeft className="h-5 w-5" />
         </Link>
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Auto Messages</h1>
-        </div>
+        <PageHeader eyebrow="Messages" title="Auto messages" />
       </div>
       <AiEffectiveness />
       <LodgifyMessageSync />

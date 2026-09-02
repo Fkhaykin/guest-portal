@@ -323,7 +323,7 @@ function DayCell({
         </span>
       </div>
       {display.events && eventLabel && !booked && !isBlocked && (
-        <div className="mt-0.5 truncate rounded bg-violet-500/15 px-1 text-[10px] font-medium text-violet-700 dark:text-violet-300">
+        <div className="mt-0.5 truncate rounded bg-tint-dusk/15 px-1 text-[10px] font-medium text-tint-dusk">
           {eventLabel}
         </div>
       )}
@@ -507,7 +507,7 @@ function BreakdownCard({
               <span className={isTotal ? "" : "text-muted-foreground"}>{r.label}</span>
               <span className="flex items-center gap-2 tabular-nums">
                 {r.pct != null && (
-                  <span className={r.pct >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}>
+                  <span className={r.pct >= 0 ? "text-success" : "text-destructive"}>
                     {r.pct >= 0 ? "+" : ""}
                     {r.pct}%
                   </span>

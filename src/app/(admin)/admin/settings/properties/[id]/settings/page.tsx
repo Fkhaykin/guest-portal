@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { PageHeader } from "@/components/ui/page-header";
 import { Save, Plus, X, GripVertical } from "lucide-react";
 
 export default function PropertySettingsPage({
@@ -104,9 +105,7 @@ export default function PropertySettingsPage({
 
   return (
     <div className="space-y-6 max-w-2xl">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Property Settings</h1>
-      </div>
+      <PageHeader eyebrow="Property" title="Property settings" />
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <Card>
@@ -322,8 +321,8 @@ export default function PropertySettingsPage({
             <Save className="h-4 w-4 mr-2" />
             {saving ? "Saving..." : "Save Settings"}
           </Button>
-          {saved && <span className="text-sm text-green-600">Saved successfully</span>}
-          {error && <span className="text-sm text-red-600">{error}</span>}
+          {saved && <span className="text-sm text-success">Saved successfully</span>}
+          {error && <span className="text-sm text-destructive">{error}</span>}
         </div>
       </form>
     </div>

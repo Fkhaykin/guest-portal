@@ -7,6 +7,8 @@ import { CampaignComposer } from "@/components/admin/marketing/campaign-composer
 import { CampaignSendsLog } from "@/components/admin/marketing/campaign-sends-log";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { PageHeader } from "@/components/ui/page-header";
+import { PageContainer } from "@/components/ui/container";
 import { ArrowLeft } from "lucide-react";
 import type { SegmentFilter, CampaignChannel, Tables } from "@/types/database";
 
@@ -81,15 +83,16 @@ export default async function CampaignDetailPage(
   };
 
   return (
-    <div className="space-y-6">
+    <PageContainer className="space-y-6">
       <div className="flex items-center gap-3">
         <Link href="/admin/campaigns" className={buttonVariants({ variant: "ghost", size: "icon" })}>
           <ArrowLeft className="h-4 w-4" />
         </Link>
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">{campaign.name}</h1>
-          <p className="text-sm text-muted-foreground">Status: {campaign.status}</p>
-        </div>
+        <PageHeader
+          eyebrow="Campaigns"
+          title={campaign.name}
+          description={`Status: ${campaign.status}`}
+        />
       </div>
 
       <Tabs defaultValue="editor">
@@ -104,6 +107,6 @@ export default async function CampaignDetailPage(
           <CampaignSendsLog campaignId={id} />
         </TabsContent>
       </Tabs>
-    </div>
+    </PageContainer>
   );
 }

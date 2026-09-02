@@ -16,6 +16,8 @@ import {
 } from "@/components/ui/dialog";
 import { Plus, Pencil, Trash2, HelpCircle } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
+import { PageContainer } from "@/components/ui/container";
 import type { Tables } from "@/types/database";
 
 export default function AdminFaqsPage({
@@ -75,9 +77,9 @@ export default function AdminFaqsPage({
   }
 
   return (
-    <div className="space-y-6">
+    <PageContainer className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold tracking-tight">FAQs</h1>
+        <PageHeader eyebrow="Property" title="FAQs" />
         <Dialog open={dialogOpen} onOpenChange={(open) => {
           setDialogOpen(open);
           if (!open) setEditing(null);
@@ -168,6 +170,6 @@ export default function AdminFaqsPage({
           description="Add common questions and answers to help guests find what they need."
         />
       )}
-    </div>
+    </PageContainer>
   );
 }

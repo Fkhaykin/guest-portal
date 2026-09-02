@@ -84,57 +84,57 @@ const OUTCOME_CONFIG: Record<
 > = {
   sync_ok: {
     label: "Synced",
-    color: "bg-green-100 text-green-800 border-green-200",
+    color: "bg-success/10 text-success border-success/25",
     icon: CheckCircle2,
   },
   sync_skipped: {
     label: "Skipped",
-    color: "bg-gray-100 text-gray-800 border-gray-200",
+    color: "bg-muted text-foreground border-border",
     icon: AlertTriangle,
   },
   signature_invalid: {
     label: "Bad Signature",
-    color: "bg-red-100 text-red-800 border-red-200",
+    color: "bg-destructive/10 text-destructive border-destructive/25",
     icon: ShieldAlert,
   },
   invalid_json: {
     label: "Invalid JSON",
-    color: "bg-red-100 text-red-800 border-red-200",
+    color: "bg-destructive/10 text-destructive border-destructive/25",
     icon: XCircle,
   },
   missing_booking_id: {
     label: "Missing Booking ID",
-    color: "bg-amber-100 text-amber-800 border-amber-200",
+    color: "bg-warning/15 text-warning border-warning/25",
     icon: AlertTriangle,
   },
   sync_failed: {
     label: "Sync Failed",
-    color: "bg-red-100 text-red-800 border-red-200",
+    color: "bg-destructive/10 text-destructive border-destructive/25",
     icon: XCircle,
   },
   message_synced: {
     label: "Message Saved",
-    color: "bg-blue-100 text-blue-800 border-blue-200",
+    color: "border-primary/25 bg-primary/10 text-primary",
     icon: CheckCircle2,
   },
   message_skipped: {
     label: "Message Skipped",
-    color: "bg-gray-100 text-gray-800 border-gray-200",
+    color: "bg-muted text-foreground border-border",
     icon: AlertTriangle,
   },
   message_failed: {
     label: "Message Failed",
-    color: "bg-red-100 text-red-800 border-red-200",
+    color: "bg-destructive/10 text-destructive border-destructive/25",
     icon: XCircle,
   },
   action_ignored: {
     label: "Ignored",
-    color: "bg-gray-100 text-gray-800 border-gray-200",
+    color: "bg-muted text-foreground border-border",
     icon: AlertTriangle,
   },
   unknown: {
     label: "Unknown",
-    color: "bg-gray-100 text-gray-800 border-gray-200",
+    color: "bg-muted text-foreground border-border",
     icon: AlertTriangle,
   },
 };
@@ -324,12 +324,12 @@ export function LodgifyWebhooksSection() {
         ) : (
           <div className="space-y-2">
             {smsLogs.map((log) => (
-              <Card key={log.id} className={!log.success ? "border-red-200" : ""}>
+              <Card key={log.id} className={!log.success ? "border-destructive/25" : ""}>
                 <CardContent className="py-3 px-4 flex items-start gap-3">
                   {log.success ? (
-                    <CheckCircle2 className="h-4 w-4 text-green-500 mt-0.5 shrink-0" />
+                    <CheckCircle2 className="h-4 w-4 text-success mt-0.5 shrink-0" />
                   ) : (
-                    <XCircle className="h-4 w-4 text-red-500 mt-0.5 shrink-0" />
+                    <XCircle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
                   )}
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
@@ -355,7 +355,7 @@ export function LodgifyWebhooksSection() {
                       </p>
                     )}
                     {log.error && (
-                      <p className="text-xs text-red-600 mt-0.5">{log.error}</p>
+                      <p className="text-xs text-destructive mt-0.5">{log.error}</p>
                     )}
                     <p className="text-xs text-muted-foreground mt-0.5">{formatTime(log.sent_at)}</p>
                   </div>
@@ -396,7 +396,7 @@ export function LodgifyWebhooksSection() {
               {subsLoading ? (
                 <p className="text-sm text-muted-foreground">Loading subscriptions...</p>
               ) : subs === null ? null : subs.length === 0 ? (
-                <p className="text-sm text-amber-700 bg-amber-50 dark:bg-amber-950/30 rounded p-3">
+                <p className="text-sm text-warning bg-warning/[0.07] rounded p-3">
                   No active subscriptions. Lodgify is not sending any webhooks yet — add one below.
                 </p>
               ) : (
@@ -420,7 +420,7 @@ export function LodgifyWebhooksSection() {
                       <Button
                         size="sm"
                         variant="ghost"
-                        className="text-red-600 hover:text-red-700"
+                        className="text-destructive hover:text-destructive"
                         onClick={() => unsubscribe(s.id)}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
@@ -466,14 +466,14 @@ export function LodgifyWebhooksSection() {
             </div>
 
             {subsError && (
-              <p className="text-sm text-red-600 bg-red-50 dark:bg-red-950/30 rounded p-2">
+              <p className="text-sm text-destructive bg-destructive/[0.07] rounded p-2">
                 {subsError}
               </p>
             )}
 
             {newSecret && (
-              <div className="border border-amber-300 bg-amber-50 dark:bg-amber-950/30 rounded p-3 space-y-2">
-                <p className="text-sm font-medium text-amber-900 dark:text-amber-200">
+              <div className="border border-warning/30 bg-warning/[0.07] rounded p-3 space-y-2">
+                <p className="text-sm font-medium text-warning">
                   Signing secret (shown once) — add to LODGIFY_WEBHOOK_SIGNING_SECRETS
                 </p>
                 <div className="flex items-center gap-2">
@@ -488,7 +488,7 @@ export function LodgifyWebhooksSection() {
                     )}
                   </Button>
                 </div>
-                <p className="text-xs text-amber-800 dark:text-amber-300">
+                <p className="text-xs text-warning">
                   If the env var already has a value, append this as a comma-separated entry so old webhooks keep validating during rotation.
                 </p>
               </div>
@@ -505,19 +505,19 @@ export function LodgifyWebhooksSection() {
           </Card>
           <Card>
             <CardContent className="pt-4 pb-3 px-4">
-              <p className="text-2xl font-bold text-green-600">{successCount}</p>
+              <p className="text-2xl font-bold text-success">{successCount}</p>
               <p className="text-xs text-muted-foreground">Synced (24h)</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-4 pb-3 px-4">
-              <p className="text-2xl font-bold text-gray-600">{skippedCount}</p>
+              <p className="text-2xl font-bold text-muted-foreground">{skippedCount}</p>
               <p className="text-xs text-muted-foreground">Skipped (24h)</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-4 pb-3 px-4">
-              <p className="text-2xl font-bold text-red-600">{errorCount}</p>
+              <p className="text-2xl font-bold text-destructive">{errorCount}</p>
               <p className="text-xs text-muted-foreground">Errors (24h)</p>
             </CardContent>
           </Card>
@@ -570,7 +570,7 @@ export function LodgifyWebhooksSection() {
               const hasError = log.status_code >= 400;
 
               return (
-                <Card key={log.id} className={hasError ? "border-red-200" : ""}>
+                <Card key={log.id} className={hasError ? "border-destructive/25" : ""}>
                   <button
                     type="button"
                     onClick={() => toggle(log.id)}
@@ -580,9 +580,9 @@ export function LodgifyWebhooksSection() {
                       <Icon
                         className={`h-4 w-4 shrink-0 ${
                           hasError
-                            ? "text-red-500"
+                            ? "text-destructive"
                             : log.outcome === "sync_ok"
-                              ? "text-green-500"
+                              ? "text-success"
                               : "text-muted-foreground"
                         }`}
                       />
@@ -609,7 +609,7 @@ export function LodgifyWebhooksSection() {
                           </span>
                         </div>
                         {log.error_message && (
-                          <p className="text-xs text-red-600 mt-1 truncate">
+                          <p className="text-xs text-destructive mt-1 truncate">
                             {log.error_message}
                           </p>
                         )}
@@ -634,14 +634,14 @@ export function LodgifyWebhooksSection() {
                             <span className="text-muted-foreground">Signature:</span>{" "}
                             {log.signature_present ? (
                               log.signature_valid === true ? (
-                                <span className="text-green-600">valid</span>
+                                <span className="text-success">valid</span>
                               ) : log.signature_valid === false ? (
-                                <span className="text-red-600">invalid</span>
+                                <span className="text-destructive">invalid</span>
                               ) : (
-                                <span className="text-amber-600">not verified (no secret set)</span>
+                                <span className="text-warning">not verified (no secret set)</span>
                               )
                             ) : (
-                              <span className="text-red-600">missing</span>
+                              <span className="text-destructive">missing</span>
                             )}
                           </div>
                           <div>
@@ -653,7 +653,7 @@ export function LodgifyWebhooksSection() {
                         {log.error_message && (
                           <div>
                             <p className="text-muted-foreground mb-1">Error</p>
-                            <pre className="bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-300 p-2 rounded font-mono whitespace-pre-wrap break-all">
+                            <pre className="bg-destructive/[0.07] text-destructive p-2 rounded font-mono whitespace-pre-wrap break-all">
                               {log.error_message}
                             </pre>
                           </div>

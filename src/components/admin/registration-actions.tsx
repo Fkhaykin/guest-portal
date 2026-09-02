@@ -104,9 +104,9 @@ export function RegistrationActions({
               {emailing ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : emailResult === "success" ? (
-                <Mail className="h-4 w-4 text-green-600" />
+                <Mail className="h-4 w-4 text-success" />
               ) : emailResult === "error" ? (
-                <Mail className="h-4 w-4 text-red-600" />
+                <Mail className="h-4 w-4 text-destructive" />
               ) : (
                 <Mail className="h-4 w-4" />
               )}

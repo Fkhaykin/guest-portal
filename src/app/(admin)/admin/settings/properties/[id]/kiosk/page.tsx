@@ -5,6 +5,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PageHeader } from "@/components/ui/page-header";
 import {
   Dialog,
   DialogContent,
@@ -134,16 +135,16 @@ export default function AdminKioskPage({
 
   return (
     <div className="space-y-6 max-w-3xl">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
-          <TabletSmartphone className="h-7 w-7 text-primary" />
-          In-House Kiosk
-        </h1>
-        <p className="text-muted-foreground mt-1">
-          The wall display greets the current guest by name, shows house rules, and opens the
-          full guest portal with their booking already loaded.
-        </p>
-      </div>
+      <PageHeader
+        eyebrow="Property"
+        title={
+          <span className="flex items-center gap-3">
+            <TabletSmartphone className="h-6 w-6 text-primary" />
+            In-house kiosk
+          </span>
+        }
+        description="The wall display greets the current guest by name, shows house rules, and opens the full guest portal with their booking already loaded."
+      />
 
       {error && <p className="text-sm text-destructive">{error}</p>}
 
@@ -304,9 +305,9 @@ export default function AdminKioskPage({
           </CardContent>
         </Card>
 
-        <Card className="border-amber-500/40 bg-amber-500/5 h-fit">
+        <Card className="h-fit border-warning/40 bg-warning/[0.05]">
           <CardHeader className="flex flex-row items-start gap-3">
-            <TriangleAlert className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" />
+            <TriangleAlert className="h-5 w-5 text-warning mt-0.5 shrink-0" />
             <div>
               <CardTitle className="text-base">For installers only</CardTitle>
               <CardDescription>

@@ -91,7 +91,7 @@ export function ConfigureRail({
             {shown.map((it) => (
               <button key={it.key} onClick={onEdit} className="block w-full text-left">
                 <div className="flex items-center gap-1 text-xs font-medium">
-                  {it.applied(rules) && <Check className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />}
+                  {it.applied(rules) && <Check className="h-3 w-3 text-success" />}
                   {it.title}
                 </div>
                 <div className="text-xs text-muted-foreground">{it.summary(rules)}</div>

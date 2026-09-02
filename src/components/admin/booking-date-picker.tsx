@@ -219,8 +219,8 @@ export function BookingDatePicker({
                   "h-9 text-sm relative transition-colors",
                   lockedPast || !lodgifyPropertyId ? "text-muted-foreground/30 cursor-not-allowed" : "",
                   // Booked nights stay red so the overlap is always visible, even when selected.
-                  booked && !past ? "bg-red-100 dark:bg-red-950/40 text-red-600 dark:text-red-400" : "",
-                  tentative && !booked && !past ? "bg-amber-100 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300" : "",
+                  booked && !past ? "bg-destructive/10 text-destructive" : "",
+                  tentative && !booked && !past ? "bg-warning/15 text-warning" : "",
                   !disabled ? "hover:bg-primary/10 cursor-pointer" : "",
                   inSel && !edge && !booked ? "bg-primary/10" : "",
                   // Selection drawn as a primary ring over booked nights instead of a fill.
@@ -281,7 +281,7 @@ export function BookingDatePicker({
       )}
 
       {selectionConflict && (
-        <div className="rounded-md border border-red-300 bg-red-50 dark:border-red-900 dark:bg-red-950/40 px-3 py-2 text-xs text-red-700 dark:text-red-300">
+        <div className="rounded-md border border-destructive/30 bg-destructive/[0.07] px-3 py-2 text-xs text-destructive">
           These dates overlap an existing booking or block. You can still create this as a double booking.
         </div>
       )}
@@ -289,8 +289,8 @@ export function BookingDatePicker({
       <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground pt-2 border-t">
         <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm bg-primary" />Selected</span>
         <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm bg-primary/10" />In range</span>
-        <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm bg-red-100 dark:bg-red-950/40" />Booked (click to double-book)</span>
-        <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm bg-amber-100 dark:bg-amber-950/40" />Tentative (clickable)</span>
+        <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm bg-destructive/10" />Booked (click to double-book)</span>
+        <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm bg-warning/15" />Tentative (clickable)</span>
       </div>
     </div>
   );

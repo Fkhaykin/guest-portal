@@ -146,7 +146,7 @@ export function ConfigEditor({
         <div className="pointer-events-auto flex items-center gap-3 rounded-full border border-border bg-card/95 py-1.5 pl-4 pr-1.5 shadow-lg backdrop-blur">
           <span className="text-xs text-muted-foreground">
             {activeCount} factor{activeCount === 1 ? "" : "s"} on
-            {dirty && <span className="ml-2 font-medium text-amber-600 dark:text-amber-400">· unsaved changes</span>}
+            {dirty && <span className="ml-2 font-medium text-warning">· unsaved changes</span>}
           </span>
           <Button onClick={save} disabled={saving || !dirty} size="sm" className="rounded-full">
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
@@ -174,8 +174,8 @@ function SectionHead({ icon: Icon, title, blurb }: { icon: typeof CalendarDays; 
 
 function StatusPill({ on }: { on: boolean }) {
   return on ? (
-    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-600/12 px-2 py-0.5 text-[11px] font-medium text-emerald-700 dark:text-emerald-400">
-      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> On
+    <span className="inline-flex items-center gap-1 rounded-full bg-success/12 px-2 py-0.5 text-[11px] font-medium text-success">
+      <span className="h-1.5 w-1.5 rounded-full bg-success" /> On
     </span>
   ) : (
     <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">

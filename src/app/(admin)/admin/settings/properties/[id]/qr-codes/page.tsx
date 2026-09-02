@@ -21,6 +21,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/ui/page-header";
+import { PageContainer } from "@/components/ui/container";
 import { Plus, Download, Trash2, QrCode } from "lucide-react";
 import type { Tables } from "@/types/database";
 
@@ -116,9 +118,9 @@ export default function AdminQRCodesPage({
   }
 
   return (
-    <div className="space-y-6">
+    <PageContainer className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold tracking-tight">QR Codes</h1>
+        <PageHeader eyebrow="Property" title="QR codes" />
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger render={<Button />}>
               <Plus className="h-4 w-4 mr-2" />
@@ -246,6 +248,6 @@ export default function AdminQRCodesPage({
           </CardContent>
         </Card>
       )}
-    </div>
+    </PageContainer>
   );
 }

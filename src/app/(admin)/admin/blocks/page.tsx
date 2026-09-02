@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BookingDatePicker } from "@/components/admin/booking-date-picker";
+import { PageHeader } from "@/components/ui/page-header";
 import {
   Dialog,
   DialogContent,
@@ -155,11 +156,12 @@ export default function BlockedDatesPage() {
 
   return (
     <div className="max-w-3xl">
-      <h1 className="text-3xl font-bold tracking-tight mb-2">Blocked dates</h1>
-      <p className="text-muted-foreground mb-6 text-sm">
-        Block dates for maintenance, owner stays, or off-market. Blocks show as unavailable across your
-        booking calendar and are held on Lodgify so Airbnb/VRBO can&rsquo;t book them.
-      </p>
+      <PageHeader
+        eyebrow="Operations"
+        title="Blocked dates"
+        description="Block dates for maintenance, owner stays, or off-market. Blocks show as unavailable across your booking calendar and are held on Lodgify so Airbnb/VRBO can&rsquo;t book them."
+        className="mb-6"
+      />
 
       <form onSubmit={(e) => { e.preventDefault(); addBlock(); }} className="space-y-5">
         <Card>
@@ -207,7 +209,7 @@ export default function BlockedDatesPage() {
 
             {error && <p className="text-sm text-destructive">{error}</p>}
             {warning && (
-              <p className="text-sm text-amber-700 dark:text-amber-400 flex items-start gap-1.5">
+              <p className="text-sm text-warning flex items-start gap-1.5">
                 <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" /> {warning}
               </p>
             )}
@@ -234,7 +236,7 @@ export default function BlockedDatesPage() {
                       <span className="text-muted-foreground"> · {nights(b.start_date, b.end_date)} night{nights(b.start_date, b.end_date) === 1 ? "" : "s"}</span>
                       {b.reason && <span className="text-muted-foreground"> · {b.reason}</span>}
                       {b.lodgify_sync_status === "failed" && (
-                        <span className="text-amber-600 dark:text-amber-400"> · not held on Lodgify</span>
+                        <span className="text-warning"> · not held on Lodgify</span>
                       )}
                     </div>
                     <div className="flex items-center gap-1">

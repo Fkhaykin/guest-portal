@@ -103,7 +103,7 @@ export function CleaningPhotosDialog({
             {/* Status */}
             <div className="flex items-center gap-3">
               {cleaning.is_cleaned ? (
-                <Badge className="bg-green-600 gap-1">
+                <Badge className="gap-1 bg-success">
                   <Check className="h-3 w-3" />
                   Cleaned
                 </Badge>

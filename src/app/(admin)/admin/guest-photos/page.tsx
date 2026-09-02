@@ -120,7 +120,7 @@ export default function GuestPhotosPage() {
                   <PhotoCard key={p.id} photo={p} busy={busy === p.id}>
                     <Button
                       size="sm"
-                      className="flex-1 bg-emerald-600 hover:bg-emerald-600/90"
+                      className="flex-1 bg-success hover:bg-success/90"
                       disabled={busy === p.id}
                       onClick={() => setStatus(p.id, "published")}
                     >

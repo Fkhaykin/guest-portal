@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/ui/page-header";
 import { Building2, Save, Phone, PenLine, Undo2, Link2, Plus, Trash2, X, Receipt } from "lucide-react";
 import { resolveHoaFeeConfig } from "@/lib/hoa/fees";
 
@@ -253,12 +254,7 @@ export default function OwnerSettingsPage({
             className="h-16 w-16 rounded-lg object-cover shrink-0"
           />
         )}
-        <div>
-          {propertyName && (
-            <p className="text-sm text-muted-foreground font-medium">{propertyName}</p>
-          )}
-          <h1 className="text-3xl font-bold tracking-tight">Owner / HOA Settings</h1>
-        </div>
+        <PageHeader eyebrow={propertyName || "Property"} title="Owner / HOA settings" />
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
@@ -789,8 +785,8 @@ export default function OwnerSettingsPage({
             <Save className="h-4 w-4 mr-2" />
             {saving ? "Saving..." : "Save Settings"}
           </Button>
-          {saved && <span className="text-sm text-green-600">Saved successfully</span>}
-          {error && <span className="text-sm text-red-600">{error}</span>}
+          {saved && <span className="text-sm text-success">Saved successfully</span>}
+          {error && <span className="text-sm text-destructive">{error}</span>}
         </div>
       </form>
     </div>

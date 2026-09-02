@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BookingDatePicker } from "@/components/admin/booking-date-picker";
+import { PageHeader } from "@/components/ui/page-header";
 import { computeQuoteFromRates } from "@/lib/pricing/quote-math";
 import { Loader2 } from "lucide-react";
 
@@ -319,7 +320,7 @@ export default function NewReservationPage() {
     const isAuto = result.plan === "automatic";
     return (
       <div className="max-w-2xl">
-        <h1 className="text-3xl font-bold tracking-tight mb-6">Booking created</h1>
+        <PageHeader eyebrow="Reservations" title="Booking created" className="mb-6" />
         <Card>
           <CardContent className="pt-6 space-y-4">
             <div className="text-sm text-muted-foreground space-y-1">
@@ -364,7 +365,7 @@ export default function NewReservationPage() {
 
   return (
     <div className="max-w-3xl">
-      <h1 className="text-3xl font-bold tracking-tight mb-6">New booking</h1>
+      <PageHeader eyebrow="Reservations" title="New booking" className="mb-6" />
 
       <form onSubmit={handleSubmit} className="space-y-5">
         <Card>
@@ -556,7 +557,7 @@ export default function NewReservationPage() {
                   </div>
                 )}
                 {overrideEnabled && (
-                  <div className="px-4 py-2 border-t bg-amber-50 dark:bg-amber-950/30 text-xs text-amber-800 dark:text-amber-300">
+                  <div className="px-4 py-2 border-t bg-warning/[0.07] text-xs text-warning">
                     Manual rate override active — these nightly rates replace the engine pricing.
                   </div>
                 )}
@@ -625,7 +626,7 @@ export default function NewReservationPage() {
             </div>
 
             {dateConflict && (
-              <label className="flex items-start gap-2 rounded-md border border-red-300 bg-red-50 dark:border-red-900 dark:bg-red-950/40 p-3 text-sm text-red-700 dark:text-red-300 cursor-pointer">
+              <label className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/[0.07] p-3 text-sm text-destructive cursor-pointer">
                 <input
                   type="checkbox"
                   className="mt-0.5"

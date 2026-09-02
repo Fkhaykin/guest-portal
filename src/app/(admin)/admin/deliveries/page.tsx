@@ -7,6 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { PageHeader } from "@/components/ui/page-header";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PageContainer } from "@/components/ui/container";
 import {
   Card,
   CardContent,
@@ -194,10 +197,8 @@ export default function AdminDeliveriesPage() {
   const isRideshare = category === "rideshare";
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Deliveries</h1>
-      </div>
+    <PageContainer className="space-y-6">
+      <PageHeader eyebrow="Operations" title="Deliveries" />
 
       {loading ? (
         <div className="text-muted-foreground text-sm">Loading properties...</div>
@@ -233,7 +234,11 @@ export default function AdminDeliveriesPage() {
         {historyLoading ? (
           <div className="text-muted-foreground text-sm">Loading history...</div>
         ) : sentHistory.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No deliveries sent yet.</p>
+          <EmptyState
+            icon={Truck}
+            title="No deliveries sent yet"
+            description="Deliveries and rideshares you send to guests will be listed here."
+          />
         ) : (
           <div className="space-y-2">
             {sentHistory.map((item) => {
@@ -344,8 +349,8 @@ export default function AdminDeliveriesPage() {
         <DialogContent className="max-w-md">
           {submitted ? (
             <div className="py-8 text-center space-y-4">
-              <div className="mx-auto w-14 h-14 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center">
-                <Check className="h-7 w-7 text-green-600 dark:text-green-400" />
+              <div className="mx-auto w-14 h-14 rounded-full bg-success/10 flex items-center justify-center">
+                <Check className="h-7 w-7 text-success" />
               </div>
               <div className="space-y-1">
                 <h2 className="text-lg font-semibold">Delivery Registered</h2>
@@ -583,6 +588,6 @@ export default function AdminDeliveriesPage() {
           )}
         </DialogContent>
       </Dialog>
-    </div>
+    </PageContainer>
   );
 }

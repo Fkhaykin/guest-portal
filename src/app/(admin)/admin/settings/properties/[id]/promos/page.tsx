@@ -23,7 +23,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Pencil, Trash2, X, Sparkles } from "lucide-react";
+import { PageHeader } from "@/components/ui/page-header";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PageContainer } from "@/components/ui/container";
+import { Plus, Pencil, Trash2, X, Sparkles, Tag} from "lucide-react";
 import {
   type Offer,
   type OfferKind,
@@ -34,15 +37,17 @@ import {
 } from "@/lib/promo/types";
 import { ACCENTS, summarySentence, headlineFromOffers, offerLabel } from "@/lib/promo/display";
 
+// The picker has to show what the guest will actually see, so these track
+// the accent -> tint mapping in the promotion cards. Keys stay as stored.
 const ACCENT_SWATCH: Record<string, string> = {
-  emerald: "bg-emerald-400",
-  indigo: "bg-indigo-400",
-  amber: "bg-amber-400",
-  rose: "bg-rose-400",
-  orange: "bg-orange-400",
-  sky: "bg-sky-400",
-  violet: "bg-violet-400",
-  slate: "bg-slate-400",
+  emerald: "bg-tint-pine",
+  indigo: "bg-tint-dusk",
+  amber: "bg-tint-sand",
+  rose: "bg-tint-ember",
+  orange: "bg-tint-ember",
+  sky: "bg-tint-lake",
+  violet: "bg-tint-dusk",
+  slate: "bg-muted-foreground",
 };
 
 const EMOJI_CHOICES = ["🎁", "🌿", "🌙", "✨", "🎂", "🛒", "🔥", "🏷️", "💎", "☀️", "❄️", "🥂"];
@@ -238,14 +243,13 @@ export default function AdminPromosPage({ params }: { params: Promise<{ id: stri
   }
 
   return (
-    <div className="space-y-6">
+    <PageContainer className="space-y-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Promos</h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            One builder for every offer — codes, automatic discounts, free nights, add-ons, and marketing perks.
-          </p>
-        </div>
+        <PageHeader
+          eyebrow="Property"
+          title="Promos"
+          description="One builder for every offer — codes, automatic discounts, free nights, add-ons, and marketing perks."
+        />
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger render={<Button onClick={openNew} />}>
             <Plus className="h-4 w-4 mr-1" /> New Promo
@@ -303,9 +307,13 @@ export default function AdminPromosPage({ params }: { params: Promise<{ id: stri
           ))}
         </div>
       ) : (
-        <p className="text-muted-foreground">No promos yet. Build your first one.</p>
+        <EmptyState
+          icon={Tag}
+          title="No promos yet"
+          description="Build your first offer — a code, an automatic discount, a free night, or a marketing perk."
+        />
       )}
-    </div>
+    </PageContainer>
   );
 }
 

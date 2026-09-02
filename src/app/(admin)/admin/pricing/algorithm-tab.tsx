@@ -262,7 +262,7 @@ function PositionBadge({ ourCents, marketCents }: { ourCents: number; marketCent
   const pct = Math.round(((ourCents - marketCents) / marketCents) * 100);
   if (Math.abs(pct) <= 3) return <Badge variant="secondary">at market</Badge>;
   return (
-    <Badge variant="secondary" className={pct > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}>
+    <Badge variant="secondary" className={pct > 0 ? "text-success" : "text-warning"}>
       {pct > 0 ? "+" : ""}
       {pct}% vs market
     </Badge>

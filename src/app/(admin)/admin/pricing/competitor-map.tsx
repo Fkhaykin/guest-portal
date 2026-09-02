@@ -113,12 +113,12 @@ export function CompetitorMap({
                     <InfoWindowF position={{ lat: c.lat!, lng: c.lng! }} onCloseClick={() => setActive(null)}>
                       <div className="max-w-48 text-xs">
                         <div className="font-medium">{c.label || `Listing ${c.airbnb_id}`}</div>
-                        <div className="text-gray-600">
+                        <div className="text-muted-foreground">
                           {c.bedrooms != null && `${c.bedrooms} BR · `}
                           {c.stats.medianPriceCents != null ? `${fmtUsd(c.stats.medianPriceCents)}/night median` : "not priced yet"}
                         </div>
                         {c.rating != null && (
-                          <div className="text-gray-600">
+                          <div className="text-muted-foreground">
                             ★ {c.rating} ({c.review_count ?? 0})
                           </div>
                         )}
@@ -132,7 +132,7 @@ export function CompetitorMap({
         </div>
         <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
           <span className="flex items-center gap-1">
-            <span className="inline-block h-3 w-3 rounded-full border border-white bg-gray-900" /> Your property
+            <span className="inline-block h-3 w-3 rounded-full border border-background bg-foreground" /> Your property
           </span>
           {BANDS.map((b) => (
             <span key={b.label} className="flex items-center gap-1">
@@ -140,7 +140,7 @@ export function CompetitorMap({
             </span>
           ))}
           <span className="flex items-center gap-1">
-            <span className="inline-block h-3 w-3 rounded-full bg-gray-400" /> not priced
+            <span className="inline-block h-3 w-3 rounded-full bg-muted-foreground" /> not priced
           </span>
         </div>
       </CardContent>

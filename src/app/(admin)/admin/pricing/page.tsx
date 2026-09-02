@@ -518,7 +518,7 @@ function FreshnessChips({ data }: { data: PricingLabData | null }) {
     <Badge
       variant="secondary"
       title={title}
-      className={stale ? "bg-amber-500/15 text-amber-700 dark:text-amber-400" : ""}
+      className={stale ? "bg-warning/15 text-warning" : ""}
     >
       {stale && <AlertTriangle className="mr-1 h-3 w-3" />}
       {label}
