@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono, Plus_Jakarta_Sans } from "next/font/google";
+import { Geist, Geist_Mono, Plus_Jakarta_Sans, Fraunces } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/theme-provider";
 import { PWARegister } from "@/components/pwa-register";
@@ -25,13 +25,22 @@ const plusJakarta = Plus_Jakarta_Sans({
   variable: "--font-plus-jakarta",
 });
 
+// Display serif for guest hero moments only (--font-display / .font-display).
+// Optical sizing keeps the large settings from looking spindly; SOFT rounds
+// the terminals just enough to read warm rather than editorial-severe.
+const fraunces = Fraunces({
+  subsets: ["latin"],
+  variable: "--font-fraunces",
+  axes: ["SOFT", "opsz"],
+});
+
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f7f8fa" },
-    { media: "(prefers-color-scheme: dark)", color: "#15171c" },
+    { media: "(prefers-color-scheme: light)", color: "#f9f7f4" },
+    { media: "(prefers-color-scheme: dark)", color: "#050b12" },
   ],
 };
 
@@ -69,7 +78,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} ${plusJakarta.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${plusJakarta.variable} ${fraunces.variable} h-full antialiased`}
       suppressHydrationWarning
     >
       <head>

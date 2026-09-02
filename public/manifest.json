@@ -4,8 +4,8 @@
   "description": "Lakefront vacation homes in the Poconos with hot tubs, game rooms, boats, and direct lake access.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#0a0a0a",
+  "background_color": "#f9f7f4",
+  "theme_color": "#f9f7f4",
   "orientation": "portrait-primary",
   "icons": [
     {
