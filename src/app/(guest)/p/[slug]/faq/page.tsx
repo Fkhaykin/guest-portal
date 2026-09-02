@@ -8,6 +8,9 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
+import { SectionHeader } from "@/components/ui/section-header";
+import { Card } from "@/components/ui/card";
 
 export default async function FaqPage({
   params,
@@ -40,35 +43,35 @@ export default async function FaqPage({
   });
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight">
-          Frequently Asked Questions
-        </h2>
-        <p className="text-muted-foreground">
-          Everything you need to know about your stay
-        </p>
-      </div>
+    <div className="space-y-8">
+      <PageHeader
+        eyebrow="Your stay"
+        title="Frequently asked questions"
+        titleClassName="font-display text-display"
+        description="Everything you need to know about your stay."
+      />
 
       {categories.size > 0 ? (
         Array.from(categories.entries()).map(([category, items]) => (
-          <div key={category} className="space-y-2">
-            {categories.size > 1 && (
-              <h3 className="text-lg font-semibold">{category}</h3>
-            )}
-            <Accordion className="w-full">
-              {items?.map((faq) => (
-                <AccordionItem key={faq.id} value={faq.id}>
-                  <AccordionTrigger className="text-left">
-                    {faq.question}
-                  </AccordionTrigger>
-                  <AccordionContent className="text-muted-foreground whitespace-pre-wrap">
-                    {faq.answer}
-                  </AccordionContent>
-                </AccordionItem>
-              ))}
-            </Accordion>
-          </div>
+          <section key={category} className="space-y-3">
+            {categories.size > 1 && <SectionHeader title={category} />}
+            {/* The list sat on the page canvas as an undifferentiated wall of
+                rules; a card gives each category a surface of its own. */}
+            <Card size="sm" className="gap-0 py-0">
+              <Accordion className="w-full px-4">
+                {items?.map((faq) => (
+                  <AccordionItem key={faq.id} value={faq.id}>
+                    <AccordionTrigger className="text-left">
+                      {faq.question}
+                    </AccordionTrigger>
+                    <AccordionContent className="whitespace-pre-wrap text-muted-foreground">
+                      {faq.answer}
+                    </AccordionContent>
+                  </AccordionItem>
+                ))}
+              </Accordion>
+            </Card>
+          </section>
         ))
       ) : (
         <EmptyState

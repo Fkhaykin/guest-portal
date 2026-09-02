@@ -49,8 +49,8 @@ export function ServiceCard({
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-start justify-between">
-          <div>
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
             <CardTitle className="text-lg">{service.name}</CardTitle>
             {service.description && (
               <CardDescription className="mt-1">
@@ -58,13 +58,13 @@ export function ServiceCard({
               </CardDescription>
             )}
           </div>
-          <span className="text-xl font-bold">
+          <span className="shrink-0 text-xl font-bold tabular-nums">
             ${(service.price_cents / 100).toFixed(2)}
           </span>
         </div>
       </CardHeader>
       <CardContent>
-        <Button onClick={handlePurchase} disabled={loading} className="w-full">
+        <Button onClick={handlePurchase} disabled={loading} size="xl" className="w-full">
           <ShoppingBag className="h-4 w-4 mr-2" />
           {loading ? "Processing..." : "Purchase"}
         </Button>

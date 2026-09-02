@@ -43,7 +43,8 @@ export function InstagramFeedSection() {
     <section className="px-4 sm:px-6 py-10 max-w-6xl mx-auto w-full">
       <div className="flex items-center justify-between mb-6">
         <div className="space-y-1">
-          <h2 className="text-2xl sm:text-3xl font-bold tracking-tight flex items-center gap-2.5">
+          <p className="text-eyebrow text-muted-foreground">Lakeside, lately</p>
+          <h2 className="flex items-center gap-2.5 font-display text-title-lg font-semibold tracking-tight sm:text-3xl">
             <InstagramIcon className="h-6 w-6" />
             @summitlakeside
           </h2>

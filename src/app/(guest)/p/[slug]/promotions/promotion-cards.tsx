@@ -15,67 +15,73 @@ export type AccentClasses = {
   chip: string;
 };
 
+/**
+ * Promo accents resolve to the five decorative tints rather than raw Tailwind
+ * hues. The KEYS are unchanged — promo rows in the database store
+ * "emerald"/"sky"/"violet" and legacy promo styles reference them — so this is
+ * purely a repaint: eight scattered hues collapse onto the palette, and every
+ * value is a token that already has a dark-mode pair.
+ *
+ * Consumed by the guest promotions page and the kiosk promos screen.
+ */
+const TINTS = {
+  lake: {
+    text: "text-tint-lake",
+    muted: "text-tint-lake/70",
+    border: "border-tint-lake/25",
+    bg: "bg-tint-lake/[0.07]",
+    chip: "bg-tint-lake/15",
+  },
+  pine: {
+    text: "text-tint-pine",
+    muted: "text-tint-pine/70",
+    border: "border-tint-pine/25",
+    bg: "bg-tint-pine/[0.07]",
+    chip: "bg-tint-pine/15",
+  },
+  sand: {
+    text: "text-tint-sand",
+    muted: "text-tint-sand/70",
+    border: "border-tint-sand/25",
+    bg: "bg-tint-sand/[0.07]",
+    chip: "bg-tint-sand/15",
+  },
+  dusk: {
+    text: "text-tint-dusk",
+    muted: "text-tint-dusk/70",
+    border: "border-tint-dusk/25",
+    bg: "bg-tint-dusk/[0.07]",
+    chip: "bg-tint-dusk/15",
+  },
+  ember: {
+    text: "text-tint-ember",
+    muted: "text-tint-ember/70",
+    border: "border-tint-ember/25",
+    bg: "bg-tint-ember/[0.07]",
+    chip: "bg-tint-ember/15",
+  },
+  neutral: {
+    text: "text-foreground",
+    muted: "text-muted-foreground",
+    border: "border-border",
+    bg: "bg-muted/40",
+    chip: "bg-muted",
+  },
+} as const satisfies Record<string, AccentClasses>;
+
 export const ACCENT_CLASSES: Record<string, AccentClasses> = {
-  emerald: {
-    text: "text-emerald-700 dark:text-emerald-400",
-    muted: "text-emerald-600/70 dark:text-emerald-400/70",
-    border: "border-emerald-200 dark:border-emerald-800/50",
-    bg: "bg-emerald-50 dark:bg-emerald-950/30",
-    chip: "bg-emerald-100 dark:bg-emerald-900/40",
-  },
-  indigo: {
-    text: "text-indigo-700 dark:text-indigo-400",
-    muted: "text-indigo-600/70 dark:text-indigo-400/70",
-    border: "border-indigo-200 dark:border-indigo-800/50",
-    bg: "bg-indigo-50 dark:bg-indigo-950/30",
-    chip: "bg-indigo-100 dark:bg-indigo-900/40",
-  },
-  amber: {
-    text: "text-amber-700 dark:text-amber-400",
-    muted: "text-amber-600/70 dark:text-amber-400/70",
-    border: "border-amber-200 dark:border-amber-800/50",
-    bg: "bg-amber-50 dark:bg-amber-950/30",
-    chip: "bg-amber-100 dark:bg-amber-900/40",
-  },
-  rose: {
-    text: "text-rose-700 dark:text-rose-400",
-    muted: "text-rose-600/70 dark:text-rose-400/70",
-    border: "border-rose-200 dark:border-rose-800/50",
-    bg: "bg-rose-50 dark:bg-rose-950/30",
-    chip: "bg-rose-100 dark:bg-rose-900/40",
-  },
-  orange: {
-    text: "text-orange-700 dark:text-orange-400",
-    muted: "text-orange-600/70 dark:text-orange-400/70",
-    border: "border-orange-200 dark:border-orange-800/50",
-    bg: "bg-orange-50 dark:bg-orange-950/30",
-    chip: "bg-orange-100 dark:bg-orange-900/40",
-  },
-  sky: {
-    text: "text-sky-700 dark:text-sky-400",
-    muted: "text-sky-600/70 dark:text-sky-400/70",
-    border: "border-sky-200 dark:border-sky-800/50",
-    bg: "bg-sky-50 dark:bg-sky-950/30",
-    chip: "bg-sky-100 dark:bg-sky-900/40",
-  },
-  violet: {
-    text: "text-violet-700 dark:text-violet-400",
-    muted: "text-violet-600/70 dark:text-violet-400/70",
-    border: "border-violet-200 dark:border-violet-800/50",
-    bg: "bg-violet-50 dark:bg-violet-950/30",
-    chip: "bg-violet-100 dark:bg-violet-900/40",
-  },
-  slate: {
-    text: "text-slate-700 dark:text-slate-300",
-    muted: "text-slate-600/70 dark:text-slate-400/70",
-    border: "border-slate-200 dark:border-slate-700/50",
-    bg: "bg-slate-50 dark:bg-slate-900/30",
-    chip: "bg-slate-100 dark:bg-slate-800/40",
-  },
+  emerald: TINTS.pine,
+  indigo: TINTS.dusk,
+  amber: TINTS.sand,
+  rose: TINTS.ember,
+  orange: TINTS.ember,
+  sky: TINTS.lake,
+  violet: TINTS.dusk,
+  slate: TINTS.neutral,
 };
 
 export function accentOf(accent: string | null | undefined): AccentClasses {
-  return ACCENT_CLASSES[accent ?? "emerald"] ?? ACCENT_CLASSES.emerald;
+  return ACCENT_CLASSES[accent ?? "emerald"] ?? TINTS.lake;
 }
 
 // Presentation fallback for the curated marketing promos that predate the Promo
@@ -175,10 +181,7 @@ function PromotionCard({ promo, index, total }: { promo: Promo; index: number; t
         {/* Main grid */}
         <div className="mt-6 grid gap-6 sm:grid-cols-[1fr_auto] sm:gap-8">
           <div className="space-y-3">
-            <h3
-              className="text-[1.65rem] font-normal leading-tight tracking-tight sm:text-3xl"
-              style={{ fontFamily: "var(--font-playfair), serif" }}
-            >
+            <h3 className="font-display text-[1.65rem] font-normal leading-tight tracking-tight sm:text-3xl">
               {promo.title || "Guest Offer"}
             </h3>
 
@@ -209,10 +212,7 @@ function PromotionCard({ promo, index, total }: { promo: Promo; index: number; t
           {highlight && (
             <div className="flex items-center">
               <div className={`flex flex-col items-center rounded-xl border border-dashed px-5 py-4 text-center sm:px-7 sm:py-5 ${c.border}`}>
-                <span
-                  className={`text-3xl font-normal tracking-tight sm:text-4xl ${c.text}`}
-                  style={{ fontFamily: "var(--font-playfair), serif" }}
-                >
+                <span className={`font-display text-3xl font-normal tracking-tight sm:text-4xl ${c.text}`}>
                   {highlight.big}
                 </span>
                 <span className={`mt-0.5 text-[11px] font-medium uppercase tracking-[0.15em] ${c.muted}`}>

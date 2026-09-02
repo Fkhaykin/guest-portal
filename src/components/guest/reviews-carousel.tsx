@@ -31,8 +31,8 @@ const MASONRY_REVIEWS = (() => {
 const platformColor: Record<string, string> = {
   Airbnb: "bg-[#FF5A5F]/10 text-[#FF5A5F]",
   VRBO: "bg-[#3B5FD9]/10 text-[#3B5FD9]",
-  Google: "bg-emerald-500/10 text-emerald-600",
-  Direct: "bg-amber-500/10 text-amber-600",
+  Google: "bg-tint-pine/12 text-tint-pine",
+  Direct: "bg-amber/15 text-amber-foreground dark:text-amber",
 };
 
 /* Property name → slug mapping (from Supabase) */
@@ -95,7 +95,7 @@ function ReviewCard({ review }: { review: Review }) {
               key={i}
               className={`h-3.5 w-3.5 ${
                 i < review.rating
-                  ? "fill-amber-400 text-amber-400"
+                  ? "fill-amber text-amber"
                   : "text-muted-foreground/25"
               }`}
             />
@@ -159,10 +159,11 @@ export function ReviewsCarousel({
   return (
     <section className="px-4 sm:px-6 py-10 max-w-6xl mx-auto w-full">
       {/* Header */}
-      <div className="space-y-1 mb-6">
-        <h2 className="text-2xl sm:text-3xl font-bold tracking-tight flex items-center gap-2.5">
-          <Star className="h-6 w-6 fill-amber-400 text-amber-400" />
-          Guest Reviews
+      <div className="mb-6 space-y-1">
+        <p className="text-eyebrow text-muted-foreground">What guests say</p>
+        <h2 className="flex items-center gap-2.5 font-display text-title-lg font-semibold tracking-tight sm:text-3xl">
+          <Star className="h-6 w-6 fill-amber text-amber" />
+          Guest reviews
         </h2>
         <p className="text-muted-foreground">
           {filtered
@@ -174,12 +175,12 @@ export function ReviewsCarousel({
       {/* Rating summary bar */}
       <div className="flex items-center gap-4 mb-8 flex-wrap">
         <div className="flex items-center gap-1.5">
-          <span className="text-3xl font-bold">{averageRating}</span>
+          <span className="text-3xl font-bold tabular-nums">{averageRating}</span>
           <div className="flex gap-0.5">
             {Array.from({ length: 5 }, (_, i) => (
               <Star
                 key={i}
-                className="h-4 w-4 fill-amber-400 text-amber-400"
+                className="h-4 w-4 fill-amber text-amber"
               />
             ))}
           </div>

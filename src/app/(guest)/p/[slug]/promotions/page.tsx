@@ -2,12 +2,6 @@ import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 import { PromotionCards } from "./promotion-cards";
 import { normalizePromo } from "@/lib/promo/types";
-import { Playfair_Display } from "next/font/google";
-
-const playfair = Playfair_Display({
-  subsets: ["latin"],
-  variable: "--font-playfair",
-});
 
 export default async function PromotionsPage({
   params,
@@ -43,16 +37,11 @@ export default async function PromotionsPage({
     });
 
   return (
-    <div className={`${playfair.variable}`}>
+    <div>
       {/* Editorial header */}
       <div className="mb-10 text-center">
-        <p className="text-xs font-medium uppercase tracking-[0.3em] text-muted-foreground">
-          Summit Lakeside
-        </p>
-        <h2
-          className="mt-3 text-4xl font-normal italic tracking-tight sm:text-5xl"
-          style={{ fontFamily: "var(--font-playfair), serif" }}
-        >
+        <p className="text-eyebrow text-muted-foreground">Summit Lakeside</p>
+        <h2 className="mt-3 font-display text-display font-normal">
           Guest Exclusives
         </h2>
         <div className="mx-auto mt-4 h-px w-16 bg-foreground/20" />

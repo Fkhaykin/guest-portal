@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ShoppingBag } from "lucide-react";
 import { ServiceCard } from "@/components/guest/service-card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
 
 export default async function ServicesPage({
   params,
@@ -28,16 +29,16 @@ export default async function ServicesPage({
     .order("sort_order");
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight">Services</h2>
-        <p className="text-muted-foreground">
-          Enhance your stay with additional services
-        </p>
-      </div>
+    <div className="space-y-8">
+      <PageHeader
+        eyebrow="Your stay"
+        title="Services"
+        titleClassName="font-display text-display"
+        description="Enhance your stay with additional services."
+      />
 
       {services && services.length > 0 ? (
-        <div className="grid gap-4">
+        <div className="grid gap-4 stagger-children">
           {services.map((service) => (
             <ServiceCard key={service.id} service={service} propertySlug={slug} />
           ))}

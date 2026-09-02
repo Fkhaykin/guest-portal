@@ -12,35 +12,50 @@ import {
   Truck,
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { IconTile } from "@/components/ui/icon-tile";
+import type { Accent } from "@/lib/status-styles";
 
 const SESSION_KEY = "guest-portal-session";
 
 // Services and Videos are hidden until that content exists — restore their
 // tiles here when it does.
-const baseLinks = [
+// Accents are decorative variety, not status — one per destination so the
+// grid reads as six different places rather than six identical cards.
+const baseLinks: {
+  label: string;
+  description: string;
+  href: string;
+  icon: typeof Gift;
+  accent?: Accent;
+  absolute?: boolean;
+}[] = [
   {
     label: "Add-Ons",
     description: "Extras and experiences for your stay",
     href: "/add-ons",
     icon: Gift,
+    accent: "sand",
   },
   {
     label: "Delivery / Rideshare",
     description: "Register deliveries and rides",
     href: "/delivery",
     icon: Truck,
+    accent: "dusk",
   },
   {
     label: "Promotions",
     description: "See current deals",
     href: "/promotions",
     icon: Tag,
+    accent: "ember",
   },
   {
     label: "Explore",
     description: "Things to do in the Poconos",
     href: "/things-to-do",
     icon: MapPin,
+    accent: "pine",
     absolute: true,
   },
   {
@@ -72,12 +87,14 @@ export function QuickLinks({ slug }: { slug: string }) {
         description: "Edit guests, pets, or vehicles",
         href: "/update",
         icon: PenLine,
+        accent: "lake" as const,
       }
     : {
         label: "Register",
         description: "Register your guests and vehicles",
         href: "/register",
         icon: ClipboardList,
+        accent: "lake" as const,
       };
 
   const quickLinks = [registrationLink, ...baseLinks];
@@ -88,13 +105,11 @@ export function QuickLinks({ slug }: { slug: string }) {
         <Link
           key={item.label}
           href={"absolute" in item && item.absolute ? item.href : `/p/${slug}${item.href}`}
-          className="rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          className="rounded-xl outline-none focus-visible:ring-3 focus-visible:ring-ring/25"
         >
-          <Card className="h-full cursor-pointer ring-1 ring-border/60 transition-all hover:-translate-y-0.5 hover:shadow-md hover:ring-border">
-            <CardHeader className="flex flex-row items-center p-4 gap-3">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-                <item.icon className="h-4.5 w-4.5 text-primary" />
-              </div>
+          <Card className="h-full cursor-pointer py-0 transition-[transform,box-shadow] duration-200 ease-out-soft hover:-translate-y-0.5 hover:shadow-raised active:translate-y-0 active:shadow-card">
+            <CardHeader className="flex flex-row items-center gap-3 p-4">
+              <IconTile icon={item.icon} size="sm" accent={item.accent} />
               <div className="min-w-0 space-y-0.5">
                 <CardTitle className="text-sm leading-tight">{item.label}</CardTitle>
                 <CardDescription className="text-xs leading-snug">
