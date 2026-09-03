@@ -31,6 +31,8 @@ import {
   FileText,
   Sparkles,
   ReceiptText,
+  HandCoins,
+  SlidersHorizontal,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ReimbursementModal } from "@/components/cleaner/reimbursement-form";
@@ -39,7 +41,6 @@ import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import { toneBadge, statusTone } from "@/lib/status-styles";
 import type { InvoiceRow, UnpaidCleaning, RecentBooking } from "@/app/(cleaner)/cleaner/(protected)/invoices/page";
-import type { InvoiceLineItem } from "@/types/database";
 
 function formatCents(cents: number) {
   return `$${(cents / 100).toFixed(2)}`;
@@ -377,12 +378,18 @@ function InvoiceModal({
   const cleaningItems = invoice.line_items.filter((i) => i.type === "cleaning");
   const petFeeItems = invoice.line_items.filter((i) => i.type === "pet_fee");
   const extraItems = invoice.line_items.filter((i) => i.type === "extra");
+  const tipItems = invoice.line_items.filter((i) => i.type === "tip");
+  const monthlyFeeItems = invoice.line_items.filter((i) => i.type === "monthly_fee");
   const reimbursementItems = invoice.line_items.filter((i) => i.type === "reimbursement");
+  const adjustments = invoice.adjustments || [];
 
   const cleaningTotal = cleaningItems.reduce((s, i) => s + i.amount, 0);
   const petFeeTotal = petFeeItems.reduce((s, i) => s + i.amount, 0);
   const extraTotal = extraItems.reduce((s, i) => s + i.amount, 0);
+  const tipTotal = tipItems.reduce((s, i) => s + i.amount, 0);
+  const monthlyFeeTotal = monthlyFeeItems.reduce((s, i) => s + i.amount, 0);
   const reimbursementTotal = reimbursementItems.reduce((s, i) => s + i.amount, 0);
+  const adjustmentTotal = adjustments.reduce((s, a) => s + a.amount, 0);
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
@@ -473,6 +480,50 @@ function InvoiceModal({
             </>
           )}
 
+          {/* Guest tips */}
+          {tipItems.length > 0 && (
+            <>
+              <Separator />
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+                    <HandCoins className="h-3 w-3" />
+                    Guest Tips ({tipItems.length})
+                  </p>
+                  <p className="text-xs font-semibold">{formatCents(tipTotal)}</p>
+                </div>
+                {tipItems.map((item, i) => (
+                  <div key={i} className="flex items-center justify-between text-sm pl-4">
+                    <p className="truncate">{item.description}</p>
+                    <span className="shrink-0 ml-2 font-medium">{formatCents(item.amount)}</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
+          {/* Monthly fee */}
+          {monthlyFeeItems.length > 0 && (
+            <>
+              <Separator />
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+                    <DollarSign className="h-3 w-3" />
+                    Monthly Fee
+                  </p>
+                  <p className="text-xs font-semibold">{formatCents(monthlyFeeTotal)}</p>
+                </div>
+                {monthlyFeeItems.map((item, i) => (
+                  <div key={i} className="flex items-center justify-between text-sm pl-4">
+                    <p className="truncate">{item.description}</p>
+                    <span className="shrink-0 ml-2 font-medium">{formatCents(item.amount)}</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
           {/* Reimbursement items */}
           {reimbursementItems.length > 0 && (
             <>
@@ -495,8 +546,49 @@ function InvoiceModal({
             </>
           )}
 
+          {/* Adjustments */}
+          {adjustments.length > 0 && (
+            <>
+              <Separator />
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+                    <SlidersHorizontal className="h-3 w-3" />
+                    Adjustments ({adjustments.length})
+                  </p>
+                  <p className="text-xs font-semibold">
+                    {adjustmentTotal >= 0 ? "+" : ""}
+                    {formatCents(adjustmentTotal)}
+                  </p>
+                </div>
+                {adjustments.map((adj, i) => (
+                  <div key={i} className="flex items-center justify-between text-sm pl-4">
+                    <div className="min-w-0">
+                      <p className="truncate">{adj.description}</p>
+                      {adj.reason && (
+                        <p className="text-xs text-muted-foreground truncate">{adj.reason}</p>
+                      )}
+                    </div>
+                    <span
+                      className={`shrink-0 ml-2 font-medium ${adj.amount < 0 ? "text-destructive" : ""}`}
+                    >
+                      {adj.amount >= 0 ? "+" : ""}
+                      {formatCents(adj.amount)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
           {/* Total */}
           <Separator />
+          {adjustments.length > 0 && (
+            <div className="flex items-center justify-between text-sm text-muted-foreground">
+              <span>Subtotal</span>
+              <span>{formatCents(invoice.subtotal)}</span>
+            </div>
+          )}
           <div className="flex items-center justify-between font-bold">
             <span>Total</span>
             <span>{formatCents(invoice.total)}</span>

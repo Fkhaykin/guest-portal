@@ -5,7 +5,7 @@ import {
 } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { AdminInvoiceDetail } from "@/components/admin/invoice-detail";
-import type { InvoiceLineItem, InvoiceAttachment, InvoiceStatus } from "@/types/database";
+import type { InvoiceAdjustment, InvoiceLineItem, InvoiceAttachment, InvoiceStatus } from "@/types/database";
 
 export const dynamic = "force-dynamic";
 
@@ -57,6 +57,7 @@ export default async function AdminInvoiceDetailPage({
         period_start: invoice.period_start,
         period_end: invoice.period_end,
         line_items: invoice.line_items as InvoiceLineItem[],
+        adjustments: (invoice.adjustments as InvoiceAdjustment[] | null) ?? [],
         subtotal: invoice.subtotal,
         total: invoice.total,
         notes: invoice.notes,

@@ -4,7 +4,7 @@ import { validateCleanerSession } from "@/lib/cleaner/auth";
 import { getSessionToken } from "@/lib/cleaner/session";
 import { InvoiceTabs } from "@/components/cleaner/invoice-tabs";
 import { maskGuestName } from "@/lib/cleaner/format";
-import type { InvoiceLineItem, InvoiceStatus } from "@/types/database";
+import type { InvoiceAdjustment, InvoiceLineItem, InvoiceStatus } from "@/types/database";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +15,8 @@ export type InvoiceRow = {
   period_start: string;
   period_end: string;
   line_items: InvoiceLineItem[];
+  adjustments: InvoiceAdjustment[];
+  subtotal: number;
   total: number;
   notes: string | null;
   submitted_at: string | null;

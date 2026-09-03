@@ -27,7 +27,7 @@ import {
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { toneBadge, statusTone } from "@/lib/status-styles";
-import type { InvoiceLineItem, InvoiceStatus } from "@/types/database";
+import type { InvoiceAdjustment, InvoiceLineItem, InvoiceStatus } from "@/types/database";
 
 const TYPE_ICONS: Record<string, typeof Home> = {
   cleaning: Home,
@@ -170,6 +170,7 @@ export function AdminInvoiceDetail({
     period_start: string;
     period_end: string;
     line_items: InvoiceLineItem[];
+    adjustments: InvoiceAdjustment[];
     subtotal: number;
     total: number;
     notes: string | null;
@@ -478,6 +479,46 @@ export function AdminInvoiceDetail({
             );
           })}
 
+          {invoice.adjustments.length > 0 && (
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <Wrench className="h-4 w-4 text-muted-foreground" />
+                <p className="text-sm font-medium">
+                  Adjustments ({invoice.adjustments.length})
+                </p>
+                <span className="ml-auto text-sm font-medium text-muted-foreground">
+                  {invoice.adjustments.reduce((s, a) => s + a.amount, 0) >= 0 ? "+" : ""}
+                  {formatCents(invoice.adjustments.reduce((s, a) => s + a.amount, 0))}
+                </span>
+              </div>
+              <div className="space-y-1.5 pl-6">
+                {invoice.adjustments.map((adj, i) => (
+                  <div key={i} className="flex items-start justify-between gap-3 text-sm">
+                    <div className="min-w-0">
+                      <span className="text-muted-foreground">{adj.description}</span>
+                      {adj.reason && (
+                        <p className="text-xs text-muted-foreground/70">{adj.reason}</p>
+                      )}
+                    </div>
+                    <span
+                      className={`font-medium shrink-0 ${adj.amount < 0 ? "text-destructive" : ""}`}
+                    >
+                      {adj.amount >= 0 ? "+" : ""}
+                      {formatCents(adj.amount)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <Separator className="mt-3" />
+            </div>
+          )}
+
+          {invoice.adjustments.length > 0 && (
+            <div className="flex items-center justify-between text-sm text-muted-foreground">
+              <span>Subtotal</span>
+              <span>{formatCents(invoice.subtotal)}</span>
+            </div>
+          )}
           <div className="flex items-center justify-between pt-1">
             <p className="text-base font-semibold">Total</p>
             <p className="text-xl font-bold">{formatCents(invoice.total)}</p>
