@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendPushToCleaner } from "@/lib/push/send-push";
 import { stripUrlsForSms } from "@/lib/sms/sanitize";
+import { deliverSms } from "@/lib/sms/client";
 import {
   claimBookingAlert,
   confirmBookingAlert,
@@ -8,9 +9,7 @@ import {
 } from "@/lib/notifications/booking-alert-claim";
 import type { NotificationSettings, NotificationEventKey } from "@/types/database";
 
-const TEXTBELT_KEY = process.env.TEXTBELT_API_KEY?.trim();
-
-/** Returns true when the message was accepted by Textbelt. */
+/** Returns true when the message was accepted by the SMS provider. */
 export async function sendSms(
   to: string,
   message: string,
@@ -19,29 +18,9 @@ export async function sendSms(
   const supabase = createAdminClient();
   message = stripUrlsForSms(message);
 
-  if (!TEXTBELT_KEY) {
-    console.log("[sms] Textbelt not configured, skipping notification");
-    await supabase.from("sms_log").insert({
-      recipient_phone: to,
-      recipient_name: meta.recipientName ?? null,
-      message,
-      event_type: meta.eventType,
-      lodgify_booking_id: meta.lodgifyBookingId ?? null,
-      property_id: meta.propertyId ?? null,
-      success: false,
-      error: "TEXTBELT_API_KEY not configured",
-    });
-    return false;
-  }
+  const result = await deliverSms(to, message);
 
-  const res = await fetch("https://textbelt.com/text", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ phone: to, message, key: TEXTBELT_KEY }),
-  });
-  const data = await res.json();
-
-  if (!data.success) console.error("[sms] Textbelt error:", data.error);
+  if (!result.success) console.error("[sms] send error:", result.error);
 
   await supabase.from("sms_log").insert({
     recipient_phone: to,
@@ -50,12 +29,12 @@ export async function sendSms(
     event_type: meta.eventType,
     lodgify_booking_id: meta.lodgifyBookingId ?? null,
     property_id: meta.propertyId ?? null,
-    success: data.success === true,
-    error: data.error ?? null,
-    quota_remaining: typeof data.quotaRemaining === "number" ? data.quotaRemaining : null,
+    success: result.success,
+    error: result.error ?? null,
+    quota_remaining: result.quotaRemaining ?? null,
   });
 
-  return data.success === true;
+  return result.success;
 }
 
 type NotifyParams = {

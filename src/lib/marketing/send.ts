@@ -2,6 +2,7 @@ import { Resend } from "resend";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { interpolateTokens, splitName, formatTokenDate, htmlToPlain } from "./tokens";
 import { stripUrlsForSms } from "@/lib/sms/sanitize";
+import { deliverSms } from "@/lib/sms/client";
 import type { SegmentMember } from "./segments";
 import type {
   CampaignChannel,
@@ -10,7 +11,6 @@ import type {
   Tables,
 } from "@/types/database";
 
-const TEXTBELT_KEY = process.env.TEXTBELT_API_KEY?.trim();
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://guest.summitlakeside.com";
 
 type Campaign = Pick<
@@ -124,15 +124,9 @@ async function sendSms(
   phone: string,
   message: string
 ): Promise<{ ok: boolean; error?: string; id?: string }> {
-  if (!TEXTBELT_KEY) return { ok: false, error: "TEXTBELT_API_KEY not configured" };
-  const res = await fetch("https://textbelt.com/text", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ phone, message, key: TEXTBELT_KEY }),
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!data.success) return { ok: false, error: data.error ?? "Textbelt error" };
-  return { ok: true, id: data.textId ? String(data.textId) : undefined };
+  const data = await deliverSms(phone, message);
+  if (!data.success) return { ok: false, error: data.error ?? "SMS provider error" };
+  return { ok: true, id: data.providerId ?? undefined };
 }
 
 export type SendResult = {

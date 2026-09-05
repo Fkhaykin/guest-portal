@@ -1,6 +1,7 @@
 import { Resend } from "resend";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { stripUrlsForSms } from "@/lib/sms/sanitize";
+import { deliverSms } from "@/lib/sms/client";
 import { scheduleSentimentRefresh } from "@/lib/guest-messages/sentiment";
 
 // Direct (non-Lodgify) bookings get a synthetic thread keyed by registration
@@ -22,8 +23,6 @@ const FROM = "Summit Lakeside <contact@summitlakeside.com>";
 // Inbound reply domain (Resend receiving). When unset, no thread reply-to is
 // added and guest replies go to the From mailbox instead of the thread.
 const REPLY_DOMAIN = process.env.DIRECT_REPLY_EMAIL_DOMAIN?.trim() || null;
-const APP_URL =
-  process.env.NEXT_PUBLIC_APP_URL ?? "https://guest.summitlakeside.com";
 
 export function replyAddressFor(registrationId: string): string | null {
   return REPLY_DOMAIN ? `reply+${registrationId}@${REPLY_DOMAIN}` : null;
@@ -186,32 +185,15 @@ export async function sendDirectGuestMessage(
   }
 
   if (ctx.guestPhone) {
-    const key = process.env.TEXTBELT_API_KEY?.trim();
-    if (!key) {
-      if (!ctx.guestEmail) errors.push("sms: TEXTBELT_API_KEY not configured");
-    } else {
-      try {
-        const res = await fetch("https://textbelt.com/text", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            phone: ctx.guestPhone,
-            message: `Summit Lakeside: ${stripUrlsForSms(
-              text,
-              ctx.guestEmail ? "(link sent by email)" : ""
-            )}`,
-            key,
-            replyWebhookUrl: `${APP_URL}/api/sms/inbound`,
-            webhookData: registrationId,
-          }),
-        });
-        const data = (await res.json()) as { success?: boolean; error?: string };
-        if (data.success) sentVia = sentVia ?? "sms";
-        else errors.push(`sms: ${data.error ?? "unknown Textbelt error"}`);
-      } catch (err) {
-        errors.push(`sms: ${err instanceof Error ? err.message : "failed"}`);
-      }
-    }
+    const message = `Summit Lakeside: ${stripUrlsForSms(
+      text,
+      ctx.guestEmail ? "(link sent by email)" : ""
+    )}`;
+    // replyContext routes the guest's reply back to this registration (Textbelt
+    // webhookData; Twilio routes by phone number instead).
+    const data = await deliverSms(ctx.guestPhone, message, { replyContext: registrationId });
+    if (data.success) sentVia = sentVia ?? "sms";
+    else errors.push(`sms: ${data.error ?? "unknown SMS provider error"}`);
   }
 
   if (!sentVia) {
