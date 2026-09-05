@@ -22,9 +22,9 @@ import {
 export const revalidate = 3600;
 
 export const metadata: Metadata = {
-  title: "Penn Estates Vacation Rentals — 4 Lake Homes on Lakeside Drive",
+  title: "Penn Estates, East Stroudsburg — Gate Info, Amenities & Lake Home Rentals",
   description:
-    "Stay inside Penn Estates, a gated 1,200-acre Poconos community in East Stroudsburg, PA. Four Summit Lakeside homes on Lower Twin Lake — hot tubs, boats, game rooms — plus three lakes, two Olympic pools, and sports courts.",
+    "Visiting Penn Estates? The Welcome Center and main gate are at 525 Penn Estates Dr (back gate is exit-only). Community guide to the lakes, pools, and courts — plus four Summit Lakeside vacation homes on Lower Twin Lake.",
   alternates: { canonical: "/penn-estates" },
   openGraph: ogMeta({
     title: "Penn Estates Vacation Rentals | Summit Lakeside",
@@ -78,7 +78,7 @@ const PE_FAQ = [
   },
   {
     q: "Where are the Penn Estates front gate and Welcome Center?",
-    a: "All arrivals check in at the main gate at 525 Penn Estates Drive, East Stroudsburg — set your GPS there, have your driver's license ready, and pick up your printed gate pass. The Welcome Center sits at the same entrance. If your GPS suggests the back gate, re-route to the main gate: visitor passes are only issued at the front.",
+    a: "All arrivals check in at the main gate at 525 Penn Estates Drive, East Stroudsburg 18301 — set your GPS there. Security will ask for your name, the property address, and your car's make and plate, then issue a printed gate pass; have your driver's license ready. The Welcome Center sits at the same entrance. The back gate is exit-only — you can leave through it, but you can't enter there, even with a pass.",
   },
   {
     q: "Which Summit Lakeside homes are inside Penn Estates?",
@@ -195,6 +195,51 @@ export default async function PennEstatesPage() {
               It's the rare setup where a big group can book multiple houses on
               one street and spend the weekend two doors apart.
             </p>
+          </div>
+        </div>
+      </section>
+
+      {/* Visiting Penn Estates — gate & welcome center (top search intent) */}
+      <section id="visiting" className="py-4 pb-20 sm:pb-28 scroll-mt-24">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          <SectionLabel
+            eyebrow="Visiting Penn Estates"
+            title="The gate, the Welcome Center, and how to get in."
+          />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="rounded-3xl border bg-card p-7">
+              <h3 className="font-bold text-lg">Main gate & Welcome Center</h3>
+              <p className="text-muted-foreground mt-2 leading-relaxed text-sm">
+                525 Penn Estates Drive, East Stroudsburg, PA 18301 — set your
+                GPS there. Every visitor checks in with security at this
+                gatehouse; the Welcome Center is at the same entrance.
+              </p>
+              <a
+                href="https://www.google.com/maps/search/?api=1&query=Penn%20Estates%20Gatehouse%20525%20Penn%20Estates%20Dr%20East%20Stroudsburg%20PA"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-block mt-3 text-sm font-semibold text-primary underline decoration-primary/30 underline-offset-4 hover:decoration-primary"
+              >
+                Directions to the main gate ↗
+              </a>
+            </div>
+            <div className="rounded-3xl border bg-card p-7">
+              <h3 className="font-bold text-lg">What the gate asks for</h3>
+              <p className="text-muted-foreground mt-2 leading-relaxed text-sm">
+                Your name, the address you're visiting, and your car's make and
+                license plate — then you get a printed pass for the dashboard.
+                Staying with us? We register your names ahead of time, so it's
+                a quick stop with your driver's license.
+              </p>
+            </div>
+            <div className="rounded-3xl border bg-card p-7">
+              <h3 className="font-bold text-lg">Back gate is exit-only</h3>
+              <p className="text-muted-foreground mt-2 leading-relaxed text-sm">
+                If GPS routes you to the back entrance, re-aim for the main
+                gate — the back gate only lets traffic out, even with a pass.
+                Community office: 304 Cricket Drive, Mon–Sat 8 AM–4 PM.
+              </p>
+            </div>
           </div>
         </div>
       </section>
