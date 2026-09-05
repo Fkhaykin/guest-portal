@@ -809,9 +809,9 @@ export const COMMUNITIES: Community[] = [
           {
             name: "Lower Twin Lake",
             description:
-              "Our lake. Every one of our houses sits on the water here — and it's where we keep the boats. Step out the back door and you're on the dock.",
+              "The boating-and-fishing lake, ringed by lakefront homes — including the Summit Lakeside rentals on Lakeside Drive, each with kayaks, canoes, and pedal boats waiting at the dock.",
             image: guideImg("pe-lower-twin"),
-            tags: ["Our Houses", "Boats", "Dock"],
+            tags: ["Boating", "Fishing", "Docks"],
             mapQuery: "Lower Twin Lake Penn Estates PA",
             featured: true,
           },
