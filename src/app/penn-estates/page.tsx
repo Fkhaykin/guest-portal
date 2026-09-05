@@ -27,9 +27,9 @@ export const metadata: Metadata = {
     "Visiting Penn Estates? The Welcome Center and main gate are at 525 Penn Estates Dr (back gate is exit-only). Community guide to the lakes, pools, and courts — plus four Summit Lakeside vacation homes on Lower Twin Lake.",
   alternates: { canonical: "/penn-estates" },
   openGraph: ogMeta({
-    title: "Penn Estates Vacation Rentals | Summit Lakeside",
+    title: "Penn Estates, East Stroudsburg | Summit Lakeside",
     description:
-      "Four lakefront vacation homes inside the gated Penn Estates community — with three lakes, two Olympic pools, and courts a few steps from your door.",
+      "Community guide to Penn Estates: the gate and Welcome Center, three lakes, two Olympic pools, rebuilt courts and fields — and lakefront vacation rentals on Lower Twin Lake.",
   }),
 };
 
@@ -70,11 +70,11 @@ const PE_HOUSES: Array<Omit<PropertyCardData, "image" | "sleeps"> & { slug: stri
 const PE_FAQ = [
   {
     q: "Is Penn Estates a gated community?",
-    a: "Yes — Penn Estates is a gated, roughly 1,200-acre community in East Stroudsburg. We register your name (and your guests') with the gate before arrival; you show ID at the gatehouse and drive in. Every stay includes the HOA amenity badges that unlock the pools, beach, and shared facilities.",
+    a: "Yes — Penn Estates is a gated, roughly 1,200-acre community in East Stroudsburg. Every visitor checks in at the gatehouse with ID; vacation-rental guests are registered with the gate ahead of arrival. Stays at Summit Lakeside homes include the HOA amenity badges that unlock the pools, beach, and shared facilities.",
   },
   {
     q: "Can you swim in the lakes at Penn Estates?",
-    a: "Swimming happens at Highland Lake's sandy beach and at the two Olympic-size community pools (open Memorial Day through Labor Day). Lower Twin Lake — where our houses sit — is for boating and catch-and-release fishing, right off the dock.",
+    a: "Swimming happens at Highland Lake's sandy beach and at the two Olympic-size community pools (open Memorial Day through Labor Day). Lower Twin Lake is for boating and catch-and-release fishing.",
   },
   {
     q: "Where are the Penn Estates front gate and Welcome Center?",
@@ -82,7 +82,7 @@ const PE_FAQ = [
   },
   {
     q: "Which Summit Lakeside homes are inside Penn Estates?",
-    a: "Four of our five: the Lakehouse, the Chalet, the Manor, and the Cottage — all on Lakeside Drive along Lower Twin Lake. The Mansion is in the neighboring Blue Mountain Lake community, about 15 minutes away.",
+    a: "Four Summit Lakeside homes are inside Penn Estates: the Lakehouse, the Chalet, the Manor, and the Cottage — all on Lakeside Drive along Lower Twin Lake. The Mansion is in the neighboring Blue Mountain Lake community, about 15 minutes away.",
   },
   {
     q: "How far is Penn Estates from NYC?",
@@ -90,7 +90,7 @@ const PE_FAQ = [
   },
   {
     q: "Can a large group book several houses together?",
-    a: "Yes — our four Penn Estates homes are on the same street, so multi-family groups and reunions of 40+ can stay two doors apart and share the docks, fire pits, and game rooms. Message us and we'll coordinate the calendars.",
+    a: "Yes — the four Summit Lakeside homes are on the same street, so multi-family groups and reunions of 40+ can stay two doors apart and share the docks, fire pits, and game rooms. Contact Summit Lakeside to coordinate calendars for a multi-house stay.",
   },
 ];
 
@@ -150,9 +150,9 @@ export default async function PennEstatesPage() {
       <ContentHero
         image={HERO}
         alt="Private dock on Lower Twin Lake in Penn Estates"
-        eyebrow="Our Home Community · East Stroudsburg, PA"
-        title="Penn Estates: four lake homes inside the gate."
-        lede="A gated, 1,200-acre Poconos community with three lakes, two Olympic pools, and courts for every sport — and our four houses sitting right on the water."
+        eyebrow="Community Guide · East Stroudsburg, PA"
+        title="Penn Estates, East Stroudsburg."
+        lede="A gated, 1,200-acre community in the heart of the Poconos — three lakes, two Olympic-size pools, freshly rebuilt courts and fields, and quiet wooded streets about 90 minutes from New York City."
       />
 
       <TrustStrip />
@@ -168,32 +168,31 @@ export default async function PennEstatesPage() {
           </div>
           <div className="lg:col-span-7 space-y-5 text-lg text-muted-foreground leading-relaxed">
             <p>
-              Penn Estates is where we've hosted since day one. Behind the gatehouse
-              you'll find quiet wooded streets, {pennEstates.stats[0].num}{" "}
-              community lakes, {pennEstates.stats[1].num} Olympic-size pools,
-              and {pennEstates.stats[2].num} freshly rebuilt courts and fields
-              — tennis, pickleball, basketball, baseball, soccer, sand
+              Penn Estates is one of the Poconos' most established gated
+              communities. Behind the gatehouse: quiet wooded streets,{" "}
+              {pennEstates.stats[0].num} community lakes,{" "}
+              {pennEstates.stats[1].num} Olympic-size pools, and{" "}
+              {pennEstates.stats[2].num} freshly rebuilt courts and fields —
+              tennis, pickleball, basketball, baseball, soccer, sand
               volleyball, wallball, even horseshoe pits and outdoor fitness
-              stations. Every
-              Summit Lakeside stay includes the HOA amenity badges that unlock
-              all of it.
+              stations.
             </p>
             <p>
-              Our four homes here — the Lakehouse, the Chalet, the Manor, and
-              the Cottage — sit together on Lakeside Drive along Lower Twin
-              Lake. That's not marketing shorthand: step out the back door and
-              you're on the dock, where the kayaks, canoes, and pedal boats
-              are waiting.
+              The community sits just off Route 447 in East Stroudsburg —
+              about 20 minutes from the Delaware Water Gap, under half an hour
+              from Camelback and Shawnee, and roughly 90 minutes from the
+              George Washington Bridge.
             </p>
             <p>
-              And right outside the gate sits the ForEvergreen Nature Preserve
-              — 42 acres of meadow and woods with an easy mile loop down to
-              the Brodhead Creek, the stream where American trout fishing was
-              born. First-morning coffee walk, solved.
+              Directly outside the main gate, the ForEvergreen Nature Preserve
+              adds 42 acres of meadow and woods with an easy mile loop down to
+              Brodhead Creek — the stream where American trout fishing was
+              born.
             </p>
             <p className="text-foreground font-medium">
-              It's the rare setup where a big group can book multiple houses on
-              one street and spend the weekend two doors apart.
+              Amenity access is by HOA badge: residents carry their own, and
+              vacation rentals inside the community include badges with the
+              stay.
             </p>
           </div>
         </div>
@@ -226,10 +225,11 @@ export default async function PennEstatesPage() {
             <div className="rounded-3xl border bg-card p-7">
               <h3 className="font-bold text-lg">What the gate asks for</h3>
               <p className="text-muted-foreground mt-2 leading-relaxed text-sm">
-                Your name, the address you're visiting, and your car's make and
-                license plate — then you get a printed pass for the dashboard.
-                Staying with us? We register your names ahead of time, so it's
-                a quick stop with your driver's license.
+                Your name, the address you're visiting, and your car's make
+                and license plate — then you get a printed pass for the
+                dashboard. Vacation-rental guests are typically registered
+                ahead of arrival, so it's a quick stop with a driver's
+                license.
               </p>
             </div>
             <div className="rounded-3xl border bg-card p-7">
@@ -306,7 +306,7 @@ export default async function PennEstatesPage() {
           <p className="text-muted-foreground mt-10">
             Want the full picture of the area beyond the gate?{" "}
             <Link href="/things-to-do" className="text-primary font-medium hover:underline">
-              See our Poconos guide →
+              See the full Poconos guide →
             </Link>
           </p>
         </div>
@@ -316,9 +316,9 @@ export default async function PennEstatesPage() {
       <section className="py-20 sm:py-28">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <SectionLabel
-            eyebrow="Stay Here"
-            title="The four houses on Lakeside Drive."
-            sub="Every home comes with a hot tub, a fire pit, free boats, and the community badges."
+            eyebrow="Stay in Penn Estates"
+            title="Vacation rentals on Lower Twin Lake."
+            sub="Four Summit Lakeside homes along Lakeside Drive — hot tubs, fire pits, free boats, and HOA amenity badges included."
           />
           <PropertyCardGrid cards={cards} />
         </div>
@@ -327,7 +327,7 @@ export default async function PennEstatesPage() {
       {/* Reviews */}
       <section className="py-4 pb-20 sm:pb-28">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <SectionLabel eyebrow="Guest Words" title="From stays on this street." />
+          <SectionLabel eyebrow="Guest Words" title="From guest stays in Penn Estates." />
           <ReviewQuoteGrid reviews={quotes} />
         </div>
       </section>
