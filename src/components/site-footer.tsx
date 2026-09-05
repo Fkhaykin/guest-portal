@@ -41,6 +41,9 @@ export function SiteFooter() {
               <Link href="/east-stroudsburg-restaurants" className="hover:text-foreground transition-colors">
                 Where to Eat
               </Link>
+              <Link href="/poconos-winter-activities" className="hover:text-foreground transition-colors">
+                Winter Guide
+              </Link>
               <Link href="/faq" className="hover:text-foreground transition-colors">
                 Guest FAQ
               </Link>

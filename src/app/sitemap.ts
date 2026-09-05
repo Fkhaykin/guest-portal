@@ -14,6 +14,7 @@ const MARKETING_PATHS = [
   "/penn-estates",
   "/blue-mountain-lake",
   "/poconos-fall-getaways",
+  "/poconos-winter-activities",
   "/faq",
   "/why-summit",
   "/management-services",
