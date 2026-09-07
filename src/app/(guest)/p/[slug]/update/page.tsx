@@ -24,7 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Users, Car, Gift, PawPrint, Plus, Minus, Loader2, Check, ChevronLeft, Upload, Truck, ShoppingBag, Package, Sparkles, CalendarPlus } from "lucide-react";
+import { Users, Car, Gift, PawPrint, Plus, Minus, Loader2, Check, ChevronLeft, Upload, Truck, ShoppingBag, Package, Sparkles, CalendarPlus, FileCheck, CircleAlert, Pencil } from "lucide-react";
 
 type AgeGroup = "over_21" | "under_21" | "infant";
 type GuestEntry = { first_name: string; last_name: string; age_group: AgeGroup };
@@ -106,6 +106,22 @@ function FoodProviderIcon({ id, name }: { id: string; name: string }) {
   return <Package className="h-6 w-6 text-muted-foreground" />;
 }
 
+const PET_DOC_ACCEPT = ".pdf,.jpg,.jpeg,.png,.webp,.heic,.heif,image/heic,image/heif";
+
+function PetDocStatus({ label, path }: { label: string; path: string | null }) {
+  return path ? (
+    <p className="flex items-center gap-1.5 text-xs text-success">
+      <FileCheck className="h-3.5 w-3.5 shrink-0" /> {label} on file
+    </p>
+  ) : (
+    <p className="flex items-center gap-1.5 text-xs text-destructive">
+      <CircleAlert className="h-3.5 w-3.5 shrink-0" /> {label} missing
+    </p>
+  );
+}
+
+const MAX_PET_DOC_BYTES = 10 * 1024 * 1024;
+
 export default function UpdateRegistrationPage() {
   const property = useProperty();
   const router = useRouter();
@@ -153,6 +169,16 @@ export default function UpdateRegistrationPage() {
   const [petSaved, setPetSaved] = useState(false);
   const [existingPets, setExistingPets] = useState<PetEntry[]>([]);
   const [uploadingDocs, setUploadingDocs] = useState(false);
+  const [petDocError, setPetDocError] = useState("");
+  // Editing a pet that's already on the registration (rename, or supply the
+  // vaccination paperwork the guest didn't have at check-in time)
+  const [editingPet, setEditingPet] = useState<number | null>(null);
+  const [editPet, setEditPet] = useState({ name: "", kind: "" });
+  const [editRabiesFile, setEditRabiesFile] = useState<File | null>(null);
+  const [editVaccinationFile, setEditVaccinationFile] = useState<File | null>(null);
+  const [editError, setEditError] = useState("");
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [editSavedIndex, setEditSavedIndex] = useState<number | null>(null);
 
   const searchParams = useSearchParams();
 
@@ -353,47 +379,143 @@ export default function UpdateRegistrationPage() {
   const petFeeDue =
     petFeeCents > 0 && lodgifyNumPets === 0 && existingPets.length === 0 && !petFeePaid;
   const atPetLimit = existingPets.length >= 3;
+  const petsMissingDocs = existingPets.filter((p) => !p.rabies_doc_path || !p.vaccination_doc_path);
 
-  async function uploadPetDocs(regId: string, petIndex: number) {
+  /** Uploads whichever docs were picked. Throws with a guest-facing message if one fails. */
+  async function uploadPetDocs(
+    regId: string,
+    petIndex: number,
+    rabies: File | null = rabiesFile,
+    vaccination: File | null = vaccinationFile
+  ) {
     let rabiesPath: string | null = null;
     let vaccinationPath: string | null = null;
 
-    if (rabiesFile) {
+    // An oversized body is rejected upstream of the route, with no JSON error
+    // to read, so check here to give the guest a useful message.
+    for (const f of [rabies, vaccination]) {
+      if (f && f.size > MAX_PET_DOC_BYTES) {
+        throw new Error(`"${f.name}" is larger than 10MB. Please upload a smaller file.`);
+      }
+    }
+
+    if (rabies) {
       const fd = new FormData();
-      fd.append("file", rabiesFile);
+      fd.append("file", rabies);
       fd.append("registration_id", regId);
       fd.append("pet_index", String(petIndex));
       fd.append("doc_type", "rabies");
       const res = await fetch("/api/guest/upload-pet-doc", { method: "POST", headers: { "x-guest-token": getGuestToken() }, body: fd });
-      if (res.ok) {
-        const data = await res.json();
-        rabiesPath = data.path;
+      if (!res.ok) {
+        const message = await res.json().then((d) => d?.error as string | undefined).catch(() => undefined);
+        throw new Error(message || "We couldn't upload the rabies document. Please try again.");
       }
+      const data = await res.json();
+      rabiesPath = data.path;
     }
 
-    if (vaccinationFile) {
+    if (vaccination) {
       const fd = new FormData();
-      fd.append("file", vaccinationFile);
+      fd.append("file", vaccination);
       fd.append("registration_id", regId);
       fd.append("pet_index", String(petIndex));
       fd.append("doc_type", "vaccination");
       const res = await fetch("/api/guest/upload-pet-doc", { method: "POST", headers: { "x-guest-token": getGuestToken() }, body: fd });
-      if (res.ok) {
-        const data = await res.json();
-        vaccinationPath = data.path;
+      if (!res.ok) {
+        const message = await res.json().then((d) => d?.error as string | undefined).catch(() => undefined);
+        throw new Error(message || "We couldn't upload the vaccination document. Please try again.");
       }
+      const data = await res.json();
+      vaccinationPath = data.path;
     }
 
     return { rabiesPath, vaccinationPath };
   }
 
+  function startEditPet(index: number) {
+    const pet = existingPets[index];
+    setEditingPet(index);
+    setEditPet({ name: pet.name, kind: pet.kind });
+    setEditRabiesFile(null);
+    setEditVaccinationFile(null);
+    setEditError("");
+    setEditSavedIndex(null);
+  }
+
+  async function handleSaveEditedPet() {
+    if (editingPet === null || !registrationId) return;
+    const index = editingPet;
+    const pet = existingPets[index];
+
+    if (!editPet.name.trim() || !editPet.kind.trim()) {
+      setEditError("Pet name and type are required.");
+      return;
+    }
+
+    setSavingEdit(true);
+    setEditError("");
+
+    // Keep whatever is already on file unless this edit replaces it
+    let rabiesPath = pet.rabies_doc_path;
+    let vaccinationPath = pet.vaccination_doc_path;
+    try {
+      const uploaded = await uploadPetDocs(registrationId, index, editRabiesFile, editVaccinationFile);
+      if (uploaded.rabiesPath) rabiesPath = uploaded.rabiesPath;
+      if (uploaded.vaccinationPath) vaccinationPath = uploaded.vaccinationPath;
+    } catch (err) {
+      setEditError(err instanceof Error ? err.message : "Upload failed. Please try again.");
+      setSavingEdit(false);
+      return;
+    }
+
+    const updatedPets = existingPets.map((p, i) =>
+      i === index
+        ? { ...p, name: editPet.name.trim(), kind: editPet.kind.trim(), rabies_doc_path: rabiesPath, vaccination_doc_path: vaccinationPath }
+        : p
+    );
+
+    const res = await fetch("/api/guest/update", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-guest-token": getGuestToken() },
+      body: JSON.stringify({ registration_id: registrationId, section: "pets", pets: updatedPets }),
+    });
+
+    if (res.ok) {
+      setExistingPets(updatedPets);
+      setEditingPet(null);
+      setEditSavedIndex(index);
+    } else {
+      const message = await res.json().then((d) => d?.error as string | undefined).catch(() => undefined);
+      setEditError(message || "Couldn't save your changes. Please try again.");
+    }
+    setSavingEdit(false);
+  }
+
   async function handleAddPet() {
     if (!registrationId || !newPet.name.trim() || !newPet.kind.trim() || atPetLimit) return;
+
+    // The HOA requires both records for every pet.
+    if (!rabiesFile || !vaccinationFile) {
+      setPetDocError("Please attach both the rabies certificate and the vaccination records.");
+      return;
+    }
+
     setSavingPet(true);
     setUploadingDocs(true);
+    setPetDocError("");
 
     const petIndex = existingPets.length;
-    const { rabiesPath, vaccinationPath } = await uploadPetDocs(registrationId, petIndex);
+    let rabiesPath: string | null = null;
+    let vaccinationPath: string | null = null;
+    try {
+      ({ rabiesPath, vaccinationPath } = await uploadPetDocs(registrationId, petIndex));
+    } catch (err) {
+      // Don't add the pet with missing paperwork — let the guest retry.
+      setPetDocError(err instanceof Error ? err.message : "Upload failed. Please try again.");
+      setUploadingDocs(false);
+      setSavingPet(false);
+      return;
+    }
     setUploadingDocs(false);
 
     const petEntry: PetEntry = {
@@ -628,7 +750,7 @@ export default function UpdateRegistrationPage() {
         </Button>
 
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Add a Pet</h1>
+          <h1 className="text-2xl font-bold tracking-tight">{existingPets.length > 0 ? "Pets" : "Add a Pet"}</h1>
           <p className="text-muted-foreground text-sm">
             {atPetLimit
               ? "Your registration already has the maximum of 3 pets per stay."
@@ -649,27 +771,27 @@ export default function UpdateRegistrationPage() {
               <Input value={newPet.kind} onChange={(e) => setNewPet({ ...newPet, kind: e.target.value })} placeholder="Dog, Cat, etc." />
             </div>
             <div className="space-y-1">
-              <Label>Rabies Certificate</Label>
+              <Label>Rabies Certificate *</Label>
               <div className="flex items-center gap-2">
                 <label className="flex-1 flex items-center gap-2 cursor-pointer rounded-md border border-input px-3 py-2 text-sm hover:bg-accent transition-colors">
                   <Upload className="h-4 w-4 text-muted-foreground" />
                   <span className={rabiesFile ? "text-success" : "text-muted-foreground"}>
                     {rabiesFile ? rabiesFile.name : "Upload file"}
                   </span>
-                  <input type="file" className="hidden" accept=".pdf,.jpg,.jpeg,.png,.webp"
+                  <input type="file" className="hidden" accept=".pdf,.jpg,.jpeg,.png,.webp,.heic,.heif,image/heic,image/heif"
                     onChange={(e) => setRabiesFile(e.target.files?.[0] || null)} />
                 </label>
               </div>
             </div>
             <div className="space-y-1">
-              <Label>Vaccination Records</Label>
+              <Label>Vaccination Records *</Label>
               <div className="flex items-center gap-2">
                 <label className="flex-1 flex items-center gap-2 cursor-pointer rounded-md border border-input px-3 py-2 text-sm hover:bg-accent transition-colors">
                   <Upload className="h-4 w-4 text-muted-foreground" />
                   <span className={vaccinationFile ? "text-success" : "text-muted-foreground"}>
                     {vaccinationFile ? vaccinationFile.name : "Upload file"}
                   </span>
-                  <input type="file" className="hidden" accept=".pdf,.jpg,.jpeg,.png,.webp"
+                  <input type="file" className="hidden" accept=".pdf,.jpg,.jpeg,.png,.webp,.heic,.heif,image/heic,image/heif"
                     onChange={(e) => setVaccinationFile(e.target.files?.[0] || null)} />
                 </label>
               </div>
@@ -680,6 +802,12 @@ export default function UpdateRegistrationPage() {
         {petSaved && (
           <div className="flex items-center gap-2 text-sm text-success">
             <Check className="h-4 w-4" /> Pet added successfully
+          </div>
+        )}
+
+        {petDocError && (
+          <div className="rounded-lg bg-destructive/10 border border-destructive/30 p-3 text-sm text-destructive">
+            {petDocError}
           </div>
         )}
 
@@ -698,12 +826,80 @@ export default function UpdateRegistrationPage() {
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium text-muted-foreground">Current Pets ({existingPets.length})</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-1">
-              {existingPets.map((p, i) => (
-                <p key={i} className="text-sm">
-                  {p.name} <span className="text-muted-foreground">({p.kind})</span>
-                </p>
-              ))}
+            <CardContent className="space-y-3">
+              {existingPets.map((p, i) =>
+                editingPet === i ? (
+                  <div key={i} className="rounded-lg border p-3 space-y-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs">Pet Name *</Label>
+                      <Input value={editPet.name} onChange={(e) => setEditPet({ ...editPet, name: e.target.value })} placeholder="Buddy" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Type *</Label>
+                      <Input value={editPet.kind} onChange={(e) => setEditPet({ ...editPet, kind: e.target.value })} placeholder="Dog, Cat, etc." />
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label className="text-xs">Rabies Certificate</Label>
+                      <label className="flex items-center gap-2 cursor-pointer rounded-md border border-input px-3 py-2 text-sm hover:bg-accent transition-colors">
+                        <Upload className="h-4 w-4 text-muted-foreground" />
+                        <span className={editRabiesFile ? "text-success" : "text-muted-foreground"}>
+                          {editRabiesFile ? editRabiesFile.name : p.rabies_doc_path ? "Replace file" : "Upload file"}
+                        </span>
+                        <input type="file" className="hidden" accept={PET_DOC_ACCEPT}
+                          onChange={(e) => setEditRabiesFile(e.target.files?.[0] || null)} />
+                      </label>
+                      {!editRabiesFile && <PetDocStatus label="Rabies certificate" path={p.rabies_doc_path} />}
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label className="text-xs">Vaccination Records</Label>
+                      <label className="flex items-center gap-2 cursor-pointer rounded-md border border-input px-3 py-2 text-sm hover:bg-accent transition-colors">
+                        <Upload className="h-4 w-4 text-muted-foreground" />
+                        <span className={editVaccinationFile ? "text-success" : "text-muted-foreground"}>
+                          {editVaccinationFile ? editVaccinationFile.name : p.vaccination_doc_path ? "Replace file" : "Upload file"}
+                        </span>
+                        <input type="file" className="hidden" accept={PET_DOC_ACCEPT}
+                          onChange={(e) => setEditVaccinationFile(e.target.files?.[0] || null)} />
+                      </label>
+                      {!editVaccinationFile && <PetDocStatus label="Vaccination records" path={p.vaccination_doc_path} />}
+                    </div>
+
+                    {editError && (
+                      <div className="rounded-lg bg-destructive/10 border border-destructive/30 p-3 text-sm text-destructive">
+                        {editError}
+                      </div>
+                    )}
+
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" className="flex-1" disabled={savingEdit} onClick={() => setEditingPet(null)}>
+                        Cancel
+                      </Button>
+                      <Button size="sm" className="flex-1" disabled={savingEdit} onClick={handleSaveEditedPet}>
+                        {savingEdit ? "Saving..." : "Save Changes"}
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div key={i} className="flex items-start justify-between gap-3 rounded-lg border p-3">
+                    <div className="min-w-0 space-y-1">
+                      <p className="text-sm font-medium">
+                        {p.name} <span className="font-normal text-muted-foreground">({p.kind})</span>
+                      </p>
+                      <PetDocStatus label="Rabies certificate" path={p.rabies_doc_path} />
+                      <PetDocStatus label="Vaccination records" path={p.vaccination_doc_path} />
+                      {editSavedIndex === i && (
+                        <p className="flex items-center gap-1.5 text-xs text-success">
+                          <Check className="h-3.5 w-3.5 shrink-0" /> Saved
+                        </p>
+                      )}
+                    </div>
+                    <Button variant="outline" size="sm" className="shrink-0" onClick={() => startEditPet(i)}>
+                      <Pencil className="h-3.5 w-3.5 mr-1" /> Edit
+                    </Button>
+                  </div>
+                )
+              )}
             </CardContent>
           </Card>
         )}
@@ -1144,8 +1340,16 @@ export default function UpdateRegistrationPage() {
               <PawPrint className="h-6 w-6 text-primary" />
             </div>
             <div>
-              <CardTitle className="text-sm font-semibold">Add a Pet</CardTitle>
-              <CardDescription className="text-xs mt-1 hidden sm:block">{petFeeDue ? `$${(petFeeCents / 100).toFixed(petFeeCents % 100 === 0 ? 0 : 2)} fee` : "Register a pet"}</CardDescription>
+              <CardTitle className="text-sm font-semibold">{existingPets.length > 0 ? "Pets" : "Add a Pet"}</CardTitle>
+              <CardDescription className={`text-xs mt-1 hidden sm:block${petsMissingDocs.length > 0 ? " text-destructive" : ""}`}>
+                {petsMissingDocs.length > 0
+                  ? "Vaccination records needed"
+                  : petFeeDue
+                  ? `$${(petFeeCents / 100).toFixed(petFeeCents % 100 === 0 ? 0 : 2)} fee`
+                  : existingPets.length > 0
+                  ? "Add or update a pet"
+                  : "Register a pet"}
+              </CardDescription>
             </div>
           </CardContent>
         </Card>

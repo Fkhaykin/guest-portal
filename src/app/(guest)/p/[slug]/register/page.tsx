@@ -215,6 +215,8 @@ function backupForStripeRedirect() {
   }
 }
 
+const MAX_PET_DOC_BYTES = 10 * 1024 * 1024;
+
 export default function RegisterPage() {
   const property = useProperty();
   const router = useRouter();
@@ -237,6 +239,8 @@ export default function RegisterPage() {
   const [hasPets, setHasPets] = useState(false);
   const [pets, setPets] = useState<PetEntry[]>([]);
   const [uploadingDoc, setUploadingDoc] = useState<string | null>(null);
+  // Upload failures, keyed by `${petIndex}-${docType}` so each slot shows its own
+  const [uploadErrors, setUploadErrors] = useState<Record<string, string>>({});
   const [notes, setNotes] = useState("");
   const [hasScrolledTerms, setHasScrolledTerms] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
@@ -541,6 +545,22 @@ export default function RegisterPage() {
   async function handlePetDocUpload(petIndex: number, docType: "rabies" | "vaccination", file: File) {
     if (!session) return;
     const key = `${petIndex}-${docType}`;
+    setUploadErrors((prev) => {
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+
+    // Caught here so the guest gets a useful message — an oversized body is
+    // rejected upstream of the route, with no JSON error to read.
+    if (file.size > MAX_PET_DOC_BYTES) {
+      setUploadErrors((prev) => ({
+        ...prev,
+        [key]: "That file is larger than 10MB. Please upload a smaller file.",
+      }));
+      return;
+    }
+
     setUploadingDoc(key);
 
     const formData = new FormData();
@@ -556,26 +576,39 @@ export default function RegisterPage() {
         body: formData,
       });
 
-      if (res.ok) {
-        const data = await res.json();
-        const updated = [...pets];
-        if (docType === "rabies") {
-          updated[petIndex] = {
-            ...updated[petIndex],
-            rabies_doc_path: data.path,
-            rabies_doc_name: file.name,
-          };
-        } else {
-          updated[petIndex] = {
-            ...updated[petIndex],
-            vaccination_doc_path: data.path,
-            vaccination_doc_name: file.name,
-          };
-        }
-        setPets(updated);
+      if (!res.ok) {
+        const message = await res
+          .json()
+          .then((d) => d?.error as string | undefined)
+          .catch(() => undefined);
+        setUploadErrors((prev) => ({
+          ...prev,
+          [key]: message || "Upload failed. Please try again.",
+        }));
+        return;
       }
+
+      const data = await res.json();
+      const updated = [...pets];
+      if (docType === "rabies") {
+        updated[petIndex] = {
+          ...updated[petIndex],
+          rabies_doc_path: data.path,
+          rabies_doc_name: file.name,
+        };
+      } else {
+        updated[petIndex] = {
+          ...updated[petIndex],
+          vaccination_doc_path: data.path,
+          vaccination_doc_name: file.name,
+        };
+      }
+      setPets(updated);
     } catch {
-      // Handle error silently
+      setUploadErrors((prev) => ({
+        ...prev,
+        [key]: "Upload failed — check your connection and try again.",
+      }));
     } finally {
       setUploadingDoc(null);
     }
@@ -1168,6 +1201,20 @@ export default function RegisterPage() {
         return (
         <form onSubmit={(e) => {
           e.preventDefault();
+
+          // The HOA requires current rabies + vaccination records for every pet,
+          // so don't let the guest past this step (or pay the fee) without them.
+          const missing: Record<string, string> = {};
+          (hasPets ? pets : []).forEach((pet, index) => {
+            if (!pet.name.trim()) return;
+            if (!pet.rabies_doc_path) missing[`${index}-rabies`] = "Required — please upload the rabies certificate.";
+            if (!pet.vaccination_doc_path) missing[`${index}-vaccination`] = "Required — please upload the vaccination records.";
+          });
+          if (Object.keys(missing).length > 0) {
+            setUploadErrors((prev) => ({ ...prev, ...missing }));
+            return;
+          }
+
           if (petFeeDue) {
             // Can't proceed — the stay's pet fee needs payment
             checkPetFeeAndProceed(pets, () => setStep(5));
@@ -1269,7 +1316,7 @@ export default function RegisterPage() {
                               <span className="text-sm text-muted-foreground">
                                 {uploadingDoc === `${index}-rabies` ? "Uploading..." : "Upload PDF or image"}
                               </span>
-                              <input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" className="hidden"
+                              <input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,.heic,.heif,image/heic,image/heif" className="hidden"
                                 disabled={uploadingDoc !== null}
                                 onChange={(e) => {
                                   const f = e.target.files?.[0];
@@ -1277,6 +1324,11 @@ export default function RegisterPage() {
                                   e.target.value = "";
                                 }} />
                             </label>
+                          )}
+                          {uploadErrors[`${index}-rabies`] && (
+                            <p className="flex items-center gap-1.5 rounded-md bg-destructive/10 px-2.5 py-1.5 text-sm text-destructive">
+                              <CircleAlert className="h-4 w-4 shrink-0" /> {uploadErrors[`${index}-rabies`]}
+                            </p>
                           )}
                         </div>
 
@@ -1301,7 +1353,7 @@ export default function RegisterPage() {
                               <span className="text-sm text-muted-foreground">
                                 {uploadingDoc === `${index}-vaccination` ? "Uploading..." : "Upload PDF or image"}
                               </span>
-                              <input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" className="hidden"
+                              <input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,.heic,.heif,image/heic,image/heif" className="hidden"
                                 disabled={uploadingDoc !== null}
                                 onChange={(e) => {
                                   const f = e.target.files?.[0];
@@ -1309,6 +1361,11 @@ export default function RegisterPage() {
                                   e.target.value = "";
                                 }} />
                             </label>
+                          )}
+                          {uploadErrors[`${index}-vaccination`] && (
+                            <p className="flex items-center gap-1.5 rounded-md bg-destructive/10 px-2.5 py-1.5 text-sm text-destructive">
+                              <CircleAlert className="h-4 w-4 shrink-0" /> {uploadErrors[`${index}-vaccination`]}
+                            </p>
                           )}
                         </div>
                       </div>

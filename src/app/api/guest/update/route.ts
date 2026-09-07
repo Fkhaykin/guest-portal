@@ -124,8 +124,10 @@ export async function POST(request: Request) {
     });
   } else if (section === "pets" && body.pets) {
     const validPets = body.pets.filter((p) => p.name.trim());
-    const prevPets = reg.pets as Array<{ name: string; kind: string }> | null ?? [];
-    petCount = validPets.length;
+    const prevPets = reg.pets as Array<{
+      name: string; kind: string;
+      rabies_doc_path?: string | null; vaccination_doc_path?: string | null;
+    }> | null ?? [];
 
     await supabase
       .from("registration")
@@ -142,9 +144,30 @@ export async function POST(request: Request) {
     const added = validPets.filter((p) => !prevPets.some((prev) => prev.name === p.name.trim()));
     const removed = prevPets.filter((prev) => !validPets.some((p) => p.name.trim() === prev.name));
 
-    const parts: string[] = [`Pet list changed from ${prevPets.length} to ${validPets.length} pet(s)`];
-    if (added.length) parts.push(`Added: ${added.map((p) => `${p.name.trim()} (${p.kind.trim()})`).join(", ")}`);
-    if (removed.length) parts.push(`Removed: ${removed.map((p) => `${p.name} (${p.kind})`).join(", ")}`);
+    // Only a genuinely new pet is worth texting the cleaners about — guests can
+    // also come back here just to upload the paperwork for a pet they already
+    // registered, and that shouldn't read as "pet added".
+    petCount = added.length > 0 ? validPets.length : 0;
+
+    // Paperwork supplied or replaced for a pet that was already registered
+    const docChanges: string[] = [];
+    for (const p of validPets) {
+      const prev = prevPets.find((x) => x.name === p.name.trim());
+      if (!prev) continue;
+      const docs: string[] = [];
+      if (p.rabies_doc_path && p.rabies_doc_path !== (prev.rabies_doc_path ?? null)) docs.push("rabies certificate");
+      if (p.vaccination_doc_path && p.vaccination_doc_path !== (prev.vaccination_doc_path ?? null)) docs.push("vaccination records");
+      if (docs.length) docChanges.push(`${p.name.trim()} (${docs.join(" + ")})`);
+    }
+
+    const parts: string[] = [];
+    if (added.length || removed.length) {
+      parts.push(`Pet list changed from ${prevPets.length} to ${validPets.length} pet(s)`);
+      if (added.length) parts.push(`Added: ${added.map((p) => `${p.name.trim()} (${p.kind.trim()})`).join(", ")}`);
+      if (removed.length) parts.push(`Removed: ${removed.map((p) => `${p.name} (${p.kind})`).join(", ")}`);
+    }
+    if (docChanges.length) parts.push(`Documents uploaded for ${docChanges.join(", ")}`);
+    if (!parts.length) parts.push("Pet details updated");
     summary = parts.join(". ");
 
     await supabase.from("registration_update_log").insert({
