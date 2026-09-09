@@ -838,9 +838,12 @@ export default function HomePage() {
             setGuestName(name);
             setReservation(res);
             saveSession(name, res, guestToken);
-            // If redirected here from an auth-required page, go back
+            // If redirected here from an auth-required page — or sent here by
+            // an automated message deep-linking into the portal — go on there.
+            // Same-origin paths only: this parameter travels in outbound guest
+            // messages, so it must not be usable to bounce anyone off-site.
             const redirect = new URLSearchParams(window.location.search).get("redirect");
-            if (redirect) {
+            if (redirect && redirect.startsWith("/") && !redirect.startsWith("//")) {
               window.history.replaceState({}, "", "/");
               window.location.href = redirect;
             }

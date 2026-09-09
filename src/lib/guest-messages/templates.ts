@@ -8,6 +8,7 @@ export type GuestMessageType =
   | "checkout_morning"
   | "post_checkout"
   | "registration_reminder"
+  | "pet_docs_reminder"
   | "booking_invoice_full"
   | "booking_invoice_deposit"
   | "booking_plan_picker";
@@ -53,6 +54,17 @@ export type TemplateVars = {
   // the guest looks up their booking and is routed from there.
   portal_link: string;
 } & Record<string, string>;
+
+/**
+ * Link straight to a section of the portal. A section page can't be opened cold
+ * (it bounces a session-less visitor back to the root), but the root lookup
+ * page forwards ?redirect= onward once the guest finds their booking — so this
+ * lands them on the right page after one lookup instead of leaving them to
+ * navigate there themselves.
+ */
+export function portalSectionLink(path: string): string {
+  return `${PORTAL_URL}/?redirect=${encodeURIComponent(path)}`;
+}
 
 export type BookingInvoiceVars = {
   guest_name: string;
@@ -188,6 +200,10 @@ Summit Lakeside Rentals`,
   registration_reminder: {
     subject: "Please complete your guest registration",
     body: `Hi {{guest_name}}, your stay at {{property_name}} starts {{check_in_date}}. Please complete your guest registration to avoid delays at check-in: {{portal_link}}`,
+  },
+  pet_docs_reminder: {
+    subject: "Vaccination records still needed for {{pet_names}}",
+    body: `Hi {{guest_name}}, we still need current rabies and vaccination records for {{pet_names}} before your stay at {{property_name}} on {{check_in_date}}. The community requires them for every pet. You can upload them here: {{portal_link}}`,
   },
   booking_invoice_full: {
     subject: "Action required: payment for your stay at {{property_name}}",
@@ -377,6 +393,7 @@ export const TEMPLATE_VARIABLES: Record<GuestMessageType, string[]> = {
   checkout_morning: ["guest_name", "property_name", "check_in_date", "check_out_date", "check_in_time", "check_out_time", "portal_link"],
   post_checkout: ["guest_name", "property_name", "check_in_date", "check_out_date", "portal_link"],
   registration_reminder: ["guest_name", "property_name", "check_in_date", "check_out_date", "check_in_time", "check_out_time", "portal_link"],
+  pet_docs_reminder: ["guest_name", "property_name", "check_in_date", "check_out_date", "pet_names", "portal_link"],
   booking_invoice_full: [
     "guest_name",
     "property_name",

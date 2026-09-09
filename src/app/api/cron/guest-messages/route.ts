@@ -8,7 +8,8 @@ export const maxDuration = 300;
 // Called by Vercel cron daily at 12:00 UTC (~8am ET).
 // Sends pre-arrival (3 days out), day-of check-in + house instructions,
 // checkout-morning instructions, sentiment-gated post-checkout review
-// requests, and registration reminders. All booking sources included —
+// requests, registration reminders, and pet-vaccination-record reminders
+// for guests who deferred the paperwork. All booking sources included —
 // Lodgify-side auto-messages are turned off.
 export async function GET(request: Request) {
   const secret = process.env.CRON_SECRET?.trim();
@@ -19,12 +20,12 @@ export async function GET(request: Request) {
     }
   }
 
-  const { results, reminders } = await runMorningSends();
+  const { results, reminders, petDocReminders } = await runMorningSends();
   // Floor for the burst-freeze backstop: re-send any new-booking alert from the
   // last day that never confirmed delivery (the webhook path heals sooner).
   const reconcile = await reconcileBookingAlerts({ withinHours: 24 }).catch((err) => {
     console.error("[cron:guest-messages] alert reconcile failed:", err);
     return null;
   });
-  return NextResponse.json({ ok: true, results, reminders, reconcile });
+  return NextResponse.json({ ok: true, results, reminders, petDocReminders, reconcile });
 }

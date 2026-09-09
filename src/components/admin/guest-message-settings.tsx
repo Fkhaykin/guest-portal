@@ -62,6 +62,12 @@ const EVENT_META: Record<GuestMessageKey, { label: string; description: string; 
     description: "Sent at 10, 7, 6, 5, 4, 3, 2, and 1 days before check-in to guests who have not completed registration.",
     channel: "Lodgify message (VRBO) · Email (Direct) · SMS (when phone on file)",
   },
+  pet_docs_reminder: {
+    label: "Pet Vaccination Records Reminder",
+    description:
+      "Sent 5 and 2 days before check-in to registered guests whose pets are still missing a rabies certificate or vaccination records. Stops as soon as the records are uploaded.",
+    channel: "Lodgify message (Airbnb/VRBO) · Email (Direct) · SMS (when phone on file)",
+  },
   booking_invoice_full: {
     label: "Booking Invoice — Full Payment",
     description: "Sent when an admin creates a booking with the “Pay in full” plan. Contains the Stripe invoice link.",
@@ -100,6 +106,7 @@ function defaultSettings(): GuestMessageSettingsType {
     checkout_morning: { enabled: true, subject: TEMPLATES.checkout_morning.subject, message: TEMPLATES.checkout_morning.body },
     post_checkout: { enabled: true, subject: TEMPLATES.post_checkout.subject, message: TEMPLATES.post_checkout.body },
     registration_reminder: { enabled: true, subject: TEMPLATES.registration_reminder.subject, message: TEMPLATES.registration_reminder.body },
+    pet_docs_reminder: { enabled: true, subject: TEMPLATES.pet_docs_reminder.subject, message: TEMPLATES.pet_docs_reminder.body },
     booking_invoice_full: { enabled: true, subject: TEMPLATES.booking_invoice_full.subject, message: TEMPLATES.booking_invoice_full.body },
     booking_invoice_deposit: { enabled: true, subject: TEMPLATES.booking_invoice_deposit.subject, message: TEMPLATES.booking_invoice_deposit.body },
     booking_plan_picker: { enabled: true, subject: TEMPLATES.booking_plan_picker.subject, message: TEMPLATES.booking_plan_picker.body },

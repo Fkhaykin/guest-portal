@@ -143,6 +143,7 @@ export type GuestMessageSettings = {
   checkout_morning: GuestMessageEvent;
   post_checkout: GuestMessageEvent;
   registration_reminder: GuestMessageEvent;
+  pet_docs_reminder: GuestMessageEvent;
   booking_invoice_full: GuestMessageEvent;
   booking_invoice_deposit: GuestMessageEvent;
   booking_plan_picker: GuestMessageEvent;

@@ -5,11 +5,12 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendGuestAutomatedMessage, sendHouseCheckinInstructions } from "@/lib/guest-messages/send";
 import { sendRegistrationReminder, REMINDER_DAYS, type ReminderDay } from "@/lib/guest-messages/reminders";
+import { sendPetDocReminder, petsMissingDocs, PET_DOC_REMINDER_DAYS, type PetDocReminderDay } from "@/lib/guest-messages/pet-doc-reminders";
 import { shouldRequestReview } from "@/lib/guest-messages/sentiment";
 import { lateCheckoutAvailability, hostPropertyIds, type TimingOverride } from "@/lib/upsells/availability";
 import { channelForBookingSource } from "@/lib/guest-messages/templates";
 import type { GuestMessageType } from "@/lib/guest-messages/templates";
-import type { UpsellEntry } from "@/types/database";
+import type { PetEntry, UpsellEntry } from "@/types/database";
 
 type BookingRow = {
   id: string;
@@ -225,7 +226,8 @@ export async function runMorningSends() {
     });
 
   const reminders = await runRegistrationReminders();
-  return { results, reminders };
+  const petDocReminders = await runPetDocReminders();
+  return { results, reminders, petDocReminders };
 }
 
 /**
@@ -352,4 +354,81 @@ async function runRegistrationReminders() {
   }
 
   return reminderResults;
+}
+
+type PetDocRow = {
+  id: string;
+  lodgify_booking_id: number | null;
+  booking_source: string | null;
+  check_in_date: string;
+  check_out_date: string;
+  pets: PetEntry[] | null;
+  guest: { full_name: string; email: string | null; phone: string | null };
+  property: { name: string; slug: string; nickname: string | null; host_id: string };
+};
+
+/**
+ * Chase the pet paperwork guests deferred at registration. Only targets guests
+ * who have actually registered — anyone who hasn't is still getting the
+ * registration reminder, and that ask comes first.
+ */
+export async function runPetDocReminders() {
+  const supabase = createAdminClient();
+  const petResults: Record<string, BatchResult> = {};
+
+  for (const days of PET_DOC_REMINDER_DAYS) {
+    const targetDate = offsetDate(days);
+    const { data: rows, error } = await supabase
+      .from("registration")
+      .select("id, lodgify_booking_id, booking_source, check_in_date, check_out_date, pets, guest:guest_id(full_name, email, phone), property:property_id(name, slug, nickname, host_id)")
+      .eq("check_in_date", targetDate)
+      .eq("status", "active")
+      .not("signature_url", "is", null);
+
+    if (error) {
+      console.error(`[pet-doc-cron] Query failed for d${days}:`, error);
+      petResults[`d${days}`] = { sent: 0, skipped: 0, errors: 1 };
+      continue;
+    }
+
+    let sent = 0, skipped = 0, errors = 0;
+
+    for (const row of (rows ?? []) as unknown as PetDocRow[]) {
+      const property = Array.isArray(row.property) ? row.property[0] : row.property;
+      const guest = Array.isArray(row.guest) ? row.guest[0] : row.guest;
+      if (!property || !guest) { skipped++; continue; }
+      if (/^owner block/i.test(guest.full_name ?? "")) { skipped++; continue; }
+
+      // Nothing outstanding — the records arrived, so stop chasing.
+      const missing = petsMissingDocs(row.pets);
+      if (missing.length === 0) { skipped++; continue; }
+
+      try {
+        const result = await sendPetDocReminder({
+          registrationId: row.id,
+          lodgifyBookingId: row.lodgify_booking_id,
+          daysUntilCheckin: days as PetDocReminderDay,
+          bookingSource: row.booking_source,
+          guestName: guest.full_name,
+          guestEmail: guest.email,
+          guestPhone: guest.phone,
+          propertyName: property.nickname || property.name,
+          propertySlug: property.slug,
+          checkInDate: row.check_in_date,
+          checkOutDate: row.check_out_date,
+          hostId: property.host_id,
+          pets: missing,
+        });
+        if (result === "sent") sent++;
+        else skipped++;
+      } catch (err) {
+        console.error(`[pet-doc-cron] Error sending d${days} for ${row.id}:`, err);
+        errors++;
+      }
+    }
+
+    petResults[`d${days}`] = { sent, skipped, errors };
+  }
+
+  return petResults;
 }
