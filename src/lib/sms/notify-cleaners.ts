@@ -7,6 +7,7 @@ import {
   confirmBookingAlert,
   releaseBookingAlert,
 } from "@/lib/notifications/booking-alert-claim";
+import { formatStreetAddress } from "@/lib/format-address";
 import type { NotificationSettings, NotificationEventKey } from "@/types/database";
 
 /** Returns true when the message was accepted by the SMS provider. */
@@ -65,15 +66,6 @@ function renderTemplate(
   return template.replace(/\{\{(\w+)\}\}/g, (_, key) => vars[key] ?? `{{${key}}}`);
 }
 
-// "Lakeside Drive, 475, East Stroudsburg, PA, 18301" → "475 Lakeside Drive"
-function formatAddress(raw: string): string {
-  const parts = raw.split(",").map((s) => s.trim()).filter(Boolean);
-  if (parts.length >= 2 && /^\d+$/.test(parts[1])) {
-    return `${parts[1]} ${parts[0]}`;
-  }
-  return parts[0] || raw;
-}
-
 function managerOrigin(): string {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "";
   if (!appUrl) return "";
@@ -128,7 +120,7 @@ async function getEventSettings(
   return {
     messageTemplate: event.message,
     propertyName: property.nickname || property.name,
-    propertyAddress: rawAddress ? formatAddress(rawAddress) : "",
+    propertyAddress: formatStreetAddress(rawAddress),
     hostId: property.host_id,
   };
 }

@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { validateCleanerSession } from "@/lib/cleaner/auth";
 import { getSessionToken } from "@/lib/cleaner/session";
 import { maskGuestName } from "@/lib/cleaner/format";
+import { formatFullAddress } from "@/lib/format-address";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -61,7 +62,9 @@ export default async function ReservationDetailPage({ params }: { params: { id: 
           actions={
             <div className="text-right">
               <p className="text-sm font-medium">{property?.name ?? "Unknown property"}</p>
-              {property?.address && <p className="text-xs text-muted-foreground">{property.address}</p>}
+              {property?.address && (
+                <p className="text-xs text-muted-foreground">{formatFullAddress(property.address)}</p>
+              )}
             </div>
           }
         />

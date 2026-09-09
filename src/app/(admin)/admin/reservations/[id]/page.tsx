@@ -23,6 +23,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import { formatFullAddress } from "@/lib/format-address";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -1445,7 +1446,7 @@ export default function ReservationDetailPage() {
               <CardContent className="space-y-2 text-sm">
                 <Row label="Name" value={property?.name ?? "—"} />
                 {property?.nickname && <Row label="Nickname" value={property.nickname} />}
-                <Row label="Address" value={property?.address ?? "—"} />
+                <Row label="Address" value={property?.address ? formatFullAddress(property.address) : "—"} />
                 <Row label="Max guests" value={String(property?.max_guests ?? "—")} />
                 {property?.owner_name && <Row label="Owner" value={property.owner_name} />}
                 {property?.owner_phone && <Row label="Owner phone" value={property.owner_phone} />}

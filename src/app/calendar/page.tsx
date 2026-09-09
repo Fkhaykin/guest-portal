@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { ServiceCalendar } from "@/components/calendar/service-calendar";
 import { HouseSwitcher } from "@/components/calendar/house-switcher";
 import { STANDARD_CHECKIN_TIME, STANDARD_CHECKOUT_TIME } from "@/lib/upsells/timing";
+import { splitAddress } from "@/lib/format-address";
 
 // Curated exterior shots (the stored cover images are mostly interiors), keyed
 // by house key. Houses absent here fall back to their cover image.
@@ -49,23 +50,6 @@ function parseHouseIndex(sp: SearchParams): number {
 
 const prettify = (s: string) =>
   s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
-
-// Addresses are stored street-name-first ("Lakeside Drive, 484, East
-// Stroudsburg, Pennsylvania, 18301"). Reorder to a clean street line plus a
-// locality line. Falls back to the raw string if it doesn't parse.
-function formatAddress(address: string | null): { line1: string; line2: string | null } | null {
-  if (!address) return null;
-  const parts = address.split(",").map((p) => p.trim()).filter(Boolean);
-  if (parts.length === 0) return null;
-  let street = parts[0];
-  let rest = parts.slice(1);
-  // Leading "Street, Number" → "Number Street".
-  if (parts.length > 1 && /^\d+$/.test(parts[1])) {
-    street = `${parts[1]} ${parts[0]}`;
-    rest = parts.slice(2);
-  }
-  return { line1: street, line2: rest.length ? rest.join(", ") : null };
-}
 
 function todayStr() {
   const d = new Date();
@@ -148,13 +132,13 @@ export default async function ServiceCalendarPage({
     }
   }
 
-  const address = formatAddress(house.address);
+  const address = splitAddress(house.address);
   const photo = EXTERIOR_PHOTOS[house.key] ?? house.coverImage;
 
   // Dropdown options — label each house by its street address (nickname fallback).
   const houseOptions = houses.map((h, i) => ({
     index: i + 1,
-    label: formatAddress(h.address)?.line1 ?? h.label,
+    label: splitAddress(h.address)?.line1 ?? h.label,
   }));
 
   return (

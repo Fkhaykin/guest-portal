@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { MapPin, Wifi } from "lucide-react";
 import type { KioskData, KioskWeatherCurrent } from "./types";
 import { useNow } from "./ui";
+import { formatFullAddress } from "@/lib/format-address";
 
 const SLIDE_MS = 9000;
 const WX_REFRESH_MS = 10 * 60 * 1000;
@@ -21,21 +22,6 @@ function wifiQrPayload(ssid: string, password: string | null): string {
 function weekdayShort(dateStr: string, today: string): string {
   if (dateStr === today) return "Today";
   return new Date(dateStr + "T00:00:00").toLocaleDateString("en-US", { weekday: "short" });
-}
-
-const STATE_ABBR: Record<string, string> = {
-  Pennsylvania: "PA",
-  "New Jersey": "NJ",
-  "New York": "NY",
-};
-
-// Stored as "Street, Number, City, State, Zip" — render as a normal US address.
-function formatAddress(raw: string): string {
-  const p = raw.split(",").map((s) => s.trim()).filter(Boolean);
-  if (p.length === 5 && /^\d+$/.test(p[1])) {
-    return `${p[1]} ${p[0]}, ${p[2]}, ${STATE_ABBR[p[3]] ?? p[3]} ${p[4]}`;
-  }
-  return raw;
 }
 
 export function AttractScreen({
@@ -252,7 +238,7 @@ export function AttractScreen({
               </p>
               <p className="mt-1.5 flex items-center justify-end gap-2 text-lg font-semibold text-white/90 lg:text-xl">
                 <MapPin className="h-5 w-5 shrink-0 text-white/60" />
-                {formatAddress(data.property.address)}
+                {formatFullAddress(data.property.address)}
               </p>
             </div>
           )}

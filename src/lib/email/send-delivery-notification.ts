@@ -1,4 +1,5 @@
 import { Resend } from "resend";
+import { formatFullAddress } from "@/lib/format-address";
 
 function getResend() {
   return new Resend(process.env.RESEND_API_KEY);
@@ -45,6 +46,8 @@ export async function sendDeliveryNotification({
     cc.push(ownerEmail);
   }
 
+  const prettyAddress = formatFullAddress(propertyAddress);
+
   const typeLabel = category === "rideshare" ? "car service" : "delivery";
   const formattedDate = new Date(arrivalDate + "T00:00:00").toLocaleDateString(
     "en-US",
@@ -69,7 +72,7 @@ export async function sendDeliveryNotification({
     "",
     `We have a ${quantity} ${typeLabel} from ${provider} on ${formattedDate}. Please register and allow them through.`,
     "",
-    ...(propertyAddress ? [`Property Address: ${propertyAddress}`] : []),
+    ...(prettyAddress ? [`Property Address: ${prettyAddress}`] : []),
     ...(isBML ? [] : [`Lot/Section: ${lotSection}`]),
     `House Password: ${housePassword}`,
     "",

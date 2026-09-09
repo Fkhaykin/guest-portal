@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { generatePEPOARegistrationPDF, type PEPOAData } from "./pepoa-registration";
 import { generateBMLCRegistrationPDF, type BMLCData } from "./bmlc-registration";
+import { formatFullAddress } from "@/lib/format-address";
 
 type RegistrationData = {
   reg: Record<string, unknown>;
@@ -62,7 +63,7 @@ export async function generateRegistrationPDF(data: RegistrationData): Promise<B
     const bmlcData: BMLCData = {
       owner: {
         full_name: (property.owner_name as string) || (host.full_name as string) || "",
-        street_address: (property.address as string) || "",
+        street_address: formatFullAddress(property.address as string),
         mailing_address: (property.owner_mailing_address as string) || "",
         phone: (property.owner_phone as string) || "",
         signature_url: (property.owner_signature_url as string) || null,
@@ -80,7 +81,7 @@ export async function generateRegistrationPDF(data: RegistrationData): Promise<B
       },
       property: {
         lot_number: (property.lot_section as string) || "",
-        rental_address: (property.address as string) || "",
+        rental_address: formatFullAddress(property.address as string),
       },
       lease_start: reg.check_in_date as string,
       lease_end: reg.check_out_date as string,

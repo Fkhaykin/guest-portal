@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { getGuestToken, setGuestToken, clearGuestToken } from "@/lib/guest-session";
 import { effectiveStayTimes } from "@/lib/upsells/timing";
+import { formatFullAddress } from "@/lib/format-address";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -291,7 +292,7 @@ function GuestDashboard({
                 daysUntil <= 7 ? (
                   <p className="flex items-start gap-1.5 mt-1 text-sm text-muted-foreground">
                     <MapPin className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-                    <span className="wrap-break-word">{reservation.property.address}</span>
+                    <span className="wrap-break-word">{formatFullAddress(reservation.property.address)}</span>
                   </p>
                 ) : (
                   <p className="flex items-center gap-1.5 mt-1 text-sm text-muted-foreground/60">
@@ -545,7 +546,7 @@ function GuestDashboard({
             <CardContent>
               {daysUntil <= 7 ? (
                 <div className="space-y-3">
-                  <p className="text-sm font-medium">{reservation.property.address}</p>
+                  <p className="text-sm font-medium">{formatFullAddress(reservation.property.address)}</p>
                   <div className="rounded-lg overflow-hidden border">
                     <iframe
                       width="100%"

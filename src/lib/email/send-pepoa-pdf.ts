@@ -1,4 +1,5 @@
 import { Resend } from "resend";
+import { formatFullAddress } from "@/lib/format-address";
 
 function getResend() {
   return new Resend(process.env.RESEND_API_KEY);
@@ -65,8 +66,10 @@ export async function sendPEPOAPDF({
   // The HOA's mail system can't search subject lines, so everything they file
   // by — the subject itself, the property address, and the lot/section — must
   // also appear in the searchable body.
+  const prettyAddress = formatFullAddress(propertyAddress);
+
   const detailLines = [
-    ...(propertyAddress ? [`Property Address: ${propertyAddress}`] : []),
+    ...(prettyAddress ? [`Property Address: ${prettyAddress}`] : []),
     ...(isBML ? [] : [`Lot/Section: ${lotSection}`]),
     `Registered Guest: ${guestName}`,
     `Check-in Date: ${checkInDate}`,
