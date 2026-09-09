@@ -54,5 +54,16 @@ export async function GET(request: Request) {
     }
   }
 
-  return NextResponse.json({ ok: errors.length === 0, snapshot_date: today, results, errors });
+  // Now that today's snapshots have been aggregated into market_pulse, drop the
+  // comp_snapshot rows nothing reads any more. The scrape adds ~159k rows a day;
+  // left unpruned it filled the database and took the project offline once.
+  let retention: unknown = null;
+  const { data: pruned, error: pruneErr } = await admin.rpc("run_daily_retention");
+  if (pruneErr) {
+    errors.push({ nickname: "retention", reason: pruneErr.message });
+  } else {
+    retention = pruned;
+  }
+
+  return NextResponse.json({ ok: errors.length === 0, snapshot_date: today, results, retention, errors });
 }
