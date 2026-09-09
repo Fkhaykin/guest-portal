@@ -86,22 +86,43 @@ export async function POST(request: Request) {
   const propertyLabel = (property?.nickname || property?.name || "").toLowerCase();
   const housePassword = propertyLabel.includes("bianca") ? "1764" : "littleleo";
 
-  // BML/BMLC properties don't use HOA delivery emails
+  // BML/BMLC properties don't use HOA delivery emails.
+  // The send must be awaited: a floating promise here gets frozen with the
+  // serverless function once the response returns, so the HOA notification
+  // silently never goes out. Persist the sent copy too, so admin Sent History
+  // can show what was mailed (and a blank preview means a real failure).
   if (property?.hoa_type !== "bmlc") {
-    sendDeliveryNotification({
-      to: hoaEmails,
-      lotSection: property?.lot_section || "N/A",
-      propertyAddress: property?.address || "",
-      category,
-      provider: provider || "Other",
-      quantity: num_cars || 1,
-      arrivalDate: arrival_date,
-      ownerName: property?.owner_name || "",
-      ownerPhone: property?.owner_phone || "",
-      ownerEmail: property?.owner_email || "",
-      housePassword,
-      hoaType: property?.hoa_type || "pepoa",
-    }).catch(() => {});
+    try {
+      const { subject, body: emailBody } = await sendDeliveryNotification({
+        to: hoaEmails,
+        lotSection: property?.lot_section || "N/A",
+        propertyAddress: property?.address || "",
+        category,
+        provider: provider || "Other",
+        quantity: num_cars || 1,
+        arrivalDate: arrival_date,
+        ownerName: property?.owner_name || "",
+        ownerPhone: property?.owner_phone || "",
+        ownerEmail: property?.owner_email || "",
+        housePassword,
+        hoaType: property?.hoa_type || "pepoa",
+      });
+
+      await supabase
+        .from("delivery_rideshare")
+        .update({
+          email_subject: subject,
+          email_body: emailBody,
+          email_recipients: hoaEmails,
+        })
+        .eq("id", record.id);
+    } catch (err) {
+      // Email failed — record is already saved, but log so it doesn't look "sent"
+      console.error(
+        `Guest delivery notification email failed for record ${record.id}:`,
+        err
+      );
+    }
   }
 
   return NextResponse.json({ ok: true, id: record.id });
