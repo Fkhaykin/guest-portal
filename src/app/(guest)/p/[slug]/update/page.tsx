@@ -9,6 +9,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Card,
@@ -170,6 +171,8 @@ export default function UpdateRegistrationPage() {
   const [existingPets, setExistingPets] = useState<PetEntry[]>([]);
   const [uploadingDocs, setUploadingDocs] = useState(false);
   const [petDocError, setPetDocError] = useState("");
+  // Guest opted to send the new pet's paperwork after adding it
+  const [addPetDocsDeferred, setAddPetDocsDeferred] = useState(false);
   // Editing a pet that's already on the registration (rename, or supply the
   // vaccination paperwork the guest didn't have at check-in time)
   const [editingPet, setEditingPet] = useState<number | null>(null);
@@ -494,9 +497,10 @@ export default function UpdateRegistrationPage() {
   async function handleAddPet() {
     if (!registrationId || !newPet.name.trim() || !newPet.kind.trim() || atPetLimit) return;
 
-    // The HOA requires both records for every pet.
-    if (!rabiesFile || !vaccinationFile) {
-      setPetDocError("Please attach both the rabies certificate and the vaccination records.");
+    // The HOA wants both records, but getting the pet registered matters more —
+    // the paperwork can follow, so let the guest opt to send it later.
+    if ((!rabiesFile || !vaccinationFile) && !addPetDocsDeferred) {
+      setPetDocError("Please attach both records, or tick the box to send them later.");
       return;
     }
 
@@ -572,6 +576,7 @@ export default function UpdateRegistrationPage() {
       setNewPet({ name: "", kind: "" });
       setRabiesFile(null);
       setVaccinationFile(null);
+      setAddPetDocsDeferred(false);
       setPetSaved(true);
       setTimeout(() => setPetSaved(false), 3000);
     }
@@ -771,7 +776,7 @@ export default function UpdateRegistrationPage() {
               <Input value={newPet.kind} onChange={(e) => setNewPet({ ...newPet, kind: e.target.value })} placeholder="Dog, Cat, etc." />
             </div>
             <div className="space-y-1">
-              <Label>Rabies Certificate *</Label>
+              <Label>Rabies Certificate</Label>
               <div className="flex items-center gap-2">
                 <label className="flex-1 flex items-center gap-2 cursor-pointer rounded-md border border-input px-3 py-2 text-sm hover:bg-accent transition-colors">
                   <Upload className="h-4 w-4 text-muted-foreground" />
@@ -784,7 +789,7 @@ export default function UpdateRegistrationPage() {
               </div>
             </div>
             <div className="space-y-1">
-              <Label>Vaccination Records *</Label>
+              <Label>Vaccination Records</Label>
               <div className="flex items-center gap-2">
                 <label className="flex-1 flex items-center gap-2 cursor-pointer rounded-md border border-input px-3 py-2 text-sm hover:bg-accent transition-colors">
                   <Upload className="h-4 w-4 text-muted-foreground" />
@@ -798,6 +803,25 @@ export default function UpdateRegistrationPage() {
             </div>
           </CardContent>
         </Card>
+
+        {(!rabiesFile || !vaccinationFile) && (
+          <label className="flex items-start gap-3 rounded-lg border p-3 cursor-pointer hover:bg-muted/40">
+            <Checkbox
+              checked={addPetDocsDeferred}
+              onCheckedChange={(checked) => {
+                setAddPetDocsDeferred(checked === true);
+                if (checked === true) setPetDocError("");
+              }}
+              className="mt-0.5"
+            />
+            <div className="space-y-0.5">
+              <p className="text-sm font-medium">I&apos;ll provide the vaccination records later</p>
+              <p className="text-xs text-muted-foreground">
+                Add your pet now and upload the paperwork any time before check-in.
+              </p>
+            </div>
+          </label>
+        )}
 
         {petSaved && (
           <div className="flex items-center gap-2 text-sm text-success">

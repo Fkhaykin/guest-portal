@@ -171,6 +171,7 @@ function saveRegistrationProgress(data: {
   usingRentalCar?: boolean;
   needsHighchair?: boolean;
   needsPackNPlay?: boolean;
+  petDocsDeferred?: boolean;
 }) {
   try {
     sessionStorage.setItem(REG_KEY, JSON.stringify(data));
@@ -241,6 +242,9 @@ export default function RegisterPage() {
   const [uploadingDoc, setUploadingDoc] = useState<string | null>(null);
   // Upload failures, keyed by `${petIndex}-${docType}` so each slot shows its own
   const [uploadErrors, setUploadErrors] = useState<Record<string, string>>({});
+  // Guest opted to send the vaccination paperwork after registering
+  const [petDocsDeferred, setPetDocsDeferred] = useState(false);
+  const [petDocsPrompt, setPetDocsPrompt] = useState(false);
   const [notes, setNotes] = useState("");
   const [hasScrolledTerms, setHasScrolledTerms] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
@@ -307,6 +311,7 @@ export default function RegisterPage() {
       setGuests(progress.guests || [splitName(s.guestName)]);
       setHasPets(progress.hasPets || false);
       setPets(progress.pets || []);
+      setPetDocsDeferred(!!progress.petDocsDeferred);
       setNotes(progress.notes || "");
       setVehicles(progress.vehicles || []);
       setUsingRentalCar(progress.usingRentalCar || false);
@@ -354,8 +359,8 @@ export default function RegisterPage() {
   // Persist progress on changes
   useEffect(() => {
     if (!loaded || !session) return;
-    saveRegistrationProgress({ registrationId: session.reservation.id, step, fullName, email, phone, address, guests, hasPets, pets, notes, vehicles, usingRentalCar, needsHighchair, needsPackNPlay });
-  }, [session, step, fullName, email, phone, address, guests, hasPets, pets, notes, vehicles, usingRentalCar, needsHighchair, needsPackNPlay, loaded]);
+    saveRegistrationProgress({ registrationId: session.reservation.id, step, fullName, email, phone, address, guests, hasPets, pets, notes, vehicles, usingRentalCar, needsHighchair, needsPackNPlay, petDocsDeferred });
+  }, [session, step, fullName, email, phone, address, guests, hasPets, pets, notes, vehicles, usingRentalCar, needsHighchair, needsPackNPlay, petDocsDeferred, loaded]);
 
   // Start each step at the top — steps are long enough to leave the user mid-scroll
   useEffect(() => {
@@ -459,7 +464,7 @@ export default function RegisterPage() {
     }
     setPetFeeLoading(true);
     // Save current state before redirect
-    saveRegistrationProgress({ registrationId: session.reservation.id, step: 4, fullName, email, phone, address, guests, hasPets: true, pets: petsList, notes, vehicles, usingRentalCar });
+    saveRegistrationProgress({ registrationId: session.reservation.id, step: 4, fullName, email, phone, address, guests, hasPets: true, pets: petsList, notes, vehicles, usingRentalCar, petDocsDeferred });
     backupForStripeRedirect();
 
     try {
@@ -515,7 +520,7 @@ export default function RegisterPage() {
       if (res.ok) {
         const data = await res.json();
         if (data.url) {
-          saveRegistrationProgress({ registrationId: session!.reservation.id, step: 6, fullName, email, phone, address, guests, hasPets, pets, notes, vehicles, usingRentalCar, needsHighchair, needsPackNPlay });
+          saveRegistrationProgress({ registrationId: session!.reservation.id, step: 6, fullName, email, phone, address, guests, hasPets, pets, notes, vehicles, usingRentalCar, needsHighchair, needsPackNPlay, petDocsDeferred });
           backupForStripeRedirect();
           window.location.href = data.url;
         }
@@ -1197,21 +1202,20 @@ export default function RegisterPage() {
         const validPets = pets.filter((p) => p.name.trim());
         // Flat fee: one charge per stay covers up to 3 pets
         const petFeeDue = hasPets && validPets.length > 0 && lodgifyNumPets === 0 && !petFeePaid && petFeeCents > 0;
+        const petsMissingDocs = hasPets
+          ? validPets.filter((p) => !p.rabies_doc_path || !p.vaccination_doc_path)
+          : [];
 
         return (
         <form onSubmit={(e) => {
           e.preventDefault();
 
-          // The HOA requires current rabies + vaccination records for every pet,
-          // so don't let the guest past this step (or pay the fee) without them.
-          const missing: Record<string, string> = {};
-          (hasPets ? pets : []).forEach((pet, index) => {
-            if (!pet.name.trim()) return;
-            if (!pet.rabies_doc_path) missing[`${index}-rabies`] = "Required — please upload the rabies certificate.";
-            if (!pet.vaccination_doc_path) missing[`${index}-vaccination`] = "Required — please upload the vaccination records.";
-          });
-          if (Object.keys(missing).length > 0) {
-            setUploadErrors((prev) => ({ ...prev, ...missing }));
+          // The HOA wants current rabies + vaccination records for every pet, but
+          // completing the registration matters more than collecting them now —
+          // a guest who can't finish risks a late fee, and the paperwork can
+          // follow. Ask once, then let them through if they say they'll send it.
+          if (petsMissingDocs.length > 0 && !petDocsDeferred) {
+            setPetDocsPrompt(true);
             return;
           }
 
@@ -1380,6 +1384,34 @@ export default function RegisterPage() {
                     </Button>
                   ) : (
                     <p className="text-xs text-muted-foreground">Maximum of 3 pets per stay.</p>
+                  )}
+
+                  {petsMissingDocs.length > 0 && (
+                    <div className="space-y-2">
+                      <label className="flex items-start gap-3 rounded-lg border p-3 cursor-pointer hover:bg-muted/40">
+                        <Checkbox
+                          checked={petDocsDeferred}
+                          onCheckedChange={(checked) => {
+                            setPetDocsDeferred(checked === true);
+                            if (checked === true) setPetDocsPrompt(false);
+                          }}
+                          className="mt-0.5"
+                        />
+                        <div className="space-y-0.5">
+                          <p className="text-sm font-medium">I&apos;ll provide the vaccination records later</p>
+                          <p className="text-xs text-muted-foreground">
+                            No problem — finish your registration now. You can upload them any time
+                            before check-in from Manage Your Stay.
+                          </p>
+                        </div>
+                      </label>
+                      {petDocsPrompt && (
+                        <p className="flex items-center gap-1.5 rounded-md bg-destructive/10 px-2.5 py-1.5 text-sm text-destructive">
+                          <CircleAlert className="h-4 w-4 shrink-0" />
+                          Please upload the records above, or tick the box to send them later.
+                        </p>
+                      )}
+                    </div>
                   )}
                 </div>
               )}
