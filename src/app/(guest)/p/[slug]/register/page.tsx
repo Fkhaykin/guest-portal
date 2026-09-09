@@ -1401,7 +1401,7 @@ export default function RegisterPage() {
                           <p className="text-sm font-medium">I&apos;ll provide the vaccination records later</p>
                           <p className="text-xs text-muted-foreground">
                             No problem — finish your registration now. You can upload them any time
-                            before check-in from Manage Your Stay.
+                            before check-in from Manage Your Stay, and we&apos;ll send you a reminder.
                           </p>
                         </div>
                       </label>
